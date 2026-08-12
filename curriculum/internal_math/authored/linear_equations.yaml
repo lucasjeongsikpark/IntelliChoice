@@ -271,6 +271,137 @@ templates:
   option_c: '15'
   option_d: '20'
   correct_option: a
+- question_template_id: authored-linear_equations-d3-8455300
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - forgot_to_isolate_constant
+  - collected_terms_incorrectly
+  - arithmetic_error_in_subtraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A clothing store offers two different deals on a winter jacket. Deal A costs $40 minus a discount
+    of $3 for each coupon you bring. Deal B costs $16 plus $1 for each coupon you bring. For how many
+    coupons will both deals cost the same amount?
+  context_block: null
+  answer_expression: 40 - 3*x = 16 + x
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the cost of each deal if you bring x coupons.
+  - Deal A costs 40 - 3x and Deal B costs 16 + x. You want to find when those are equal.
+  - Move all the x terms to one side and all the numbers to the other, then solve.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an equation where Deal A's cost equals Deal B's cost.
+      expression: 40 - 3x = 16 + x
+      common_mistake: null
+    - step_number: 2
+      explanation: Add 3x to both sides to collect all x terms on the right side.
+      expression: 40 = 16 + x + 3x
+      common_mistake: null
+    - step_number: 3
+      explanation: Combine the x terms on the right side.
+      expression: 40 = 16 + 4x
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 16 from both sides to isolate the term with x.
+      expression: 24 = 4x
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 4 to solve for x.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 coupons
+  random_seed: 8455300
+  rendered_question: A clothing store offers two different deals on a winter jacket. Deal A costs $40
+    minus a discount of $3 for each coupon you bring. Deal B costs $16 plus $1 for each coupon you bring.
+    For how many coupons will both deals cost the same amount?
+  option_a: 3 coupons
+  option_b: 8 coupons
+  option_c: 6 coupons
+  option_d: 12 coupons
+  correct_option: c
+- question_template_id: authored-linear_equations-d3-8465300
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - ignored_negative_rate
+  - added_rates_instead_of_collecting
+  - stopped_before_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maya and Leo each have savings accounts. Maya starts with $100 and withdraws $3 every week. Leo
+    starts with $40 and deposits $2 every week. After how many weeks will both accounts have the same
+    balance?
+  context_block: null
+  answer_expression: 100 - 3*x = 40 + 2*x
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for each person's balance after x weeks.
+  - Maya has 100 - 3x dollars and Leo has 40 + 2x dollars. When are they equal?
+  - Move all the x terms to one side and all the numbers to the other, then divide.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for each account's balance after x weeks.
+      expression: 'Maya: 100 - 3x; Leo: 40 + 2x'
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the two expressions equal because we need their balances to be the same.
+      expression: 100 - 3x = 40 + 2x
+      common_mistake: null
+    - step_number: 3
+      explanation: Add 3x to both sides to move the x term from the left side to the right.
+      expression: 100 = 40 + 2x + 3x
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine like terms on the right side.
+      expression: 100 = 40 + 5x
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 40 from both sides to isolate the x term.
+      expression: 60 = 5x
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 5 to solve for x.
+      expression: x = 12
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Check: After 12 weeks, Maya has 100 - 3(12) = 64 dollars and Leo has 40 + 2(12) =
+        64 dollars. ✓'
+      expression: 64 = 64
+      common_mistake: null
+    final_answer: 12 weeks
+  random_seed: 8465300
+  rendered_question: Maya and Leo each have savings accounts. Maya starts with $100 and withdraws $3 every
+    week. Leo starts with $40 and deposits $2 every week. After how many weeks will both accounts have
+    the same balance?
+  option_a: 20 weeks
+  option_b: 30 weeks
+  option_c: 8 weeks
+  option_d: 12 weeks
+  correct_option: d
 - question_template_id: authored-linear_equations-d4-1505400
   topic_id: linear_equations
   skill_id: linear_both_sides
@@ -411,6 +542,74 @@ templates:
   option_c: 4 turns
   option_d: 5 turns
   correct_option: b
+- question_template_id: authored-linear_equations-d4-8465400
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - incorrect_variable_combination
+  - ignored_starting_amount
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: 'Two friends are collecting trading cards. Maya collects cards by buying starter packs: she gets
+    12 cards upfront and then buys 5 new cards each week. Sofia trades for cards: she starts with 30 cards
+    and trades to get 2 new cards each week. After how many weeks will they have collected the same number
+    of cards?'
+  context_block: null
+  answer_expression: 5*x + 12 = 2*x + 30
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for each friend's total cards after x weeks.
+  - Maya has 12 + 5x cards and Sofia has 30 + 2x cards. When are those equal?
+  - Move all the x terms to one side and the numbers to the other, then divide.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya's total after x weeks is her 12 starting cards plus 5 cards per week. Sofia's
+        total is her 30 starting cards plus 2 cards per week.
+      expression: 'Maya''s cards: 12 + 5x; Sofia''s cards: 30 + 2x'
+      common_mistake: null
+    - step_number: 2
+      explanation: To find when they have the same number of cards, set the two expressions equal.
+      expression: 12 + 5x = 30 + 2x
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 2x from both sides to collect all x terms on the left.
+      expression: 12 + 3x = 30
+      common_mistake: Adding 2x instead of subtracting it
+    - step_number: 4
+      explanation: Subtract 12 from both sides to isolate the term with x.
+      expression: 3x = 18
+      common_mistake: Adding 12 instead of subtracting it
+    - step_number: 5
+      explanation: Divide both sides by 3 to find x.
+      expression: x = 6
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Check: Maya has 12 + 5(6) = 42 cards. Sofia has 30 + 2(6) = 42 cards. They match.'
+      expression: 42 = 42 ✓
+      common_mistake: null
+    final_answer: 6 weeks
+  random_seed: 8465400
+  rendered_question: 'Two friends are collecting trading cards. Maya collects cards by buying starter
+    packs: she gets 12 cards upfront and then buys 5 new cards each week. Sofia trades for cards: she
+    starts with 30 cards and trades to get 2 new cards each week. After how many weeks will they have
+    collected the same number of cards?'
+  option_a: 6 weeks
+  option_b: 18 weeks
+  option_c: 5 weeks
+  option_d: 9 weeks
+  correct_option: a
 - question_template_id: authored-linear_equations-d4-9400001
   topic_id: linear_equations
   skill_id: linear_both_sides
@@ -797,6 +996,69 @@ templates:
   option_c: '6'
   option_d: '5'
   correct_option: c
+- question_template_id: authored-linear_equations-d5-246500
+  topic_id: linear_equations
+  skill_id: linear_distribute
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - distributed_only_the_first_term
+  - ignored_additional_items
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Marcus buys 3 identical packages of stationery. Each package contains n notebooks plus 4 loose
+    sheets of paper. He also receives 12 additional loose sheets separately. His total is 42 items. How
+    many notebooks are in each package?
+  context_block: null
+  answer_expression: 3*(n + 4) + 12 = 42
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What is the total number of items in one package? Express it in terms of n.
+  - One package has n + 4 items, so three packages hold 3(n + 4) items. Add the 12 loose sheets to that
+    total.
+  - Write the equation 3(n + 4) + 12 = 42. Now multiply out the bracket before you combine.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each of the 3 packages contains n notebooks plus 4 loose sheets. Three packages hold
+        3(n + 4) items. The 12 additional loose sheets must be added.
+      expression: 3(n + 4) + 12 = 42
+      common_mistake: null
+    - step_number: 2
+      explanation: Distribute the 3 across both terms inside the bracket.
+      expression: 3n + 12 + 12 = 42
+      common_mistake: null
+    - step_number: 3
+      explanation: Combine the constant terms on the left side.
+      expression: 3n + 24 = 42
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 24 from both sides to isolate the term with n.
+      expression: 3n = 18
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 3 to find n.
+      expression: n = 6
+      common_mistake: null
+    final_answer: 6 notebooks per package
+  random_seed: 246500
+  rendered_question: Marcus buys 3 identical packages of stationery. Each package contains n notebooks
+    plus 4 loose sheets of paper. He also receives 12 additional loose sheets separately. His total is
+    42 items. How many notebooks are in each package?
+  option_a: 6 notebooks per package
+  option_b: 4 notebooks per package
+  option_c: 5 notebooks per package
+  option_d: 10 notebooks per package
+  correct_option: a
 - question_template_id: authored-linear_equations-d5-2506500
   topic_id: linear_equations
   skill_id: linear_distribute
@@ -973,6 +1235,70 @@ templates:
   option_c: '4'
   option_d: '8'
   correct_option: a
+- question_template_id: authored-linear_equations-d2-247201
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - ignored_negative_coefficient
+  - added_instead_of_subtracted
+  - divided_by_positive_instead_of_negative
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A student started a quiz with 45 points. For each wrong answer, they lost 3 points. They finished
+    with 21 points. How many questions did they answer incorrectly?
+  context_block: null
+  answer_expression: -3*x + 45 = 21
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write the student's point total as an expression using the number of wrong answers.
+  - They started with 45 and lost 3 points for each wrong answer. Set that equal to 21.
+  - Subtract 45 from both sides first, then divide by -3 to find the number of wrong answers.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The student starts with 45 points and loses 3 points for each wrong answer. If x is
+        the number of wrong answers, their final score is 45 - 3x, and that equals 21.
+      expression: -3*x + 45 = 21
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 45 from both sides to isolate the term with x.
+      expression: -3*x = 21 - 45
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: -3*x = -24
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by -3. A negative divided by a negative is positive.
+      expression: x = -24 / -3
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the division.
+      expression: x = 8
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Check: If 8 questions were wrong, the score is 45 - 3(8) = 45 - 24 = 21. ✓'
+      expression: 45 - 3(8) = 21
+      common_mistake: null
+    final_answer: 8 wrong answers
+  random_seed: 247201
+  rendered_question: A student started a quiz with 45 points. For each wrong answer, they lost 3 points.
+    They finished with 21 points. How many questions did they answer incorrectly?
+  option_a: 14 wrong answers
+  option_b: 8 wrong answers
+  option_c: 24 wrong answers
+  option_d: 7 wrong answers
+  correct_option: b
 - question_template_id: authored-linear_equations-d2-2607200
   topic_id: linear_equations
   skill_id: linear_neg_frac_coeff
@@ -1094,6 +1420,126 @@ templates:
   option_c: '8'
   option_d: '15'
   correct_option: b
+- question_template_id: authored-linear_equations-d2-8457200
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_instead_of_subtracted
+  - failed_to_isolate_variable_term
+  - mishandled_negative_coefficient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A container of hot water starts at 60°C. It cools by 4°C every hour. How many hours until the
+    water reaches 12°C?
+  context_block: null
+  answer_expression: 60 - 4*x = 12
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write the temperature of the water after x hours as an expression.
+  - The temperature drops by 4°C each hour, so after x hours it is 60 - 4x. This must equal 12.
+  - Subtract 60 from both sides to isolate the term with x, then divide by the coefficient.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the equation: the starting temperature is 60°C, it loses 4°C per hour over x
+        hours, and the final temperature is 12°C.'
+      expression: 60 - 4*x = 12
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 60 from both sides to move the constant term to the right.
+      expression: 60 - 4*x - 60 = 12 - 60
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify both sides.
+      expression: -4*x = -48
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Divide both sides by -4 to solve for x. Be careful: a negative divided by a negative
+        is positive.'
+      expression: (-4*x) / (-4) = (-48) / (-4)
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify. The water reaches 12°C after 12 hours.
+      expression: x = 12
+      common_mistake: null
+    final_answer: 12 hours
+  random_seed: 8457200
+  rendered_question: A container of hot water starts at 60°C. It cools by 4°C every hour. How many hours
+    until the water reaches 12°C?
+  option_a: 19 hours
+  option_b: 12 hours
+  option_c: 18 hours
+  option_d: 8 hours
+  correct_option: b
+- question_template_id: authored-linear_equations-d2-8467200
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - divided_starting_amount_by_rate_instead_of_subtracting
+  - ignored_final_amount
+  - added_instead_of_subtracted
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A storage tank at the garden centre starts with 60 litres of water. Each minute, 5 litres drain
+    through a faulty valve. After how many minutes will exactly 20 litres remain in the tank?
+  context_block: null
+  answer_expression: 60 - 5*x = 20
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - After x minutes, how much water has drained from the tank?
+  - If 5 litres drain each minute, then 5x litres drain in total. The amount left is 60 - 5x, and that
+    must equal 20.
+  - Set up the equation 60 - 5x = 20, then solve for x by first moving the 60 to the other side.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an equation for the water remaining after x minutes. The tank starts with 60
+        litres and loses 5 litres each minute, so the amount left is 60 - 5x. This must equal 20 litres.
+      expression: 60 - 5x = 20
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 60 from both sides to collect the term with x on one side.
+      expression: 60 - 5x - 60 = 20 - 60
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify both sides.
+      expression: -5x = -40
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Divide both sides by -5 to isolate x. Note: dividing two negatives gives a positive
+        result.'
+      expression: x = -40 / -5 = 8
+      common_mistake: null
+    final_answer: 8 minutes
+  random_seed: 8467200
+  rendered_question: A storage tank at the garden centre starts with 60 litres of water. Each minute,
+    5 litres drain through a faulty valve. After how many minutes will exactly 20 litres remain in the
+    tank?
+  option_a: 4 minutes
+  option_b: 12 minutes
+  option_c: 16 minutes
+  option_d: 8 minutes
+  correct_option: d
 - question_template_id: authored-linear_equations-d2-9200001
   topic_id: linear_equations
   skill_id: linear_neg_frac_coeff
@@ -1272,6 +1718,62 @@ templates:
   option_c: '18'
   option_d: '14'
   correct_option: b
+- question_template_id: authored-linear_equations-d3-247300
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_instead_of_multiplied
+  - added_instead_of_multiplied
+  - confused_part_with_whole
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker checks the flour bin before making bread. One-quarter of the remaining flour weighs 6
+    kg. How many kilograms of flour are left in the bin?
+  context_block: null
+  answer_expression: x/4 = 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - If x is the total flour in the bin, what does x/4 represent?
+  - You have x/4 = 6, which means one-quarter of the flour is 6 kg.
+  - To undo dividing by 4, multiply both sides by 4.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the total kilograms of flour. One-quarter of the flour is x/4, and that weighs
+        6 kg.
+      expression: x/4 = 6
+      common_mistake: null
+    - step_number: 2
+      explanation: To isolate x, multiply both sides of the equation by 4.
+      expression: 4 * (x/4) = 4 * 6
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Simplify both sides: the 4 and division by 4 cancel on the left.'
+      expression: x = 24
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Verify: one-quarter of 24 is 24 ÷ 4 = 6. ✓'
+      expression: 24/4 = 6
+      common_mistake: null
+    final_answer: 24 kg
+  random_seed: 247300
+  rendered_question: A baker checks the flour bin before making bread. One-quarter of the remaining flour
+    weighs 6 kg. How many kilograms of flour are left in the bin?
+  option_a: 8 kg
+  option_b: 30 kg
+  option_c: 1.5 kg
+  option_d: 24 kg
+  correct_option: d
 - question_template_id: authored-linear_equations-d3-307300
   topic_id: linear_equations
   skill_id: linear_neg_frac_coeff
@@ -1396,6 +1898,123 @@ templates:
   option_b: -4 minutes
   option_c: 8 minutes
   option_d: 16 minutes
+  correct_option: c
+- question_template_id: authored-linear_equations-d3-8437300
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - divided_incorrectly_with_negatives
+  - ignored_starting_amount
+  - miscalculated_the_difference
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Layla starts a part-time job with $100 in savings. She spends $8 each week on supplies for her
+    hobbies. After how many weeks will she have exactly $20 left?
+  context_block: null
+  answer_expression: 100 - 8*w = 20
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how much money Layla will have spent after w weeks.
+  - She starts with 100 dollars and spends 8w dollars in total. What will be left?
+  - 'Write an equation: starting amount minus total spent equals what remains. Then solve for w.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Layla starts with $100 and spends $8 each week. After w weeks, she has spent 8w dollars.
+        The amount left is her starting amount minus what she spent.
+      expression: 100 - 8w = 20
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 100 from both sides to isolate the term with w.
+      expression: -8w = 20 - 100
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: -8w = -80
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by -8 to solve for w. Note that dividing two negative numbers gives
+        a positive result.
+      expression: w = -80 / -8 = 10
+      common_mistake: null
+    final_answer: 10 weeks
+  random_seed: 8437300
+  rendered_question: Layla starts a part-time job with $100 in savings. She spends $8 each week on supplies
+    for her hobbies. After how many weeks will she have exactly $20 left?
+  option_a: 15 weeks
+  option_b: 8 weeks
+  option_c: 12 weeks
+  option_d: 10 weeks
+  correct_option: d
+- question_template_id: authored-linear_equations-d3-8457300
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtraction_not_reversed
+  - skipped_final_division
+  - forgot_negative_sign
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Marcus has 50 trading cards. He gives 6 cards to each of his friends and has 2 cards left. How
+    many friends received cards from Marcus?
+  context_block: null
+  answer_expression: 50 - 6*x = 2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Start by writing what Marcus has left: his original cards minus the ones he gave away.'
+  - If x friends each got 6 cards, he gave away 6x cards total, leaving him with 50 - 6x = 2.
+  - Rearrange to find 6x on its own, then divide by 6.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Marcus started with 50 cards, gave 6 cards to each of x friends, and had 2 left. This
+        gives us the equation.
+      expression: 50 - 6x = 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 2 from both sides to isolate the term with x.
+      expression: 50 - 2 - 6x = 0
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the left side.
+      expression: 48 - 6x = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: Add 6x to both sides to get 6x on its own.
+      expression: 48 = 6x
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 6 to find x.
+      expression: x = 48 / 6 = 8
+      common_mistake: null
+    final_answer: 8 friends
+  random_seed: 8457300
+  rendered_question: Marcus has 50 trading cards. He gives 6 cards to each of his friends and has 2 cards
+    left. How many friends received cards from Marcus?
+  option_a: 9 friends
+  option_b: 48 friends
+  option_c: 8 friends
+  option_d: 7 friends
   correct_option: c
 - question_template_id: authored-linear_equations-d4-817400
   topic_id: linear_equations
@@ -1609,6 +2228,150 @@ templates:
   option_c: '10'
   option_d: '15'
   correct_option: a
+- question_template_id: authored-linear_equations-d4-8457400
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_adding_back
+  - skipped_subtracting_first
+  - skipped_final_multiplication
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maya has a collection of stickers. She divides them equally into 4 piles, then adds 8 more stickers
+    to her pile to decorate a poster. She now has 15 stickers for her poster. How many stickers were in
+    her original collection?
+  context_block: Maya wants to know how many stickers she started with before dividing them up.
+  answer_expression: x/4 + 8 = 15
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - After Maya divides her original collection into 4 equal piles, one pile has how many stickers as an
+    expression?
+  - One pile is x/4 stickers. She adds 8 more to this pile to get 15 total.
+  - Subtract 8 from both sides first. Then think about how to undo division by 4.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya's original collection divided into 4 equal piles means one pile contains x/4 stickers.
+        She adds 8 more stickers to one pile.
+      expression: x/4 + 8 = 15
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 8 from both sides to isolate the fractional term.
+      expression: x/4 = 15 - 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: x/4 = 7
+      common_mistake: null
+    - step_number: 4
+      explanation: To undo division by 4, multiply both sides by 4.
+      expression: x = 7 × 4
+      common_mistake: null
+    - step_number: 5
+      explanation: Compute the product.
+      expression: x = 28
+      common_mistake: null
+    final_answer: 28 stickers
+  random_seed: 8457400
+  rendered_question: 'Maya wants to know how many stickers she started with before dividing them up.
+
+
+    Maya has a collection of stickers. She divides them equally into 4 piles, then adds 8 more stickers
+    to her pile to decorate a poster. She now has 15 stickers for her poster. How many stickers were in
+    her original collection?'
+  option_a: 23 stickers
+  option_b: 28 stickers
+  option_c: 12 stickers
+  option_d: 60 stickers
+  correct_option: b
+- question_template_id: authored-linear_equations-d4-8467400
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - ignored_negative_coefficient_magnitude
+  - inverted_division_operands
+  - sign_error_when_collecting_terms
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A clothing store holds a summer sale. Jeans that originally cost $x are marked down by 3 times
+    their original price, then $24 is added back as a store credit. A competing store sells the same jeans
+    for $x less than the original price, then adds $8 in store credit. If both deals end up costing the
+    same amount, what was the original price of the jeans?
+  context_block: A clothing store holds a summer sale where two different discount models result in the
+    same final price for customers.
+  answer_expression: -3*x + 24 = -x + 8
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Write down the final price at each store: Store 1 gives you −3x + 24, and Store 2 gives you −x +
+    8. They are equal.'
+  - Get all the x terms on one side by adding 3x to both sides. You should have 24 = 2x + 8.
+  - Now subtract 8 from both sides and divide by what multiplies x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the equation from the scenario: the price at Store 1 equals the price at Store
+        2.'
+      expression: -3x + 24 = -x + 8
+      common_mistake: null
+    - step_number: 2
+      explanation: Add 3x to both sides to collect x terms on one side.
+      expression: -3x + 3x + 24 = -x + 3x + 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify both sides.
+      expression: 24 = 2x + 8
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 8 from both sides to isolate the term with x.
+      expression: 24 - 8 = 2x + 8 - 8
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify.
+      expression: 16 = 2x
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 2 to solve for x.
+      expression: x = 16 / 2
+      common_mistake: null
+    - step_number: 7
+      explanation: The original price is 8 dollars.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 dollars
+  random_seed: 8467400
+  rendered_question: 'A clothing store holds a summer sale where two different discount models result
+    in the same final price for customers.
+
+
+    A clothing store holds a summer sale. Jeans that originally cost $x are marked down by 3 times their
+    original price, then $24 is added back as a store credit. A competing store sells the same jeans for
+    $x less than the original price, then adds $8 in store credit. If both deals end up costing the same
+    amount, what was the original price of the jeans?'
+  option_a: 16 dollars
+  option_b: -4 dollars
+  option_c: 4 dollars
+  option_d: 8 dollars
+  correct_option: d
 - question_template_id: authored-linear_equations-d1-1108100
   topic_id: linear_equations
   skill_id: linear_one_step
@@ -1818,6 +2581,63 @@ templates:
   option_c: '20'
   option_d: '22'
   correct_option: b
+- question_template_id: authored-linear_equations-d1-248100
+  topic_id: linear_equations
+  skill_id: linear_one_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracted
+  - ignored_the_gift_amount
+  - confused_starting_with_final
+  - read_38_as_the_unknown
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Jordan has saved some money from doing chores. His grandmother gives him $15 for his birthday.
+    Now he has $38 total. How much money did Jordan have before his grandmother's gift?
+  context_block: Jordan is saving money from chores and receives a birthday gift.
+  answer_expression: x + 15 = 38
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Jordan starts with some amount, gets $15 more, and ends with $38. Can you write that as an equation
+    using a variable for his starting amount?
+  - 'The equation is: (starting amount) + 15 = 38. You need to find the starting amount.'
+  - Subtract 15 from both sides to undo the addition.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Set up the equation: Jordan''s starting amount plus $15 equals his final amount of
+        $38.'
+      expression: x + 15 = 38
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 15 from both sides to isolate x.
+      expression: x + 15 - 15 = 38 - 15
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify both sides.
+      expression: x = 23
+      common_mistake: null
+    final_answer: 23 dollars
+  random_seed: 248100
+  rendered_question: 'Jordan is saving money from chores and receives a birthday gift.
+
+
+    Jordan has saved some money from doing chores. His grandmother gives him $15 for his birthday. Now
+    he has $38 total. How much money did Jordan have before his grandmother''s gift?'
+  option_a: 53 dollars
+  option_b: 23 dollars
+  option_c: 15 dollars
+  option_d: 38 dollars
+  correct_option: b
 - question_template_id: authored-linear_equations-d1-2508100
   topic_id: linear_equations
   skill_id: linear_one_step
@@ -2000,6 +2820,57 @@ templates:
   option_c: '8'
   option_d: '14'
   correct_option: c
+- question_template_id: authored-linear_equations-d1-8468100
+  topic_id: linear_equations
+  skill_id: linear_one_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - subtraction_instead_of_division
+  - subtraction_before_equation_setup
+  - multiplication_instead_of_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Sarah is shopping for pencils. Each pencil costs $3, and she spends $24 total. How many pencils
+    did Sarah buy?
+  context_block: null
+  answer_expression: 3*x = 24
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - If each pencil costs $3 and Sarah buys x pencils, what is her total spending?
+  - Her total spending is 3x dollars, and that equals $24.
+  - Set up the equation 3x = 24 and divide both sides by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each pencil costs $3. If Sarah buys x pencils, her total spending is 3x dollars.
+      expression: 3x = 24
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, divide both sides of the equation by 3.
+      expression: x = 24 ÷ 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Perform the division.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 pencils
+  random_seed: 8468100
+  rendered_question: Sarah is shopping for pencils. Each pencil costs $3, and she spends $24 total. How
+    many pencils did Sarah buy?
+  option_a: 21 pencils
+  option_b: 72 pencils
+  option_c: 8 pencils
+  option_d: 6 pencils
+  correct_option: c
 - question_template_id: authored-linear_equations-d1-209100
   topic_id: linear_equations
   skill_id: linear_two_step
@@ -2113,6 +2984,135 @@ templates:
   option_c: '3'
   option_d: '4'
   correct_option: d
+- question_template_id: authored-linear_equations-d1-249100
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - skipped_final_division
+  - ignored_starting_amount
+  - added_rates_instead_of_subtracting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maya has $12 saved and earns $5 per week doing chores. She wants to buy a video game that costs
+    $52. After how many weeks will she have enough money?
+  context_block: null
+  answer_expression: 12 + 5*w = 52
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for how much money Maya has after w weeks of chores.
+  - After w weeks, she has 12 + 5w dollars total. She needs that to equal 52.
+  - Subtract 12 from both sides of the equation, then divide by 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya starts with $12 saved and earns $5 per week. After w weeks, her total money is
+        the starting amount plus the weekly earnings multiplied by the number of weeks.
+      expression: Total money after w weeks = 12 + 5w
+      common_mistake: null
+    - step_number: 2
+      explanation: She needs $52 to buy the game. Set up an equation where her total money equals $52.
+      expression: 12 + 5w = 52
+      common_mistake: null
+    - step_number: 3
+      explanation: To isolate the term with w, subtract 12 from both sides.
+      expression: 12 + 5w - 12 = 52 - 12
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify both sides.
+      expression: 5w = 40
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 5 to solve for w.
+      expression: w = 40 ÷ 5
+      common_mistake: null
+    - step_number: 6
+      explanation: Simplify.
+      expression: w = 8
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Check: After 8 weeks, Maya has 12 + 5(8) = 12 + 40 = 52 dollars. ✓'
+      expression: 12 + 5(8) = 52
+      common_mistake: null
+    final_answer: 8 weeks
+  random_seed: 249100
+  rendered_question: Maya has $12 saved and earns $5 per week doing chores. She wants to buy a video game
+    that costs $52. After how many weeks will she have enough money?
+  option_a: 8 weeks
+  option_b: 6 weeks
+  option_c: 40 weeks
+  option_d: 10 weeks
+  correct_option: a
+- question_template_id: authored-linear_equations-d1-249101
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - skipped_final_division
+  - ignored_fixed_cost
+  - divided_by_wrong_coefficient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A student buys several identical notebooks at $3 each and a pen for $4, spending $28 total. How
+    many notebooks did the student buy?
+  context_block: null
+  answer_expression: 3*x + 4 = 28
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Write an expression for the total cost: how much did the notebooks cost plus how much did the pen
+    cost?'
+  - The notebooks cost 3x dollars and the pen costs 4 dollars, so together they make 28 dollars.
+  - Subtract 4 from both sides first to isolate the term with x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the equation that represents the total cost: 3 dollars per notebook times the
+        number of notebooks, plus 4 dollars for the pen, equals 28 dollars total.'
+      expression: 3*x + 4 = 28
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 4 from both sides to undo the pen's cost and isolate the term with x.
+      expression: 3*x + 4 - 4 = 28 - 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify both sides.
+      expression: 3*x = 24
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 3 to solve for x.
+      expression: x = 24 / 3
+      common_mistake: null
+    - step_number: 5
+      explanation: The student bought 8 notebooks.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 notebooks
+  random_seed: 249101
+  rendered_question: A student buys several identical notebooks at $3 each and a pen for $4, spending
+    $28 total. How many notebooks did the student buy?
+  option_a: 8 notebooks
+  option_b: 12 notebooks
+  option_c: 24 notebooks
+  option_d: 9 notebooks
+  correct_option: a
 - question_template_id: authored-linear_equations-d1-2509100
   topic_id: linear_equations
   skill_id: linear_two_step
@@ -2287,6 +3287,129 @@ templates:
   option_c: '17'
   option_d: '21'
   correct_option: a
+- question_template_id: authored-linear_equations-d1-8439100
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_starting_amount_instead_of_subtracting
+  - divided_by_wrong_number
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Jordan is doing chores to earn money for a video game. He already has $12 saved, and he earns
+    $5 for each chore he completes. Once he reaches $52, he can buy the game. How many chores does Jordan
+    need to complete?
+  context_block: null
+  answer_expression: 5*x + 12 = 52
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for Jordan's total savings after x chores.
+  - His total is 12 + 5x, and that needs to equal 52.
+  - Subtract 12 from both sides first, then divide by 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Jordan starts with $12 and earns $5 per chore. After x chores, his total is 12 + 5x.
+        Set this equal to the goal of $52.
+      expression: 12 + 5*x = 52
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 12 from both sides to isolate the term with x.
+      expression: 5*x = 52 - 12
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: 5*x = 40
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 5 to solve for x.
+      expression: x = 40 / 5
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify to find the number of chores.
+      expression: x = 8
+      common_mistake: null
+    final_answer: '8'
+  random_seed: 8439100
+  rendered_question: Jordan is doing chores to earn money for a video game. He already has $12 saved,
+    and he earns $5 for each chore he completes. Once he reaches $52, he can buy the game. How many chores
+    does Jordan need to complete?
+  option_a: 9 chores
+  option_b: 8 chores
+  option_c: 10 chores
+  option_d: 7 chores
+  correct_option: b
+- question_template_id: authored-linear_equations-d1-8469100
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - ignored_starting_amount
+  - confused_total_with_per_chore
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maya has $15 in her piggy bank. She does chores for her neighbour and earns the same amount each
+    time. After completing 3 chores, she has $45 total. How much money does she earn per chore?
+  context_block: null
+  answer_expression: 3*m + 15 = 45
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by writing Maya's total money after the chores in terms of m, the amount she earns per chore.
+  - 'Her total is what she started with plus what she earned from 3 chores: that''s 15 + 3m, and it equals
+    45.'
+  - Set up the equation 15 + 3m = 45, then subtract 15 from both sides and divide by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya starts with $15 and completes 3 chores earning m dollars each, for a total of
+        3m dollars earned.
+      expression: 15 + 3*m = 45
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 15 from both sides to isolate the term with m.
+      expression: 3*m = 45 - 15
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: 3*m = 30
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 3 to find m.
+      expression: m = 30 / 3
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify to find the amount earned per chore.
+      expression: m = 10
+      common_mistake: null
+    final_answer: 10 dollars
+  random_seed: 8469100
+  rendered_question: Maya has $15 in her piggy bank. She does chores for her neighbour and earns the same
+    amount each time. After completing 3 chores, she has $45 total. How much money does she earn per chore?
+  option_a: 30 dollars
+  option_b: 15 dollars
+  option_c: 10 dollars
+  option_d: 8 dollars
+  correct_option: c
 - question_template_id: authored-linear_equations-d2-1109200
   topic_id: linear_equations
   skill_id: linear_two_step
@@ -2478,6 +3601,67 @@ templates:
   option_c: '5'
   option_d: '6'
   correct_option: b
+- question_template_id: authored-linear_equations-d2-249200
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - skipped_subtraction_step
+  - subtracted_but_from_wrong_quantity
+  - added_instead_of_subtracted
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Alex is buying supplies for a school project. He picks up some notebooks at $3 each and a pen
+    for $12. His total bill comes to $27. How many notebooks did Alex buy?
+  context_block: null
+  answer_expression: 3*x + 12 = 27
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Think about what Alex spends: some amount on notebooks and $12 on a pen, which adds up to $27.'
+  - 'If notebooks cost $3 each and he buys x of them, his notebook spending is 3x. Write the equation:
+    3x + 12 = 27.'
+  - Subtract 12 from both sides to isolate the term with x, then divide by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an equation for the total cost. Notebooks cost $3 each, so x notebooks cost 3x.
+        Add the $12 pen cost.
+      expression: 3*x + 12 = 27
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 12 from both sides to isolate the term with x.
+      expression: 3*x = 27 - 12
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: 3*x = 15
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 3 to solve for x.
+      expression: x = 15 / 3
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify to find the number of notebooks.
+      expression: x = 5
+      common_mistake: null
+    final_answer: 5 notebooks
+  random_seed: 249200
+  rendered_question: Alex is buying supplies for a school project. He picks up some notebooks at $3 each
+    and a pen for $12. His total bill comes to $27. How many notebooks did Alex buy?
+  option_a: 6 notebooks
+  option_b: 9 notebooks
+  option_c: 5 notebooks
+  option_d: 4 notebooks
+  correct_option: c
 - question_template_id: authored-linear_equations-d2-2609200
   topic_id: linear_equations
   skill_id: linear_two_step
@@ -2596,6 +3780,137 @@ templates:
   option_c: '75'
   option_d: '19'
   correct_option: a
+- question_template_id: authored-linear_equations-d2-8449200
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_by_wrong_number
+  - added_starting_amount_instead_of_subtracting
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Marcus has $12 saved and saves $8 each week. He wants to buy a skateboard that costs $60. After
+    how many weeks will he have enough money?
+  context_block: null
+  answer_expression: 12 + 8*w = 60
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - After w weeks, how much money will Marcus have saved in total?
+  - He starts with $12 and adds $8 each week, so he has 12 + 8w dollars. We need that amount to equal
+    $60.
+  - Write the equation 12 + 8w = 60, then subtract $12 from both sides to isolate the term with w.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Marcus starts with $12 and saves $8 each week. After w weeks, his total is 12 + 8w
+        dollars.
+      expression: Total after w weeks = 12 + 8w
+      common_mistake: null
+    - step_number: 2
+      explanation: We need his total to reach $60, so we set up the equation.
+      expression: 12 + 8w = 60
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract $12 from both sides to undo the starting amount.
+      expression: 8w = 60 - 12
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the right side.
+      expression: 8w = 48
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 8 to find w.
+      expression: w = 48 / 8
+      common_mistake: null
+    - step_number: 6
+      explanation: Simplify.
+      expression: w = 6
+      common_mistake: null
+    final_answer: 6 weeks
+  random_seed: 8449200
+  rendered_question: Marcus has $12 saved and saves $8 each week. He wants to buy a skateboard that costs
+    $60. After how many weeks will he have enough money?
+  option_a: 7 weeks
+  option_b: 5 weeks
+  option_c: 6 weeks
+  option_d: 8 weeks
+  correct_option: c
+- question_template_id: authored-linear_equations-d2-8459200
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - skipped_final_division
+  - focused_on_constant_instead_of_variable
+  - performed_addition_instead_of_subtraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maya is buying supplies for art class. She buys notebooks at $3 each and one pen for $5. Her total
+    spending is $26. How many notebooks does she buy?
+  context_block: null
+  answer_expression: 3*n + 5 = 26
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The total of $26 comes from the notebooks plus the pen. What does she spend on notebooks alone?
+  - If notebooks cost $3 each and there are n of them, the notebooks cost 3n dollars. Add the pen to get
+    3n + 5 = 26.
+  - Subtract 5 from both sides to isolate the term with n, then divide by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the total spending as an equation. Notebooks cost $3 each, and there are n of
+        them, so they cost 3n dollars. The pen costs $5. Together they equal $26.
+      expression: 3n + 5 = 26
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 5 from both sides to undo the addition and isolate the term containing n.
+      expression: 3n + 5 - 5 = 26 - 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify both sides.
+      expression: 3n = 21
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 3 to solve for n.
+      expression: n = 21 ÷ 3
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the result.
+      expression: n = 7
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Check: If Maya buys 7 notebooks at $3 each, that is $21. Adding the $5 pen gives $21
+        + $5 = $26. ✓'
+      expression: 3(7) + 5 = 21 + 5 = 26
+      common_mistake: null
+    final_answer: 7 notebooks
+  random_seed: 8459200
+  rendered_question: Maya is buying supplies for art class. She buys notebooks at $3 each and one pen
+    for $5. Her total spending is $26. How many notebooks does she buy?
+  option_a: 5 notebooks
+  option_b: 10 notebooks
+  option_c: 21 notebooks
+  option_d: 7 notebooks
+  correct_option: d
 - question_template_id: authored-linear_equations-d4-307400
   topic_id: linear_equations
   skill_id: linear_two_step
@@ -2764,6 +4079,132 @@ templates:
   option_c: 11 weeks
   option_d: 6 weeks
   correct_option: d
+- question_template_id: authored-linear_equations-d3-249300
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - ignored_final_score
+  - divided_wrong_quantity
+  - added_instead_of_subtracted
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A student is playing an online quiz. She starts with 60 points. For each wrong answer, she loses
+    5 points. She ends the quiz with 30 points. How many questions did she answer incorrectly?
+  context_block: null
+  answer_expression: 60 - 5*x = 30
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - After x wrong answers, her points will be 60 minus something. What is that something?
+  - She loses 5 points per wrong answer, so after x wrong answers, she has lost 5x points. Her total is
+    60 - 5x, and that equals 30.
+  - 'Rearrange to get 5x on one side: 60 - 30 = 5x. Now divide by 5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an equation for the student's final score. She starts with 60 points and loses
+        5 points for each wrong answer, so after x wrong answers she has 60 - 5x points. This must equal
+        30.
+      expression: 60 - 5x = 30
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 60 from both sides to isolate the term with x.
+      expression: 60 - 5x - 60 = 30 - 60
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify both sides.
+      expression: -5x = -30
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by -5 to solve for x.
+      expression: x = -30 / -5 = 6
+      common_mistake: null
+    final_answer: 6 wrong answers
+  random_seed: 249300
+  rendered_question: A student is playing an online quiz. She starts with 60 points. For each wrong answer,
+    she loses 5 points. She ends the quiz with 30 points. How many questions did she answer incorrectly?
+  option_a: 12 wrong answers
+  option_b: 54 wrong answers
+  option_c: 6 wrong answers
+  option_d: 10 wrong answers
+  correct_option: c
+- question_template_id: authored-linear_equations-d3-249301
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - ignored_the_total_starting_amount
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A video game store starts the day with 60 copies of a new game on the shelf. Four customers each
+    buy the same number of copies. After they leave, 12 copies remain. How many copies did each customer
+    buy?
+  context_block: A video game store starts the day with 60 copies of a new game on the shelf. Four customers
+    each buy the same number of copies. After they leave, 12 copies remain. How many copies did each customer
+    buy?
+  answer_expression: 60 - 4*x = 12
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - If each customer buys x copies, how many copies do all 4 customers buy altogether?
+  - The 4 customers buy 4x copies total. Starting with 60 and subtracting what was sold leaves 12.
+  - 'Set up the equation: 60 minus 4x equals 12. Now solve by undoing the subtraction first.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for how many copies were sold. If each customer buys x copies and
+        4 customers buy, then 4x copies are sold.
+      expression: 4x copies sold
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Set up the equation: copies remaining equals starting copies minus copies sold.'
+      expression: 60 - 4x = 12
+      common_mistake: null
+    - step_number: 3
+      explanation: Undo the subtraction by adding 4x to both sides.
+      expression: 60 = 12 + 4x
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 12 from both sides to isolate the term with x.
+      expression: 48 = 4x
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 4 to find x.
+      expression: x = 12
+      common_mistake: null
+    final_answer: 12 copies
+  random_seed: 249301
+  rendered_question: 'A video game store starts the day with 60 copies of a new game on the shelf. Four
+    customers each buy the same number of copies. After they leave, 12 copies remain. How many copies
+    did each customer buy?
+
+
+    A video game store starts the day with 60 copies of a new game on the shelf. Four customers each buy
+    the same number of copies. After they leave, 12 copies remain. How many copies did each customer buy?'
+  option_a: 15 copies
+  option_b: 12 copies
+  option_c: 3 copies
+  option_d: 17 copies
+  correct_option: b
 - question_template_id: authored-linear_equations-d3-2609301
   topic_id: linear_equations
   skill_id: linear_two_step
@@ -2888,3 +4329,186 @@ templates:
   option_c: 5 mornings
   option_d: 9 mornings
   correct_option: a
+- question_template_id: authored-linear_equations-d3-8439300
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_instead_of_subtracted
+  - wrong_operation_order
+  - ignored_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A student has $60 saved. Each week, they spend $4 on lunch. After how many weeks will they have
+    $12 left?
+  context_block: null
+  answer_expression: 60 - 4*w = 12
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How much money will remain after w weeks if they start with $60 and spend $4 each week?
+  - Their remaining amount is 60 - 4w, and they want that to equal 12.
+  - Set up the equation 60 - 4w = 12 and solve for w.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an equation where the remaining money equals the starting amount minus the total
+        spent.
+      expression: 60 - 4*w = 12
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 60 from both sides to isolate the term with w.
+      expression: -4*w = 12 - 60
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: -4*w = -48
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by -4 to solve for w.
+      expression: w = -48 / -4
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify to find the number of weeks.
+      expression: w = 12
+      common_mistake: null
+    final_answer: 12 weeks
+  random_seed: 8439300
+  rendered_question: A student has $60 saved. Each week, they spend $4 on lunch. After how many weeks
+    will they have $12 left?
+  option_a: 19 weeks
+  option_b: 12 weeks
+  option_c: 15 weeks
+  option_d: 16 weeks
+  correct_option: b
+- question_template_id: authored-linear_equations-d3-8459300
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_remaining_to_initial
+  - ignored_leftover_amount
+  - added_instead_of_subtracted
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Marcus goes to the arcade with $30 in tokens. He plays games that cost $3 each. After playing
+    several games, he has $12 in tokens left. How many games did Marcus play?
+  context_block: null
+  answer_expression: 30 - 3*x = 12
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Marcus starts with $30 and each game takes away $3. After some games, he has $12. Write an equation
+    for what he spent.
+  - 'His remaining tokens equal what he started with minus what the games cost: 30 - 3x = 12.'
+  - Subtract 30 from both sides, then divide by the coefficient of x to find how many games.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Marcus starts with $30 and spends $3 per game. If he plays x games, he spends 3x dollars
+        total. His remaining tokens are 30 - 3x. We set this equal to the $12 he has left.
+      expression: 30 - 3*x = 12
+      common_mistake: null
+    - step_number: 2
+      explanation: To isolate the term with x, subtract 30 from both sides of the equation.
+      expression: 30 - 30 - 3*x = 12 - 30
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify both sides.
+      expression: -3*x = -18
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by -3 to solve for x.
+      expression: x = -18 / -3
+      common_mistake: null
+    - step_number: 5
+      explanation: A negative divided by a negative is positive.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 games
+  random_seed: 8459300
+  rendered_question: Marcus goes to the arcade with $30 in tokens. He plays games that cost $3 each. After
+    playing several games, he has $12 in tokens left. How many games did Marcus play?
+  option_a: 4 games
+  option_b: 10 games
+  option_c: 14 games
+  option_d: 6 games
+  correct_option: d
+- question_template_id: authored-linear_equations-d3-8469300
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - set_up_without_subtraction
+  - ignored_rate
+  - stopped_at_difference
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A bakery had 50 cookies at the start of the day. Each customer who buys a box takes 6 cookies.
+    After serving several customers, 14 cookies remain on the shelf. How many customers bought a box?
+  context_block: null
+  answer_expression: 50 - 6*x = 14
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many cookies are gone by the end of the day? Start with 50 and end with 14.
+  - If 6 cookies leave per customer, and some number (call it x) of customers bought boxes, what expression
+    shows how many cookies are left?
+  - 'Write the equation: 50 - 6x = 14. Now isolate the term with x by moving the 14 to the other side.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bakery starts with 50 cookies and ends with 14 cookies remaining. Each customer
+        buys a box containing 6 cookies, so after x customers, the amount left is 50 - 6x.
+      expression: 50 - 6*x = 14
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 50 from both sides to move the constant away from the term containing x.
+      expression: 50 - 6*x - 50 = 14 - 50
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify both sides.
+      expression: -6*x = -36
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by -6 to solve for x.
+      expression: x = -36 / -6
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify the division.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 customers
+  random_seed: 8469300
+  rendered_question: A bakery had 50 cookies at the start of the day. Each customer who buys a box takes
+    6 cookies. After serving several customers, 14 cookies remain on the shelf. How many customers bought
+    a box?
+  option_a: 8 customers
+  option_b: 36 customers
+  option_c: 4 customers
+  option_d: 6 customers
+  correct_option: d
