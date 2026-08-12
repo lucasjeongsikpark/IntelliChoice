@@ -845,19 +845,46 @@ def _option_matches(derivation: DerivedAnswer, text: str) -> bool:
 
 
 def _option_as_solution_set(text: str) -> sympy.Set | None:
-    """`'x > 3'` -> the same `Set` `solveset` returns, so the two are comparable."""
+    """`'x > 3'` -> the same `Set` `solveset` returns, so the two are comparable.
+
+    **A trailing unit is stripped, and only after a direct parse has failed (D-280.)** A
+    word problem's answer carries one - `'x >= 6 weeks'`, `'t < 12 hours'` - and without this
+    the interval arm was the only answer model that could not read the way its own questions
+    are written. Measured on the 6-12 wave: correct inequality items rejected across
+    `alg1_inequalities` and `g68_wp_inequalities`.
+
+    `_sympify` has had this fallback since D-191 for exactly the same reason, with the same
+    ordering rule: anything that parses as written is never rewritten, so nothing that
+    works today can change meaning. Strictness is untouched - `'x > 6'` still does not match
+    `Interval(6, oo)`, because the unit is the only thing removed.
+    """
     normalized = _normalize_math_text(text, strip_assignment=False)
     if not any(op in normalized for op in ("<", ">")):
         return None
-    try:
-        relation = _parse_side(normalized)
-    except _PARSE_ERRORS:
-        return None
-    if not isinstance(relation, _RELATIONAL_OPS):
+
+    def _usable(candidate: str) -> sympy.Basic | None:
+        """A relation in exactly one unknown, or None."""
+        try:
+            parsed = _parse_side(candidate)
+        except _PARSE_ERRORS:
+            return None
+        if not isinstance(parsed, _RELATIONAL_OPS):
+            return None
+        return parsed if len(parsed.free_symbols) == 1 else None
+
+    # The retry is on an UNUSABLE result, not merely an unparseable one - which is the
+    # subtlety that made a first attempt at this fix do nothing. `_parse_side` carries
+    # implicit multiplication, so `'x >= 6 weeks'` parses happily as `x >= 6*w*e*e*k*s`
+    # and fails later on the unknown count. Catching only the exception left the fallback
+    # unreachable for every unit that is a word.
+    relation = _usable(normalized)
+    if relation is None:
+        stripped = _TRAILING_UNIT_RE.sub("", normalized).strip()
+        if stripped and stripped != normalized:
+            relation = _usable(stripped)
+    if relation is None:
         return None
     unknowns = sorted(relation.free_symbols, key=str)
-    if len(unknowns) != 1:
-        return None
     try:
         return sympy.solveset(relation, unknowns[0], sympy.S.Reals)
     except (NotImplementedError, TypeError, ValueError):

@@ -604,7 +604,7 @@ skills:
     name: "Solve a linear inequality"
     difficulty_tiers: [3, 4, 5]
     structure: "an INEQUALITY, e.g. 3*x + 2 > 11 or 5 - 2*x <= 13 - the answer is a RANGE, and a
-      multiplication by a negative reverses the sign"
+      multiplication by a negative reverses the sign The FOUR OPTIONS MUST THEMSELVES BE RANGES - 'x >= 6 weeks', 'more than 12', 'at most 40' - never a bare number. A number option makes the item ambiguous (is it the boundary, or one value in the range?) and it cannot be checked against the interval the inequality solves to. If the answer you want IS a single number, model the question with an EQUATION instead of an inequality."
     answer_family: signed
 
   - skill_id: alg_simultaneous
@@ -677,7 +677,7 @@ skills:
     topic_id: g68_word_problems
     name: "Express a constraint as an inequality and solve it"
     difficulty_tiers: [4, 5]
-    structure: "an INEQUALITY the situation implies, e.g. 8*x + 15 <= 95 - the answer is a RANGE"
+    structure: "an INEQUALITY the situation implies, e.g. 8*x + 15 <= 95 - the answer is a RANGE The FOUR OPTIONS MUST THEMSELVES BE RANGES - 'x >= 6 weeks', 'more than 12', 'at most 40' - never a bare number. A number option makes the item ambiguous (is it the boundary, or one value in the range?) and it cannot be checked against the interval the inequality solves to. If the answer you want IS a single number, model the question with an EQUATION instead of an inequality."
     answer_family: signed
 
 
@@ -710,7 +710,7 @@ skills:
     topic_id: algebra_1
     name: "Solve an inequality"
     difficulty_tiers: [2, 3, 4]
-    structure: "an INEQUALITY, e.g. 4*x - 3 >= 13 - the answer is a RANGE"
+    structure: "an INEQUALITY, e.g. 4*x - 3 >= 13 - the answer is a RANGE The FOUR OPTIONS MUST THEMSELVES BE RANGES - 'x >= 6 weeks', 'more than 12', 'at most 40' - never a bare number. A number option makes the item ambiguous (is it the boundary, or one value in the range?) and it cannot be checked against the interval the inequality solves to. If the answer you want IS a single number, model the question with an EQUATION instead of an inequality."
     answer_family: signed
 
   - skill_id: alg1_systems
@@ -726,7 +726,7 @@ skills:
     name: "Work with functions and their graphs"
     difficulty_tiers: [3, 4]
     structure: "a bare EXPRESSION defining the function, e.g. 2*x**2 - 3*x + 1 - the answer is
-      the expression, or its simplified form. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+      the expression, or its simplified form. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead. THE EQUATION MUST MATCH WHAT THE STEM ASKS FOR: if the question asks for a VALUE (a root, an output at a given input), write an equation that derives that value - Eq(x**2 - 7*x + 12, 0) - not the bare expression, because a symbolic answer can never match a numeric option."
     answer_family: signed
 
 

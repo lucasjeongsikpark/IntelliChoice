@@ -221,3 +221,47 @@ def test_real_equations_are_unaffected_by_the_non_value_guard(equation, expected
     derivation, error = route_answer(equation)
     assert derivation is not None, error
     assert derivation.model == expected
+
+
+# --------------------------------------------------------------------------------------
+# An interval option carries a unit, because its question is a word problem (D-280)
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "option",
+    ["x >= 6", "x >= 6 weeks", "x >= 6 hours", "w >= 6 weeks"],
+)
+def test_an_interval_option_may_carry_a_unit(option):
+    """Measured on the 6-12 wave: correct inequality items rejected for saying "weeks".
+
+    A word problem's answer carries a unit, and the interval arm was the only answer model
+    that could not read the way its own questions are written. `_sympify` has had this
+    fallback since D-191; this is the same fix one model over.
+    """
+    derivation, error = route_answer("45 + 15*x >= 135")
+    assert derivation is not None, error
+    assert _option_matches(derivation, option) is True
+
+
+@pytest.mark.parametrize(
+    "option",
+    ["x > 6 weeks", "x >= 9 weeks", "x <= 6 weeks", "x >= 5 weeks", "x < 6 weeks"],
+)
+def test_stripping_a_unit_does_not_loosen_the_inequality(option):
+    """The direction that matters: the unit is the ONLY thing removed.
+
+    `x > 6` is a different set from `x >= 6` and must stay one, or the fix would turn a
+    strictness error into a pass - which is the failure a "be more permissive" change
+    invites.
+    """
+    derivation, error = route_answer("45 + 15*x >= 135")
+    assert derivation is not None, error
+    assert _option_matches(derivation, option) is False
+
+
+def test_a_strict_inequality_keeps_its_open_interval_with_a_unit():
+    derivation, error = route_answer("3*x + 2 > 11")
+    assert derivation is not None, error
+    assert _option_matches(derivation, "x > 3 hours") is True
+    assert _option_matches(derivation, "x >= 3 hours") is False
