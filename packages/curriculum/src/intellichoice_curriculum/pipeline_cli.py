@@ -126,6 +126,13 @@ class RunSummary:
     skipped_duplicate_id: int = 0
     total_cost_cents: float = 0.0
     rejections: list[tuple[str, int, list[str]]] = field(default_factory=list)
+    # D-281: `[accepted, processed]` per skill. A topic average is the wrong grain to
+    # notice a *structural* failure with. `algebra_1` reported 33% while three inequality
+    # skills were accepting **nothing at all** - the gate could not express the answer their
+    # questions ask for - and the topic number hid it for a whole wave. A skill at 0 is a
+    # different event from a skill at 40%: the first says the pipeline cannot produce this
+    # kind of question, and no amount of re-running fixes it.
+    per_skill: dict[str, list[int]] = field(default_factory=dict)
 
     @property
     def filled(self) -> int:
@@ -144,8 +151,15 @@ class RunSummary:
             + self.rejected_difficulty
         )
 
-    def record(self, outcome: "PipelineOutcome") -> None:
+    def record(self, outcome: "PipelineOutcome", *, skill_id: str | None = None) -> None:
         self.total_cost_cents += outcome.cost_cents
+        if skill_id is not None and outcome.rejected_at not in ("budget", "circuit_open"):
+            # Same denominator as `processed`: a slot that never reached a model is not
+            # evidence about the skill (D-199).
+            counts = self.per_skill.setdefault(skill_id, [0, 0])
+            counts[1] += 1
+            if outcome.status in ("pending", "retiered"):
+                counts[0] += 1
         # D-198: attempts, not candidates. A slot that repaired twice paid for three
         # Generator calls, and a run whose yield looks fine while this number is triple the
         # candidate count is not the same run as one that got there first time.
@@ -175,8 +189,30 @@ class RunSummary:
         attribute = f"rejected_{outcome.rejected_at or 'generator'}"
         setattr(self, attribute, getattr(self, attribute) + 1)
 
+    def shut_out(self) -> list[str]:
+        """Skills that produced nothing at all, worst denominator first (D-281).
+
+        Reported separately from the yield rate rather than left to be derived from it,
+        because the two say different things and only this one is actionable during a run.
+        """
+        return [
+            f"{skill} (0 of {processed})"
+            for skill, (accepted, processed) in sorted(
+                self.per_skill.items(), key=lambda kv: -kv[1][1]
+            )
+            if accepted == 0 and processed > 0
+        ]
+
     def format(self) -> str:
         yield_rate = (self.filled / self.processed * 100) if self.processed else 0.0
+        shut_out = self.shut_out()
+        shut_out_line = (
+            f"\n  ACCEPTED NOTHING: {', '.join(shut_out)}"
+            f"\n    a skill at zero is a structural failure, not a low yield - re-running "
+            f"will not change it"
+            if shut_out
+            else ""
+        )
         return (
             f"Pipeline run complete: {self.filled} accepted of {self.processed} "
             f"processed ({yield_rate:.0f}%, of which retiered={self.retiered}), "
@@ -192,6 +228,7 @@ class RunSummary:
             f"fixed={self.repaired_to_pending} still_rejected={self.repaired_still_rejected}\n"
             f"  skipped: budget={self.skipped_budget} circuit_open={self.skipped_circuit_open} "
             f"duplicate_id={self.skipped_duplicate_id}"
+            f"{shut_out_line}"
         )
 
 
@@ -244,6 +281,7 @@ async def _settle(
     outcome: "PipelineOutcome",
     *,
     topic_id: str,
+    skill_id: str,
     difficulty_label: int,
 ) -> None:
     """Commit this one candidate, so a failure costs one candidate rather than the run.
@@ -269,7 +307,7 @@ async def _settle(
             (topic_id, difficulty_label, [f"template id already exists, candidate dropped: {exc}"])
         )
         return
-    summary.record(outcome)
+    summary.record(outcome, skill_id=skill_id)
     if outcome.status not in ("pending", "retiered"):
         summary.rejections.append((topic_id, difficulty_label, outcome.reasons))
     # D-244: the machine-readable half. The `print` output above this function is the
@@ -282,6 +320,10 @@ async def _settle(
         "pipeline_candidate",
         extra={
             "topic_id": topic_id,
+            # D-281: without this, "which skill accepts nothing" was not answerable from
+            # the logs at all - the grain D-244 made queryable stopped one level too high,
+            # and a skill stuck at zero looked like a topic with a mediocre yield.
+            "skill_id": skill_id,
             "difficulty_label": difficulty_label,
             "outcome": outcome.status,
             "rejected_at": outcome.rejected_at,
@@ -575,6 +617,7 @@ async def run_plan(
             summary,
             outcome,
             topic_id=slot.topic_id,
+            skill_id=slot.skill_id,
             difficulty_label=slot.difficulty_label,
         )
     _log_run_complete(summary)
