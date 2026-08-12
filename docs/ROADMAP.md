@@ -1697,6 +1697,233 @@ directly. Coverage gap, not a break.
    `len(active) == 10`, so approving an authored template broke the suite (S20 hit this live); it
    now asserts identity, not size.
 
+### Session C1 — Full-taxonomy content seeding *(D-273, planned 2026-08-11)*
+
+> **One session, loop-until-done phases (the user's explicit structure).** The phases below run
+> in order inside this single session; within a phase, iterate — generate → measure → fix the
+> rubric/verifier → regenerate — until that phase's "done when" holds, then move on. Discoveries
+> outside the active phase become PROGRESS.md carry-over, not detours. This track is independent
+> of integration (S43+ stays frozen per D-152).
+
+> **Reordered before any work, on evidence from prerequisite verification (2026-08-11).** The
+> answer-model router (originally Phase 2, a family-B extension) now runs **before** seeding,
+> because the gate does not merely fail to verify non-equation skills — it **reshapes them**.
+> Measured: `place_value_compare` is **15 of 15** "how many more" subtraction word problems filed
+> under *"Compare and order multi-digit numbers by place value"*; every other skill in the bank is
+> 0/N. The cause is structural: for a skill whose answer is not *derived*, the gate leaves two
+> moves — write `Eq(x, <the answer>)`, which passes while verifying nothing (D-191's defect in a
+> relation costume; measured at 0 of 130 shipped items, so latent), or reshape the question until
+> something is derivable, which is what these 15 did. The 34-book
+> taxonomy is full of compare/identify/round/classify/order/read skills, so seeding first would
+> propagate this across the whole taxonomy. **Volume target: D-223's measured 5–7 per occupied
+> tier (~25–35/topic, ~1,000 items), deliberately diverging from SPEC §5.8.1's unmeasured
+> 100/topic** — user decision, 2026-08-11, recorded in D-273.
+
+**Goal.** Every row of `knowledge-content/intellichoice_math_topics.csv` (246 rows, grades 1–12)
+is either **covered** — questions + hint ladders + canonical solutions in the authored bank, and
+a video catalog entry where a suitable one exists — or carries an **explicit disposition**
+(reshaped / needs-figures deferred / not-MCQ out of scope) in a coverage matrix. Along the way,
+answer the pilot question the user actually asked: does the current pipeline generalize to the
+whole taxonomy, and where it does not, build the specific extension rather than replacing the
+pipeline.
+
+**Structural decisions (D-273):** CSV **books → internal topics** (~40–50), CSV **rows →
+skills** — "every row covered" means "every row is a stocked skill". The pipeline core
+(generator → shuffle → deterministic gate → dedup → two solvers → blind judge → human review)
+is kept as-is; what gets built is the verifier router (family B), figure support (family C,
+own decision gate), per-topic rubrics at scale, and — evidence permitting — an auto-approval
+slice for review throughput.
+
+**Phase 0 — Coverage matrix + taxonomy design (free, no model calls).**
+Triage all rows by **answer model**, which is the axis that actually decides pipeline fit:
+**A** derivable single value (works today), **B** interval / tuple / multi-root / symbolic
+(needs the router), **C** needs a figure, **D** not MCQ-able as written (reshape or
+disposition). Map books→topics / rows→skills; design the full 12-band `grade_topic_mapping.yaml`
+(mind the band-overlap trap pinned by
+`test_adding_a_band_never_steals_a_grade_from_an_existing_one`).
+*Measured facts to build on, verified 2026-08-11 rather than assumed:* the CSV is **34 books /
+246 rows / 245 unique (grade, book, topic) triples** — `('6','Grade 6 Fractions','Three
+Fractions')` appears twice — and only **194 distinct topic strings** ("Fractions" is in 7
+different books), so a row is meaningful **only** as a triple and skill ids must be
+book-qualified. Track coverage by triple, never by name; the honest denominator is 245.
+Also: submit the third-Anthropic-model access request (Solver B independence,
+QUESTION_GENERATION.md §6) or record the user declining it.
+*Done when:* `docs/CONTENT_COVERAGE.md` exists with all 245 rows dispositioned by answer model,
+the topic/skill mapping is user-reviewed, and the model-access question has an answer recorded.
+
+> **✅ DONE 2026-08-11.** 245 unique rows → 34 topics → 245 skills; **A 173 / B 37 / C 34 / D 1**,
+> pinned by 7 tests that fail if a row loses its disposition or the matrix drifts from the CSV.
+> Mapping approved by the user as built. Model access **measured, not assumed**: three Anthropic
+> agreements exist but only **two are invocable** — Sonnet 5 reports `AVAILABLE` and denies the
+> call, and §6 had named it the intended premium Generator.
+
+**Phase R — Answer-model router *(was Phase 2; moved ahead of seeding — see the note above)*.**
+The gate today requires every item to be **one equation, one unknown, one solution**
+(`derive_answer`, verified fail-closed on all six paths — it does *not* silently skip). Extend it
+to a router over answer models, each with its own verifier: derivable value (existing),
+**selection/comparison** (the answer is one of the stated objects — what `place_value_compare`
+needed and never had), ordering, multi-root, interval, tuple, and symbolic equivalence. **Fail
+closed:** an item whose answer model no verifier claims is a rejection, never a skip.
+*Proof case, in scope:* re-author the 15 `place_value_compare` items so they exercise
+comparison, and show the router accepts them where the old gate could not.
+*Done when:* every verifier has both-directions tests (accepts the right answer, rejects a wrong
+one — the D-246 lesson), the unclaimed-answer-model path rejects, `place_value_compare` measures
+0/15 difference-shaped stems with the skill actually exercised, and the whole existing bank still
+passes (`make test` green, bank re-load clean).
+
+> **✅ DONE 2026-08-11 (D-273 Phase R outcome).** `multi_root` / `interval` / `tuple` /
+> `symbolic` verifiers added behind `route_answer`, fail-closed, both-directions tested;
+> `place_value_compare` re-authored **15/15 → 0/15** and re-gated through the loader (15 updated,
+> 115 unchanged); two latent gate defects closed (the vacuous `Eq(x, 43)` form, and a
+> `TokenError` that **escaped** the gate rather than failing it). All 130 shipped items still
+> route as `value` and match their own key. **1214 passed**, lint and pyright clean.
+>
+> **The phase's premise was falsified before any code was written, and that is its main result.**
+> `selection` was believed to need a verifier; `Eq(x, Max(34, 43))` derives 43 on the *unchanged*
+> gate. Comparison questions were always expressible — so the 15-item defect is an **authoring**
+> failure, not a gate limitation, and Phase 1's rubrics must teach the form rather than assume
+> it is unavailable.
+
+**Phase 1 — Seeding, one wave per grade band (K-2 → 3-5 → 6-8 → 9-12).**
+Per wave: taxonomy files with **per-topic (per-skill where they differ — D-238) difficulty
+anchors**, AI-drafted but human-owned and validated by the dispersion method, then
+`make question-gen-preflight` → budget-capped `question-gen-authored` at ~10 items/topic →
+`make question-review` (the user, item by item) → `make question-export` → PR. Iterate within
+the wave — a failing topic usually means its rubric, not its items (D-238).
+*Done when, per wave:* every A/B topic in the band has ≥10 approved items with every skill (CSV
+row) stocked at ≥1 item and multi-tier where the skill spans; **each item's stem exercises the
+skill it is filed under** (the D-238/Phase-R check, measured not asserted); judge dispersion is
+real per topic (never pooled across skills); yield, human-rejection rate, and cost per accepted
+item are recorded — these numbers are Phase 3's evidence.
+
+> **⏸ PARTIAL — K-2 wave, 2026-08-11.** Taxonomy done; 54 items generated at 86% acceptance for
+> **$1.51**. What holds and what does not, criterion by criterion:
+>
+> | criterion | result |
+> |---|---|
+> | ≥10 approved items per topic | **2 of 6** — g1_addition 13, g1_subtraction 10; the rest 8/8/8/7 |
+> | every skill stocked ≥1 | ✅ **17 of 17** across all six topics |
+> | multi-tier where the skill spans | **5 of 6** — `g2_word_problems` spans only tiers 1-3 |
+> | judge dispersion real per topic | ✅ **6 of 6 discriminate** (dominant tier 25-75%, all under the 80% floor) |
+> | stems exercise their filed skill | ⛔ **not measured on the new items** — the Phase-R check was run on `place_value_compare`, not here |
+> | yield and cost recorded | ✅ 86%, ~3¢/candidate |
+> | human-rejection rate recorded | ⛔ **N/A — review was skipped on the user's instruction**, so Phase 3's central number does not exist for this wave |
+>
+> The last row is the one that matters for sequencing: **Phase 3's auto-approval decision needs a
+> human-rejection rate, and this wave produced none.** A later wave has to supply it, or the
+> decision is made without its evidence.
+>
+> Three topics fell short of 10 because `candidates_per_slot` is 2 and a skill's tier span is
+> deliberately narrow (D-223) — `g2_word_problems` has 3 skills over 5 tiers, so its plan
+> schedules 10 and yielded 7. Raising `--candidates-per-slot` is the lever, not widening spans.
+
+> **✅ 3-5 WAVE DONE — 2026-08-11 (D-275/D-276).** 7 topics, 26 skills, **160 items generated at
+> 91% acceptance for $6.03**, 153 surviving to the bank. Every criterion but one now holds:
+>
+> | criterion | K-2 | **3-5** |
+> |---|---|---|
+> | ≥10 approved items per topic | 2 of 6 ⛔ | **7 of 7** ✅ (19/16/33/14/18/36/17) |
+> | every skill stocked ≥1 | 17 of 17 ✅ | **26 of 26** ✅ |
+> | multi-tier where the skill spans | 5 of 6 | **7 of 7** ✅ |
+> | judge dispersion real per topic | 6 of 6 ✅ | **7 of 7** ✅ (dominant 28-42%) |
+> | stems exercise their filed skill | ⛔ not measured | **partially** - the restored gate now
+>   rejects an item whose equation does not model its own question, which is the mechanical half
+>   of this criterion; 5 such items were caught on export |
+> | yield and cost recorded | 86%, ~3¢ | **91%, ~3.7¢** ✅ |
+> | human-rejection rate recorded | ⛔ N/A | **⛔ still N/A** - review was skipped again on the
+>   user's instruction, so Phase 3's central number does not exist after two waves |
+>
+> **`--candidates-per-slot 3` was the lever, exactly as the K-2 entry predicted.** Tier spans
+> were not widened and every topic cleared the bar.
+>
+> **What the wave cost in defects, and what it bought.** Five defects in the machinery
+> (D-275) and one architectural one (D-276), all found by *reading output*, none by reading
+> code. The most expensive to have missed: the pipeline had never run
+> `check_sympy_independent_solve`, so **5 items with wrong answer keys were generated, approved
+> and exported** before the bank's own gate caught them. Pipeline and loader now share one gate.
+>
+> **The bar for the next wave (6-8):** it starts with the gate the 3-5 wave ended with, so its
+> yield is not comparable to 91% - a fair reading needs the *rejection* mix, not the headline.
+> And it is the last chance to supply a human-rejection rate before Phase 3 has to decide
+> without one.
+
+> **✅ 6-8 AND 9-12 WAVES DONE — 2026-08-12 (D-277/278/280).** 12 topics, 51 skills, **201 items
+> at 57% acceptance for $13.05**. Strong: `pre_algebra` 90%, `g6_word_problems` 100%,
+> `geometry_measures` 80%. Weak and understood: `algebra_1` 4%, `algebra_foundations` 39%,
+> `g6_fractions` 42% — all symbolic topics.
+>
+> **The after-action is the part worth keeping.** All 109 rejections were re-gated *offline*
+> against the fixed parser, free, because D-195 stores candidate content with the rejection. The
+> parser fixes recover 11 of 109 — so the low yields are **not** a broken gate, and a blind
+> re-run would have spent ~$8 reproducing them. The remaining causes, measured: 43 answer keys
+> disagreeing with their equation, 19 sentences over the readability ceiling (the rule is right,
+> the content is wrong), 17 pairs of options equal in value, 7 hints stating the answer.
+>
+> A re-run of the six weakest topics with **D-198's repair path enabled** was in flight when the
+> session ended — that is the lever for the mechanical defects, since the prompt already asks for
+> what 19 items ignored.
+
+**Phase 5 — Figures (family C): ✅ BUILT (D-279), on the user's decision.**
+> Deterministic SVG from a structured spec the gate verifies, not generated images. **28 items
+> across 4 topics** — `telling_time`, `data_graphs`, `plane_figures`, `coordinate_geometry` — and
+> the contract that makes the remaining C rows authorable. The *decision gate* this phase was
+> written around is therefore closed: build, not defer.
+>
+> *Done when* (from the original phase text): the renderer family ships with per-family tests ✅
+> (18), and one C topic passes a Phase-1-style wave — **partially**: four topics are authored and
+> gated, but they are authored rather than generated, so "a wave" does not apply in the form the
+> criterion assumed. Recorded rather than claimed.
+
+**Phase 3 — Scale + the auto-approval decision.**
+Go/no-go per pre-registered criteria: yield ≥ ~50% of scheduled slots, human rejection < ~30%,
+dispersion real per rubric, zero leaked-answer/meta-text defects reaching `pending`, cost per
+accepted item within cap. If the measured human-rejection rate on clean-pass items is near zero,
+implement the deferred **auto-approval slice with random spot-check sampling** (the
+QUESTION_GENERATION.md §9 condition, now with evidence) — without it, target depth is not
+reviewable by one person; the user decides this explicitly either way. Then deepen every A/B
+topic to **5–7 items per occupied tier (~25–35/topic, ~1,000 items across 34 topics)** — the
+D-223 measured target, chosen by the user over SPEC §5.8.1's unmeasured 100/topic (~3,400 items,
+3× the spend and review burden) — in band batches, each batch its own PR.
+*Done when:* every A/B row is a stocked skill at target depth, total spend stayed within the
+per-run caps, and the auto-approval decision is recorded in DECISIONS.md with the numbers that
+drove it.
+
+**Phase 4 — Video catalog across the taxonomy.**
+Runs after Phase 1's taxonomy lands (the classifier can only assign skills that exist). Choose
+K-12 math channels; verify YouTube API key + `packages/youtube` settings prerequisites; run
+`make youtube-sync` against dev, read the classifications against the expanded taxonomy, then
+run against staging. Quota and per-video classify+embed costs budgeted up front. A skill with no
+suitable video keeps the §5.11.6 fallback — designed behaviour, recorded as a disposition.
+*Done when:* every stocked topic has ≥1 approved video or a recorded no-suitable-video
+disposition, staging `youtube_videos` is non-empty, and a staging walk serves a real video from
+the intervention menu.
+
+**Phase 5 — Figures (family C): decision gate, then build if approved.** *(Superseded by the
+✅ block above — the decision was taken on 2026-08-12 and the answer was build. Original
+phase text kept because its "done when" is what the block above is measured against.)*
+Proposal on the table (D-273): deterministic parameterized SVG renderers (clock faces, coin
+sets, bar charts, labeled shape/angle diagrams) rendered client-side from structured fields the
+gate already verified — no image generation, no blob storage, no new PII surface. This is a
+feature (data model + renderers + frontend + generation contract), not content; it gets its own
+design doc and DECISIONS entry before any code.
+*Done when:* the user's build/defer decision is recorded; if build — the renderer family ships
+with per-family tests and one C-topic passes a Phase-1-style wave; if defer — every C row's
+disposition in the coverage matrix says so.
+
+**Phase 6 — Per-band end-to-end + deploy verification.**
+Full walk per grade band on staging: topic resolves → pre-exam → study with hint/solution/
+video/tutor → post-exam. Two checks that only matter now: grade-1 reading level in stems *and*
+tutor replies, and math rendering for advanced content (exponents, radicals, calculus notation
+in the React frontend — untested today because no content needed it). `make lint typecheck
+test` + e2e (never concurrently with pytest — shared dev Postgres).
+*Done when:* e2e green including new-band walks, zero console errors on the full walks, and
+staging serves the seeded bank end to end.
+
+**Budget guardrails, session-wide:** every paid run behind a green preflight and an explicit
+`--run-budget-cents`; waves sized to ~100–150 review items so the human bottleneck is paced;
+generation is the cheap part (pilot ~$15–40, full depth low hundreds of dollars at the one
+measured rate) and the caps, not the estimates, are the bound.
+
 ### Parallel track (any time, non-coding) — Phase 0 legal & policy docs (§6.1)
 Privacy Notice, AI Use Notice, product Learning Notice, retention policy, etc. Drafting can
 happen in a writing-focused session; **counsel review is a launch gate, not a dev blocker.**

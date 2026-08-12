@@ -437,6 +437,21 @@ class EquationDesignPayload(BaseModel):
     target_difficulty: int
     difficulty_anchor: str
     previous_attempts: list[str] = []
+    # Equations already accepted for THIS slot in this run (D-273). Distinct from
+    # `previous_attempts`, which is this candidate's own failed designs: these succeeded, for
+    # a sibling candidate.
+    #
+    # **Measured need, and it is the cause rather than a symptom.** `candidates_per_slot` is
+    # 2, and the two candidates of a slot were receiving an *identical* payload - the seed
+    # distinguished their template ids and nothing else. So the model had no reason to choose
+    # different numbers, and did not: in C1's first wave every duplicate group was a same-slot
+    # pair (seeds 6200/6201 both `6 + 7`, 6400/6401 both `9 + 9`), 27 of 55 items sharing a
+    # number set. Detecting that afterwards is the second-best fix; telling the design stage
+    # what its slot-mate already used is the first.
+    avoid_equations: list[str] = []
+    # Scenarios this skill's earlier candidates already used, so the design call can
+    # pick a different setting rather than a different name for the same one (D-275).
+    avoid_scenarios: list[str] = []
 
 
 class EquationDesignResponse(BaseModel):
@@ -600,6 +615,22 @@ class QuestionJudgePayload(BaseModel):
     option_b: str
     option_c: str
     option_d: str
+    # Which option is keyed correct (D-273). Its absence was a live source of false
+    # rejections, measured on C1's first wave: the judge was given four options and a
+    # solution text but never told which letter the key names, and asked whether the item is
+    # internally consistent it **assumed option_a**. On a correct item - 17 + 8 = 25, keyed
+    # `b`, with `24 stickers` as an ordinary distractor at `a` - it declared an "internal
+    # contradiction" because option_a was not the answer, and the item was rejected while
+    # both independent solvers had picked `b` and marked it unambiguous.
+    #
+    # `shuffle_options` is seeded and deterministic (D-191), so roughly three items in four
+    # have a non-`a` answer and were exposed to this.
+    #
+    # **This does not weaken the blind review.** D-194's blindness is about *difficulty*:
+    # the judge must not see the requested or proposed tier, and it still does not. The
+    # answer was never hidden - `canonical_solution` states it in words - so this adds the
+    # letter, not the answer, and lets the consistency question actually be answerable.
+    correct_option: Literal["a", "b", "c", "d"]
     hint_ladder: list[str]
     canonical_solution: str
     topic_name: str

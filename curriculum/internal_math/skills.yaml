@@ -6,35 +6,52 @@ skills:
   - skill_id: linear_one_step
     topic_id: linear_equations
     name: "Solve one-step linear equations"
+    difficulty_tiers: [1]
+    structure: "exactly one operation to undo, e.g. Eq(x + 8, 20) or Eq(4*x, 20)"
 
   - skill_id: linear_two_step
     topic_id: linear_equations
     name: "Solve two-step linear equations"
+    difficulty_tiers: [1, 2, 3]
+    structure: "two operations, the variable on ONE side only, e.g. Eq(18 + 6*w, 60)"
 
   - skill_id: linear_neg_frac_coeff
     topic_id: linear_equations
     name: "Solve linear equations with negative or fractional coefficients"
+    difficulty_tiers: [2, 3, 4]
+    structure: "a negative or fractional coefficient on the variable, e.g. Eq(60 - 4*x, 12) or
+      Eq(x/3 + 5, 11)"
 
   - skill_id: linear_both_sides
     topic_id: linear_equations
     name: "Solve linear equations with variables on both sides"
+    difficulty_tiers: [3, 4, 5]
+    structure: "the variable MUST appear on BOTH sides of the equals sign, e.g. Eq(8 + 2*m, 18 +
+      m) - an equation with the variable on one side is wrong for this skill however hard it is
+      otherwise"
 
   - skill_id: linear_distribute
     topic_id: linear_equations
     name: "Solve linear equations requiring distribution and combining like terms"
+    difficulty_tiers: [5]
+    structure: "a bracket that MUST be distributed before like terms can be combined, e.g.
+      Eq(5*(c + 2) + 12, 42)"
 
   # fraction_operations — no templates authored yet (S9 pipeline volume target).
   - skill_id: fraction_add_sub_like
     topic_id: fraction_operations
     name: "Add and subtract fractions with like denominators"
+    answer_family: rational
 
   - skill_id: fraction_add_sub_unlike
     topic_id: fraction_operations
     name: "Add and subtract fractions with unlike denominators"
+    answer_family: rational
 
   - skill_id: fraction_mul_div
     topic_id: fraction_operations
     name: "Multiply and divide fractions"
+    answer_family: rational
 
   # multiplication_division — grade band 2-3, authored in D-228. The ladder follows
   # Kumon's own grade-3/4 split: facts first, then multi-digit multiplication and
@@ -55,6 +72,127 @@ skills:
     topic_id: multiplication_division
     name: "Divide with remainders"
 
+  # C1 wave K-2 (D-273). Two or three skills per book, not one per source row - the rows are
+  # the difficulty ladder. `curriculum/coverage/skill_groups.yaml` records the row->skill map.
+  # The `*_three_numbers` skills are separate strands rather than a top tier of their
+  # neighbours: choosing an order before calculating is different work from calculating once,
+  # and D-238 measured what happens when two kinds of work share one rubric.
+  - skill_id: g1_add_within_10
+    topic_id: g1_addition
+    name: "Add within 10"
+    difficulty_tiers: [1, 2]
+    structure: "one addition of two single-digit numbers with a total of 10 or less, e.g. Eq(x,
+      6 + 3) - no bridging through ten"
+
+  - skill_id: g1_add_within_20
+    topic_id: g1_addition
+    name: "Add by bridging through ten"
+    difficulty_tiers: [2, 3, 4]
+    structure: "one addition of two single-digit numbers whose total is between 11 and 20, so
+      ten is crossed, e.g. Eq(x, 8 + 5)"
+
+  - skill_id: g1_add_within_28
+    topic_id: g1_addition
+    name: "Add with totals past twenty"
+    difficulty_tiers: [4, 5]
+    structure: "one addition whose total passes 20, e.g. Eq(x, 19 + 9) - a second ten must be
+      reached"
+
+  - skill_id: g1_sub_within_10
+    topic_id: g1_subtraction
+    name: "Subtract within 10"
+    difficulty_tiers: [1, 2]
+    structure: "one subtraction from a total of 10 or less, e.g. Eq(x, 9 - 4), or the same as a
+      missing addend, e.g. Eq(4 + x, 9)"
+
+  - skill_id: g1_sub_within_20
+    topic_id: g1_subtraction
+    name: "Subtract within 20 by breaking a ten"
+    difficulty_tiers: [3, 4]
+    structure: "one subtraction from a total between 11 and 20 where the total's ones digit is
+      SMALLER than the amount taken, so a ten must be broken, e.g. Eq(x, 14 - 6)"
+
+  - skill_id: g1_sub_three_numbers
+    topic_id: g1_subtraction
+    name: "Combine three one-digit numbers"
+    difficulty_tiers: [5]
+    structure: "three one-digit numbers combined in one expression, e.g. Eq(x, 12 - 3 - 4) - two
+      operations, not one"
+
+  - skill_id: g1_wp_single_operation
+    topic_id: g1_word_problems
+    name: "Solve a word problem using the operation the story names"
+    difficulty_tiers: [1, 2]
+    structure: "one operation the story names outright, on totals within 20, e.g. Eq(x, 7 + 5) -
+      or a missing-part form, Eq(7 + x, 12)"
+
+  - skill_id: g1_wp_choose_operation
+    topic_id: g1_word_problems
+    name: "Decide which operation a situation calls for"
+    difficulty_tiers: [3, 4, 5]
+    structure: "one operation the story does NOT name, so the situation decides it, e.g. Eq(13 -
+      x, 5) for how many were taken away"
+
+  - skill_id: g2_add_within_100
+    topic_id: g2_addition
+    name: "Add two-digit numbers within 100"
+    difficulty_tiers: [1, 2, 3]
+    structure: "addition of two-digit numbers totalling at most 100, e.g. Eq(x, 37 + 25)"
+
+  - skill_id: g2_add_multi_digit
+    topic_id: g2_addition
+    name: "Add three- and four-digit numbers"
+    difficulty_tiers: [4]
+    structure: "addition of three- or four-digit numbers carrying in more than one column, e.g.
+      Eq(x, 2478 + 1365)"
+
+  - skill_id: g2_add_three_numbers
+    topic_id: g2_addition
+    name: "Add three numbers"
+    difficulty_tiers: [5]
+    structure: "three numbers added in one expression, e.g. Eq(x, 46 + 27 + 18)"
+
+  - skill_id: g2_sub_two_digit
+    topic_id: g2_subtraction
+    name: "Subtract two-digit numbers"
+    difficulty_tiers: [1, 2, 3]
+    structure: "subtraction of two-digit numbers, e.g. Eq(x, 52 - 27), or the missing-addend
+      form Eq(27 + x, 52)"
+
+  - skill_id: g2_sub_multi_digit
+    topic_id: g2_subtraction
+    name: "Subtract three- and four-digit numbers"
+    difficulty_tiers: [4]
+    structure: "subtraction of three- or four-digit numbers where the borrow travels across a
+      zero, e.g. Eq(x, 400 - 128)"
+
+  - skill_id: g2_sub_three_numbers
+    topic_id: g2_subtraction
+    name: "Subtract with three numbers"
+    difficulty_tiers: [5]
+    structure: "three numbers combined in one expression with at least one subtraction, e.g.
+      Eq(x, 95 - 27 - 18)"
+
+  - skill_id: g2_wp_single_operation
+    topic_id: g2_word_problems
+    name: "Solve a two-digit word problem with one operation"
+    difficulty_tiers: [1, 2]
+    structure: "one operation on two-digit quantities, e.g. Eq(x, 48 + 27)"
+
+  - skill_id: g2_wp_measurement_context
+    topic_id: g2_word_problems
+    name: "Solve a word problem whose quantities carry units"
+    difficulty_tiers: [3, 4]
+    structure: "one operation whose quantities carry a unit that must appear in the answer, e.g.
+      Eq(x, 145 - 68) for centimetres"
+
+  - skill_id: g2_wp_multi_step
+    topic_id: g2_word_problems
+    name: "Solve a word problem needing two operations"
+    difficulty_tiers: [5]
+    structure: "TWO operations where the first result feeds the second, e.g. Eq(x, (24 + 18) -
+      15) - a single operation is wrong for this skill however large the numbers are"
+
   # place_value
   - skill_id: place_value_identify
     topic_id: place_value
@@ -63,3 +201,695 @@ skills:
   - skill_id: place_value_compare
     topic_id: place_value
     name: "Compare and order multi-digit numbers by place value"
+
+  # ====================================================================================
+  # C1 wave 3-5 (D-274). 26 skills across seven topics. Names are student-visible in the
+  # progress display (SPEC §5.10.3 - the *id* stays internal), so they read as things a
+  # student does, not as taxonomy labels.
+  # ====================================================================================
+
+  # g4_multiplication_division
+  - skill_id: g4_mult_by_one_digit
+    topic_id: g4_multiplication_division
+    name: "Multiply a multi-digit number by a single digit"
+    difficulty_tiers: [1, 2]
+    structure: "one multiplication of a multi-digit number by a SINGLE digit, e.g. Eq(x, 428 *
+      6)"
+
+  - skill_id: g4_mult_two_by_two
+    topic_id: g4_multiplication_division
+    name: "Multiply a two-digit number by a two-digit number"
+    difficulty_tiers: [2, 3]
+    structure: "one multiplication of a two-digit number by a TWO-digit number, e.g. Eq(x, 47 *
+      32) - a single-digit factor is wrong for this skill however large the other one is"
+
+  - skill_id: g4_mult_large
+    topic_id: g4_multiplication_division
+    name: "Multiply large numbers, and multiply three numbers together"
+    difficulty_tiers: [4, 5]
+    structure: "a multiplication with at least three digits in each factor, e.g. Eq(x, 412 *
+      236), or THREE factors in one expression, e.g. Eq(x, 12 * 8 * 5)"
+
+  - skill_id: g4_div_by_one_digit
+    topic_id: g4_multiplication_division
+    name: "Divide a multi-digit number by a single digit"
+    difficulty_tiers: [1, 2, 3]
+    structure: "one division of a multi-digit number by a SINGLE digit, e.g. Eq(x, 4536 / 8), or
+      the same as a missing factor, e.g. Eq(8 * x, 4536)"
+
+  - skill_id: g4_div_by_two_digit
+    topic_id: g4_multiplication_division
+    name: "Divide by a two-digit number"
+    difficulty_tiers: [3, 4, 5]
+    structure: "one division by a TWO-digit divisor, e.g. Eq(x, 3216 / 24) - a single-digit
+      divisor is wrong for this skill, because estimating the partial quotient is the whole
+      point"
+
+  # decimals
+  - skill_id: decimal_add_sub
+    topic_id: decimals
+    name: "Add and subtract decimals"
+    difficulty_tiers: [1, 2, 3]
+    structure: "one addition or subtraction of decimals, e.g. Eq(x, 3.75 + 2.4) - the answer is
+      a decimal and must not be rounded to a whole number"
+    answer_family: rational
+
+  - skill_id: decimal_multiply
+    topic_id: decimals
+    name: "Multiply decimals"
+    difficulty_tiers: [3, 4]
+    # D-275: "at least one factor is a decimal" let the first real run author `2.5 * 12` and
+    # `3.5 * 8` - decimal times WHOLE NUMBER, whose answers (30, 28) are whole. 0 of 2 items
+    # produced a non-whole answer, so the skill the `rational` family was added for was not
+    # being exercised at all. BOTH factors must be decimals, which is also what makes the
+    # skill's actual work - the answer's decimal places being the sum of the factors' - exist.
+    structure: "one multiplication where BOTH factors are decimals, e.g. Eq(x, 2.5 * 1.4) -
+      a decimal times a whole number is the easier skill and is wrong for this slot, because
+      the point is that the answer's decimal places are the SUM of the two factors'"
+    answer_family: rational
+
+  - skill_id: decimal_divide
+    topic_id: decimals
+    name: "Divide decimals"
+    difficulty_tiers: [4, 5]
+    # D-275: the structure was satisfied and the skill still was not exercised. All six items
+    # from the first run were "how many 0.9 m pieces fit in 6.3 m" - a divisor that divides
+    # evenly, so 4 of 6 answers were whole and the decimal never reached the quotient. The
+    # "how many whole pieces" framing is what forces that, so the structure now rules it out.
+    structure: "one division where the DIVISOR is a decimal AND the quotient is itself a
+      decimal, e.g. Eq(x, 8.4 / 0.5) - avoid 'how many whole pieces fit' scenarios, which
+      force an even division and hide the skill; dividing by a whole number is the easier
+      skill and is wrong for this slot either way"
+    answer_family: rational
+
+  # number_sense
+  - skill_id: number_odd_even
+    topic_id: number_sense
+    name: "Tell odd numbers from even numbers"
+    difficulty_tiers: [1, 2]
+    # D-276: same defect as `number_large_compare` below. A shipped item asked "is 47 odd or
+    # even" with options "Odd"/"Even" - the equation derives 1 and no word can match it. The
+    # stem has to ask for the REMAINDER, not for the classification the remainder implies.
+    structure: "the remainder on division by two, e.g. Eq(x, Mod(47, 2)). The STEM MUST ASK FOR
+      THE REMAINDER - 'what is the remainder when 47 is divided by 2?' - and the four OPTIONS
+      MUST BE NUMBERS (0, 1, 2, 3). Options that are the words 'Odd' and 'Even' cannot be
+      verified, because the answer is checked by deriving the remainder; state in the stem that
+      a remainder of 1 means odd and 0 means even, so the student still learns the rule"
+
+  - skill_id: number_large_compare
+    topic_id: number_sense
+    name: "Compare and order large numbers"
+    difficulty_tiers: [2, 3]
+    # D-276: the Max form only verifies when the OPTIONS ARE THE NUMBERS. Two shipped items
+    # asked "which museum raised the most" with options like "Museum B" - the equation derives
+    # 86892 and no label can match it, so the gate rejected an item whose maths was fine. The
+    # options requirement is now part of the structure, because it is what makes the form work.
+    structure: "a comparison expressed with Max or Min over the numbers being compared, e.g.
+      Eq(x, Max(34281, 34218, 34128)) - the answer IS one of the stated numbers, and writing
+      Eq(x, 34281) instead states the answer rather than modelling the question. The four
+      OPTIONS MUST BE THE NUMBERS THEMSELVES (34281, 34218, ...), never labels like
+      'Museum B' or 'City A' - the answer is verified by deriving the number, so an option
+      naming an entity cannot be matched and the item is rejected"
+
+  - skill_id: number_rounding
+    topic_id: number_sense
+    name: "Round a number to a given place"
+    difficulty_tiers: [3, 4, 5]
+    # This skill spans both answer kinds and is `rational` for that reason, not because every
+    # answer is non-whole: rounding 4738 to the nearest hundred gives the whole 4700, while
+    # tier 4's own anchor rounds a DECIMAL to a named place and gives 3.5. `rational` permits
+    # a non-whole answer, it does not require one - and the structure has to say so, or the
+    # decimal half goes unauthored the way `decimal_multiply`'s did (D-275).
+    structure: "a rounding written as the arithmetic that performs it, e.g. Eq(x, 100 *
+      round(4738 / 100)) for the nearest hundred - never Eq(x, 4700), which states the answer.
+      At tier 4 and above round a DECIMAL to a named place, e.g.
+      Eq(x, Rational(1,10) * round(3.472 * 10)), where the answer is itself a decimal"
+    answer_family: rational
+
+  # measurement
+  - skill_id: measurement_length
+    topic_id: measurement
+    name: "Work with lengths, including converting between units"
+    difficulty_tiers: [1, 2, 3]
+    structure: "one operation on lengths, with a conversion written into the equation where two
+      units appear, e.g. Eq(x, 3 * 100 + 40) for 3 m 40 cm in centimetres"
+
+  - skill_id: measurement_weight
+    topic_id: measurement
+    name: "Work with weights, including converting between units"
+    difficulty_tiers: [2, 3]
+    structure: "one operation on weights, with a conversion written into the equation where two
+      units appear, e.g. Eq(x, 2 * 1000 + 350) for 2 kg 350 g in grams"
+
+  - skill_id: measurement_capacity
+    topic_id: measurement
+    name: "Work with capacity, including converting between units"
+    difficulty_tiers: [2, 3]
+    structure: "one operation on capacities, with a conversion written into the equation where
+      two units appear, e.g. Eq(x, 1 * 1000 + 250) for 1 L 250 mL in millilitres"
+
+  - skill_id: measurement_money
+    topic_id: measurement
+    name: "Work with amounts of money"
+    difficulty_tiers: [1, 2]
+    structure: "one operation on amounts of money, e.g. Eq(x, 12.50 - 4.75) - the answer is an
+      amount and may have cents"
+    answer_family: rational
+
+  - skill_id: measurement_elapsed_time
+    topic_id: measurement
+    name: "Work out how much time has passed"
+    difficulty_tiers: [3, 4]
+    structure: "an elapsed time computed in one unit, e.g. Eq(x, (14*60 + 20) - (11*60 + 45))
+      for the minutes between 11:45 and 14:20 - the sixties must appear in the equation"
+
+  - skill_id: measurement_area_volume
+    topic_id: measurement
+    name: "Find an area or a volume from given lengths"
+    difficulty_tiers: [4, 5]
+    structure: "an area as a product of two given lengths, e.g. Eq(x, 14 * 9), or a volume as a
+      product of three, e.g. Eq(x, 6 * 4 * 3)"
+
+  # g3_word_problems
+  - skill_id: g3_wp_add_sub
+    topic_id: g3_word_problems
+    name: "Solve an addition or subtraction word problem on larger quantities"
+    difficulty_tiers: [1, 2]
+    structure: "one addition or subtraction on three- or four-digit quantities, e.g. Eq(x, 1250
+      + 830), or the missing-part form Eq(830 + x, 2080)"
+
+  - skill_id: g3_wp_mult_div
+    topic_id: g3_word_problems
+    name: "Solve a word problem about equal groups or sharing"
+    difficulty_tiers: [2, 3, 4]
+    structure: "one multiplication or division arising from equal groups or sharing, e.g. Eq(x,
+      24 * 6) or Eq(x, 144 / 6) - the story must not name the operation"
+
+  - skill_id: g3_wp_mixed
+    topic_id: g3_word_problems
+    name: "Solve a word problem needing two operations"
+    difficulty_tiers: [4, 5]
+    structure: "TWO operations where the first result feeds the second, e.g. Eq(x, (24 * 6) -
+      45)"
+
+  # g4_word_problems
+  - skill_id: g4_wp_division
+    topic_id: g4_word_problems
+    name: "Solve a division word problem on multi-digit quantities"
+    difficulty_tiers: [1, 2]
+    structure: "one division with a multi-digit dividend, e.g. Eq(x, 1728 / 12)"
+
+  - skill_id: g4_wp_decimals
+    topic_id: g4_word_problems
+    name: "Solve a word problem about decimal quantities"
+    difficulty_tiers: [2, 3]
+    structure: "one operation on decimal quantities, most often money, e.g. Eq(x, 45.60 / 8)"
+    answer_family: rational
+
+  - skill_id: g4_wp_formula_mixed
+    topic_id: g4_word_problems
+    name: "Apply a given formula, and solve problems needing two operations"
+    difficulty_tiers: [4, 5]
+    structure: "a stated formula applied to given quantities, e.g. Eq(x, 2 * (14 + 9)) for the
+      perimeter of a rectangle, or two operations of different kinds in one expression"
+
+  # g5_word_problems
+  - skill_id: g5_wp_fractions
+    topic_id: g5_word_problems
+    name: "Solve a word problem about fractions"
+    difficulty_tiers: [2, 3]
+    structure: "one operation on fractions, written with Rational, e.g. Eq(x, Rational(3,4) -
+      Rational(1,6)), or a fraction OF a quantity, e.g. Eq(x, Rational(2,5) * 350)"
+    answer_family: rational
+
+  - skill_id: g5_wp_decimals
+    topic_id: g5_word_problems
+    name: "Solve a word problem about decimals"
+    difficulty_tiers: [3, 4]
+    structure: "one multiplication or division involving a decimal, e.g. Eq(x, 3.6 * 2.5)"
+    answer_family: rational
+
+  - skill_id: g5_wp_ratios_mixed
+    topic_id: g5_word_problems
+    name: "Solve a word problem about ratios and shares"
+    difficulty_tiers: [4, 5]
+    structure: "a share of a total split in a given ratio, written as the arithmetic that finds
+      it, e.g. Eq(x, 45 * 3 / 9) for the 3-part share of 45 split 3:6"
+
+  # ==================================================================================
+  # C1 waves 6-8 and 9-12 (D-277). 53 skills over twelve topics.
+  #
+  # **The first skills whose answers are not single values.** `alg_inequalities` answers
+  # a RANGE, `alg1_systems` a PAIR, `alg1_factorization` an EXPRESSION. Phase R built
+  # those verifiers and nothing had used them; D-277 had to route the design gate too,
+  # because it still demanded one equation, one unknown, one solution.
+  #
+  # **Two answer families are new here and were deliberately withheld until now** (D-274
+  # said a family gets added when a topic needs it): `integer` for skills that are about
+  # negative whole numbers, and `signed` for algebra and calculus, whose answers carry
+  # no sign or roundness rule at all.
+  # ==================================================================================
+
+  # g6_fractions
+  - skill_id: g6_fraction_reduce
+    topic_id: g6_fractions
+    name: "Reduce a fraction to lowest terms"
+    difficulty_tiers: [1, 2]
+    structure: "one fraction written as a division that reduces, e.g. Eq(x, Rational(24, 36)) -
+      the answer is the reduced fraction, so it must not be a whole number"
+    answer_family: rational
+
+  - skill_id: g6_fraction_mul_div
+    topic_id: g6_fractions
+    name: "Multiply and divide fractions"
+    difficulty_tiers: [2, 3, 4]
+    structure: "one multiplication or division of two fractions written with Rational, e.g.
+      Eq(x, Rational(3,4) * Rational(2,5)) or Eq(x, Rational(3,4) / Rational(2,5))"
+    answer_family: rational
+
+  - skill_id: g6_fraction_decimal_percent
+    topic_id: g6_fractions
+    name: "Convert between fractions, decimals and percents"
+    difficulty_tiers: [3, 4, 5]
+    structure: "a conversion written as the arithmetic that performs it, e.g. Eq(x,
+      Rational(3,8)) for a fraction as a decimal, or Eq(x, 0.45 * 100) for a decimal as a
+      percent"
+    answer_family: rational
+
+
+  # g6_word_problems
+  - skill_id: g6_wp_average
+    topic_id: g6_word_problems
+    name: "Find an average from a set of values"
+    difficulty_tiers: [1, 2]
+    structure: "a mean written as a sum over a count, e.g. Eq(x, (82 + 91 + 76) / 3)"
+    answer_family: rational
+
+  - skill_id: g6_wp_rate_speed
+    topic_id: g6_word_problems
+    name: "Work with speed, distance and rates"
+    difficulty_tiers: [2, 3, 4]
+    structure: "a rate relationship written as one expression, e.g. Eq(x, 240 / 3) for speed
+      from distance and time, or Eq(x, 60 * 2.5) for distance from speed and time"
+    answer_family: rational
+
+  - skill_id: g6_wp_ratio_proportion
+    topic_id: g6_word_problems
+    name: "Solve ratio and proportion problems"
+    difficulty_tiers: [3, 4, 5]
+    structure: "a share of a total split in a ratio, or a proportion solved for the missing
+      quantity, e.g. Eq(x, 45 * 3 / 9) or Eq(x / 12, 15 / 4)"
+    answer_family: rational
+
+
+  # g6_geometry_measurement
+  - skill_id: g6_factors_multiples
+    topic_id: g6_geometry_measurement
+    name: "Find factors, multiples, GCF and LCM"
+    difficulty_tiers: [1, 2]
+    structure: "a greatest common factor or least common multiple written with gcd or lcm, e.g.
+      Eq(x, gcd(48, 36)) or Eq(x, lcm(6, 8))"
+
+  - skill_id: g6_circle_measures
+    topic_id: g6_geometry_measurement
+    name: "Find the circumference and area of a circle"
+    difficulty_tiers: [3, 4]
+    structure: "a circle measure from its radius using 3.14 for pi, e.g. Eq(x, 2 * 3.14 * 7) for
+      circumference or Eq(x, 3.14 * 7**2) for area"
+    answer_family: rational
+
+  - skill_id: g6_surface_area_volume
+    topic_id: g6_geometry_measurement
+    name: "Find the surface area and volume of a prism"
+    difficulty_tiers: [4, 5]
+    structure: "a volume as a product of three stated lengths, e.g. Eq(x, 8 * 5 * 3), or a
+      surface area as the sum of every face, e.g. Eq(x, 2*(8*5) + 2*(8*3) + 2*(5*3))"
+
+
+  # pre_algebra
+  - skill_id: prealg_gcf_lcm
+    topic_id: pre_algebra
+    name: "Find the greatest common factor"
+    difficulty_tiers: [1, 2]
+    structure: "a greatest common factor written with gcd, e.g. Eq(x, gcd(84, 126))"
+
+  - skill_id: prealg_percent_convert
+    topic_id: pre_algebra
+    name: "Convert between fractions, decimals and percents"
+    difficulty_tiers: [2, 3]
+    structure: "a percent of a quantity or a conversion, written as the arithmetic that performs
+      it, e.g. Eq(x, 0.35 * 240) or Eq(x, Rational(7, 20))"
+    answer_family: rational
+
+  - skill_id: prealg_exponents
+    topic_id: pre_algebra
+    name: "Work with exponents"
+    difficulty_tiers: [2, 3, 4]
+    structure: "a power or a product of powers, e.g. Eq(x, 2**5) or Eq(x, 3**4 / 3**2) - the
+      answer may be negative when the base is"
+    answer_family: integer
+
+  - skill_id: prealg_order_of_operations
+    topic_id: pre_algebra
+    name: "Apply the order of operations"
+    difficulty_tiers: [3, 4]
+    structure: "one expression whose ORDER decides the answer, with a bracket and a power both
+      present, e.g. Eq(x, 4 + 3 * (8 - 5)**2)"
+    answer_family: integer
+
+  - skill_id: prealg_negative_numbers
+    topic_id: pre_algebra
+    name: "Add, subtract, multiply and divide negative numbers"
+    difficulty_tiers: [3, 4, 5]
+    structure: "an expression with negative numbers in more than one place, e.g. Eq(x, -12 + 5 *
+      (-3)) - the answer is frequently negative and that is correct"
+    answer_family: integer
+
+  - skill_id: prealg_evaluate_expressions
+    topic_id: pre_algebra
+    name: "Evaluate an algebraic expression at a given value"
+    difficulty_tiers: [4, 5]
+    structure: "an expression evaluated at a stated value, written by substituting it, e.g.
+      Eq(x, 3 * (-4)**2 - 5 * (-4)) - a negative inside a power is the point"
+    answer_family: integer
+
+
+  # algebra_foundations
+  - skill_id: alg_simplify_expressions
+    topic_id: algebra_foundations
+    name: "Simplify an algebraic expression"
+    difficulty_tiers: [1, 2]
+    structure: "a bare EXPRESSION with no equals sign, e.g. 5*x + 3*x - 2 - the answer is the
+      simplified expression itself, checked by equivalence, not a number. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    answer_family: signed
+
+  - skill_id: alg_distribute
+    topic_id: algebra_foundations
+    name: "Expand a bracket and collect like terms"
+    difficulty_tiers: [2, 3]
+    structure: "a bare EXPRESSION containing a bracket that must be distributed, e.g. 3*(2*x +
+      5) - 4*x - the answer is the expanded expression. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    answer_family: signed
+
+  - skill_id: alg_linear_functions
+    topic_id: algebra_foundations
+    name: "Describe and evaluate a linear function"
+    difficulty_tiers: [2, 3, 4]
+    structure: "a bare EXPRESSION in one variable, e.g. 4*x - 7, or its value written as an
+      equation at a stated input"
+    answer_family: signed
+
+  - skill_id: alg_inequalities
+    topic_id: algebra_foundations
+    name: "Solve a linear inequality"
+    difficulty_tiers: [3, 4, 5]
+    structure: "an INEQUALITY, e.g. 3*x + 2 > 11 or 5 - 2*x <= 13 - the answer is a RANGE, and a
+      multiplication by a negative reverses the sign The FOUR OPTIONS MUST THEMSELVES BE RANGES - 'x >= 6 weeks', 'more than 12', 'at most 40' - never a bare number. A number option makes the item ambiguous (is it the boundary, or one value in the range?) and it cannot be checked against the interval the inequality solves to. If the answer you want IS a single number, model the question with an EQUATION instead of an inequality."
+    answer_family: signed
+
+  - skill_id: alg_simultaneous
+    topic_id: algebra_foundations
+    name: "Solve a pair of simultaneous equations"
+    difficulty_tiers: [4, 5]
+    structure: "TWO equations separated by a semicolon, e.g. Eq(x + y, 10); Eq(x - y, 2) - the
+      answer is a PAIR of values, stated as (x, y)"
+    answer_family: signed
+
+
+  # geometry_measures
+  - skill_id: geo_area
+    topic_id: geometry_measures
+    name: "Find the area of a shape from its dimensions"
+    difficulty_tiers: [1, 2]
+    structure: "an area from stated lengths, e.g. Eq(x, 14 * 9) for a rectangle or Eq(x,
+      Rational(1,2) * 12 * 7) for a triangle"
+    answer_family: rational
+
+  - skill_id: geo_volume
+    topic_id: geometry_measures
+    name: "Find the volume of a solid from its dimensions"
+    difficulty_tiers: [3, 4]
+    structure: "a volume from stated dimensions, e.g. Eq(x, 8 * 5 * 3) or Eq(x, 3.14 * 4**2 *
+      10) for a cylinder"
+    answer_family: rational
+
+  - skill_id: geo_surface_area
+    topic_id: geometry_measures
+    name: "Find a surface area"
+    difficulty_tiers: [4, 5]
+    structure: "a surface area as the sum of every face, e.g. Eq(x, 2*(9*4) + 2*(9*6) + 2*(4*6))"
+    answer_family: rational
+
+  - skill_id: geo_pythagorean
+    topic_id: geometry_measures
+    name: "Apply the Pythagorean theorem"
+    difficulty_tiers: [4, 5]
+    structure: "a right-triangle side from the other two, e.g. Eq(x, sqrt(9**2 + 12**2)) for the
+      hypotenuse or Eq(x, sqrt(25**2 - 7**2)) for a leg"
+    answer_family: rational
+
+  - skill_id: geo_ratios
+    topic_id: geometry_measures
+    name: "Use a ratio between geometric measures"
+    difficulty_tiers: [2, 3]
+    structure: "a ratio between two measures written as the arithmetic that finds it, e.g. Eq(x,
+      (12 * 8) / (6 * 4)) for the ratio of two areas"
+    answer_family: rational
+
+
+  # g68_word_problems
+  - skill_id: g68_wp_equations
+    topic_id: g68_word_problems
+    name: "Turn a situation into an equation and solve it"
+    difficulty_tiers: [1, 2, 3]
+    structure: "one linear equation the situation implies, e.g. Eq(4*x + 12, 60)"
+    answer_family: signed
+
+  - skill_id: g68_wp_proportion
+    topic_id: g68_word_problems
+    name: "Solve a direct or inverse proportion problem"
+    difficulty_tiers: [2, 3, 4]
+    structure: "a proportion solved for the missing quantity, e.g. Eq(x / 15, 8 / 5), or an
+      inverse proportion, e.g. Eq(x * 6, 9 * 4)"
+    answer_family: rational
+
+  - skill_id: g68_wp_inequalities
+    topic_id: g68_word_problems
+    name: "Express a constraint as an inequality and solve it"
+    difficulty_tiers: [4, 5]
+    structure: "an INEQUALITY the situation implies, e.g. 8*x + 15 <= 95 - the answer is a RANGE The FOUR OPTIONS MUST THEMSELVES BE RANGES - 'x >= 6 weeks', 'more than 12', 'at most 40' - never a bare number. A number option makes the item ambiguous (is it the boundary, or one value in the range?) and it cannot be checked against the interval the inequality solves to. If the answer you want IS a single number, model the question with an EQUATION instead of an inequality."
+    answer_family: signed
+
+
+  # algebra_1
+  - skill_id: alg1_square_roots
+    topic_id: algebra_1
+    name: "Solve equations involving square roots"
+    difficulty_tiers: [1, 2]
+    structure: "an equation of the form x squared equals a number, e.g. Eq(x**2, 49) - the
+      answer is BOTH roots, stated as '7 or -7'"
+    answer_family: signed
+
+  - skill_id: alg1_factorization
+    topic_id: algebra_1
+    name: "Factorise a quadratic expression"
+    difficulty_tiers: [2, 3]
+    structure: "a bare quadratic EXPRESSION to factorise, e.g. x**2 - 5*x + 6 - the answer is
+      the factored form, checked by equivalence. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    answer_family: signed
+
+  - skill_id: alg1_quadratics
+    topic_id: algebra_1
+    name: "Solve a quadratic equation"
+    difficulty_tiers: [3, 4, 5]
+    structure: "a quadratic EQUATION with two roots, e.g. Eq(x**2 - 5*x + 6, 0) - both roots
+      must be stated, e.g. '2 or 3'"
+    answer_family: signed
+
+  - skill_id: alg1_inequalities
+    topic_id: algebra_1
+    name: "Solve an inequality"
+    difficulty_tiers: [2, 3, 4]
+    structure: "an INEQUALITY, e.g. 4*x - 3 >= 13 - the answer is a RANGE The FOUR OPTIONS MUST THEMSELVES BE RANGES - 'x >= 6 weeks', 'more than 12', 'at most 40' - never a bare number. A number option makes the item ambiguous (is it the boundary, or one value in the range?) and it cannot be checked against the interval the inequality solves to. If the answer you want IS a single number, model the question with an EQUATION instead of an inequality."
+    answer_family: signed
+
+  - skill_id: alg1_systems
+    topic_id: algebra_1
+    name: "Solve a system of equations"
+    difficulty_tiers: [3, 4, 5]
+    structure: "TWO equations separated by a semicolon, e.g. Eq(2*x + y, 11); Eq(x - y, 1) - the
+      answer is a PAIR, stated as (x, y)"
+    answer_family: signed
+
+  - skill_id: alg1_functions
+    topic_id: algebra_1
+    name: "Work with functions and their graphs"
+    difficulty_tiers: [3, 4]
+    structure: "a bare EXPRESSION defining the function, e.g. 2*x**2 - 3*x + 1 - the answer is
+      the expression, or its simplified form. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead. THE EQUATION MUST MATCH WHAT THE STEM ASKS FOR: if the question asks for a VALUE (a root, an output at a given input), write an equation that derives that value - Eq(x**2 - 7*x + 12, 0) - not the bare expression, because a symbolic answer can never match a numeric option."
+    answer_family: signed
+
+
+  # algebra_2
+  - skill_id: alg2_irrational
+    topic_id: algebra_2
+    name: "Simplify irrational numbers"
+    difficulty_tiers: [1, 2]
+    structure: "a surd simplified, e.g. Eq(x, sqrt(50)) - the answer is 5*sqrt(2), not a decimal. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    answer_family: rational
+
+  - skill_id: alg2_polynomial_factor
+    topic_id: algebra_2
+    name: "Factorise a polynomial"
+    difficulty_tiers: [3, 4]
+    structure: "a bare polynomial EXPRESSION of degree three or more, e.g. x**3 - 4*x - the
+      answer is the factored form. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    answer_family: signed
+
+  - skill_id: alg2_remainder_factor_theorem
+    topic_id: algebra_2
+    name: "Apply the remainder and factor theorems"
+    difficulty_tiers: [4, 5]
+    structure: "a polynomial evaluated at the value the theorem names, e.g. Eq(x, 2**3 - 4*2**2
+      + 3*2 + 5) for the remainder on division by (t - 2)"
+    answer_family: integer
+
+  - skill_id: alg2_quadratic_functions
+    topic_id: algebra_2
+    name: "Work with quadratic functions"
+    difficulty_tiers: [3, 4]
+    structure: "a bare quadratic EXPRESSION, e.g. x**2 - 6*x + 5, or its vertex/root value
+      written as an equation. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    answer_family: signed
+
+  - skill_id: alg2_rational_radical
+    topic_id: algebra_2
+    name: "Simplify rational and radical expressions"
+    difficulty_tiers: [4, 5]
+    structure: "a bare EXPRESSION that simplifies, e.g. (x**2 - 9)/(x - 3) - the answer is the
+      simplified expression, checked by equivalence. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    answer_family: signed
+
+  - skill_id: alg2_exponential_log
+    topic_id: algebra_2
+    name: "Evaluate exponential and logarithmic expressions"
+    difficulty_tiers: [2, 3, 4]
+    structure: "an exponential or logarithm evaluated, e.g. Eq(x, log(64, 4)) or Eq(x, 3**4)"
+    answer_family: rational
+
+  - skill_id: alg2_sequences
+    topic_id: algebra_2
+    name: "Work with sequences and series"
+    difficulty_tiers: [2, 3, 4, 5]
+    structure: "a term or a sum written as the arithmetic that produces it, e.g. Eq(x, 5 + 7*3)
+      for an arithmetic term, or Eq(x, 2 * (3**5 - 1) / (3 - 1)) for a geometric sum"
+    answer_family: rational
+
+
+  # trigonometry
+  - skill_id: trig_ratios
+    topic_id: trigonometry
+    name: "Find a trigonometric ratio in a right triangle"
+    difficulty_tiers: [1, 2, 3]
+    structure: "a ratio from two stated side lengths, e.g. Eq(x, Rational(3, 5)) for a sine, or
+      a side from an angle, e.g. Eq(x, 10 * sin(pi/6))"
+    answer_family: rational
+
+  - skill_id: trig_functions
+    topic_id: trigonometry
+    name: "Evaluate and simplify trigonometric functions"
+    difficulty_tiers: [3, 4, 5]
+    structure: "an exact value at a special angle, e.g. Eq(x, cos(pi/3)), or a bare EXPRESSION
+      that simplifies by an identity, e.g. sin(t)**2 + cos(t)**2. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    answer_family: signed
+
+
+  # calculus
+  - skill_id: calc_limits
+    topic_id: calculus
+    name: "Evaluate a limit"
+    difficulty_tiers: [1, 2]
+    structure: "a limit evaluated by substitution, written as the value it approaches, e.g.
+      Eq(x, 3**2 + 2*3 - 1)"
+    answer_family: signed
+
+  - skill_id: calc_derivatives
+    topic_id: calculus
+    name: "Differentiate a function"
+    difficulty_tiers: [2, 3, 4]
+    structure: "a bare EXPRESSION that is the derivative, e.g. 6*x**2 - 4*x + 3 for the
+      derivative of 2*x**3 - 2*x**2 + 3*x - the answer is an expression, not a number. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    answer_family: signed
+
+  - skill_id: calc_integrals
+    topic_id: calculus
+    name: "Integrate a function"
+    difficulty_tiers: [3, 4, 5]
+    structure: "a bare EXPRESSION that is the antiderivative, e.g. x**3/3 + 2*x, or a definite
+      integral written as the arithmetic of its evaluation. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    answer_family: signed
+
+  - skill_id: calc_differential_equations
+    topic_id: calculus
+    name: "Solve a simple differential equation"
+    difficulty_tiers: [4, 5]
+    structure: "a bare EXPRESSION that is the solution, e.g. 3*exp(2*t) - the answer is a
+      function, checked by equivalence. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    answer_family: signed
+
+
+  # statistics_advanced
+  - skill_id: stat_descriptive
+    topic_id: statistics_advanced
+    name: "Find a mean, median, mode or range"
+    difficulty_tiers: [1, 2, 3]
+    structure: "a summary statistic written as the arithmetic that produces it, e.g. Eq(x, (12 +
+      15 + 18 + 21) / 4) for a mean"
+    answer_family: rational
+
+  - skill_id: stat_probability
+    topic_id: statistics_advanced
+    name: "Find the probability of an event"
+    difficulty_tiers: [2, 3, 4]
+    structure: "a probability written as a Rational, e.g. Eq(x, Rational(3, 8)), or the product
+      of two for independent events, e.g. Eq(x, Rational(1,2) * Rational(1,3))"
+    answer_family: rational
+
+  - skill_id: adv_matrices
+    topic_id: statistics_advanced
+    name: "Add and multiply matrices"
+    difficulty_tiers: [4, 5]
+    structure: "a single matrix ENTRY written as the arithmetic that produces it, e.g. Eq(x, 2*5
+      + 3*1) for one entry of a product - the item asks for that entry"
+    answer_family: signed
+
+  - skill_id: adv_vectors
+    topic_id: statistics_advanced
+    name: "Work with vectors and their products"
+    difficulty_tiers: [4, 5]
+    structure: "a magnitude or a scalar product written as its arithmetic, e.g. Eq(x, sqrt(3**2
+      + 4**2)) or Eq(x, 2*5 + 3*(-1) + 4*2)"
+    answer_family: signed
+
+
+  # ==================================================================================
+  # C1 Phase 5 — family C (D-279). No `difficulty_tiers`, deliberately: these are NOT
+  # generated. `scripts/author_figure_items.py` writes them from tables, so they must not
+  # appear in `generation_plan()` and no paid run can schedule them.
+  # ==================================================================================
+
+  - skill_id: time_read_clock
+    topic_id: telling_time
+    name: "Read the time on a clock face"
+
+  - skill_id: graph_read_bar_chart
+    topic_id: data_graphs
+    name: "Read and compare values on a bar chart"
+
+  - skill_id: figure_measure_shape
+    topic_id: plane_figures
+    name: "Find the area or perimeter of a labelled figure"
+
+  - skill_id: coordinate_read_plot
+    topic_id: coordinate_geometry
+    name: "Read and use points on a coordinate grid"

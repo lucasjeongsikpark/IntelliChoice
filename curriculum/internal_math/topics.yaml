@@ -70,6 +70,114 @@ topics:
       5: "a remainder that must be interpreted in the situation rather than reported, or a
         three-digit number multiplied by a one-digit number (128 x 3)"
 
+  # ---------------------------------------------------------------------------------------
+  # C1 wave K-2 (D-273). Six topics from the source taxonomy's grade 1 and 2 books.
+  #
+  # The rows of these books *are* the difficulty ladder - "Adding 1, Adding 2 ... Sums up to
+  # 28" is a progression, not thirteen skills - so each book collapses to 2-3 skills whose
+  # tiers the rows populate. `curriculum/coverage/skill_groups.yaml` records which row feeds
+  # which skill.
+  #
+  # Every anchor below names a STRUCTURAL feature (D-232) and, where a topic's skills differ
+  # in kind, names the skill the clause belongs to (D-238). Tier 5 in each of the four
+  # arithmetic topics is the three-number strand precisely because choosing an order is
+  # different work from calculating once, and a rubric that hid that difference is what made
+  # `place_value` read as flat calibration.
+  - topic_id: g1_addition
+    name: "Addition to 28"
+    grade_band: "1-2"
+    description: >
+      Adding within 10, bridging through ten to 20, and totals reaching into the twenties.
+    difficulty_anchors:
+      1: "both addends are single digits and the total is 10 or less, so it can be counted on
+        from the larger one (6 + 3)"
+      2: "the total lands between 11 and 16, so ten is crossed once and the student must split
+        the smaller addend to bridge it (8 + 5)"
+      3: "one addend is 9 or 10, so the efficient route is making a ten and adjusting rather
+        than counting on (9 + 7 as 10 + 6)"
+      4: "the total lands between 17 and 20, so ten is crossed and the remainder carried past
+        it is larger (8 + 9)"
+      5: "the total passes 20, so a second ten is reached and the tens digit changes twice
+        across the calculation (19 + 9)"
+
+  - topic_id: g1_subtraction
+    name: "Subtraction within 20"
+    grade_band: "1-2"
+    description: >
+      Taking away within 10, breaking a ten to subtract within 20, and combining three
+      one-digit numbers.
+    difficulty_anchors:
+      1: "a single-digit number is taken from a total of 10 or less and can be counted back
+        without breaking anything (7 - 2)"
+      2: "the total is still 10 or less but the amount taken is close to it, so counting back
+        is inefficient and the related addition fact is the route (9 - 7)"
+      3: "the total is between 11 and 20 and its ones digit is larger than the amount taken,
+        so no ten has to be broken (17 - 4)"
+      4: "the total is between 11 and 20 and its ones digit is SMALLER than the amount taken,
+        so a ten must be broken first (14 - 6)"
+      5: "three one-digit numbers are combined, so an order must be chosen before any
+        subtraction happens (12 - 3 - 4)"
+
+  - topic_id: g1_word_problems
+    name: "Word Problems: Adding and Taking Away"
+    grade_band: "1-2"
+    description: >
+      Situations that call for one addition or subtraction, and situations where the
+      student must decide which.
+    difficulty_anchors:
+      1: "the situation states what joins what, and the totals stay within 10"
+      2: "the situation states what is taken away, and the totals stay within 20"
+      3: "the operation is NOT named and must be inferred from the situation (totals within 20)"
+      4: "the question asks for the starting amount or the change rather than the result, so
+        the operation runs backwards from the way the story is told"
+      5: "two steps are needed and the result of the first is what the second acts on"
+
+  - topic_id: g2_addition
+    name: "Addition to 4 Digits"
+    grade_band: "2-3"
+    description: >
+      Two-digit addition with and without carrying, multi-digit addition, and combining
+      three numbers.
+    difficulty_anchors:
+      1: "both addends are multiples of ten, so only the tens column is added (30 + 40)"
+      2: "a two-digit and a one-digit number whose ones digits do not reach ten, so no carry
+        happens (34 + 5)"
+      3: "two two-digit numbers whose ones digits sum past ten, so exactly one carry is
+        needed (37 + 25)"
+      4: "three- or four-digit addition carrying in more than one column (2,478 + 1,365)"
+      5: "three numbers are added, so an order must be chosen and a running total held
+        across two steps (46 + 27 + 18)"
+
+  - topic_id: g2_subtraction
+    name: "Subtraction to 4 Digits"
+    grade_band: "2-3"
+    description: >
+      Two-digit subtraction with and without regrouping, multi-digit subtraction including
+      across a zero, and combining three numbers.
+    difficulty_anchors:
+      1: "both numbers are multiples of ten, so only the tens column is subtracted (80 - 30)"
+      2: "two-digit subtraction where every digit of the total is larger than the digit below
+        it, so nothing is regrouped (57 - 23)"
+      3: "two-digit subtraction needing exactly one regroup from the tens (52 - 27)"
+      4: "three- or four-digit subtraction needing a regroup ACROSS A ZERO, so the borrow
+        travels more than one column (400 - 128)"
+      5: "three numbers are combined, so an order must be chosen and an intermediate result
+        carried (95 - 27 - 18)"
+
+  - topic_id: g2_word_problems
+    name: "Word Problems: Two-Digit Quantities"
+    grade_band: "2-3"
+    description: >
+      Situations on two-digit quantities, including lengths and weights that carry units,
+      and situations needing two operations.
+    difficulty_anchors:
+      1: "one operation, named by the situation, on two-digit quantities"
+      2: "one operation the student must infer from the situation, on two-digit quantities"
+      3: "the quantities carry a unit that has to survive into the answer (centimetres, grams)"
+      4: "a quantity is given RELATIVE to another rather than directly, so it must be worked
+        out before the question can be answered"
+      5: "two operations are needed and the intermediate result is not what is asked for"
+
   - topic_id: place_value
     name: "Place Value"
     grade_band: "1-2"
@@ -108,3 +216,389 @@ topics:
         five digits or more with the first differing place outside the leading two, or the
         student must BUILD the numbers from a given set of digits before comparing them, so
         choosing the arrangement is itself the work"
+
+  # ====================================================================================
+  # C1 wave 3-5 (D-274). Seven topics, 26 skills, covering the 91 grade-3/4/5 rows that
+  # are not already taught by an existing topic.
+  #
+  # **26 of the 91 rows are deliberately NOT here**, because an existing topic already
+  # teaches them and duplicating one would mean two topics teaching one thing
+  # (`skill_groups.yaml`'s `covered_by` mapping). Grade 3's 3- and 4-digit addition and
+  # subtraction is exactly `g2_add_multi_digit`'s declared span; Grade 3 multiplication
+  # and division is what `multiplication_division` is; both grades' fraction rows are
+  # `fraction_operations`, which is already banded 4-5 for them.
+  #
+  # **`measurement` is the cross-grade topic K-2 deferred**, and this is the wave that
+  # was named as its condition. Length, weight, money and capacity recur across grades 1,
+  # 2, 3 and 4, so building it from one grade's rows would have fixed its ladder before
+  # the rest of the evidence was in.
+  # ====================================================================================
+
+  - topic_id: g4_multiplication_division
+    name: "Multiplication and Division: Multi-Digit"
+    grade_band: "4-5"
+    description: >
+      Multiplying and dividing numbers of two digits and more, where the work is carrying
+      across columns, forming partial products, and estimating a partial quotient.
+    difficulty_anchors:
+      1: "a multi-digit factor times a SINGLE digit with at most one carry (23 x 4), or a
+        two-digit dividend divided by a single digit leaving no remainder"
+      2: "three or four digits times a single digit, so carries travel across several
+        columns (1847 x 6), or a three-digit dividend divided by a single digit"
+      3: "two digits times TWO digits, so two partial products must be formed and added
+        (47 x 32), or a four-digit dividend divided by a single digit with a remainder"
+      4: "three digits times two digits, or a dividend divided by a TWO-digit divisor, where
+        each partial quotient must be estimated rather than recalled"
+      5: "three digits times three digits, three factors in one expression, or a two-digit
+        divisor into a four-digit dividend where the first estimate has to be corrected"
+
+  - topic_id: decimals
+    name: "Decimals"
+    grade_band: "4-5"
+    description: >
+      Adding, subtracting, multiplying and dividing decimals, where the work is deciding
+      where the point goes rather than the digits themselves.
+    difficulty_anchors:
+      1: "add or subtract two decimals with the SAME number of decimal places and no
+        regrouping across the point (3.4 + 2.5)"
+      2: "add or subtract two decimals with DIFFERENT numbers of decimal places, so the
+        places must be lined up before anything is combined (3.75 + 2.4)"
+      3: "three decimals in one expression, or a decimal multiplied by a whole number"
+      4: "two decimals multiplied, so the answer's number of decimal places is the SUM of
+        the two factors' and cannot be read off either one"
+      5: "a division whose DIVISOR is itself a decimal, so both numbers must be scaled
+        before the division being done is the one that was asked"
+
+  - topic_id: number_sense
+    name: "Number Sense: Comparing, Rounding, Odd and Even"
+    grade_band: "4-5"
+    description: >
+      Reading large numbers well enough to compare them, rounding to a named place, and
+      telling odd from even. The answer is selected or adjusted rather than calculated.
+    difficulty_anchors:
+      1: "decide whether a two- or three-digit number is odd or even, which its ones digit
+        settles on its own"
+      2: "compare numbers of FOUR digits or more whose leading digits differ, so the first
+        place looked at decides it"
+      3: "compare numbers of five digits or more where the first differing place is not the
+        leading one, or round to the nearest ten or hundred where the deciding digit is
+        clearly below or above halfway"
+      4: "round to a place where rounding up changes more than one digit (4962 to the
+        nearest hundred), or round a DECIMAL to a named place"
+      5: "round where the carry propagates all the way through (9973 to the nearest
+        hundred), or a rounding and a comparison must both be done before the answer is
+        decided"
+
+  - topic_id: measurement
+    name: "Measurement: Length, Weight, Capacity, Money, Time, Area and Volume"
+    grade_band: "4-5"
+    description: >
+      Quantities that carry a unit. The unit is part of the answer, and often part of the
+      work: two units of the same kind must be reconciled before anything can be combined.
+    difficulty_anchors:
+      1: "one operation on quantities that already share a unit, and the unit is carried
+        into the answer unchanged"
+      2: "quantities in one unit where the operation needs regrouping (95 cm + 40 cm), or
+        coins and notes totalled to an amount under one unit of currency"
+      3: "TWO units of the same kind appear (metres and centimetres, kilograms and grams),
+        so one must be converted before the operation can happen"
+      4: "an elapsed time crossing an hour boundary, so the sixties do not behave like
+        tens, or an area found from two given side lengths"
+      5: "a volume from three given lengths, or a problem needing a conversion AND two
+        operations before the quantity asked for exists"
+
+  - topic_id: g3_word_problems
+    name: "Word Problems: Three- and Four-Digit Quantities"
+    grade_band: "2-3"
+    description: >
+      Situations on three- and four-digit quantities, including equal-group and sharing
+      situations, and situations needing two operations.
+    difficulty_anchors:
+      1: "one operation, named outright by the story, on three-digit quantities"
+      2: "one operation the student must infer from the situation, on three- or four-digit
+        quantities"
+      3: "the situation is multiplicative - equal groups, or sharing - and the story does
+        not name the operation"
+      4: "a division whose REMAINDER means something in the story, so the answer is not the
+        bare quotient"
+      5: "two operations where the intermediate result is not what the question asks for"
+
+  - topic_id: g4_word_problems
+    name: "Word Problems: Multi-Digit and Decimal Quantities"
+    grade_band: "4-5"
+    description: >
+      Situations on multi-digit and decimal quantities, including ones where a stated
+      formula has to be applied to the givens.
+    difficulty_anchors:
+      1: "one division with a multi-digit dividend, the operation named by the story"
+      2: "one operation on decimal quantities, most often an amount of money"
+      3: "a quantity is given RELATIVE to another rather than directly, so it must be
+        worked out before the question can be answered"
+      4: "a stated formula must be applied to the given quantities, so deciding which given
+        goes where is itself part of the work"
+      5: "two operations of DIFFERENT kinds where the intermediate result is not what the
+        question asks for"
+
+  - topic_id: g5_word_problems
+    name: "Word Problems: Fractions, Decimals and Ratios"
+    grade_band: "4-5"
+    description: >
+      Situations whose quantities are fractions, decimals or shares of a ratio, where
+      recognising which operation the wording names is most of the work.
+    difficulty_anchors:
+      1: "one operation on fractions with LIKE denominators, named by the story"
+      2: "one operation on fractions with UNLIKE denominators, or one operation on decimals"
+      3: "a fraction OF a quantity, so a multiplication has to be recognised where the story
+        says 'of'"
+      4: "a ratio shares a total between two parts, so the number of parts must be found
+        before either share can be"
+      5: "two operations across two different number kinds (a fraction of a decimal
+        quantity), or a ratio followed by a comparison"
+
+  # ====================================================================================
+  # C1 waves 6-8 and 9-12 (D-277). Twelve topics covering the 79 authorable rows of
+  # grades 6-12. The remaining 15 rows are family C (a figure IS the question) and stay
+  # deferred to the Phase 5 decision gate, which is a user decision and has not been made.
+  #
+  # **These are the first topics whose answers are not single values.** Phase R built the
+  # router for them and nothing had used it: quadratics answer a root SET, inequalities an
+  # INTERVAL, systems a TUPLE, factorisation an EXPRESSION. D-277 had to route the design
+  # gate too - it still required one equation, one unknown, one solution, so every one of
+  # these could pass the item gate and none could ever be designed.
+  # ====================================================================================
+
+  - topic_id: g6_fractions
+    name: "Fractions: Reducing, Multiplying and Converting"
+    grade_band: "6-7"
+    description: >
+      Fractions past the adding stage: reducing to lowest terms, multiplying and dividing,
+      mixed numbers, and moving between fractions, decimals and percents.
+    difficulty_anchors:
+      1: "reduce a fraction whose numerator and denominator share an obvious factor (6/8)"
+      2: "multiply two proper fractions, or reduce where the common factor is not obvious
+        (24/36)"
+      3: "divide by a fraction, so the operation must be turned into a multiplication first"
+      4: "a mixed number must be converted before the operation, and converted back after"
+      5: "move between a fraction, a decimal and a percent in one problem, or combine three
+        fractions where the order of operations decides the answer"
+
+  - topic_id: g6_word_problems
+    name: "Word Problems: Rates, Ratios and Averages"
+    grade_band: "6-7"
+    description: >
+      Situations whose quantity is a relationship rather than a count - a rate, a ratio, an
+      average, or a proportion.
+    difficulty_anchors:
+      1: "an average of a small set of whole numbers, or a unit price from a total"
+      2: "a rate stated directly, applied once (distance from speed and time)"
+      3: "a ratio shares a total, so the number of parts must be found before either share"
+      4: "the rate is what is asked for, so the relationship must be inverted"
+      5: "two relationships combine - a proportion feeding an average, or a speed feeding a
+        total cost - and the intermediate value is not what is asked for"
+
+  - topic_id: g6_geometry_measurement
+    name: "Geometry and Measurement: Circles, Prisms and Factors"
+    grade_band: "6-7"
+    description: >
+      Measures computed from stated dimensions - circumference, area, surface area, volume -
+      and the factor/multiple work that grade 6 puts beside them.
+    difficulty_anchors:
+      1: "list or count factors and multiples of a two-digit number"
+      2: "the greatest common factor or least common multiple of two numbers"
+      3: "circumference or area of a circle from its radius, using pi as 3.14"
+      4: "volume of a rectangular prism from three stated dimensions"
+      5: "surface area of a prism, so every face must be accounted for, or a measure that
+        needs a factor result first"
+
+  - topic_id: pre_algebra
+    name: "Pre-Algebra"
+    grade_band: "6-7"
+    description: >
+      The arithmetic algebra rests on: factors, percents, exponents, order of operations,
+      negative numbers, and evaluating an expression at a given value.
+    difficulty_anchors:
+      1: "the greatest common factor of two numbers, or a percent of a quantity"
+      2: "a power with a small whole exponent, or a conversion between a fraction, a decimal
+        and a percent"
+      3: "an expression whose order of operations decides the answer (brackets and powers
+        together)"
+      4: "negative numbers in more than one place, so signs must be tracked through the
+        calculation"
+      5: "evaluate an algebraic expression at a given value where a negative and a power
+        interact (-3 squared is not -9)"
+
+  - topic_id: algebra_foundations
+    name: "Algebra: Expressions, Functions and Inequalities"
+    grade_band: "6-7"
+    description: >
+      Algebra as manipulation rather than solving - simplifying, distributing, describing a
+      linear function - plus the two answer shapes that are not single numbers: an interval
+      and a pair.
+    difficulty_anchors:
+      1: "collect like terms in an expression with two terms of each kind"
+      2: "distribute a single factor over a bracket and collect what results"
+      3: "a linear inequality in one variable, so the answer is a RANGE rather than a value"
+      4: "a system of two linear equations, so the answer is a PAIR"
+      5: "an inequality whose multiplication by a negative reverses it, or a system needing
+        both equations rearranged before elimination"
+
+  - topic_id: geometry_measures
+    name: "Geometry: Area, Volume and the Pythagorean Theorem"
+    grade_band: "6-7"
+    description: >
+      Geometry that is computable from stated lengths, with no figure required - areas,
+      surface areas, volumes, right-triangle sides, and ratios between them.
+    difficulty_anchors:
+      1: "area of a rectangle or triangle from two stated lengths"
+      2: "area of a compound shape stated as two rectangles, or a parallelogram"
+      3: "volume of a prism or cylinder from stated dimensions"
+      4: "the hypotenuse of a right triangle from its two legs"
+      5: "a missing leg from the hypotenuse, or a surface area where one face must be
+        derived before the total"
+
+  - topic_id: g68_word_problems
+    name: "Word Problems: Equations, Proportions and Inequalities"
+    grade_band: "6-7"
+    description: >
+      Situations that must become algebra before they can be answered - an equation, a
+      proportion, or a constraint whose answer is a range.
+    difficulty_anchors:
+      1: "one linear equation the story states almost directly"
+      2: "a proportion between two quantities, solved for the missing one"
+      3: "an inverse proportion, so more of one means less of the other"
+      4: "a constraint rather than an equality, so the answer is a RANGE"
+      5: "the situation must be written as an expression before it can be solved, and the
+        expression is what the question asks for"
+
+  - topic_id: algebra_1
+    name: "Algebra I"
+    grade_band: "8-9"
+    description: >
+      The first course whose answers are mostly not single numbers - square roots and
+      quadratics answer a root set, inequalities an interval, systems a pair, factorisation
+      an expression.
+    difficulty_anchors:
+      1: "a square root of a perfect square, or a quadratic already in the form x squared
+        equals a number"
+      2: "factorise a quadratic whose leading coefficient is 1"
+      3: "solve a quadratic by factorising, so BOTH roots must be stated"
+      4: "a system of two linear equations needing elimination or substitution"
+      5: "a compound inequality, a quadratic with a leading coefficient other than 1, or a
+        factorisation needing a common factor extracted first"
+
+  - topic_id: algebra_2
+    name: "Algebra II"
+    grade_band: "10-11"
+    description: >
+      Polynomials beyond the quadratic, the theorems that divide them, and the exponential,
+      logarithmic and sequence families.
+    difficulty_anchors:
+      1: "simplify a surd, or identify a term of an arithmetic sequence"
+      2: "evaluate a logarithm or an exponential at a whole value"
+      3: "factorise a polynomial of degree three by grouping or by a common factor"
+      4: "apply the remainder or factor theorem to decide a coefficient"
+      5: "a rational or radical expression that must be simplified before it can be
+        evaluated, or a geometric series sum"
+
+  - topic_id: trigonometry
+    name: "Trigonometry"
+    grade_band: "10-11"
+    description: >
+      Ratios in a right triangle and the functions they generalise to, computed from stated
+      lengths and angles rather than from a drawn figure.
+    difficulty_anchors:
+      1: "a sine, cosine or tangent ratio from two stated side lengths"
+      2: "a side length from an angle and one other side"
+      3: "an exact value at a special angle (30, 45, 60 degrees)"
+      4: "an identity that must be applied before the expression can be evaluated"
+      5: "an expression combining two ratios, or a function whose period or amplitude
+        decides the answer"
+
+  - topic_id: calculus
+    name: "Calculus"
+    grade_band: "11-12"
+    description: >
+      Limits, derivatives, integrals and simple differential equations, where the answer is
+      usually an expression rather than a number.
+    difficulty_anchors:
+      1: "a limit that can be evaluated by substitution"
+      2: "the derivative of a polynomial term by the power rule"
+      3: "the derivative of a polynomial with several terms, or an indefinite integral of one"
+      4: "a product, quotient or chain rule application"
+      5: "a definite integral evaluated between limits, or a separable differential equation"
+
+  - topic_id: statistics_advanced
+    name: "Statistics, Probability and Vectors"
+    grade_band: "11-12"
+    description: >
+      Summary statistics, probability of stated events, and the matrix and vector arithmetic
+      that sits beside them in the final year.
+    difficulty_anchors:
+      1: "a mean, median or mode of a stated data set"
+      2: "the probability of a single event from stated counts"
+      3: "a range or a weighted mean, or the probability of two independent events"
+      4: "a matrix sum or product, or a vector sum and magnitude"
+      5: "a conditional probability, or a scalar product used to decide an angle or a
+        perpendicularity"
+
+  # ====================================================================================
+  # C1 Phase 5 — family C (D-279). Four topics whose questions ARE pictures, authored
+  # deterministically by `scripts/author_figure_items.py` rather than generated: for these
+  # the content is the numbers, and a table produces them correctly every time for nothing.
+  # ====================================================================================
+
+  - topic_id: telling_time
+    name: "Telling the Time"
+    grade_band: "1-2"
+    description: >
+      Reading an analogue clock face, and working out how much time has passed between two
+      readings of one.
+    difficulty_anchors:
+      1: "the minute hand is on the 12 or the 6, so the reading is o'clock or half past"
+      2: "the minute hand is on a quarter mark, so the reading is quarter past or quarter to"
+      3: "the minute hand is on any five-minute mark and must be counted round in fives"
+      4: "the reading is past the half hour, so the hour hand has visibly moved on and can
+        be misread as the next hour"
+      5: "two readings must be compared, so the answer is an elapsed time rather than a
+        reading"
+
+  - topic_id: data_graphs
+    name: "Reading Graphs and Tables"
+    grade_band: "2-3"
+    description: >
+      Reading values off a bar chart, comparing them, and combining them - the skill the
+      Graphs & Tables rows in grades 3, 4 and 5 all name.
+    difficulty_anchors:
+      1: "read which bar is tallest or shortest, with a scale in ones"
+      2: "read a named bar's value, or compare two bars, with a scale in ones"
+      3: "find the difference between two bars"
+      4: "combine every bar into a total, or work with a scale that counts in fives or tens"
+      5: "a comparison and an arithmetic step both, where the intermediate value is not what
+        is asked for"
+
+  - topic_id: plane_figures
+    name: "Measuring Plane Figures"
+    grade_band: "4-5"
+    description: >
+      Areas, perimeters and circle measures computed from the labels drawn on a figure -
+      the shape is given, so choosing the rule is the work.
+    difficulty_anchors:
+      1: "the area of a rectangle from its two labelled sides"
+      2: "a perimeter, so every labelled side must be used rather than two of them"
+      3: "a triangle or parallelogram, so a factor of a half or a height rather than a side
+        decides the answer"
+      4: "a trapezoid or a circle circumference, so the rule has more than one input"
+      5: "a circle area, where the radius must be squared before the constant is applied"
+
+  - topic_id: coordinate_geometry
+    name: "Coordinate Geometry"
+    grade_band: "6-7"
+    description: >
+      Reading and using points on a coordinate grid: naming them, measuring between them,
+      and using right triangles they form.
+    difficulty_anchors:
+      1: "a point in the first quadrant, both coordinates positive"
+      2: "a point with a negative coordinate, so the direction of the count matters"
+      3: "the distance between two points that share a row or a column"
+      4: "a distance that needs both directions counted and added"
+      5: "a diagonal length, so the right triangle the points form must be used"

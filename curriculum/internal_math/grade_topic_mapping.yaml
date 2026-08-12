@@ -27,13 +27,73 @@
 # *first* match, so a "3-4" key placed above "4-5" would take grade 4 away from
 # `fraction_operations`, and placed below it would never be reached by grade 3. Pinned by
 # `test_adding_a_band_never_steals_a_grade_from_an_existing_one`.
+# C1 wave K-2 (D-273) added six topics to the two bands that already existed rather than
+# adding a "K-1" band for the grade-1 books. That is deliberate: a "K-1" band placed above
+# "1-2" would match grade 1 first and take it away from `place_value`, which is precisely
+# the theft `test_adding_a_band_never_steals_a_grade_from_an_existing_one` exists to catch.
+# The grade-1 books sit in "1-2" instead, where they serve the same grades and steal nothing.
+#
+# Order within a band is the recommendation order a student sees, so the arithmetic topics
+# lead: a grade-1 student's own year is addition and subtraction, and `place_value` is the
+# support skill underneath them rather than the headline.
 grade_topic_candidates:
   "1-2":
+    - g1_addition
+    - g1_subtraction
+    - g1_word_problems
+    - telling_time
     - place_value
   "2-3":
+    - g2_addition
+    - g2_subtraction
+    - g2_word_problems
     - multiplication_division
+    - g3_word_problems
+    - data_graphs
     - place_value
+  # C1 wave 3-5 (D-275) authored these and D-277 found they had never been listed here -
+  # so grades 4 and 5 were recommended `fraction_operations` alone while 160 generated items
+  # sat in topics no student could reach. Availability is a bank read (D-187), but a topic
+  # absent from its band is not a candidate in the first place.
   "4-5":
+    - g4_multiplication_division
+    - decimals
     - fraction_operations
+    - measurement
+    - number_sense
+    - g4_word_problems
+    - g5_word_problems
+    - plane_figures
   "6-7":
     - linear_equations
+    - pre_algebra
+    - algebra_foundations
+    - g6_fractions
+    - g6_word_problems
+    - g6_geometry_measurement
+    - geometry_measures
+    - g68_word_problems
+    - coordinate_geometry
+  # C1 waves 6-8 and 9-12 (D-277). Three bands added, and the ordering is what makes them
+  # safe: `topics_for_grade` returns the FIRST band whose endpoints contain the grade, so
+  # a band placed below an existing one cannot take a grade away from it.
+  #
+  #   grade 8  -> "8-9"    (was in no band at all)
+  #   grade 9  -> "8-9"    (was in no band at all)
+  #   grade 10 -> "10-11"  (was in no band at all)
+  #   grade 11 -> "10-11"  - matched first, which is why "11-12" below steals nothing
+  #   grade 12 -> "11-12"
+  #
+  # No grade that had a band loses it, which is exactly what
+  # `test_adding_a_band_never_steals_a_grade_from_an_existing_one` exists to catch. The
+  # grade-6 topics above join the band that already served grade 6 rather than adding a
+  # "5-6" or "7-8", for the same reason the K-2 wave joined "1-2".
+  "8-9":
+    - algebra_1
+    - linear_equations
+  "10-11":
+    - algebra_2
+    - trigonometry
+  "11-12":
+    - calculus
+    - statistics_advanced

@@ -296,7 +296,14 @@ async def _build_and_view(session: AsyncSession, rng: random.Random) -> list[flo
 # statically-rendered templates, so these numbers are a function of the seeded bank; they
 # hold in every environment because the bank is now loaded from the repository rather than
 # approved per-database.
-_PRE_EXAM_PATH_BUDGET = 8
+# D-279 adds the ninth: `items_view` reads the templates of the variants it just read, for
+# their `figure_spec`. Raised deliberately rather than worked around, because the property
+# this file guards is stated above - ONE statement, not one per item - and this read is a
+# single batched select over the whole item list, issued once. An exact count is what forces
+# that judgement to be made in the open instead of absorbed by an upper bound.
+_PRE_EXAM_PATH_BUDGET = 9
+# The post-exam build stayed at 8 - measured, not assumed. It reuses items already read,
+# so `items_view`'s figure lookup does not fire a second time there.
 _POST_EXAM_BUILD_BUDGET = 8
 
 # Every statement shape the exam build issues, and how many round-trips each may take. The
@@ -304,7 +311,7 @@ _POST_EXAM_BUILD_BUDGET = 8
 # table quietly goes back to N+1 and another gets cheaper.
 _PRE_EXAM_SHAPE_BUDGET = {
     "INSERT INTO assessment_sessions": 1,
-    "SELECT question_templates": 1,
+    "SELECT question_templates": 2,
     # One for the canonical-variant read, one for `items_view` reading back what it just
     # wrote. Asserted now that there are two, because "how many times do we read variants"
     # is exactly the count that used to be ten.

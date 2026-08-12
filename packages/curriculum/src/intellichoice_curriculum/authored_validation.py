@@ -16,9 +16,15 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from tokenize import TokenError
 
 import sympy
 from intellichoice_shared.bedrock import AuthoredGeneratedItemResponse
+from intellichoice_shared.figures import (
+    FigureSpec,
+    figure_derived_answer,
+    figure_numbers_missing_from_item,
+)
 from sympy.parsing.sympy_parser import (
     implicit_multiplication_application,
     parse_expr,
@@ -197,9 +203,36 @@ _MATH_TEXT_SUBSTITUTIONS = {
     "—": "-",  # em dash
     "×": "*",  # multiplication sign
     "÷": "/",  # division sign
+    # D-278: in mathematics `^` is exponentiation; in Python it is bitwise XOR, so SymPy
+    # reads `x^2` as `Xor(x, 2)` and quietly derives a different expression rather than
+    # failing. Nobody writing a question means XOR, and the 6-12 wave is the first content
+    # where powers are routine. Safe on both sides of the flag below: an equation with a
+    # caret means the same thing an option with one does.
+    "^": "**",
 }
 # "x = 7" as an option means the value 7 - a restated equation, not a different answer.
 _ASSIGNMENT_PREFIX_RE = re.compile(r"^\s*[A-Za-z]\w*\s*=\s*")
+
+# A thousands separator: a comma between digits, followed by exactly three more digits and
+# no whitespace on either side. `sympy.sympify('4,700')` returns the *tuple* `(4, 700)`, so
+# without this an option written the way a grade-4 answer is naturally written parses as two
+# numbers (D-274). Found by probing the router before the 3-5 wave, where large numbers are
+# routine; K-2 never reached four digits in an option and so never hit it.
+#
+# Deliberately narrow, because a comma is genuinely overloaded here - `_option_as_value_set`
+# splits multi-root answers on it. Requiring no surrounding whitespace and exactly three
+# trailing digits leaves `'3, -3'`, `'100, 200'` and `'(2, 3)'` untouched.
+#
+# **The one case no rule can separate is `'100,200'` written tight**: a thousands separator
+# and a two-root set are the same six characters. It is read as 100200, which makes a correct
+# two-root item *fail* the gate rather than pass it - the safe direction, and a review finding
+# rather than a defect in front of a student.
+_THOUSANDS_SEPARATOR_RE = re.compile(r"(?<=\d),(?=\d{3}(?!\d))")
+
+
+def _strip_thousands_separators(text: str) -> str:
+    """`'34,281'` -> `'34281'`, leaving every other comma alone. See the regex above."""
+    return _THOUSANDS_SEPARATOR_RE.sub("", text)
 
 
 def _normalize_math_text(text: str, *, strip_assignment: bool = True) -> str:
@@ -224,8 +257,13 @@ def _normalize_math_text(text: str, *, strip_assignment: bool = True) -> str:
     for character, replacement in _MATH_TEXT_SUBSTITUTIONS.items():
         text = text.replace(character, replacement)
     if not strip_assignment:
+        # `strip_assignment=False` means "this is an equation", and thousands separators must
+        # NOT be stripped from one. An equation is written in SymPy syntax, where a comma is
+        # an argument separator: rewriting `Max(340,218)` to `Max(340218)` would silently turn
+        # a comparison of two numbers into one number. The separator only ever appears in text
+        # a human wrote to be *read*, which is the other branch.
         return text
-    return _ASSIGNMENT_PREFIX_RE.sub("", text, count=1)
+    return _ASSIGNMENT_PREFIX_RE.sub("", _strip_thousands_separators(text), count=1)
 
 
 # A trailing unit ("12 minutes", "40 cm", "2/3 of a cup") or a leading currency symbol.
@@ -249,19 +287,49 @@ def _sympify(text: str) -> sympy.Basic | None:
     still re-solves the expression and compares values, so `'12 minutes'` and
     `'15 minutes'` remain different answers - what changes is that both are now comparable
     instead of both being unparseable and therefore silently exempt.
+
+    **Returns None for anything that is not a single value, and that is a correctness fix,
+    not defensive padding** (D-274). `sympy.sympify` does not only raise or return a `Basic`
+    - handed comma-separated text it returns a plain Python *tuple*, which has no `.equals`,
+    so every caller that compared the result crashed with `AttributeError` instead of
+    reporting a verdict. That made the gate order-dependent: `answers_agree('4,700', '4700')`
+    raised while `answers_agree('4700', '4,700')` returned False. Same defect class as the
+    `TokenError` that escaped `derive_answer` in Phase R - a crash where a decision belongs.
     """
     normalized = _normalize_math_text(text)
     try:
-        return sympy.sympify(normalized)
-    except (sympy.SympifyError, TypeError, ValueError, AttributeError):
-        pass
+        parsed = sympy.sympify(normalized)
+    except _PARSE_ERRORS:
+        parsed = None
+    if isinstance(parsed, sympy.Basic):
+        return parsed
     stripped = _TRAILING_UNIT_RE.sub("", _LEADING_CURRENCY_RE.sub("", normalized)).strip()
     if not stripped or stripped == normalized:
         return None
     try:
-        return sympy.sympify(stripped)
-    except (sympy.SympifyError, TypeError, ValueError, AttributeError):
+        retried = sympy.sympify(stripped)
+    except _PARSE_ERRORS:
         return None
+    return retried if isinstance(retried, sympy.Basic) else None
+
+
+def _is_whole_number(value: sympy.Basic) -> bool:
+    """Is this value a whole number, however it happens to be represented?
+
+    **Not `value.is_Integer`**, which asks about the SymPy *type* rather than the number
+    (D-274). `Eq(x, 8.4 / 0.7)` solves to `Float(12.0)` - a whole number by any reading a
+    student would recognise - and `is_Integer` is False for it, while `is_integer` is
+    `None`. So a decimal division that comes out even was reported as "not a whole number",
+    which is both wrong and, since the message told the designer to change the quantities,
+    unfixable by doing what it asked.
+
+    `.equals` is the same numeric comparison `_values_equal` uses, so a value is whole
+    exactly when it equals its own floor.
+    """
+    try:
+        return bool(value.equals(sympy.floor(value)))  # type: ignore[attr-defined]
+    except _PARSE_ERRORS:
+        return False
 
 
 def _values_equal(a: sympy.Basic, b: sympy.Basic) -> bool:
@@ -301,8 +369,46 @@ _RELATION_SPLIT_RE = re.compile(r"(?<![<>!=])=(?!=)")
 _PARSE_TRANSFORMS = standard_transformations + (implicit_multiplication_application,)
 
 
+# Everything `parse_expr` can raise on text a person or a model wrote.
+#
+# **`TokenError` was missing, and its absence was a live fail-open** (found 2026-08-11 by the
+# router's own rejection test). `derive_answer('Eq(x, ((')` and `derive_answer('x = (')`
+# *raised* instead of returning an error, so an unbalanced paren propagated out of the §5.8.5
+# gate: a curriculum load would crash rather than report the item, and the whole posture of
+# this module is that an item nothing can check is rejected, not that checking it explodes.
+# No shipped item is malformed, so it never fired - but every new answer form added below is
+# a new way for a generator to write something this has to survive.
+_PARSE_ERRORS = (
+    sympy.SympifyError,
+    SyntaxError,
+    TokenError,
+    TypeError,
+    ValueError,
+    AttributeError,
+)
+
+
 def _parse_side(text: str) -> sympy.Basic:
-    return parse_expr(text, transformations=_PARSE_TRANSFORMS, evaluate=True)
+    """Parse one side of a relation, or raise so the caller's `except` turns it into a
+    rejection.
+
+    **The `isinstance` is the fix, and it belongs here rather than at any one call site
+    (D-275).** `parse_expr` does not only raise or return a `Basic`: handed `'None'`,
+    `'True'` or `'...'` it returns the plain Python object, which has no `.free_symbols`
+    and no `.subs`. `route_answer` then died with `AttributeError` instead of returning
+    `(None, reason)` - a crash where a verdict belongs, and the check is documented as
+    fail-closed.
+
+    Third time this codebase has hit this exact class: Phase R's `TokenError` escaping
+    `derive_answer`, D-274's `sympify('4,700')` returning a tuple, and this. The first two
+    were fixed at the site that reported them; this one is fixed at the shared parser, so
+    all ten callers - each already wrapping this in `except _PARSE_ERRORS` - are covered
+    at once. `TypeError` is a member of `_PARSE_ERRORS`, so no caller changes.
+    """
+    parsed = parse_expr(text, transformations=_PARSE_TRANSFORMS, evaluate=True)
+    if not isinstance(parsed, sympy.Basic):
+        raise TypeError(f"{text!r} parsed to {type(parsed).__name__}, not a value")
+    return parsed
 
 
 def derive_answer(equation: str) -> tuple[sympy.Basic | None, str | None]:
@@ -341,7 +447,7 @@ def derive_answer(equation: str) -> tuple[sympy.Basic | None, str | None]:
                     f"as one relation with one unknown, e.g. 'Eq(3 + 7*m, 4 + 4*m)'"
                 )
             relation = sympy.Eq(_parse_side(sides[0]), _parse_side(sides[1]))
-    except (sympy.SympifyError, SyntaxError, TypeError, ValueError, AttributeError):
+    except _PARSE_ERRORS:
         return None, f"equation {equation!r} did not parse with SymPy"
 
     if not isinstance(relation, sympy.Equality):
@@ -367,6 +473,449 @@ def derive_answer(equation: str) -> tuple[sympy.Basic | None, str | None]:
     return solutions[0], None
 
 
+# --------------------------------------------------------------------------------------
+# The answer-model router (D-273, C1 Phase R)
+#
+# `derive_answer` above answers exactly one question: "what single value does this equation
+# solve to?" That is the right question for most of this bank and the wrong one for the rest
+# of the taxonomy, and the difference is not stylistic - measured against the real function
+# on 2026-08-11, `x**2 = 9` is rejected as "has 2 solutions", `3*x + 2 > 11` as "not a single
+# equation", and `Eq(x + y, 10)` as "has 2 unknowns". Every row of Algebra I - all six -
+# fails on one of those three. The pipeline could not author a single item in that book.
+#
+# **What this does not change.** `value` items route to `derive_answer` unchanged, so all 130
+# shipped items take the identical path they took before. This adds models rather than
+# altering the one that works.
+#
+# **Two latent holes closed here, both measured at 0 of 130 and both about to become live.**
+#
+#   1. `Eq(x, 43)` **passes** `derive_answer` and verifies nothing - it is D-191's defect
+#      wearing a relation costume. D-191 closed the bare-string form (`answer_expression:
+#      '7'`) and left this one open, because the check it added tests the *shape* of the
+#      model rather than whether the model does any work. It is rejected below.
+#   2. `Eq(x, diff(x**2, x))` returns **0**, not `2*x` - it solves `x = 2x`. A confident
+#      wrong answer with no error. Symbolic content smuggled through the value path fails
+#      this way silently, which is why `symbolic` gets its own form rather than a convention.
+#
+# **What did NOT need building, and the measurement that saved the work.** `selection` -
+# "which number is larger" - was scoped as a router family and turns out to be fully
+# expressible today: `Eq(x, Max(34, 43))` derives 43. So `place_value_compare`'s 15-of-15
+# reshaping into "how many more" was never forced by the gate. It is an authoring failure,
+# and its repair is authoring, not code.
+# --------------------------------------------------------------------------------------
+
+_RELATIONAL_OPS = (sympy.StrictLessThan, sympy.StrictGreaterThan, sympy.LessThan, sympy.GreaterThan)
+
+# How a multi-valued answer may be written by a human: "3 or -3", "3, -3", "3 and -3".
+_ANSWER_SET_SPLIT_RE = re.compile(r"\s*(?:,|\bor\b|\band\b)\s*", re.IGNORECASE)
+# "x = 2, y = 3" - strip each component's own assignment prefix before parsing.
+_COMPONENT_ASSIGNMENT_RE = re.compile(r"^\s*[A-Za-z]\w*\s*=\s*")
+
+
+_IDENTIFIER_ONLY_RE = re.compile(r"[A-Za-z]\w*")
+_NUMERIC_LITERAL_RE = re.compile(r"[+-]?\d+(?:\.\d+)?")
+
+
+def _equation_side_texts(normalized: str) -> tuple[str, str] | None:
+    """The two sides of the equation **as written**, before SymPy evaluates anything.
+
+    Needed only by the vacuous-form check, which is a question about authorship rather than
+    about value: `Eq(x, 43)` and `Eq(x, Max(34, 43))` parse to the identical expression, and
+    only one of them models a question.
+
+    Splits `Eq(a, b)` at its top-level comma so a nested call (`Max(34, 43)`) stays intact.
+    Returns None when the form is not one of the two it understands, and the caller then
+    skips the check rather than guessing - a missed vacuous item is a review finding, while
+    a false positive here would ban a legitimate form.
+    """
+    text = normalized.strip()
+    if text.startswith("Eq(") and text.endswith(")"):
+        inner = text[3:-1]
+        depth = 0
+        for index, char in enumerate(inner):
+            if char in "([{":
+                depth += 1
+            elif char in ")]}":
+                depth -= 1
+            elif char == "," and depth == 0:
+                return inner[:index].strip(), inner[index + 1 :].strip()
+        return None
+    sides = _RELATION_SPLIT_RE.split(text)
+    if len(sides) == 2:
+        return sides[0].strip(), sides[1].strip()
+    return None
+
+
+@dataclass(frozen=True)
+class DerivedAnswer:
+    """What the item's stated model derives, and under which answer model.
+
+    `payload` is read according to `model` and never otherwise:
+
+    | model | payload |
+    |---|---|
+    | `value` | a one-element tuple - the solution |
+    | `multi_root` | every root, as a frozenset of values |
+    | `interval` | the solution set, as a SymPy `Set` |
+    | `tuple` | the components, ordered by their symbols' names |
+    | `symbolic` | the expression itself, compared by equivalence rather than value |
+    """
+
+    model: str
+    payload: object
+
+
+def route_answer(equation: str) -> tuple[DerivedAnswer | None, str | None]:
+    """Derive the answer under whichever model the stated equation is written in.
+
+    Returns `(derivation, error)`, exactly one of which is populated. **Fail closed:** a form
+    no model claims is an error, never a skip - an item whose answer nothing can check must
+    not reach a student on the strength of nobody having checked it.
+
+    The model is inferred from the equation's *form* rather than declared in a separate
+    field, deliberately. A declared model is a second thing that can disagree with the
+    first, and this project has measured what happens when a model is asked to keep two
+    fields consistent (D-252: a prompt clause protecting one field scored 0 of 52). The form
+    cannot disagree with itself.
+    """
+    normalized = _normalize_math_text(equation, strip_assignment=False)
+
+    # A system: two or more relations, separated the way a person separates them.
+    if ";" in normalized:
+        return _route_system(equation, normalized)
+
+    # An inequality. Checked before the equation split because `_RELATION_SPLIT_RE` ignores
+    # the `=` in `>=`, so `x >= 3` would otherwise fall through to "not a single equation".
+    if any(op in normalized for op in ("<", ">")):
+        return _route_inequality(equation, normalized)
+
+    if "Eq(" in normalized or _RELATION_SPLIT_RE.search(normalized):
+        return _route_equation(equation, normalized)
+
+    # No relation at all: the answer is an expression, judged by equivalence. A bare
+    # constant is not - that is the item restating its own answer, which is the whole
+    # reason `derive_answer` requires a relation (D-191).
+    try:
+        expression = _parse_side(normalized)
+    except _PARSE_ERRORS:
+        return None, f"equation {equation!r} did not parse with SymPy"
+    if not expression.free_symbols:
+        return None, (
+            f"equation {equation!r} is a bare value, not a model of the question - it "
+            f"restates the answer instead of deriving it"
+        )
+    return DerivedAnswer("symbolic", expression), None
+
+
+def _route_equation(equation: str, normalized: str) -> tuple[DerivedAnswer | None, str | None]:
+    """`Eq(...)` or `lhs = rhs`: one unknown, one or more roots."""
+    try:
+        if "Eq(" in normalized:
+            relation = _parse_side(normalized)
+        else:
+            sides = _RELATION_SPLIT_RE.split(normalized)
+            if len(sides) != 2:
+                return None, (
+                    f"equation {equation!r} is not a single equation - model the question "
+                    f"as one relation with one unknown, e.g. 'Eq(3 + 7*m, 4 + 4*m)'"
+                )
+            relation = sympy.Eq(_parse_side(sides[0]), _parse_side(sides[1]))
+    except _PARSE_ERRORS:
+        return None, f"equation {equation!r} did not parse with SymPy"
+
+    if not isinstance(relation, sympy.Equality):
+        return None, (
+            f"equation {equation!r} is not a solvable equation - it restates the answer "
+            f"instead of deriving it"
+        )
+
+    # Hole 1, closed - and closed on the *source text*, which took one wrong attempt to get
+    # right. `Eq(x, 43)` is a valid Equality with one unknown and one solution, so every
+    # structural check above passes and the "independent solve" recovers the constant the
+    # author already wrote.
+    #
+    # The obvious test - "is the far side a number after parsing?" - **rejects
+    # `Eq(x, Max(34, 43))` too**, because SymPy folds `Max(34, 43)` to `43` while parsing,
+    # and `evaluate=False` does not prevent it (measured: `Max` and `gcd` both fold anyway).
+    # That would have banned the exact form that makes comparison questions expressible,
+    # which is the form this phase exists to promote. What separates them is not the value
+    # but what the author wrote, so the check reads the text.
+    side_texts = _equation_side_texts(normalized)
+    if side_texts is not None:
+        lhs_text, rhs_text = side_texts
+        for near_text, far_text in ((lhs_text, rhs_text), (rhs_text, lhs_text)):
+            if _IDENTIFIER_ONLY_RE.fullmatch(near_text) and _NUMERIC_LITERAL_RE.fullmatch(far_text):
+                return None, (
+                    f"equation {equation!r} states the answer rather than deriving it - the "
+                    f"unknown is alone on one side and a bare number on the other, so solving "
+                    f"it returns what was written. Model the question instead: "
+                    f"'Eq(x, Max(34, 43))' for a comparison, 'Eq(34 + x, 43)' for a difference"
+                )
+
+    unknowns = sorted(relation.free_symbols, key=str)
+    if len(unknowns) != 1:
+        return None, (
+            f"equation {equation!r} has {len(unknowns)} unknowns, expected exactly one - "
+            f"write a system as 'Eq(...); Eq(...)' if that is what the question asks"
+        )
+    try:
+        solutions = sympy.solve(relation, unknowns[0])
+    except (NotImplementedError, TypeError, ValueError):
+        return None, f"equation {equation!r} could not be solved by SymPy"
+    if not solutions:
+        return None, f"equation {equation!r} has no solution"
+    if len(solutions) == 1:
+        return DerivedAnswer("value", (solutions[0],)), None
+    return DerivedAnswer("multi_root", frozenset(solutions)), None
+
+
+def _route_inequality(equation: str, normalized: str) -> tuple[DerivedAnswer | None, str | None]:
+    """`3*x + 2 > 11`: the answer is a solution *set*, not a value."""
+    try:
+        relation = _parse_side(normalized)
+    except _PARSE_ERRORS:
+        return None, f"inequality {equation!r} did not parse with SymPy"
+    if not isinstance(relation, _RELATIONAL_OPS):
+        return None, f"inequality {equation!r} did not parse as an inequality"
+    unknowns = sorted(relation.free_symbols, key=str)
+    if len(unknowns) != 1:
+        return None, (
+            f"inequality {equation!r} has {len(unknowns)} unknowns, expected exactly one"
+        )
+    try:
+        solution_set = sympy.solveset(relation, unknowns[0], sympy.S.Reals)
+    except (NotImplementedError, TypeError, ValueError):
+        return None, f"inequality {equation!r} could not be solved by SymPy"
+    return DerivedAnswer("interval", solution_set), None
+
+
+def _route_system(equation: str, normalized: str) -> tuple[DerivedAnswer | None, str | None]:
+    """`Eq(x + y, 10); Eq(x - y, 2)`: the answer is a tuple, ordered by symbol name."""
+    parts = [p.strip() for p in normalized.split(";") if p.strip()]
+    if len(parts) < 2:
+        return None, f"system {equation!r} needs at least two equations separated by ';'"
+    relations = []
+    for part in parts:
+        try:
+            if "Eq(" in part:
+                relation = _parse_side(part)
+            else:
+                sides = _RELATION_SPLIT_RE.split(part)
+                if len(sides) != 2:
+                    return None, f"system {equation!r} has a part that is not an equation: {part!r}"
+                relation = sympy.Eq(_parse_side(sides[0]), _parse_side(sides[1]))
+        except _PARSE_ERRORS:
+            return None, f"system {equation!r} did not parse with SymPy"
+        if not isinstance(relation, sympy.Equality):
+            return None, f"system {equation!r} has a part that is not an equation: {part!r}"
+        relations.append(relation)
+
+    unknowns = sorted({s for r in relations for s in r.free_symbols}, key=str)
+    if len(unknowns) < 2:
+        return None, (
+            f"system {equation!r} has {len(unknowns)} unknowns - a system the question "
+            f"poses as one should have at least two"
+        )
+    try:
+        solved = sympy.solve(relations, unknowns, dict=True)
+    except (NotImplementedError, TypeError, ValueError):
+        return None, f"system {equation!r} could not be solved by SymPy"
+    if len(solved) != 1:
+        return None, (
+            f"system {equation!r} has {len(solved)} solutions, expected exactly one"
+        )
+    return DerivedAnswer("tuple", tuple(solved[0][s] for s in unknowns)), None
+
+
+def arithmetic_identity(equation: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
+    """What calculation this item actually asks for, ignoring the story around it.
+
+    **Measured need (D-273, C1 wave K-2).** The first 55 generated items reported 86%
+    acceptance and read well one at a time. Counted by their arithmetic, **27 of the 55
+    shared their number set with another item** - four separate items were `9 + 9`, three
+    were `4 + 5` or `5 + 4`. Every one passed dedup, because dedup asks two questions and
+    neither is about the mathematics: exact `rendered_question` text, then stem-embedding
+    cosine distance. "Liam has 9 apples and gets 9 more" and "Maria has 9 stickers and gets
+    9 more" are different stems by both measures and the same problem by any that matters.
+
+    The consequence is the one D-223 measured for bank depth: a topic whose items repeat
+    their arithmetic serves a student the same sum under new names, and two independently
+    built exams draw it twice.
+
+    Returns `(sorted numeric literals, sorted operators)`, so `4 + 5` and `5 + 4` collide
+    while `9 + 9` and `9 - 9` do not. Deliberately coarse: it is a *duplicate* check, not an
+    equivalence proof, and a false collision costs one candidate while a missed one costs a
+    repeat in front of a child. Returns None when the equation does not parse, and the
+    caller then skips the check - an unparseable equation is already rejected upstream by
+    `route_answer`, so there is nothing to add here.
+    """
+    normalized = _normalize_math_text(equation, strip_assignment=False)
+    numbers = tuple(sorted(re.findall(r"\d+(?:\.\d+)?", normalized)))
+    if not numbers:
+        return None
+    operators = tuple(sorted({ch for ch in normalized if ch in "+-*/"}))
+    return numbers, operators
+
+
+def _option_as_value_set(text: str) -> frozenset[sympy.Basic] | None:
+    """`'3 or -3'`, `'3, -3'`, `'x = 3 or x = -3'` -> {3, -3}.
+
+    Thousands separators come out **before** the split, not after: this function splits on
+    commas, so `'1,200 or -1,200'` would otherwise become four roots instead of two (D-274).
+    """
+    text = _strip_thousands_separators(text)
+    parts = [p for p in _ANSWER_SET_SPLIT_RE.split(text.strip()) if p.strip()]
+    if not parts:
+        return None
+    values = []
+    for part in parts:
+        value = _sympify(_COMPONENT_ASSIGNMENT_RE.sub("", part))
+        if value is None:
+            return None
+        values.append(value)
+    return frozenset(values)
+
+
+def _option_matches(derivation: DerivedAnswer, text: str) -> bool:
+    """Does this option state the derived answer, read under its own model?
+
+    Every arm returns False rather than raising on an unparseable option, so a distractor
+    nobody can parse is *not* counted as matching - the direction that keeps an ambiguous
+    item from passing.
+    """
+    if derivation.model == "value":
+        (expected,) = derivation.payload  # type: ignore[misc]
+        parsed = _sympify(text)
+        return parsed is not None and _values_equal(parsed, expected)
+
+    if derivation.model == "multi_root":
+        stated = _option_as_value_set(text)
+        if stated is None:
+            return False
+        expected_roots = derivation.payload
+        assert isinstance(expected_roots, frozenset)
+        if len(stated) != len(expected_roots):
+            return False
+        return all(
+            any(_values_equal(s, e) for e in expected_roots) for s in stated
+        )
+
+    if derivation.model == "interval":
+        parsed = _option_as_solution_set(text)
+        return parsed is not None and parsed == derivation.payload
+
+    if derivation.model == "tuple":
+        parsed = _option_as_tuple(text)
+        expected_components = derivation.payload
+        assert isinstance(expected_components, tuple)
+        if parsed is None or len(parsed) != len(expected_components):
+            return False
+        return all(_values_equal(p, e) for p, e in zip(parsed, expected_components, strict=True))
+
+    if derivation.model == "symbolic":
+        # **Parsed the way the EQUATION was parsed, not the way a value option is (D-278).**
+        # `_sympify` is `sympy.sympify`, which has no implicit multiplication; `_parse_side`
+        # carries `_PARSE_TRANSFORMS`, which does. So `2x(x + 1)(x + 3)` - the natural way
+        # anyone writes a factored answer, and a form the equation side has accepted since
+        # D-191 on the grounds that "a model writing mathematics naturally omits the star" -
+        # failed to parse as an *option* and the item was rejected as wrong. Measured on the
+        # 6-12 wave: correct factorisations rejected across every symbolic skill.
+        #
+        # Scoped to this arm on purpose. Turning implicit multiplication on inside `_sympify`
+        # would change what a *value* option means: `'12 minutes'` currently fails the direct
+        # parse and reaches the unit-stripping fallback, and with transforms on it would
+        # succeed as a product of eight symbols and never get there.
+        expression: sympy.Basic | None
+        try:
+            expression = _parse_side(_normalize_math_text(text))
+        except _PARSE_ERRORS:
+            expression = _sympify(text)
+        if expression is None:
+            return False
+        expected_expression = derivation.payload
+        assert isinstance(expected_expression, sympy.Basic)
+        # Equivalence, not equality: `(x-3)*(x+3)` and `x**2 - 9` are the same answer
+        # written two ways, and an author who writes either should not be rejected for it.
+        try:
+            return bool(sympy.simplify(expression - expected_expression) == 0)  # type: ignore[operator]
+        except (TypeError, ValueError, AttributeError):
+            return False
+
+    return False
+
+
+def _option_as_solution_set(text: str) -> sympy.Set | None:
+    """`'x > 3'` -> the same `Set` `solveset` returns, so the two are comparable.
+
+    **A trailing unit is stripped, and only after a direct parse has failed (D-280.)** A
+    word problem's answer carries one - `'x >= 6 weeks'`, `'t < 12 hours'` - and without this
+    the interval arm was the only answer model that could not read the way its own questions
+    are written. Measured on the 6-12 wave: correct inequality items rejected across
+    `alg1_inequalities` and `g68_wp_inequalities`.
+
+    `_sympify` has had this fallback since D-191 for exactly the same reason, with the same
+    ordering rule: anything that parses as written is never rewritten, so nothing that
+    works today can change meaning. Strictness is untouched - `'x > 6'` still does not match
+    `Interval(6, oo)`, because the unit is the only thing removed.
+    """
+    normalized = _normalize_math_text(text, strip_assignment=False)
+    if not any(op in normalized for op in ("<", ">")):
+        return None
+
+    def _usable(candidate: str) -> sympy.Basic | None:
+        """A relation in exactly one unknown, or None."""
+        try:
+            parsed = _parse_side(candidate)
+        except _PARSE_ERRORS:
+            return None
+        if not isinstance(parsed, _RELATIONAL_OPS):
+            return None
+        return parsed if len(parsed.free_symbols) == 1 else None
+
+    # The retry is on an UNUSABLE result, not merely an unparseable one - which is the
+    # subtlety that made a first attempt at this fix do nothing. `_parse_side` carries
+    # implicit multiplication, so `'x >= 6 weeks'` parses happily as `x >= 6*w*e*e*k*s`
+    # and fails later on the unknown count. Catching only the exception left the fallback
+    # unreachable for every unit that is a word.
+    relation = _usable(normalized)
+    if relation is None:
+        stripped = _TRAILING_UNIT_RE.sub("", normalized).strip()
+        if stripped and stripped != normalized:
+            relation = _usable(stripped)
+    if relation is None:
+        return None
+    unknowns = sorted(relation.free_symbols, key=str)
+    try:
+        return sympy.solveset(relation, unknowns[0], sympy.S.Reals)
+    except (NotImplementedError, TypeError, ValueError):
+        return None
+
+
+def _option_as_tuple(text: str) -> tuple[sympy.Basic, ...] | None:
+    """`'(2, 3)'` or `'x = 2, y = 3'` -> (2, 3), ordered as written.
+
+    Ordered as written is only correct because `_route_system` orders its components by
+    symbol name and an author writing `x` before `y` matches that. A question whose
+    variables are not alphabetical in the order the option states them would need the
+    option to name them - which `_COMPONENT_ASSIGNMENT_RE` strips, so it is not read here.
+    That limit is real and is why systems are worth one careful review each.
+
+    Thousands separators come out before the comma split, for the same reason as
+    `_option_as_value_set`: `'(1,200, 3)'` is a two-component tuple, not a four-component one.
+    """
+    stripped = _strip_thousands_separators(text).strip().strip("()").strip()
+    parts = [p for p in re.split(r"\s*,\s*", stripped) if p.strip()]
+    if len(parts) < 2:
+        return None
+    values = []
+    for part in parts:
+        value = _sympify(_COMPONENT_ASSIGNMENT_RE.sub("", part))
+        if value is None:
+            return None
+        values.append(value)
+    return tuple(values)
+
+
 def check_sympy_independent_solve(
     item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
 ) -> None:
@@ -386,25 +935,24 @@ def check_sympy_independent_solve(
             "equation so the answer can be derived rather than taken on trust"
         )
         return
-    solved, error = derive_answer(item.equation)
-    if solved is None:
+    derivation, error = route_answer(item.equation)
+    if derivation is None:
         result.fail(error or f"equation {item.equation!r} could not be solved")
         return
 
     options = _options(item)
-    matches = [
-        label
-        for label, text in options.items()
-        if (parsed := _sympify(text)) is not None and _values_equal(parsed, solved)
-    ]
+    matches = [label for label, text in options.items() if _option_matches(derivation, text)]
+    derived = derivation.payload
     if item.correct_option not in matches:
         result.fail(
-            f"SymPy-solved answer {solved} does not match declared correct option "
-            f"{item.correct_option!r} ({options[item.correct_option]!r})"
+            f"{derivation.model} answer {derived} derived from the equation does not match "
+            f"declared correct option {item.correct_option!r} "
+            f"({options[item.correct_option]!r})"
         )
     elif len(matches) > 1:
         result.fail(
-            f"more than one option matches the SymPy-solved answer {solved}: {matches}"
+            f"more than one option matches the derived {derivation.model} answer "
+            f"{derived}: {matches}"
         )
 
 
@@ -627,17 +1175,118 @@ def check_no_meta_commentary(
             )
 
 
+def check_figure_agrees_with_the_question(
+    figure: FigureSpec | None,
+    item: AuthoredGeneratedItemResponse,
+    result: AuthoredValidationResult,
+) -> None:
+    """Every number in the figure must appear somewhere in the item (D-279).
+
+    A figure is the only part of an item not derived from the verified equation, so this is
+    the property that keeps it honest: a clock showing 3:45 beside a stem about 4:15 is a
+    defect no other check can see and a reader can miss. Reads the options and the solution
+    as well as the stem, because for "what time does this clock show" the numbers are
+    deliberately *not* in the stem - they are the answer.
+    """
+    if figure is None:
+        return
+    solution = " ".join(
+        [step.expression or "" for step in item.canonical_solution.steps]
+        + [item.canonical_solution.final_answer]
+    )
+    text = " ".join(
+        [
+            item.stem,
+            item.context_block or "",
+            item.option_a,
+            item.option_b,
+            item.option_c,
+            item.option_d,
+            solution,
+        ]
+    )
+    missing = figure_numbers_missing_from_item(figure, item_text=text)
+    if missing:
+        result.fail(
+            f"figure carries {missing} which appear nowhere in the question, its options or "
+            f"its solution - a figure must be about the item it is attached to"
+        )
+
+
+def check_reading_matches_the_figure(
+    figure: FigureSpec | None,
+    reading: str | None,
+    item: AuthoredGeneratedItemResponse,
+    result: AuthoredValidationResult,
+) -> None:
+    """For a question the figure *answers*, the figure is what verifies it (D-279).
+
+    `check_sympy_independent_solve` cannot help here: "what time does this clock show" has
+    no arithmetic, so `derive_answer` produces a number and the option says "3:45" - the
+    exact mismatch that made `Museum B` fail in the 3-5 wave. A figure determines its own
+    answer, though, so it can play the part the equation plays everywhere else.
+
+    Fails closed on a reading the figure cannot answer, rather than skipping: an item
+    declaring `chart_max_label` over a clock is precisely the mismatch worth catching.
+    """
+    if reading is None:
+        return
+    if figure is None:
+        result.fail(f"figure_reading {reading!r} is declared but the item has no figure")
+        return
+    expected = figure_derived_answer(figure, reading)
+    if expected is None:
+        result.fail(
+            f"figure_reading {reading!r} does not apply to a {figure.kind} figure"
+        )
+        return
+    declared = _options(item)[item.correct_option]
+    if _normalise_for_reading(declared) != _normalise_for_reading(expected):
+        result.fail(
+            f"the figure reads {expected!r}, but the declared correct option "
+            f"{item.correct_option!r} says {declared!r}"
+        )
+        return
+    others = [
+        label
+        for label, text in _options(item).items()
+        if label != item.correct_option
+        and _normalise_for_reading(text) == _normalise_for_reading(expected)
+    ]
+    if others:
+        result.fail(f"more than one option states what the figure reads: {others}")
+
+
+def _normalise_for_reading(text: str) -> str:
+    return " ".join(text.split()).strip().lower()
+
+
 def validate_authored_item(
-    difficulty_label: int, item: AuthoredGeneratedItemResponse
+    difficulty_label: int,
+    item: AuthoredGeneratedItemResponse,
+    *,
+    figure: FigureSpec | None = None,
+    figure_reading: str | None = None,
 ) -> AuthoredValidationResult:
     """Runs every deterministic §5.8.5 check this module owns against one authored
     generator proposal, before any LLM solver/judge call (plan §7 step 2).
+
+    `figure` is optional and defaults to None, which is what the *pipeline* passes: family-C
+    items are authored deterministically rather than generated (D-279), so the generator's
+    response schema is untouched and no structured-output contract had to change. The loader
+    passes the figure from the bank file, so one gate covers both paths.
     """
     result = AuthoredValidationResult()
+    check_figure_agrees_with_the_question(figure, item, result)
+    check_reading_matches_the_figure(figure, figure_reading, item, result)
     check_schema_and_markdown_safety(item, result)
     check_unique_options(item, result)
-    check_sympy_independent_solve(item, result)
-    check_exactly_one_correct_answer(item, result)
+    # A reading REPLACES the equation as the source of truth, so the two answer-derivation
+    # checks are skipped for it - not weakened, exchanged. `check_reading_matches_the_figure`
+    # above does the same job from the figure, including the "no other option matches" arm.
+    if figure_reading is None:
+        check_sympy_independent_solve(item, result)
+        check_exactly_one_correct_answer(item, result)
     check_no_answer_leakage(item, result)
     check_hint_ladder_monotonicity(item, result)
     check_hint_solution_answer_agreement(item, result)

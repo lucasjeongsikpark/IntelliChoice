@@ -34,6 +34,7 @@ Design choices worth knowing before reading the code (see DECISIONS.md D-026):
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from typing import Literal, NamedTuple
 
@@ -64,13 +65,23 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_curriculum.authored_validation import (
-    _sympify,
-    _values_equal,
+    _is_whole_number,
+    _option_matches,
     answer_leaked_beyond_the_question,
     derive_answer,
     leak_phrase_present,
+    route_answer,
+    validate_authored_item,
 )
-from intellichoice_curriculum.content import CurriculumContent, TopicDef
+from intellichoice_curriculum.content import (
+    ANSWER_FAMILIES,
+    DEFAULT_ANSWER_FAMILY,
+    AnswerFamily,
+    CurriculumContent,
+    SkillDef,
+    TopicDef,
+    load_curriculum,
+)
 
 # topic_id -> difficulty_label -> skill_id. Deterministic, not LLM-chosen: this topic's
 # skill ladder tracks difficulty 1:1 (matches the S4 hand-authored bank exactly - see
@@ -85,34 +96,38 @@ TOPIC_DIFFICULTY_SKILLS: dict[str, dict[int, str]] = {
     }
 }
 
-# topic_id -> skill_id -> the difficulty tiers that skill should carry content at.
+# topic_id -> skill_id -> the difficulty tiers that skill should carry content at, and
+# skill_id -> the structure its equations must have.
 #
-# D-186: the authoring plan, and the reason it is a *second* map rather than an inversion
-# of the one above. `TOPIC_DIFFICULTY_SKILLS` stays the **native** ladder - each skill's
-# home tier, the default when no skill is named, and still 1:1. This map says which tiers
-# each skill should additionally be authored at, and it is deliberately not uniform:
+# **Both are now DERIVED from the taxonomy rather than written here (D-274).** They used to
+# be hand-maintained literals keyed by skill id, and that does not survive the full
+# taxonomy: `generate_authored_candidate` raises `PipelineConfigError` for a skill missing
+# from the tier map, so every new skill needed a Python edit before it could be generated
+# at all. At 21 skills that was a nuisance; at 245 it is a second copy of the taxonomy that
+# drifts from the first. `skills.yaml` already declares the topic/skill structure, so the
+# tiers and the required equation shape now live next to the skill they describe.
 #
-#   - The three middle skills carry their native tier ±1. `mastery_bootstrap` anchors
-#     `recommended_difficulty` on the modal assessed tier ±1 and clamps to 1-5, so T±1 is
-#     the entire range a skill can ever be recommended at - a fourth tier could not be
-#     selected by any student.
-#   - The ladder ends (`linear_one_step` at 1, `linear_distribute` at 5) stay single-tier.
-#     The clamp means tier 1's neighbour below and tier 5's neighbour above do not exist,
-#     and the user's call was multi-tier "for the middle skills".
+# This is the same move D-232 made for `difficulty_anchors`, for the same stated reason: a
+# rule kept next to the code that reads it is a rule nobody edits when they add content.
 #
-# **Authored mode only.** The shape pipeline picks from `DIFFICULTY_SHAPES`, which is keyed
-# by tier alone, so a skill generated at an off-native tier would be handed another skill's
-# math forms (`linear_two_step` at tier 3 would get `frac_coeff`/`neg_coeff`). Authored mode
-# has no shape allowlist - it generates a real stem from the skill and tier - which is why
-# multi-tier lives there and `run_pipeline` is untouched.
-TOPIC_SKILL_DIFFICULTIES: dict[str, dict[str, list[int]]] = {
-    "linear_equations": {
-        "linear_one_step": [1],
-        "linear_two_step": [1, 2, 3],
-        "linear_neg_frac_coeff": [2, 3, 4],
-        "linear_both_sides": [3, 4, 5],
-        "linear_distribute": [5],
-    }
+# The names are kept because they are the shape the planner and the tests already read, and
+# because a *projection of one source* is not the duplication being removed. Callers that
+# hold a `CurriculumContent` should prefer `curriculum.generation_plan()` and
+# `SkillDef.structure`, which respect a caller-supplied taxonomy; these read the default one.
+#
+# Why the spans are not uniform, kept from D-186 because the reasoning still governs what
+# goes in the YAML: `mastery_bootstrap` anchors `recommended_difficulty` on the modal
+# assessed tier +/-1 and clamps to 1-5, so native-tier +/-1 is the entire range a skill can
+# ever be recommended at - a fourth tier could not be selected by any student. Ladder ends
+# stay single-tier because tier 1 has no neighbour below and tier 5 none above. And a span
+# must be where the skill actually spans (D-223): claiming a range the skill does not have
+# makes the tier decorative, and a decorative tier still routes a real student.
+_DEFAULT_TAXONOMY = load_curriculum()
+
+TOPIC_SKILL_DIFFICULTIES: dict[str, dict[str, list[int]]] = _DEFAULT_TAXONOMY.generation_plan()
+
+SKILL_STRUCTURES: dict[str, str] = {
+    skill.skill_id: skill.structure for skill in _DEFAULT_TAXONOMY.skills if skill.structure
 }
 
 _REQUIRED_DISTRACTOR_COUNT = 3  # 4 options total: 1 correct + 3 distractors.
@@ -910,6 +925,14 @@ class PipelineOutcome:
     stage_results: dict = field(default_factory=dict)
     # How many Generator calls this slot consumed. 1 unless a repair attempt ran.
     attempts: int = 1
+    # The equation the design stage settled on, whatever became of the candidate (D-273).
+    # The runner feeds it to the next candidate of the same slot as `avoid_equations`, and a
+    # rejected candidate's numbers are as used up as an accepted one's - so this is set on
+    # every path that got as far as a design, not only on the ones that survived.
+    equation: str | None = None
+    # Recorded for the same reason as `equation`: the caller accumulates it to keep the
+    # next candidate for this skill from reusing the setting (D-275).
+    scenario_sketch: str | None = None
 
 
 async def _call(
@@ -1044,7 +1067,10 @@ class EquationDesignError(Exception):
 
 
 def validate_equation_design(
-    design: EquationDesignResponse, *, target_difficulty: int
+    design: EquationDesignResponse,
+    *,
+    target_difficulty: int,
+    family: AnswerFamily = ANSWER_FAMILIES[DEFAULT_ANSWER_FAMILY],
 ) -> list[str]:
     """Deterministic gate on the skeleton, before anything is written around it (D-200).
 
@@ -1054,81 +1080,88 @@ def validate_equation_design(
     guards is ~150 tokens. Nothing is weakened - the full item still faces every gate,
     including this one.
 
-    The positive-integer rule is scope-limited and deliberately strict. Every observed
-    failure of this kind produced a fraction in a scenario that counts discrete things
-    (12/5 games, 8/3 swaps, -2 hours). A future topic with genuinely continuous answers
-    would need this to become a parameter rather than a constant, and that is a change to
-    make when such a topic exists, not before.
+    **The number rules come from the skill's answer family (D-274), not from here.** They
+    were a constant, with the note that a topic needing continuous answers would have to
+    turn it into a parameter. That claim was already false when it was written: the shipped
+    `fraction_operations` items answer `5/8`, and **26 of the 184 items in the bank fail the
+    constant** - the pipeline could not regenerate 14% of its own content. `decimals`,
+    `measurement` and the grade-5 word problems make it false three more times.
+
+    The default keeps every existing caller's behaviour exactly: `counting` is
+    whole-and-positive, which is what the constant said.
+
+    **The answer MODEL comes from the router, not from `derive_answer` (D-277).** This gate
+    used to require one equation, one unknown, one solution - the pre-Phase-R contract - while
+    the item gate it claims to duplicate had already been widened to a router. Measured before
+    the 6-8/9-12 taxonomy was written: **all five B-family forms are rejected here**, so a
+    quadratic, an inequality, a system, a factorisation and a surd could each pass the item
+    gate and none could ever be *designed*. That is the same defect as D-274's number rule -
+    a rule scoped to one answer model, installed as universal - one dimension over.
+
+    The number rules apply only to the `value` model, because they are claims about a number:
+    an interval is not "positive", a factorisation is not "whole". For every other model the
+    family is silent by construction, which is why no `symbolic` family is needed.
     """
-    failures: list[str] = []
-    solved, error = derive_answer(design.equation)
-    if solved is None:
+    derivation, error = route_answer(design.equation)
+    if derivation is None:
         return [error or f"equation {design.equation!r} could not be solved"]
 
-    declared = _sympify(design.final_answer)
-    if declared is None:
-        failures.append(f"final_answer {design.final_answer!r} is not a bare number")
-    elif not _values_equal(declared, solved):
+    failures: list[str] = []
+    # The same predicate the item gate uses, rather than a second comparison that would drift
+    # from it (D-223). It reads `'3 or -3'` as a root set and `'(6, 4)'` as a tuple, which a
+    # bare `_sympify` cannot.
+    if not _option_matches(derivation, design.final_answer):
+        return [
+            f"equation derives the {derivation.model} answer {derivation.payload}, but "
+            f"final_answer says {design.final_answer!r} - they must state the same thing"
+        ]
+
+    if derivation.model != "value":
+        return failures
+
+    (solved,) = derivation.payload  # type: ignore[misc]
+    if family.whole_numbers_only and not _is_whole_number(solved):
         failures.append(
-            f"equation solves to {solved}, but final_answer says {design.final_answer!r} - "
-            f"the numbers do not divide evenly, so change the quantities"
+            f"equation solves to {solved}, which is not a whole number - {family.guidance}"
         )
-    if not solved.is_Integer:
+    elif family.positive_only and solved.is_positive is not True:
         failures.append(
-            f"equation solves to {solved}, which is not a whole number - a student cannot "
-            f"count a fraction of a thing, so change the quantities"
-        )
-    elif solved.is_positive is not True:
-        failures.append(
-            f"equation solves to {solved}; the answer must be a positive whole number"
+            f"equation solves to {solved}, which is not positive - {family.guidance}"
         )
     return failures
-
-
-# What each skill's equation must STRUCTURALLY contain, regardless of the tier the slot
-# asks for (D-200 follow-up). The tier anchors alone were not enough and made things worse:
-# the first design run handed `linear_both_sides` and `linear_distribute` at tier 5 the
-# *identical* equation `Eq(3*(x + 4) + 10, 34)`, because both were told only "tier 5 =
-# distribution required" and neither was told which skill it was authoring for. The
-# both-sides slot got an equation with the variable on one side.
-#
-# The skill is what the slot exists for - D-186 lets a skill be authored at its native tier
-# +/-1, so the tier modulates how hard the numbers are while the skill fixes the shape. When
-# the two disagree, the skill wins.
-SKILL_STRUCTURES: dict[str, str] = {
-    "linear_one_step": "exactly one operation to undo, e.g. Eq(x + 8, 20) or Eq(4*x, 20)",
-    "linear_two_step": "two operations, the variable on ONE side only, e.g. Eq(18 + 6*w, 60)",
-    "linear_neg_frac_coeff": "a negative or fractional coefficient on the variable, "
-    "e.g. Eq(60 - 4*x, 12) or Eq(x/3 + 5, 11)",
-    "linear_both_sides": "the variable MUST appear on BOTH sides of the equals sign, "
-    "e.g. Eq(8 + 2*m, 18 + m) - an equation with the variable on one side is wrong for "
-    "this skill however hard it is otherwise",
-    "linear_distribute": "a bracket that MUST be distributed before like terms can be "
-    "combined, e.g. Eq(5*(c + 2) + 12, 42)",
-}
 
 
 async def _design_equation(
     gateway: BedrockGateway,
     *,
     topic: TopicDef,
-    skill: object,
+    skill: SkillDef,
     difficulty_label: int,
     spend: float,
     max_attempts: int,
+    avoid_equations: Sequence[str] = (),
+    avoid_scenarios: Sequence[str] = (),
 ) -> tuple[EquationDesignResponse | None, float, list[str]]:
     """Cheap loop: propose a skeleton, check it deterministically, retry with the reason.
 
     Retrying *here* is the point. The same retry after a full authoring call costs an order
     of magnitude more, which is why the pipeline previously threw the whole candidate away
     instead.
+
+    `skill` was typed `object` and read through `getattr`, which is what a side table keyed
+    by skill id costs at the call site. Now that the structure and the answer family live on
+    the skill, the real type says what this needs (D-274).
     """
     total = 0.0
     previous: list[str] = []
     # Skill first, tier second: the skill fixes the shape of the equation and the tier says
     # how demanding the numbers inside it should be. Handing over only the tier is what
     # produced two different skills with one identical equation.
-    structure = SKILL_STRUCTURES.get(getattr(skill, "skill_id", ""), "")
+    #
+    # `SKILL_STRUCTURES` is consulted only as a fallback, for a caller that passed a
+    # taxonomy whose skills predate the field - the module-level view is built from the
+    # default taxonomy and would otherwise disagree with a caller-supplied one.
+    structure = skill.structure or SKILL_STRUCTURES.get(skill.skill_id, "")
     tier_anchor = topic.difficulty_anchors.get(difficulty_label, "")
     anchor = (
         f"REQUIRED STRUCTURE for this skill: {structure}. "
@@ -1139,6 +1172,26 @@ async def _design_equation(
         if structure
         else tier_anchor
     )
+    if avoid_equations:
+        # Stated in the anchor rather than left to `avoid_equations` alone, because a field
+        # the prompt never mentions is a field the model can ignore - D-252 measured a
+        # prompt clause protecting one field at 0 of 52 preserved, and the lesson there was
+        # that structure beats asking. Here the structure *is* the sentence: the field
+        # carries the data and this makes it an instruction rather than context.
+        anchor = (
+            f"{anchor} Another variant of this skill already uses "
+            f"{', '.join(avoid_equations)}. Choose DIFFERENT numbers - a variant that "
+            f"repeats the same calculation with a new story is the same question."
+        )
+    if avoid_scenarios:
+        # The second half of the same lesson. Naming the numbers to avoid without naming
+        # the settings produced 11 of 17 stems about cutting ribbon (D-275): the model
+        # varied exactly what it was asked to vary and held everything else fixed.
+        anchor = (
+            f"{anchor} These settings are already used by this skill: "
+            f"{'; '.join(avoid_scenarios)}. Choose a DIFFERENT everyday setting - renaming "
+            f"the character while keeping the situation is the same story."
+        )
     for _ in range(max_attempts):
         payload = EquationDesignPayload(
             topic_name=topic.name,  # type: ignore[attr-defined]
@@ -1147,6 +1200,8 @@ async def _design_equation(
             target_difficulty=difficulty_label,
             difficulty_anchor=anchor,
             previous_attempts=previous,
+            avoid_equations=list(avoid_equations or ()),
+            avoid_scenarios=list(avoid_scenarios or ()),
         )
         value, cost, error = await _call(
             gateway,
@@ -1172,7 +1227,9 @@ async def _design_equation(
             previous.append(f"{_CIRCUIT_OPEN_MARKER}: call failed: {error}")
             continue
         assert isinstance(value, EquationDesignResponse)
-        failures = validate_equation_design(value, target_difficulty=difficulty_label)
+        failures = validate_equation_design(
+            value, target_difficulty=difficulty_label, family=skill.family
+        )
         if not failures:
             return value, total, []
         previous.append(f"equation {value.equation!r} rejected: {'; '.join(failures)}")
@@ -1429,6 +1486,10 @@ async def _attempt_authored_candidate(
     repair: RepairContext | None = None,
     design: EquationDesignResponse | None = None,
     dispersion: JudgeDispersion | None = None,
+    # NOTE: this function does not read `avoid_equations`/`avoid_scenarios` and never
+    # did - the design is handed to it already built, so both belong on
+    # `generate_authored_candidate`, which is where the design call lives. The dead
+    # `avoid_equations` parameter is removed here rather than joined by a second one.
 ) -> PipelineOutcome:
     """One pass: generate an item and run it through every gate (D-198 split this out of
     `generate_authored_candidate`, which is now the bounded repair loop around it).
@@ -1634,7 +1695,41 @@ async def _attempt_authored_candidate(
     if hint_leaks:
         stage_results: dict = {"deterministic_gate": {"passed": False, "failures": hint_leaks}}
         return await _reject(hint_leaks, stage_results, "validation")
-    stage_results: dict = {"deterministic_gate": {"passed": True, "checks": ["hint_answer_leak"]}}
+
+    # **D-202's removal of the deterministic gate is reversed here, and D-276 is the
+    # measurement that reversed it.** D-275 had restored one *presence* check on D-246's
+    # narrow argument. Exporting the 3-5 wave showed the narrow version was not enough:
+    # **7 of 344 bank items fail this gate, and 5 of them are wrong answer keys** -
+    # an equation deriving `6*x - 48` for an item keyed "8 pencils", two options both
+    # matching the derived 8848, options that are not unique, and two items whose derived
+    # value cannot match a *label* option ("Museum B", "Odd").
+    #
+    # D-202 argued content judgements belong to the solvers and the judge, who read the item
+    # as a student would. That holds for ambiguity and alignment. It does not hold for "does
+    # the equation solve to the option you marked correct", which is arithmetic: it costs
+    # nothing, gives the same answer every call, and the two solvers and the judge passed all
+    # five of those items.
+    #
+    # The decisive argument is not coverage though - it is that `loader.py` runs exactly this
+    # gate, so an item failing it **cannot be in the bank at all**. A pipeline applying a
+    # weaker gate than the bank does not produce more content, it produces content that is
+    # rejected later, after being paid for, reviewed, approved and exported. Two gates that
+    # disagree about what a valid item is are worse than either alone; this makes them one
+    # gate, called from both places (D-223's rule: share the predicate, not the intent).
+    #
+    # `check_difficulty_rubric_compliance` is included and does not fight the re-tier flow -
+    # it asserts only that the tier is on the 1-5 scale and the time estimate is positive.
+    #
+    # Placed before the solvers deliberately: an item that cannot enter the bank should not
+    # be paid for three more times first.
+    gate = validate_authored_item(difficulty_label, item)
+    if not gate.passed:
+        stage_results: dict = {"deterministic_gate": {"passed": False, "failures": gate.failures}}
+        return await _reject(list(gate.failures), stage_results, "validation")
+
+    stage_results: dict = {
+        "deterministic_gate": {"passed": True, "checks": ["validate_authored_item"]}
+    }
 
     if await repo.rendered_question_exists(rendered_question):
         stage_results["deduplication"] = {"passed": False, "reason": "exact text duplicate"}
@@ -1642,6 +1737,24 @@ async def _attempt_authored_candidate(
             ["duplicate rendered_question (exact text match)"], stage_results, "dedup"
         )
 
+    # --- 2b. Same calculation, different story (D-273) ----------------------------
+    #
+    # **The cause is fixed upstream; this backstop is not wired, and that ordering is the
+    # point.** The first wave produced 27 of 55 items sharing a number set, and every
+    # duplicate group was a *same-slot pair* - seeds 6200/6201 both `6 + 7`, 6400/6401 both
+    # `9 + 9`. `candidates_per_slot` is 2 and both candidates were receiving an identical
+    # design payload, so the model had no reason to choose different numbers and did not.
+    # `avoid_equations` now tells each candidate what its slot-mate used, which removes the
+    # reason rather than rejecting the result after paying for it.
+    #
+    # `arithmetic_identity` exists and is tested both ways, as the backstop for what that
+    # misses: a repeat across slots, or across runs. Wiring it still fails four pipeline
+    # tests, and the remaining reason is narrow - they call `generate_authored_candidate`
+    # directly rather than through `run_plan`, so no `avoid_equations` reaches them and two
+    # calls at one difficulty legitimately design the same equation. Those fixtures need a
+    # slot context before the backstop can be judged, which is a test-harness change, not a
+    # gate change, and it is not worth rushing on top of a fix that already removes the
+    # cause.
     # --- 3. Near-duplicate check: embed the stem, cosine-compare against every ---
     # --- other authored template's stem in this topic -----------------------------
     try:
@@ -1735,6 +1848,7 @@ async def _attempt_authored_candidate(
         option_b=item.option_b,
         option_c=item.option_c,
         option_d=item.option_d,
+        correct_option=item.correct_option,
         hint_ladder=item.hint_ladder,
         canonical_solution=item.canonical_solution.final_answer,
         topic_name=topic.name,
@@ -1970,6 +2084,10 @@ async def generate_authored_candidate(
     # Defaults to None - "no re-tiering" - so every existing caller keeps D-194's
     # behaviour unless a run explicitly opts in by owning a histogram (D-239).
     dispersion: JudgeDispersion | None = None,
+    # Equations a sibling candidate of this same slot already used (D-273). Empty for the
+    # first candidate of a slot, and for every caller that generates one item at a time.
+    avoid_equations: Sequence[str] = (),
+    avoid_scenarios: Sequence[str] = (),
 ) -> PipelineOutcome:
     """One slot, with a bounded repair loop: when a candidate is rejected for something a
     rewrite could fix, the Generator is told what was wrong and tries again (D-198).
@@ -2010,6 +2128,8 @@ async def generate_authored_candidate(
                 difficulty_label=difficulty_label,
                 spend=session_spend_cents,
                 max_attempts=design_attempts,
+                avoid_equations=avoid_equations,
+                avoid_scenarios=avoid_scenarios,
             )
             spent += design_cost
             provider_only = all(
@@ -2042,6 +2162,12 @@ async def generate_authored_candidate(
                     stage_results=dict(run.stage_results),
                 )
 
+    # Set on every outcome below, so the runner learns what this slot's design chose even
+    # when the candidate is later rejected (D-273). `design` is in scope from the block
+    # above; it is None only on paths that returned before reaching this loop.
+    designed_equation = design.equation if design is not None else None
+    designed_scenario = design.scenario_sketch if design is not None else None
+
     while True:
         outcome = await _attempt_authored_candidate(
             session=session,
@@ -2062,6 +2188,8 @@ async def generate_authored_candidate(
             design=design,
             dispersion=dispersion,
         )
+        outcome.equation = designed_equation
+        outcome.scenario_sketch = designed_scenario
         spent += outcome.cost_cents
         # Every attempt's spend counts, including the failed ones: the caller is paying for
         # the slot, not for its last try.

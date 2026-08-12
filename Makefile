@@ -38,15 +38,19 @@ QUESTION_GEN_ARGS ?=
 question-gen-run:
 	uv run python -m intellichoice_curriculum.pipeline_cli $(QUESTION_GEN_ARGS)
 
+# `--mode authored` was dropped from the CLI when D-226 deleted the shape pipeline, leaving
+# authored as the only mode - but both targets below kept passing it, so both had been
+# failing on `unrecognized arguments` ever since. Found 2026-08-11 (D-273) by running the
+# preflight the docs call "run before every paid batch": the command documented as the free
+# guard against a bad paid run could not itself run.
 question-gen-authored:
-	uv run python -m intellichoice_curriculum.pipeline_cli --mode authored $(QUESTION_GEN_ARGS)
+	uv run python -m intellichoice_curriculum.pipeline_cli $(QUESTION_GEN_ARGS)
 
 # Free: says which models a run would use, which slots and template ids it would claim,
 # and its spend ceiling - calling nothing and writing nothing. Run before every paid batch;
 # a paid run now refuses to start if it fails. Add --dry-run to list every planned slot.
 question-gen-preflight:
-	uv run python -m intellichoice_curriculum.pipeline_cli --mode authored --preflight \
-		$(QUESTION_GEN_ARGS)
+	uv run python -m intellichoice_curriculum.pipeline_cli --preflight $(QUESTION_GEN_ARGS)
 
 question-review:
 	uv run python -m intellichoice_curriculum.review_cli

@@ -514,6 +514,22 @@ to rot, because nothing fails when it does.)*
   could serve. Stated as a rule because the duplication was invisible from inside either file, and
   because a fix to one copy could silently *open* a hole in the other. If a second gate is ever
   needed again, share the predicate rather than the intent.
+- **The §5.8.5 answer check is a router over answer models, and it fails closed** (D-273) — it
+  used to answer exactly one question, "what single value does this equation solve to?", which is
+  right for most of this bank and wrong for the rest of the taxonomy. Measured: `x**2 = 9` was
+  rejected as *"has 2 solutions"*, `3*x + 2 > 11` as *"not a single equation"*, `Eq(x + y, 10)` as
+  *"has 2 unknowns"* — and **all six rows of Algebra I** fail on one of those, so the pipeline
+  could not author a single item in that book. `route_answer` now dispatches on the form the item
+  is written in (`value` unchanged, plus `multi_root` / `interval` / `tuple` / `symbolic`), and a
+  form no model claims is a **rejection, never a skip**: an item whose answer nothing can check
+  must not reach a student on the strength of nobody having checked it.
+  Two properties are worth keeping because both took a wrong attempt to reach. The vacuous form
+  `Eq(x, <bare constant>)` is rejected on its **source text**, not its parsed value — SymPy folds
+  `Max(34, 43)` to `43` while parsing, so a value-based check bans the exact form that makes
+  comparison questions expressible. And the check is not the fix for duplicate content: the
+  duplication measured in C1's first wave had an upstream cause (both candidates of a slot got an
+  identical design payload), and `avoid_equations` removes the reason rather than rejecting the
+  result after paying for it.
 - **A rule that grades content lives with the content** (D-232) — the §5.8.5 judge's 1-5
   difficulty rubric sits in `topics.yaml`, on the topic it rates, not beside the prompt that uses it.
   It used to be one global table written for `linear_equations`, correct for it, and applied
@@ -524,6 +540,56 @@ to rot, because nothing fails when it does.)*
   being edited, and `test_every_topic_declares_a_full_difficulty_rubric` makes it a failure rather
   than a silent fallback to somebody else's ladder. Generalises D-226's lesson: the fix for a rule
   that drifts from what it governs is to move it, not to document it.
+- **What is universal, what is per-family, and what is configuration are three different
+  things — and a rule in the wrong one of them is a defect, not a style question** (D-274).
+  The generation pipeline now says which is which:
+  - **Universal** — `validate_authored_item`, ten checks keyed on nothing but the item and its
+    tier. Schema safety, one correct answer, no leaked answer, no meta-commentary. These hold for
+    every question this system will ever author, and a family may not switch one off.
+  - **Per-family** — the rules that differ by *answer semantics*. Verification already dispatched
+    this way (`route_answer`, above); design now does too, via `AnswerFamily`. The set is small on
+    purpose: **two** today, `counting` and `rational`. A family is not a per-skill escape hatch,
+    and a third gets added when a topic needs it, not in anticipation.
+  - **Configuration** — anything true of one skill: which tiers it spans, what structure its
+    equations must have, which family its answers belong to. These are fields on `SkillDef` in
+    `skills.yaml`, never tables in Python.
+
+  The measurement that forced the distinction: `validate_equation_design` required every answer in
+  the taxonomy to be a *positive whole number*, and **26 of the 184 shipped items failed it** — the
+  whole of `fraction_operations`, so the pipeline could not regenerate 14% of its own bank. The
+  cheap pre-gate was in fact *stricter* than the real gate it documents itself as duplicating. A
+  family rule installed as a universal constant is invisible until content arrives that it is
+  wrong for, and by then it reads as "the pipeline cannot do that" rather than "this rule is
+  misplaced".
+
+  The configuration half has a sharper test: a skill missing from the old Python tier map raised
+  `PipelineConfigError`, so **every new skill needed a source edit before it could be generated at
+  all**. Tolerable at 21 skills; the full taxonomy is 245. `TOPIC_SKILL_DIFFICULTIES` and
+  `SKILL_STRUCTURES` survive only as *projections* of the taxonomy — a projection of one source is
+  not duplication, a second literal is.
+
+- **A figure is data the gate reads, never an image** (D-279) — 34 taxonomy rows are questions
+  whose subject is a picture, and they are the one place where "generate it" would have put an
+  unverifiable artefact beside a stem whose correctness is proved. A figure is therefore a
+  structured spec (a clock is an hour and a minute; a chart is labels and values), rendered as
+  deterministic SVG in the frontend, with two properties checked server-side: **coupling** (every
+  number in the figure appears in the item) and **reading** (for a question the figure *answers*,
+  the figure is what verifies it, replacing the equation). No image generation, no blob storage,
+  no new PII surface, nothing on a retention schedule.
+
+  The reading is the router's idea applied to the one answer kind that is *read* rather than
+  computed. Without it, "what time does this clock show" fails for the same reason `Museum B`
+  did: `derive_answer` yields a number and the option is a label. Reshaping the curriculum to
+  suit the gate was the alternative, and it would have cost the grade-1 clock skill.
+
+  Family-C items are **authored, not generated** — the content is the numbers, and a table
+  produces them correctly for nothing. Their skills carry no `difficulty_tiers`, so no paid run
+  can schedule them.
+
+  **Preflight owns the plan-versus-database gap.** The taxonomy is enough to plan a run, but
+  `question_templates.skill_id` is a foreign key into a table only `make curriculum-load`
+  populates, so a run planned from a fresh YAML died at its first commit *after paying*. Anything
+  a free check can know about a paid run belongs in preflight.
 - **Every measurement of a model's output ships with a control that can fail** (D-221, D-223, D-229,
   D-233) — a pass rate alone cannot distinguish "the bank is clean" from "the check stopped firing",
   and this codebase has now produced both. The controls are specific to the failure they exclude: the

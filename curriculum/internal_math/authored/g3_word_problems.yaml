@@ -1,0 +1,812 @@
+curriculum_version: '2026.1'
+topic_id: g3_word_problems
+templates:
+- question_template_id: authored-g3_word_problems-d1-965100
+  topic_id: g3_word_problems
+  skill_id: g3_wp_add_sub
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - subtracted_in_wrong_order
+  - subtracted_100_instead_of_50
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library had some books. Then a local bookstore donated 450 books. Now the library has 1200 books
+    in total. How many books did the library have originally?
+  context_block: ''
+  answer_expression: Eq(x + 450, 1200)
+  hint_ladder:
+  - Think about what number plus 450 books equals 1200 books.
+  - Write an equation where x is the original number of books, and x plus 450 equals 1200.
+  - To find x, subtract 450 from 1200.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the number of books the library had originally. After receiving 450 books,
+        the library has x + 450 books.
+      expression: x + 450
+      common_mistake: null
+    - step_number: 2
+      explanation: The total number of books is now 1200, so we write the equation x + 450 = 1200.
+      expression: x + 450 = 1200
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 450 from both sides to solve for x.
+      expression: x = 1200 - 450
+      common_mistake: null
+    - step_number: 4
+      explanation: Perform the subtraction.
+      expression: x = 750
+      common_mistake: null
+    final_answer: 750 books
+  random_seed: 965100
+  rendered_question: A library had some books. Then a local bookstore donated 450 books. Now the library
+    has 1200 books in total. How many books did the library have originally?
+  option_a: 850 books
+  option_b: 650 books
+  option_c: 1650 books
+  option_d: 750 books
+  correct_option: d
+- question_template_id: authored-g3_word_problems-d1-965102
+  topic_id: g3_word_problems
+  skill_id: g3_wp_add_sub
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - performed_addition_instead_of_subtraction
+  - answered_with_given_part_not_unknown
+  - gave_total_instead_of_solving_for_unknown
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A movie theater sold some tickets in the morning, then sold 320 more tickets in the evening. By
+    the end of the day, the theater had sold 1150 tickets in total. How many tickets were sold in the
+    morning?
+  context_block: null
+  answer_expression: Eq(x + 320, 1150)
+  hint_ladder:
+  - How many tickets were sold altogether, and how many of those were sold in the evening?
+  - If the morning tickets are x, then x plus 320 equals the total of 1150.
+  - Write the equation x + 320 = 1150, then subtract 320 from both sides.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x represent the number of tickets sold in the morning. The theater sold x tickets
+        in the morning and 320 tickets in the evening, for a total of 1150 tickets.
+      expression: x + 320 = 1150
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, subtract 320 from both sides of the equation.
+      expression: x = 1150 - 320
+      common_mistake: null
+    - step_number: 3
+      explanation: Perform the subtraction to find the number of morning tickets.
+      expression: x = 830
+      common_mistake: null
+    final_answer: 830 tickets
+  random_seed: 965102
+  rendered_question: A movie theater sold some tickets in the morning, then sold 320 more tickets in the
+    evening. By the end of the day, the theater had sold 1150 tickets in total. How many tickets were
+    sold in the morning?
+  option_a: 1470 tickets
+  option_b: 320 tickets
+  option_c: 1150 tickets
+  option_d: 830 tickets
+  correct_option: d
+- question_template_id: authored-g3_word_problems-d2-965200
+  topic_id: g3_word_problems
+  skill_id: g3_wp_add_sub
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracting
+  - confused_total_with_starting_amount
+  - confused_added_quantity_with_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A warehouse had some boxes in storage. Then a truck delivered 275 more boxes. Now the warehouse
+    has 1340 boxes in total. How many boxes were in storage before the delivery?
+  context_block: null
+  answer_expression: Eq(x + 275, 1340)
+  hint_ladder:
+  - Write an equation showing what was in storage, plus what was delivered, equals the total now.
+  - If the warehouse had x boxes before, then x + 275 equals 1340.
+  - Subtract 275 from 1340 to find x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the number of boxes in storage before the delivery. After adding 275 boxes,
+        the total is 1340 boxes.
+      expression: x + 275 = 1340
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 275 from both sides to isolate x.
+      expression: x = 1340 - 275
+      common_mistake: null
+    - step_number: 3
+      explanation: Perform the subtraction.
+      expression: x = 1065
+      common_mistake: null
+    final_answer: 1065 boxes
+  random_seed: 965200
+  rendered_question: A warehouse had some boxes in storage. Then a truck delivered 275 more boxes. Now
+    the warehouse has 1340 boxes in total. How many boxes were in storage before the delivery?
+  option_a: 1340 boxes
+  option_b: 1615 boxes
+  option_c: 275 boxes
+  option_d: 1065 boxes
+  correct_option: d
+- question_template_id: authored-g3_word_problems-d2-965201
+  topic_id: g3_word_problems
+  skill_id: g3_wp_add_sub
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracting
+  - misread_place_value_or_regrouped_incorrectly
+  - subtracted_the_total_from_the_known_part
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A farm collected some eggs earlier in the week. On Saturday the farm collected 540 more eggs.
+    Now the farm has 1680 eggs in total. How many eggs did the farm collect earlier in the week?
+  context_block: ''
+  answer_expression: Eq(x + 540, 1680)
+  hint_ladder:
+  - Think about what the farm started with plus what they collected on Saturday.
+  - 'Write an equation: the earlier eggs plus 540 eggs equals 1680 eggs total.'
+  - Subtract 540 from 1680 to find the earlier amount.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the number of eggs collected earlier in the week. The farm then collected
+        540 more on Saturday, so the total is x + 540.
+      expression: x + 540 = 1680
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, subtract 540 from both sides of the equation.
+      expression: x = 1680 - 540
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 1680 minus 540.
+      expression: x = 1140
+      common_mistake: null
+    final_answer: 1140 eggs
+  random_seed: 965201
+  rendered_question: A farm collected some eggs earlier in the week. On Saturday the farm collected 540
+    more eggs. Now the farm has 1680 eggs in total. How many eggs did the farm collect earlier in the
+    week?
+  option_a: 2220 eggs
+  option_b: 640 eggs
+  option_c: 1240 eggs
+  option_d: 1140 eggs
+  correct_option: d
+- question_template_id: authored-g3_word_problems-d4-966400
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mixed
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_up_with_remainder
+  - stopped_after_first_operation
+  - division_by_wrong_number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher has 5 boxes with 28 pencils in each box. She wants to bundle them into groups of 8 pencils
+    each. How many complete bundles can she make?
+  context_block: null
+  answer_expression: x = (5 * 28) // 8
+  hint_ladder:
+  - First find the total number of pencils the teacher has by multiplying the number of boxes by the number
+    of pencils in each box.
+  - Now you know the total number of pencils. Divide that total by 8 to find how many groups of 8 can
+    be made.
+  - When you divide, only count the complete bundles—any leftover pencils don't make a full bundle of
+    8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the total number of pencils by multiplying the number of boxes by the pencils
+        in each box.
+      expression: 5 × 28 = 140
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total number of pencils by the bundle size to find how many complete bundles
+        can be made.
+      expression: 140 ÷ 8 = 17 remainder 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Since we can only count complete bundles, the remainder is not counted. The answer
+        is the quotient.
+      expression: 17 complete bundles
+      common_mistake: null
+    final_answer: 17 bundles
+  random_seed: 966400
+  rendered_question: A teacher has 5 boxes with 28 pencils in each box. She wants to bundle them into
+    groups of 8 pencils each. How many complete bundles can she make?
+  option_a: 18 bundles
+  option_b: 17 bundles
+  option_c: 140 bundles
+  option_d: 20 bundles
+  correct_option: b
+- question_template_id: authored-g3_word_problems-d4-966401
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mixed
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - rounded_up_instead_of_taking_floor
+  - stopped_after_first_operation
+  - off_by_one_division_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker makes 4 trays with 35 cookies on each tray and packs them into boxes of 6 cookies each.
+    How many full boxes can the baker make?
+  context_block: null
+  answer_expression: x = (4 * 35) // 6
+  hint_ladder:
+  - First, find the total number of cookies the baker made across all trays.
+  - Divide the total number of cookies by the number of cookies in each box.
+  - Remember that only complete boxes count—if there are leftover cookies that don't fill a box, they
+    are not included in the answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Multiply the number of trays by the number of cookies on each tray to find the total
+        number of cookies.
+      expression: 4 * 35 = 140
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total number of cookies by the number of cookies per box to find how many
+        full boxes can be made.
+      expression: 140 ÷ 6 = 23 remainder 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Since only complete boxes count, the answer is the quotient without the remainder.
+      expression: '23'
+      common_mistake: null
+    final_answer: 23 boxes
+  random_seed: 966401
+  rendered_question: A baker makes 4 trays with 35 cookies on each tray and packs them into boxes of 6
+    cookies each. How many full boxes can the baker make?
+  option_a: 23 boxes
+  option_b: 140 boxes
+  option_c: 22 boxes
+  option_d: 24 boxes
+  correct_option: a
+- question_template_id: authored-g3_word_problems-d4-966402
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mixed
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - reported_quotient_instead_of_remainder
+  - stopped_after_first_operation
+  - subtracted_instead_of_taking_modulus
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian wheels 6 carts into the reading room. Each cart holds 43 books. She fills shelves
+    that hold exactly 10 books each. How many books are on the last shelf that is not completely full?
+  context_block: null
+  answer_expression: x = (6 * 43) % 10
+  hint_ladder:
+  - First find the total number of books on all 6 carts combined.
+  - Now divide that total by 10 to see how many complete shelves can be filled and how many are left over.
+  - The number left over after dividing by 10 is what goes on the last partial shelf.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Multiply the number of carts by the number of books per cart to find the total number
+        of books.
+      expression: 6 * 43 = 258
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total number of books by the number of books per shelf to find how many
+        full shelves can be filled and the remainder.
+      expression: 258 ÷ 10 = 25 remainder 8
+      common_mistake: null
+    - step_number: 3
+      explanation: The remainder is the number of books on the last shelf that is not completely full.
+      expression: '8'
+      common_mistake: null
+    final_answer: 8 books
+  random_seed: 966402
+  rendered_question: A librarian wheels 6 carts into the reading room. Each cart holds 43 books. She fills
+    shelves that hold exactly 10 books each. How many books are on the last shelf that is not completely
+    full?
+  option_a: 258 books
+  option_b: 8 books
+  option_c: 25 books
+  option_d: 3 books
+  correct_option: b
+- question_template_id: authored-g3_word_problems-d5-966500
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mixed
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - skipped_subtraction
+  - added_instead_of_subtracted
+  - operated_out_of_order
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A farmer collects 8 baskets with 45 eggs in each basket. Then 52 eggs break during transport.
+    How many eggs are not broken?
+  context_block: ''
+  answer_expression: Eq(x, (8 * 45) - 52)
+  hint_ladder:
+  - First find the total number of eggs the farmer collected in all 8 baskets.
+  - Multiply the number of baskets by the number of eggs in each basket, then subtract the eggs that broke.
+  - 'Set up the calculation: total eggs collected minus 52.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the total number of eggs collected by multiplying the number of baskets by the
+        number of eggs per basket.
+      expression: 8 * 45 = 360
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the number of broken eggs from the total collected to find how many are not
+        broken.
+      expression: 360 - 52 = 308
+      common_mistake: null
+    final_answer: 308 eggs
+  random_seed: 966500
+  rendered_question: A farmer collects 8 baskets with 45 eggs in each basket. Then 52 eggs break during
+    transport. How many eggs are not broken?
+  option_a: 412 eggs
+  option_b: 256 eggs
+  option_c: 308 eggs
+  option_d: 360 eggs
+  correct_option: c
+- question_template_id: authored-g3_word_problems-d5-966502
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mixed
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_after_first_operation
+  - added_instead_of_subtracting
+  - subtracted_in_wrong_order
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener plants 6 boxes with 42 flowers in each box, but 85 flowers don't bloom. How many flowers
+    bloom?
+  context_block: null
+  answer_expression: Eq(x, (6 * 42) - 85)
+  hint_ladder:
+  - First find out how many flowers were planted in total by the gardener.
+  - Multiply the number of boxes by the flowers in each box, then subtract the ones that don't bloom.
+  - 'Write the equation: total flowers planted minus the flowers that don''t bloom equals the number that
+    bloom.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the total number of flowers planted by multiplying the number of boxes by the
+        flowers in each box.
+      expression: 6 * 42 = 252
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the flowers that don't bloom from the total number planted to find how many
+        bloom.
+      expression: 252 - 85 = 167
+      common_mistake: null
+    final_answer: 167 flowers
+  random_seed: 966502
+  rendered_question: A gardener plants 6 boxes with 42 flowers in each box, but 85 flowers don't bloom.
+    How many flowers bloom?
+  option_a: 167 flowers
+  option_b: 157 flowers
+  option_c: 337 flowers
+  option_d: 252 flowers
+  correct_option: a
+- question_template_id: authored-g3_word_problems-d2-967200
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_divisor_instead_of_dividing
+  - multiplied_instead_of_dividing
+  - off_by_one_in_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A community center collected 756 marbles for an art project. The marbles are shared equally among
+    6 classrooms. How many marbles does each classroom receive?
+  context_block: null
+  answer_expression: Eq(x, 756 / 6)
+  hint_ladder:
+  - How many groups are the 756 marbles being divided into?
+  - You need to find 756 divided by 6.
+  - Set up the division 756 ÷ 6 and work through it step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The 756 marbles are shared equally among 6 classrooms, so we divide the total by the
+        number of groups.
+      expression: 756 / 6
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Dividing 756 by 6: 6 goes into 7 once (1), remainder 1. Bring down 5 to make 15. 6
+        goes into 15 twice (2), remainder 3. Bring down 6 to make 36. 6 goes into 36 exactly six times
+        (6).'
+      expression: '126'
+      common_mistake: null
+    final_answer: 126 marbles
+  random_seed: 967200
+  rendered_question: A community center collected 756 marbles for an art project. The marbles are shared
+    equally among 6 classrooms. How many marbles does each classroom receive?
+  option_a: 126 marbles
+  option_b: 125 marbles
+  option_c: 762 marbles
+  option_d: 4536 marbles
+  correct_option: a
+- question_template_id: authored-g3_word_problems-d2-967201
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_dividing
+  - subtracted_instead_of_dividing
+  - multiplied_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery packages 432 cookies into boxes. Each box holds exactly 8 cookies. How many boxes does
+    the bakery fill?
+  context_block: ''
+  answer_expression: Eq(8*x, 432)
+  hint_ladder:
+  - Think about how many cookies go into one box and how many cookies there are in total.
+  - If each of the x boxes holds 8 cookies, then 8 times x equals 432.
+  - Write the equation 8 times x equals 432, then divide both sides by 8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each box holds 8 cookies, and there are x boxes, so the total number of cookies is
+        8 times x.
+      expression: 8*x
+      common_mistake: null
+    - step_number: 2
+      explanation: We know the total number of cookies is 432, so we set up the equation 8 times x equals
+        432.
+      expression: 8*x = 432
+      common_mistake: null
+    - step_number: 3
+      explanation: To find x, divide both sides of the equation by 8.
+      expression: x = 432 / 8
+      common_mistake: null
+    - step_number: 4
+      explanation: 432 divided by 8 equals 54.
+      expression: x = 54
+      common_mistake: null
+    final_answer: 54 boxes
+  random_seed: 967201
+  rendered_question: A bakery packages 432 cookies into boxes. Each box holds exactly 8 cookies. How many
+    boxes does the bakery fill?
+  option_a: 424 boxes
+  option_b: 3456 boxes
+  option_c: 440 boxes
+  option_d: 54 boxes
+  correct_option: d
+- question_template_id: authored-g3_word_problems-d2-967202
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_divided
+  - subtracted_instead_of_divided
+  - multiplied_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A teacher has 945 stickers to share equally among 7 students. How many stickers will each student
+    receive?
+  context_block: ''
+  answer_expression: Eq(7*x, 945)
+  hint_ladder:
+  - If each student gets the same number of stickers, and there are 7 students, how can you describe the
+    total number of stickers?
+  - The total is 7 times the number each student gets, and that total must equal 945.
+  - Write 7 times the unknown equal to 945, then divide both sides by 7.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x represent the number of stickers each student receives. Since 7 students share
+        equally, the total is 7 times x.
+      expression: 7*x = 945
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, divide both sides of the equation by 7.
+      expression: x = 945 / 7
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the division: 945 divided by 7 equals 135.'
+      expression: x = 135
+      common_mistake: null
+    final_answer: 135 stickers
+  random_seed: 967202
+  rendered_question: A teacher has 945 stickers to share equally among 7 students. How many stickers will
+    each student receive?
+  option_a: 6615 stickers
+  option_b: 135 stickers
+  option_c: 952 stickers
+  option_d: 938 stickers
+  correct_option: b
+- question_template_id: authored-g3_word_problems-d3-967300
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_divided
+  - added_instead_of_divided
+  - multiplied_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school orders 648 pencils and shares them equally among 9 classrooms. How many pencils does
+    each classroom receive?
+  context_block: null
+  answer_expression: Eq(x, 648 / 9)
+  hint_ladder:
+  - If you share 648 pencils equally among 9 classrooms, what operation will tell you the size of each
+    share?
+  - Division splits a total into equal groups. Write 648 divided by 9.
+  - Set up 648 ÷ 9 and perform the division.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to share 648 pencils equally among 9 classrooms, so we divide the total by
+        the number of groups.
+      expression: 648 ÷ 9
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Perform the division: 648 divided by 9 equals 72.'
+      expression: '72'
+      common_mistake: null
+    final_answer: 72 pencils
+  random_seed: 967300
+  rendered_question: A school orders 648 pencils and shares them equally among 9 classrooms. How many
+    pencils does each classroom receive?
+  option_a: 5832 pencils
+  option_b: 657 pencils
+  option_c: 639 pencils
+  option_d: 72 pencils
+  correct_option: d
+- question_template_id: authored-g3_word_problems-d3-967301
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_dividing
+  - subtracted_instead_of_dividing
+  - subtracted_twenty_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A library has 864 books to place equally on 6 shelves. How many books go on each shelf?
+  context_block: null
+  answer_expression: x = 864 / 6
+  hint_ladder:
+  - Think about how you share a total equally among several groups.
+  - Since 864 books are split equally across 6 shelves, you need to divide the total by the number of
+    shelves.
+  - Write the division 864 ÷ 6 and calculate the answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The library has 864 books and wants to place them equally on 6 shelves, so each shelf
+        gets the same number of books.
+      expression: 864 ÷ 6
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide 864 by 6 to find how many books go on one shelf.
+      expression: 864 ÷ 6 = 144
+      common_mistake: null
+    final_answer: 144 books
+  random_seed: 967301
+  rendered_question: A library has 864 books to place equally on 6 shelves. How many books go on each
+    shelf?
+  option_a: 124 books
+  option_b: 144 books
+  option_c: 858 books
+  option_d: 870 books
+  correct_option: b
+- question_template_id: authored-g3_word_problems-d3-967302
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_divisor_from_dividend
+  - rounded_dividend_down_before_dividing
+  - stopped_one_step_early
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A farm packs 735 oranges into bags. Each bag holds exactly 5 oranges. How many bags does the farm
+    fill?
+  context_block: null
+  answer_expression: Eq(5*x, 735)
+  hint_ladder:
+  - If the farm fills b bags with 5 oranges each, how many oranges are used in total?
+  - The total number of oranges is 5 times the number of bags, and that must equal 735.
+  - Write the equation 5 times b equals 735, then divide both sides by 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let b be the number of bags. Each bag holds 5 oranges, so the total number of oranges
+        is 5 times b.
+      expression: 5*b
+      common_mistake: null
+    - step_number: 2
+      explanation: The farm has 735 oranges, so we set the total equal to 735.
+      expression: 5*b = 735
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 5 to find the number of bags.
+      expression: b = 735 / 5
+      common_mistake: null
+    - step_number: 4
+      explanation: Carry out the division.
+      expression: b = 147
+      common_mistake: null
+    final_answer: 147 bags
+  random_seed: 967302
+  rendered_question: A farm packs 735 oranges into bags. Each bag holds exactly 5 oranges. How many bags
+    does the farm fill?
+  option_a: 146 bags
+  option_b: 740 bags
+  option_c: 730 bags
+  option_d: 147 bags
+  correct_option: d
+- question_template_id: authored-g3_word_problems-d4-967400
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_divisor_instead_of_dividing
+  - subtracted_divisor_from_dividend
+  - multiplied_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A museum is setting up an exhibition. The curator places 644 photographs equally into 7 galleries
+    so that each gallery shows the same number of photographs. How many photographs are in each gallery?
+  context_block: null
+  answer_expression: Eq(x, 644 / 7)
+  hint_ladder:
+  - Think about how the 644 photographs are split among the 7 galleries.
+  - Since the photographs are shared equally, you need to divide the total number by the number of galleries.
+  - Set up the division 644 ÷ 7 and calculate the answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The museum has 644 photographs shared equally among 7 galleries, so each gallery gets
+        644 divided by 7.
+      expression: x = 644 / 7
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Perform the division: 644 ÷ 7 = 92.'
+      expression: x = 92
+      common_mistake: null
+    final_answer: 92 photographs
+  random_seed: 967400
+  rendered_question: A museum is setting up an exhibition. The curator places 644 photographs equally
+    into 7 galleries so that each gallery shows the same number of photographs. How many photographs are
+    in each gallery?
+  option_a: 651 photographs
+  option_b: 637 photographs
+  option_c: 92 photographs
+  option_d: 4508 photographs
+  correct_option: c

@@ -1,0 +1,247 @@
+grade,book,topic
+1,Grade 1 Addition,Writing Numbers
+1,Grade 1 Addition,Table of Numbers
+1,Grade 1 Addition,Adding 1
+1,Grade 1 Addition,Adding 2
+1,Grade 1 Addition,Adding 3
+1,Grade 1 Addition,Adding 4
+1,Grade 1 Addition,Adding 5
+1,Grade 1 Addition,Adding 6
+1,Grade 1 Addition,Adding 7 and 8
+1,Grade 1 Addition,Adding 9 and 10
+1,Grade 1 Addition,Adding Sums up to 16
+1,Grade 1 Addition,Adding Sums up to 20
+1,Grade 1 Addition,Adding Sums up to 28
+1,Grade 1 Subtraction,Table of Numbers
+1,Grade 1 Subtraction,Subtracting 1
+1,Grade 1 Subtraction,Subtracting 2
+1,Grade 1 Subtraction,Subtracting 3
+1,Grade 1 Subtraction,Subtracting 4
+1,Grade 1 Subtraction,Subtracting 5
+1,Grade 1 Subtraction,Subtracting
+1,Grade 1 Subtraction,Three One-Digit Numbers
+1,Grade 1 Word Problems,Addition
+1,Grade 1 Word Problems,Subtraction
+1,Grade 1 Word Problems,Addition or Subtraction
+1,Grade 1 Word Problems,Ordinal Numbers
+1,Grade 1 Word Problems,Mixed Addition and Subtraction
+1,Grade 1 Geometry & Measurement,Numbers up to 10
+1,Grade 1 Geometry & Measurement,Numbers up to 20
+1,Grade 1 Geometry & Measurement,Numbers up to 120
+1,Grade 1 Geometry & Measurement,Telling Time
+1,Grade 1 Geometry & Measurement,Measurements
+1,Grade 1 Geometry & Measurement,Coins
+1,Grade 1 Geometry & Measurement,Shapes
+2,Grade 2 Addition,Sums up to 28
+2,Grade 2 Addition,Addition of Tens
+2,Grade 2 Addition,1- and 2-Digit Addition
+2,Grade 2 Addition,Sums up to 50
+2,Grade 2 Addition,Sums up to 100
+2,Grade 2 Addition,Sums Beyond 100
+2,Grade 2 Addition,3- and 4-Digit Addition
+2,Grade 2 Addition,Three Numbers
+2,Grade 2 Subtraction,2-Digit Subtraction
+2,Grade 2 Subtraction,3-Digit Subtraction
+2,Grade 2 Subtraction,Subtraction
+2,Grade 2 Subtraction,Subtraction of Tens
+2,Grade 2 Subtraction,Subtraction of Hundreds
+2,Grade 2 Subtraction,Subtraction of Thousands
+2,Grade 2 Subtraction,Three Numbers
+2,Grade 2 Word Problems,Addition and Subtraction
+2,Grade 2 Word Problems,Length
+2,Grade 2 Word Problems,Weight
+2,Grade 2 Word Problems,Addition or Subtraction
+2,Grade 2 Word Problems,Mixed Calculations
+2,Grade 2 Word Problems,Tables & Graphs
+2,Grade 2 Geometry & Measurement,Numbers up to 1000
+2,Grade 2 Geometry & Measurement,Numbers up to 10000
+2,Grade 2 Geometry & Measurement,Telling Time
+2,Grade 2 Geometry & Measurement,Length
+2,Grade 2 Geometry & Measurement,Weight
+2,Grade 2 Geometry & Measurement,Money
+2,Grade 2 Geometry & Measurement,Triangles and Quadrilaterals
+3,Grade 3 Addition & Subtraction,3-Digit Addition
+3,Grade 3 Addition & Subtraction,4-Digit Addition
+3,Grade 3 Addition & Subtraction,3-Digit Subtraction
+3,Grade 3 Addition & Subtraction,4-Digit Subtraction
+3,Grade 3 Multiplication,Repeated Addition
+3,Grade 3 Multiplication,2× Tables
+3,Grade 3 Multiplication,3× Tables
+3,Grade 3 Multiplication,4× Tables
+3,Grade 3 Multiplication,5× Tables
+3,Grade 3 Multiplication,6× Tables
+3,Grade 3 Multiplication,7× Tables
+3,Grade 3 Multiplication,8× Tables
+3,Grade 3 Multiplication,9× Tables
+3,Grade 3 Multiplication,1× and 10× Tables
+3,Grade 3 Division,Inverse Multiplication
+3,Grade 3 Division,Division
+3,Grade 3 Division,Division with Remainders
+3,Grade 3 Division,Vertical Form Division
+3,Grade 3 Division,Division with Large Numbers
+3,Grade 3 Word Problems,Addition or Subtraction
+3,Grade 3 Word Problems,Length
+3,Grade 3 Word Problems,Time
+3,Grade 3 Word Problems,Multiplication
+3,Grade 3 Word Problems,Division
+3,Grade 3 Word Problems,Mixed Calculations
+3,Grade 3 Word Problems,Graphs & Tables
+3,Grade 3 Geometry & Measurement,Large Numbers
+3,Grade 3 Geometry & Measurement,Fractions
+3,Grade 3 Geometry & Measurement,Length
+3,Grade 3 Geometry & Measurement,Area
+3,Grade 3 Geometry & Measurement,Weight
+3,Grade 3 Geometry & Measurement,Capacity
+3,Grade 3 Geometry & Measurement,Telling Time
+3,Grade 3 Geometry & Measurement,Triangles & Quadrilaterals
+3,Grade 3 Geometry & Measurement,Boxes
+4,Grade 4 Multiplication,2-Digit by 1-Digit Multiplication
+4,Grade 4 Multiplication,3-Digit and 4-Digit by 1-Digit Multiplication
+4,Grade 4 Multiplication,2-Digit by 2-Digit Multiplication
+4,Grade 4 Multiplication,3-Digit by 2-Digit Multiplication
+4,Grade 4 Multiplication,3-Digit by 3-Digit Multiplication
+4,Grade 4 Multiplication,Three Number Multiplication
+4,Grade 4 Division,2-Digits / 1-Digits
+4,Grade 4 Division,3-Digits / 1-Digits
+4,Grade 4 Division,4-Digits / 1-Digits
+4,Grade 4 Division,3-Digits / 2-Digits
+4,Grade 4 Division,Checking the Answer
+4,Grade 4 Division,4-Digits / 2-Digits
+4,Grade 4 Division,Division with Large Numbers
+4,Grade 4 Division,Mixed Calculations
+4,Grade 4 Decimals & Fractions,Addition of Decimals
+4,Grade 4 Decimals & Fractions,Subtraction of Decimals
+4,Grade 4 Decimals & Fractions,Three Decimals
+4,Grade 4 Decimals & Fractions,Fractions
+4,Grade 4 Decimals & Fractions,Addition of Fractions
+4,Grade 4 Decimals & Fractions,Subtraction of Fractions
+4,Grade 4 Decimals & Fractions,Three Fractions
+4,Grade 4 Word Problems,Division
+4,Grade 4 Word Problems,Decimals
+4,Grade 4 Word Problems,Using A Formula
+4,Grade 4 Word Problems,Mixed Calculations
+4,Grade 4 Word Problems,Graphs & Tables
+4,Grade 4 Geometry & Measurement,Large Numbers
+4,Grade 4 Geometry & Measurement,Round Numbers
+4,Grade 4 Geometry & Measurement,Fractions
+4,Grade 4 Geometry & Measurement,Decimals
+4,Grade 4 Geometry & Measurement,"Volume, Capacity, Area"
+4,Grade 4 Geometry & Measurement,Elapsed Time
+4,Grade 4 Geometry & Measurement,Circles and Spheres
+4,Grade 4 Geometry & Measurement,Areas and Triangles
+5,Grade 5 Decimals & Fractions,Multiplication of Decimals
+5,Grade 5 Decimals & Fractions,Division of Decimals
+5,Grade 5 Decimals & Fractions,Three Decimals
+5,Grade 5 Decimals & Fractions,Addition of Fractions
+5,Grade 5 Decimals & Fractions,Subtraction of Fractions
+5,Grade 5 Decimals & Fractions,Three Fractions
+5,Grade 5 Word Problems,"Round Numbers, Odd & Even"
+5,Grade 5 Word Problems,Fractions
+5,Grade 5 Word Problems,Decimals
+5,Grade 5 Word Problems,Ratios
+5,Grade 5 Word Problems,"Graphs, Percentages & Ratios"
+5,Grade 5 Word Problems,Mixed Problems
+5,Grade 5 Geometry & Measurement,Odd & Even Numbers
+5,Grade 5 Geometry & Measurement,Decimals
+5,Grade 5 Geometry & Measurement,"Decimals, Measurements, and Fractions"
+5,Grade 5 Geometry & Measurement,Perpendicular & Parallel Lines
+5,Grade 5 Geometry & Measurement,"Quadrilaterals, Angles, and Polygons"
+5,Grade 5 Geometry & Measurement,Congruent Figures
+5,Grade 5 Geometry & Measurement,Axial and Rotational Symmetry
+5,Grade 5 Geometry & Measurement,Coordinate Geometry
+5,Grade 5 Geometry & Measurement,Area
+5,Grade 5 Geometry & Measurement,Volume
+6,Grade 6 Fractions,Reduction
+6,Grade 6 Fractions,Addition of Fractions
+6,Grade 6 Fractions,Subtraction of Fractions
+6,Grade 6 Fractions,Three Fractions
+6,Grade 6 Fractions,Multiplication of Fractions
+6,Grade 6 Fractions,Division of Fractions
+6,Grade 6 Fractions,Fractions and Decimals
+6,Grade 6 Fractions,Three Fractions
+6,Grade 6 Word Problems,Fractions
+6,Grade 6 Word Problems,Ratios
+6,Grade 6 Word Problems,Average
+6,Grade 6 Word Problems,Quantity per Unit
+6,Grade 6 Word Problems,Speed
+6,Grade 6 Word Problems,Common Factors
+6,Grade 6 Word Problems,"Speed & Distance, Rate"
+6,Grade 6 Word Problems,Mixed Calculations
+6,Grade 6 Word Problems,Proportion
+6,Grade 6 Geometry & Measurement,Multiples and Factors
+6,Grade 6 Geometry & Measurement,Fractions
+6,Grade 6 Geometry & Measurement,Circles
+6,Grade 6 Geometry & Measurement,Rectangular Prisms
+6,Grade 6 Geometry & Measurement,Solids
+6,Grade 6 Geometry & Measurement,Surface Area and Volume
+6,Grade 6 Geometry & Measurement,Scale Drawing
+6,Grade 6 Geometry & Measurement,Ratio
+6-8,Pre-Algebra Grades 6–8,Greatest Common Factor
+6-8,Pre-Algebra Grades 6–8,"Comparing, adding, subtracting, multiplying, and dividing fractions"
+6-8,Pre-Algebra Grades 6–8,"Converting fractions, decimals, and percents"
+6-8,Pre-Algebra Grades 6–8,Exponents
+6-8,Pre-Algebra Grades 6–8,Order of operations
+6-8,Pre-Algebra Grades 6–8,"Addition, subtraction, multiplication, and division of negative numbers"
+6-8,Pre-Algebra Grades 6–8,Values of algebraic expressions
+6-8,Algebra Grades 6–8,Simplifying algebraic expressions
+6-8,Algebra Grades 6–8,Solving equations
+6-8,Algebra Grades 6–8,The distributive property
+6-8,Algebra Grades 6–8,Transposition/inverse operations
+6-8,Algebra Grades 6–8,Linear functions
+6-8,Algebra Grades 6–8,Simultaneous linear equations
+6-8,Algebra Grades 6–8,Word problems with equations
+6-8,Algebra Grades 6–8,Inequalities
+6-8,Algebra Grades 6–8,Graphs
+6-8,Intro to Geometry,Scale drawings
+6-8,Intro to Geometry,Cross sections of figures
+6-8,Intro to Geometry,Angle relationships
+6-8,Intro to Geometry,Area
+6-8,Intro to Geometry,Surface area
+6-8,Intro to Geometry,Volume
+6-8,Geometry Grades 6–8,Congruence
+6-8,Geometry Grades 6–8,Triangles and quadrilaterals
+6-8,Geometry Grades 6–8,Ratios
+6-8,Geometry Grades 6–8,Parallel lines and area
+6-8,Geometry Grades 6–8,Coordinate planes
+6-8,Geometry Grades 6–8,Dilation
+6-8,Geometry Grades 6–8,Similarity
+6-8,Geometry Grades 6–8,Transformations
+6-8,Geometry Grades 6–8,Angle relationships
+6-8,Geometry Grades 6–8,Area
+6-8,Geometry Grades 6–8,Volume
+6-8,Geometry Grades 6–8,The Pythagorean Theorem
+6-8,Word Problems Grades 6–8,Fractions
+6-8,Word Problems Grades 6–8,Algebraic expressions
+6-8,Word Problems Grades 6–8,Linear equations
+6-8,Word Problems Grades 6–8,Proportions and inverse proportions
+6-8,Word Problems Grades 6–8,Inequalities
+6-8,Word Problems Grades 6–8,Graphs
+6-8,Word Problems Grades 6–8,Linear functions
+9,Algebra I,Square Roots
+9,Algebra I,Quadratic Equations
+9,Algebra I,Inequalities
+9,Algebra I,Functions and Graphs
+9,Algebra I,Systems of Equations
+9,Algebra I,Factorization
+10,Geometry / Algebra II,The Pythagorean Theorem
+10,Geometry / Algebra II,Irrational Numbers
+10,Geometry / Algebra II,Polynomial Factorization
+10,Geometry / Algebra II,Remainder Theorem
+10,Geometry / Algebra II,Factor Theorem
+10,Geometry / Algebra II,Quadratic Functions
+11,Algebra II / Precalculus,Rational Functions
+11,Algebra II / Precalculus,Radical Functions
+11,Algebra II / Precalculus,Exponential Functions
+11,Algebra II / Precalculus,Logarithms
+11,Algebra II / Precalculus,Trigonometric Ratios
+11,Algebra II / Precalculus,Trigonometric Functions
+11,Algebra II / Precalculus,Sequences and Series
+12,Precalculus / Calculus,Limits
+12,Precalculus / Calculus,Differentiation
+12,Precalculus / Calculus,Integration
+12,Precalculus / Calculus,Differential Equations
+9-12,Statistics & Advanced Topics,Statistics
+9-12,Statistics & Advanced Topics,Probability
+9-12,Statistics & Advanced Topics,Matrices
+9-12,Statistics & Advanced Topics,Vectors
+9-12,Statistics & Advanced Topics,Lines and Planes in Space

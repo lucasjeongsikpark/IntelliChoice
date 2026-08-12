@@ -1773,3 +1773,34 @@ ul {
   font-size: 0.9rem;
   color: var(--muted, #5b6472);
 }
+
+/* D-279: the figure a family-C question is about. Sized in `em` so it scales with the
+   surrounding text rather than with the viewport, and capped so a clock does not dominate
+   a phone screen. `currentColor` throughout the SVG means it follows the theme without a
+   second palette. */
+.question-figure {
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0 1.25rem;
+}
+.question-figure svg {
+  width: 100%;
+  max-width: 18rem;
+  height: auto;
+  color: var(--text, #1f2933);
+}
+.question-figure[data-figure-kind="bar_chart"] svg {
+  max-width: 24rem;
+}
+.question-figure__chart {
+  margin: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.question-figure__chart figcaption {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}

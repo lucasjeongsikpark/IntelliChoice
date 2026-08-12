@@ -9,39 +9,44 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 45
   common_error_tags:
-  - Added the two amounts instead of comparing them
-  - Compared the ones digits and ignored the tens
-  - Subtracted in the wrong order
+  - Compared the ones digits instead of the highest differing place
+  - Read the numbers left to right without lining up the places
+  - Chose the number with the most digits showing rather than the largest value
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: Ben has 34 stickers. Ana has 43 stickers. How many more stickers does Ana have than Ben?
+  version: 2
+  stem: Which of these numbers is the largest?
   context_block: null
-  answer_expression: Eq(34 + x, 43)
+  answer_expression: Eq(x, Max(34, 43, 38, 29))
   hint_ladder:
-  - The two numbers use the same digits, so look at which place each digit sits in.
-  - Ana has more groups of ten than Ben, which is what makes her number larger.
-  - Find what has to be added to Ben's amount to reach Ana's amount.
+  - Line the numbers up so their place-value columns sit under each other.
+  - Start at the leftmost column and move right until the digits stop matching.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Compare the tens first. Ana has four tens and Ben has three.
-      expression: 43 has more tens than 34
-      common_mistake: Comparing only the ones digits
+      explanation: Write the numbers with their place-value columns lined up.
+      expression: 34, 43, 38, 29
+      common_mistake: Comparing digits that sit in different places
     - step_number: 2
-      explanation: Find the gap by taking Ben's amount away from Ana's.
-      expression: 43 - 34 = 9
-      common_mistake: Adding the two amounts together
-    final_answer: '9'
+      explanation: Move left to right and find the first column where the digits differ.
+      expression: the tens column is the first one that differs
+      common_mistake: Jumping straight to the ones digit
+    - step_number: 3
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
+      expression: largest = 43
+      common_mistake: Stopping at the first differing column when two numbers tie there
+    final_answer: '43'
   random_seed: 200104
-  rendered_question: Ben has 34 stickers. Ana has 43 stickers. How many more stickers does Ana have than
-    Ben?
-  option_a: '11'
-  option_b: '77'
-  option_c: '7'
-  option_d: '9'
-  correct_option: d
+  rendered_question: Which of these numbers is the largest?
+  option_a: '34'
+  option_b: '43'
+  option_c: '38'
+  option_d: '29'
+  correct_option: b
 - question_template_id: authored-place_value-d2-200203
   topic_id: place_value
   skill_id: place_value_compare
@@ -50,50 +55,44 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 55
   common_error_tags:
-  - Added the two scores instead of comparing them
-  - Compared the ones digits and ignored the tens
-  - Subtracted in the wrong order
+  - Compared the ones digits instead of the highest differing place
+  - Read the numbers left to right without lining up the places
+  - Chose the number with the most digits showing rather than the largest value
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: Ravi scored 58 points in a game. Tara scored 85 points. How many more points did Tara score than
-    Ravi?
+  version: 2
+  stem: Which of these numbers is the largest?
   context_block: null
-  answer_expression: Eq(58 + x, 85)
+  answer_expression: Eq(x, Max(58, 85, 59, 49))
   hint_ladder:
-  - To find how many more points Tara scored, we need to calculate the difference between her score and
-    Ravi's score.
-  - One way to find the difference is to figure out what number must be added to Ravi's score (58) to
-    match Tara's score (85).
-  - 'Start with the tens place: 85 has 8 tens, and 58 has 5 tens. Add 2 more tens (20) to make 78. Then
-    add the remaining 7 ones to reach Tara''s score.'
+  - Line the numbers up so their place-value columns sit under each other.
+  - Start at the leftmost column and move right until the digits stop matching.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: 'To find how many more points Tara scored than Ravi, we can figure out what number
-        needs to be added to 58 to reach 85. Start with the tens place: Tara has 8 tens and Ravi has 5
-        tens. Add 2 more tens to 58 to get 78.'
-      expression: 58 + 20 = 78
-      common_mistake: null
+      explanation: Write the numbers with their place-value columns lined up.
+      expression: 58, 85, 59, 49
+      common_mistake: Comparing digits that sit in different places
     - step_number: 2
-      explanation: 'Now move to the ones place: 85 has 5 ones, so add 7 ones to 78 to get 85. The total
-        added is 20 (from step 1) plus 7 (from this step): 20 + 7 = 27.'
-      expression: 78 + 7 = 85
-      common_mistake: null
+      explanation: Move left to right and find the first column where the digits differ.
+      expression: the tens column is the first one that differs
+      common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: 'Total points Tara scored more than Ravi: Add the numbers found in the previous steps.'
-      expression: '27'
-      common_mistake: Adding the two scores together
-    final_answer: '27'
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
+      expression: largest = 85
+      common_mistake: Stopping at the first differing column when two numbers tie there
+    final_answer: '85'
   random_seed: 200203
-  rendered_question: Ravi scored 58 points in a game. Tara scored 85 points. How many more points did
-    Tara score than Ravi?
-  option_a: '33'
-  option_b: '143'
-  option_c: '27'
-  option_d: '37'
-  correct_option: c
+  rendered_question: Which of these numbers is the largest?
+  option_a: '58'
+  option_b: '85'
+  option_c: '59'
+  option_d: '49'
+  correct_option: b
 - question_template_id: authored-place_value-d2-200205
   topic_id: place_value
   skill_id: place_value_compare
@@ -102,39 +101,43 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 55
   common_error_tags:
-  - Added the two totals instead of comparing them
-  - Compared the ones digits and ignored the tens
-  - Answered with the larger total instead of the difference
+  - Compared the ones digits instead of the highest differing place
+  - Read the numbers left to right without lining up the places
+  - Chose the number with the most digits showing rather than the largest value
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: Two classes collected cans for a food drive. Class A collected 76 cans and Class B collected 67
-    cans. How many more cans did Class A collect?
+  version: 2
+  stem: Which of these numbers is the largest?
   context_block: null
-  answer_expression: Eq(67 + x, 76)
+  answer_expression: Eq(x, Max(67, 76, 69, 59))
   hint_ladder:
-  - Both totals use the same two digits, so look at which place each digit sits in.
-  - Class A has more groups of ten, which is what makes its total the larger one.
-  - Find what has to be added to the smaller total to reach the larger one.
+  - Line the numbers up so their place-value columns sit under each other.
+  - Start at the leftmost column and move right until the digits stop matching.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Compare the tens first. Class A has seven tens and Class B has six.
-      expression: 76 has more tens than 67
-      common_mistake: Comparing only the ones digits
+      explanation: Write the numbers with their place-value columns lined up.
+      expression: 67, 76, 69, 59
+      common_mistake: Comparing digits that sit in different places
     - step_number: 2
-      explanation: Find the gap between the two totals by subtracting the smaller number from the larger.
-      expression: 76 – 67 = 9
-      common_mistake: Answering with the larger total
-    final_answer: '9'
+      explanation: Move left to right and find the first column where the digits differ.
+      expression: the tens column is the first one that differs
+      common_mistake: Jumping straight to the ones digit
+    - step_number: 3
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
+      expression: largest = 76
+      common_mistake: Stopping at the first differing column when two numbers tie there
+    final_answer: '76'
   random_seed: 200205
-  rendered_question: Two classes collected cans for a food drive. Class A collected 76 cans and Class
-    B collected 67 cans. How many more cans did Class A collect?
-  option_a: '11'
-  option_b: '9'
-  option_c: '143'
-  option_d: '19'
+  rendered_question: Which of these numbers is the largest?
+  option_a: '67'
+  option_b: '76'
+  option_c: '69'
+  option_d: '59'
   correct_option: b
 - question_template_id: authored-place_value-d3-200302
   topic_id: place_value
@@ -144,44 +147,44 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 70
   common_error_tags:
-  - Added the two counts instead of comparing them
-  - Compared the ones digits and ignored the tens
-  - Answered with the larger count instead of the difference
+  - Compared the ones digits instead of the highest differing place
+  - Read the numbers left to right without lining up the places
+  - Chose the number with the most digits showing rather than the largest value
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: A library counted 348 books on one shelf and 384 books on another shelf. How many more books are
-    on the second shelf?
+  version: 2
+  stem: Which of these numbers is the largest?
   context_block: null
-  answer_expression: Eq(348 + x, 384)
+  answer_expression: Eq(x, Max(348, 384, 359, 371))
   hint_ladder:
-  - Both counts have the same hundreds digit, so the hundreds do not decide this.
-  - Move to the tens place next, because that is the first place where the counts differ.
-  - Find what has to be added to the smaller count to reach the larger one.
+  - Line the numbers up so their place-value columns sit under each other.
+  - Start at the leftmost column and move right until the digits stop matching.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: The hundreds match, so compare the tens.
-      expression: both have 3 hundreds
-      common_mistake: Stopping at the hundreds and calling them equal
+      explanation: Write the numbers with their place-value columns lined up.
+      expression: 348, 384, 359, 371
+      common_mistake: Comparing digits that sit in different places
     - step_number: 2
-      explanation: The second shelf has more groups of ten.
-      expression: 8 tens against 4 tens
-      common_mistake: null
+      explanation: Move left to right and find the first column where the digits differ.
+      expression: the tens column is the first one that differs
+      common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: Find the gap between the two counts.
-      expression: 384 - 348 = 36
-      common_mistake: Adding the two counts together
-    final_answer: '36'
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
+      expression: largest = 384
+      common_mistake: Stopping at the first differing column when two numbers tie there
+    final_answer: '384'
   random_seed: 200302
-  rendered_question: A library counted 348 books on one shelf and 384 books on another shelf. How many
-    more books are on the second shelf?
-  option_a: '44'
-  option_b: '732'
-  option_c: '46'
-  option_d: '36'
-  correct_option: d
+  rendered_question: Which of these numbers is the largest?
+  option_a: '348'
+  option_b: '384'
+  option_c: '359'
+  option_d: '371'
+  correct_option: b
 - question_template_id: authored-place_value-d3-200304
   topic_id: place_value
   skill_id: place_value_compare
@@ -190,44 +193,43 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 70
   common_error_tags:
-  - Added the two totals instead of comparing them
-  - Compared the ones digits and ignored the tens
-  - Subtracted in the wrong order
+  - Compared the ones digits instead of the highest differing place
+  - Read the numbers left to right without lining up the places
+  - Chose the number with the most digits showing rather than the largest value
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: On Monday a shop sold 128 apples. On Tuesday the same shop sold 182 apples. How many more apples
-    were sold on Tuesday?
+  version: 2
+  stem: Which of these numbers is the largest?
   context_block: null
-  answer_expression: Eq(128 + x, 182)
+  answer_expression: Eq(x, Max(128, 182, 149, 167))
   hint_ladder:
-  - Both totals have the same hundreds digit, so the hundreds do not decide this.
-  - Move to the tens place next, because that is the first place where the totals differ.
-  - Count up from 128 to 182 to see how many more apples were sold on Tuesday.
+  - Line the numbers up so their place-value columns sit under each other.
+  - Start at the leftmost column and move right until the digits stop matching.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: The hundreds match, so compare the tens.
-      expression: both have 1 hundred
-      common_mistake: Stopping at the hundreds and calling them equal
+      explanation: Write the numbers with their place-value columns lined up.
+      expression: 128, 182, 149, 167
+      common_mistake: Comparing digits that sit in different places
     - step_number: 2
-      explanation: Tuesday has more groups of ten.
-      expression: 8 tens against 2 tens
-      common_mistake: null
+      explanation: Move left to right and find the first column where the digits differ.
+      expression: the tens column is the first one that differs
+      common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: 'Count up from 128 to 182 in chunks: 128 → 130 is 2, 130 → 180 is 50, 180 → 182 is
-        2. Total is 2 + 50 + 2 = 54.'
-      expression: 128 + 2 = 130; 130 + 50 = 180; 180 + 2 = 182
-      common_mistake: Adding the two totals together
-    final_answer: '54'
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
+      expression: largest = 182
+      common_mistake: Stopping at the first differing column when two numbers tie there
+    final_answer: '182'
   random_seed: 200304
-  rendered_question: On Monday a shop sold 128 apples. On Tuesday the same shop sold 182 apples. How many
-    more apples were sold on Tuesday?
-  option_a: '64'
-  option_b: '54'
-  option_c: '310'
-  option_d: '46'
+  rendered_question: Which of these numbers is the largest?
+  option_a: '128'
+  option_b: '182'
+  option_c: '149'
+  option_d: '167'
   correct_option: b
 - question_template_id: authored-place_value-d3-200305
   topic_id: place_value
@@ -237,45 +239,44 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 70
   common_error_tags:
-  - Treated the zero as if it made the number larger
-  - Added the two numbers instead of comparing them
-  - Subtracted in the wrong order
+  - Compared the ones digits instead of the highest differing place
+  - Read the numbers left to right without lining up the places
+  - Chose the number with the most digits showing rather than the largest value
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: Ben wrote the number 703 and Ana wrote the number 730. How much larger is Ana's number than Ben's
-    number?
+  version: 2
+  stem: Which of these numbers is the largest?
   context_block: null
-  answer_expression: Eq(703 + x, 730)
+  answer_expression: Eq(x, Max(703, 730, 719, 725))
   hint_ladder:
-  - Both numbers use the same three digits, so their order is what makes them differ.
-  - The hundreds digits match, so the tens place is where the two numbers part company.
-  - A zero in the tens place means no groups of ten at all, not a large amount.
+  - Line the numbers up so their place-value columns sit under each other.
+  - Start at the leftmost column and move right until the digits stop matching.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: The hundreds match, so compare the tens.
-      expression: both have 7 hundreds
-      common_mistake: null
+      explanation: Write the numbers with their place-value columns lined up.
+      expression: 703, 730, 719, 725
+      common_mistake: Comparing digits that sit in different places
     - step_number: 2
-      explanation: Ben's number has no groups of ten, and Ana's has three.
-      expression: 0 tens against 3 tens
-      common_mistake: Reading the zero as a large amount
+      explanation: Move left to right and find the first column where the digits differ.
+      expression: the tens column is the first one that differs
+      common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: Find the gap between the two numbers by calculating the difference directly as 730
-        - 703 = 27.
-      expression: 703 + 27 = 730
-      common_mistake: Adding the two numbers together
-    final_answer: '27'
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
+      expression: largest = 730
+      common_mistake: Stopping at the first differing column when two numbers tie there
+    final_answer: '730'
   random_seed: 200305
-  rendered_question: Ben wrote the number 703 and Ana wrote the number 730. How much larger is Ana's number
-    than Ben's number?
-  option_a: '37'
-  option_b: '1433'
-  option_c: '27'
-  option_d: '33'
-  correct_option: c
+  rendered_question: Which of these numbers is the largest?
+  option_a: '703'
+  option_b: '730'
+  option_c: '719'
+  option_d: '725'
+  correct_option: b
 - question_template_id: authored-place_value-d4-200403
   topic_id: place_value
   skill_id: place_value_compare
@@ -284,43 +285,43 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 85
   common_error_tags:
-  - Compared the wrong pair of people
-  - Added the two amounts instead of comparing them
-  - Compared the ones digits and ignored the hundreds
+  - Compared the ones digits instead of the highest differing place
+  - Read the numbers left to right without lining up the places
+  - Chose the number with the most digits showing rather than the largest value
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: Three friends saved coins. Nina saved 415 coins, Leo saved 451 coins and Sam saved 145 coins.
-    How many more coins did Leo save than Sam?
+  version: 2
+  stem: Which of these numbers is the largest?
   context_block: null
-  answer_expression: Eq(145 + x, 451)
+  answer_expression: Eq(x, Max(415, 451, 429, 437))
   hint_ladder:
-  - Three amounts are given, but the question names only two of them.
-  - All three use the same digits, so the place each digit sits in decides their size.
-  - Compare the hundreds place of the two named amounts first, then find the gap.
+  - Line the numbers up so their place-value columns sit under each other.
+  - Start at the leftmost column and move right until the digits stop matching.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: The question names Leo and Sam, so Nina's amount is not needed.
-      expression: compare 451 and 145
-      common_mistake: Comparing the wrong pair
+      explanation: Write the numbers with their place-value columns lined up.
+      expression: 415, 451, 429, 437
+      common_mistake: Comparing digits that sit in different places
     - step_number: 2
-      explanation: Leo has four groups of one hundred and Sam has one.
-      expression: 4 hundreds against 1 hundred
-      common_mistake: Comparing the ones digits
+      explanation: Move left to right and find the first column where the digits differ.
+      expression: the tens column is the first one that differs
+      common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: Find the gap by taking Sam's amount away from Leo's.
-      expression: 451 - 145 = 306
-      common_mistake: Adding the two amounts together
-    final_answer: '306'
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
+      expression: largest = 451
+      common_mistake: Stopping at the first differing column when two numbers tie there
+    final_answer: '451'
   random_seed: 200403
-  rendered_question: Three friends saved coins. Nina saved 415 coins, Leo saved 451 coins and Sam saved
-    145 coins. How many more coins did Leo save than Sam?
-  option_a: '296'
-  option_b: '306'
-  option_c: '596'
-  option_d: '270'
+  rendered_question: Which of these numbers is the largest?
+  option_a: '415'
+  option_b: '451'
+  option_c: '429'
+  option_d: '437'
   correct_option: b
 - question_template_id: authored-place_value-d4-200402
   topic_id: place_value
@@ -330,43 +331,43 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 85
   common_error_tags:
-  - Added the two counts instead of comparing them
-  - Compared the last digits and ignored the hundreds
-  - Subtracted in the wrong order
+  - Compared the ones digits instead of the highest differing place
+  - Read the numbers left to right without lining up the places
+  - Chose the number with the most digits showing rather than the largest value
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: A stadium counted 2,610 fans on Friday and 2,160 fans on Saturday. How many more fans came on
-    Friday?
+  version: 2
+  stem: Which of these numbers is the largest?
   context_block: null
-  answer_expression: Eq(2160 + x, 2610)
+  answer_expression: Eq(x, Max(2610, 2160, 2601, 2016))
   hint_ladder:
-  - Both counts have the same thousands digit, so the thousands do not decide this.
-  - Move to the hundreds place next, because that is the first place where the counts differ.
-  - Find what has to be added to Saturday's count to reach Friday's count.
+  - Line the numbers up so their place-value columns sit under each other.
+  - Start at the leftmost column and move right until the digits stop matching.
+  - The first column where they differ is the hundreds column. Keep the numbers with the largest digit
+    there, and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: The thousands match, so compare the hundreds.
-      expression: both have 2 thousands
-      common_mistake: Stopping at the thousands and calling them equal
+      explanation: Write the numbers with their place-value columns lined up.
+      expression: 2610, 2160, 2601, 2016
+      common_mistake: Comparing digits that sit in different places
     - step_number: 2
-      explanation: Friday has more groups of one hundred.
-      expression: 6 hundreds against 1 hundred
-      common_mistake: null
+      explanation: Move left to right and find the first column where the digits differ.
+      expression: the hundreds column is the first one that differs
+      common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: Find the gap by taking Saturday's count away from Friday's.
-      expression: 2610 - 2160 = 450
-      common_mistake: Adding the two counts together
-    final_answer: '450'
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
+      expression: largest = 2610
+      common_mistake: Stopping at the first differing column when two numbers tie there
+    final_answer: '2610'
   random_seed: 200402
-  rendered_question: A stadium counted 2,610 fans on Friday and 2,160 fans on Saturday. How many more
-    fans came on Friday?
-  option_a: '450'
-  option_b: '550'
-  option_c: '4770'
-  option_d: '350'
+  rendered_question: Which of these numbers is the largest?
+  option_a: '2610'
+  option_b: '2160'
+  option_c: '2601'
+  option_d: '2016'
   correct_option: a
 - question_template_id: authored-place_value-d4-200405
   topic_id: place_value
@@ -376,44 +377,44 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 85
   common_error_tags:
-  - Added the two counts instead of comparing them
-  - Stopped comparing before reaching the place where they differ
-  - Answered with the larger count instead of the difference
+  - Compared the ones digits instead of the highest differing place
+  - Read the numbers left to right without lining up the places
+  - Chose the number with the most digits showing rather than the largest value
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: A school counted 1,089 pencils in one store room and 1,098 pencils in another. How many more pencils
-    are in the second room?
+  version: 2
+  stem: Which of these numbers is the largest?
   context_block: null
-  answer_expression: Eq(1089 + x, 1098)
+  answer_expression: Eq(x, Max(1089, 1098, 1079, 1092))
   hint_ladder:
-  - The thousands and the hundreds match, so neither of those places decides this.
-  - Keep moving right until you reach the first place where the two counts differ.
-  - Find what has to be added to the smaller count to reach the larger one.
+  - Line the numbers up so their place-value columns sit under each other.
+  - Start at the leftmost column and move right until the digits stop matching.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: The thousands match and the hundreds match, so keep going right.
-      expression: both start with 1 thousand and 0 hundreds
-      common_mistake: Calling the two counts equal
+      explanation: Write the numbers with their place-value columns lined up.
+      expression: 1089, 1098, 1079, 1092
+      common_mistake: Comparing digits that sit in different places
     - step_number: 2
-      explanation: The second room has more groups of ten.
-      expression: 9 tens against 8 tens
-      common_mistake: null
+      explanation: Move left to right and find the first column where the digits differ.
+      expression: the tens column is the first one that differs
+      common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: Find the gap between the two counts.
-      expression: 1089 plus something makes 1098
-      common_mistake: Adding the two counts together
-    final_answer: '9'
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
+      expression: largest = 1098
+      common_mistake: Stopping at the first differing column when two numbers tie there
+    final_answer: '1098'
   random_seed: 200405
-  rendered_question: A school counted 1,089 pencils in one store room and 1,098 pencils in another. How
-    many more pencils are in the second room?
-  option_a: '11'
-  option_b: '2187'
-  option_c: '19'
-  option_d: '9'
-  correct_option: d
+  rendered_question: Which of these numbers is the largest?
+  option_a: '1089'
+  option_b: '1098'
+  option_c: '1079'
+  option_d: '1092'
+  correct_option: b
 - question_template_id: authored-place_value-d5-200503
   topic_id: place_value
   skill_id: place_value_compare
@@ -422,44 +423,44 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 100
   common_error_tags:
-  - Stopped comparing before reaching the place where they differ
-  - Added the two amounts instead of comparing them
-  - Subtracted in the wrong order
+  - Compared the ones digits instead of the highest differing place
+  - Read the numbers left to right without lining up the places
+  - Chose the number with the most digits showing rather than the largest value
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: Two towns recorded their rainfall for the year. Town A recorded 4,507 millimeters and Town B recorded
-    4,570 millimeters. How much more did Town B record?
+  version: 2
+  stem: Which of these numbers is the largest?
   context_block: null
-  answer_expression: Eq(4507 + x, 4570)
+  answer_expression: Eq(x, Max(4507, 4570, 4519, 4552))
   hint_ladder:
-  - The thousands and the hundreds match, so neither of those places decides this.
-  - Both amounts use the same four digits, so their order is what makes them differ.
-  - Compare the tens place, then find the gap between the two amounts.
+  - Line the numbers up so their place-value columns sit under each other.
+  - Start at the leftmost column and move right until the digits stop matching.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: The thousands match and the hundreds match, so keep going right.
-      expression: both start with 4 thousands and 5 hundreds
-      common_mistake: Calling the two amounts equal
+      explanation: Write the numbers with their place-value columns lined up.
+      expression: 4507, 4570, 4519, 4552
+      common_mistake: Comparing digits that sit in different places
     - step_number: 2
-      explanation: Town A has no groups of ten, and Town B has six.
-      expression: 0 tens against 6 tens
-      common_mistake: Reading the zero as a large amount
+      explanation: Move left to right and find the first column where the digits differ.
+      expression: the tens column is the first one that differs
+      common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: Find the gap by taking Town A's amount away from Town B's.
-      expression: 4570 - 4507 = 63
-      common_mistake: Adding the two amounts together
-    final_answer: '63'
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
+      expression: largest = 4570
+      common_mistake: Stopping at the first differing column when two numbers tie there
+    final_answer: '4570'
   random_seed: 200503
-  rendered_question: Two towns recorded their rainfall for the year. Town A recorded 4,507 millimeters
-    and Town B recorded 4,570 millimeters. How much more did Town B record?
-  option_a: '73'
-  option_b: '9077'
-  option_c: '63'
-  option_d: '67'
-  correct_option: c
+  rendered_question: Which of these numbers is the largest?
+  option_a: '4507'
+  option_b: '4570'
+  option_c: '4519'
+  option_d: '4552'
+  correct_option: b
 - question_template_id: authored-place_value-d5-200502
   topic_id: place_value
   skill_id: place_value_compare
@@ -468,43 +469,43 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 100
   common_error_tags:
-  - Stopped comparing before reaching the place where they differ
-  - Added the two counts instead of comparing them
-  - Compared the ones digits and ignored the hundreds
+  - Compared the ones digits instead of the highest differing place
+  - Read the numbers left to right without lining up the places
+  - Chose the number with the most digits showing rather than the largest value
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: A city counted 12,340 visitors in June and 12,430 visitors in July. How many more visitors came
-    in July?
+  version: 2
+  stem: Which of these numbers is the largest?
   context_block: null
-  answer_expression: Eq(12340 + x, 12430)
+  answer_expression: Eq(x, Max(12340, 12430, 12403, 12034))
   hint_ladder:
-  - The first three places from the left match, so none of them decides this.
-  - Keep moving right until you reach the first place where the two counts differ.
-  - Find what has to be added to June's count to reach July's count.
+  - Line the numbers up so their place-value columns sit under each other.
+  - Start at the leftmost column and move right until the digits stop matching.
+  - The first column where they differ is the hundreds column. Keep the numbers with the largest digit
+    there, and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Compare from the left. The first three digits are the same.
-      expression: both begin with 1, 2 and 3 in the same places
-      common_mistake: Calling the two counts equal
+      explanation: Write the numbers with their place-value columns lined up.
+      expression: 12340, 12430, 12403, 12034
+      common_mistake: Comparing digits that sit in different places
     - step_number: 2
-      explanation: July has more groups of one hundred.
-      expression: 4 hundreds against 3 hundreds
-      common_mistake: null
+      explanation: Move left to right and find the first column where the digits differ.
+      expression: the hundreds column is the first one that differs
+      common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: Find the gap by taking June's count away from July's.
-      expression: 12430 - 12340 = 90
-      common_mistake: Adding the two counts together
-    final_answer: '90'
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
+      expression: largest = 12430
+      common_mistake: Stopping at the first differing column when two numbers tie there
+    final_answer: '12430'
   random_seed: 200502
-  rendered_question: A city counted 12,340 visitors in June and 12,430 visitors in July. How many more
-    visitors came in July?
-  option_a: '110'
-  option_b: '90'
-  option_c: '24770'
-  option_d: '190'
+  rendered_question: Which of these numbers is the largest?
+  option_a: '12340'
+  option_b: '12430'
+  option_c: '12403'
+  option_d: '12034'
   correct_option: b
 - question_template_id: authored-place_value-d5-200504
   topic_id: place_value
@@ -514,46 +515,45 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 100
   common_error_tags:
-  - Built one of the two numbers in the wrong order
-  - Added the two numbers instead of comparing them
-  - Used the digits in the order they were listed
+  - Placed the digits in the order they were given
+  - Put the largest digit in the ones place instead of the hundreds place
+  - Made the smallest number instead of the largest
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: Leo and Mia are given the digits 8, 3 and 6. Leo arranges them into the largest number he can
-    make. Mia arranges the same digits into the smallest number she can make. How much larger is Leo's
-    number than Mia's?
+  version: 2
+  stem: 'Leo has three digit cards: 8, 3 and 6. He puts all three cards in a row to make the largest three-digit
+    number he can. What number does he make?'
   context_block: null
-  answer_expression: Eq(368 + x, 863)
+  answer_expression: Eq(x, Max(368, 386, 638, 683, 836, 863))
   hint_ladder:
-  - The largest number puts the biggest digit where it is worth the most.
-  - The place worth the most is the leftmost one, and the place worth the least is the rightmost.
-  - Build both numbers first, then find the gap between them.
+  - The hundreds place is worth the most, so decide which card goes there first.
+  - To make a number as large as possible, the largest digit belongs in the largest place.
+  - Place the cards in order from largest to smallest, left to right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: For the largest number, put the digits in order from biggest to smallest.
-      expression: 8, then 6, then 3
-      common_mistake: Using the digits in the order they were listed
+      explanation: Sort the digit cards from largest to smallest.
+      expression: 8 > 6 > 3
+      common_mistake: Keeping the cards in the order they were handed over
     - step_number: 2
-      explanation: For the smallest number, put the digits in order from smallest to biggest.
-      expression: 3, then 6, then 8
-      common_mistake: null
+      explanation: The hundreds place is worth the most, so it takes the largest digit; the tens place
+        takes the next one.
+      expression: hundreds = 8, tens = 6, ones = 3
+      common_mistake: Giving the largest digit to the ones place
     - step_number: 3
-      explanation: Find the gap by taking the smaller number away from the larger.
-      expression: 863 - 368 = 495
-      common_mistake: Adding the two numbers together
-    final_answer: '495'
+      explanation: Read the cards left to right to get the number.
+      expression: largest = 863
+      common_mistake: null
+    final_answer: '863'
   random_seed: 200504
-  rendered_question: Leo and Mia are given the digits 8, 3 and 6. Leo arranges them into the largest number
-    he can make. Mia arranges the same digits into the smallest number she can make. How much larger is
-    Leo's number than Mia's?
-  option_a: '505'
-  option_b: '1231'
-  option_c: '395'
-  option_d: '495'
-  correct_option: d
+  rendered_question: 'Leo has three digit cards: 8, 3 and 6. He puts all three cards in a row to make
+    the largest three-digit number he can. What number does he make?'
+  option_a: '863'
+  option_b: '836'
+  option_c: '683'
+  option_d: '386'
+  correct_option: a
 - question_template_id: authored-place_value-d5-200506
   topic_id: place_value
   skill_id: place_value_compare
@@ -562,44 +562,44 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 100
   common_error_tags:
-  - Compared the leading digits and stopped there
-  - Subtracted the digits place by place without regrouping
-  - Read the tens digit as if it were the hundreds digit
+  - Compared the ones digits instead of the highest differing place
+  - Read the numbers left to right without lining up the places
+  - Chose the number with the most digits showing rather than the largest value
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: A stadium counted 24,105 fans on Saturday and 24,150 fans on Sunday. How many more fans came on
-    Sunday?
+  version: 2
+  stem: Which of these numbers is the largest?
   context_block: null
-  answer_expression: Eq(24105 + x, 24150)
+  answer_expression: Eq(x, Max(24105, 24150, 24015, 24051))
   hint_ladder:
-  - The first two places are the same in both numbers, so they cannot decide this.
-  - Keep moving right until you reach a place where the two numbers differ.
-  - The place that differs is the tens, so compare how many tens each number has.
+  - Line the numbers up so their place-value columns sit under each other.
+  - Start at the leftmost column and move right until the digits stop matching.
+  - The first column where they differ is the hundreds column. Keep the numbers with the largest digit
+    there, and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: The ten-thousands, thousands and hundreds are the same in both numbers.
-      expression: 24,1 and 24,1
-      common_mistake: Deciding on the leading digit alone
+      explanation: Write the numbers with their place-value columns lined up.
+      expression: 24105, 24150, 24015, 24051
+      common_mistake: Comparing digits that sit in different places
     - step_number: 2
-      explanation: The first place that differs is the tens.
-      expression: 0 tens against 5 tens
-      common_mistake: Reading the tens as hundreds
+      explanation: Move left to right and find the first column where the digits differ.
+      expression: the hundreds column is the first one that differs
+      common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: Find the gap by taking Saturday's total away from Sunday's.
-      expression: 24,150 - 24,105 = 45
-      common_mistake: null
-    final_answer: '45'
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
+      expression: largest = 24150
+      common_mistake: Stopping at the first differing column when two numbers tie there
+    final_answer: '24150'
   random_seed: 200506
-  rendered_question: A stadium counted 24,105 fans on Saturday and 24,150 fans on Sunday. How many more
-    fans came on Sunday?
-  option_a: '45'
-  option_b: '55'
-  option_c: '5'
-  option_d: '450'
-  correct_option: a
+  rendered_question: Which of these numbers is the largest?
+  option_a: '24105'
+  option_b: '24150'
+  option_c: '24015'
+  option_d: '24051'
+  correct_option: b
 - question_template_id: authored-place_value-d5-200507
   topic_id: place_value
   skill_id: place_value_compare
@@ -608,46 +608,45 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 100
   common_error_tags:
-  - Built one of the two numbers in the wrong order
-  - Added the two numbers instead of comparing them
-  - Used the digits in the order they were listed
+  - Placed the digits in the order they were given
+  - Put the largest digit in the ones place instead of the hundreds place
+  - Made the smallest number instead of the largest
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: Ana and Raj are given the digits 5, 2 and 9. Ana arranges them into the largest number she can
-    make. Raj arranges the same digits into the smallest number he can make. How much larger is Ana's
-    number than Raj's?
+  version: 2
+  stem: 'Leo has three digit cards: 5, 2 and 9. He puts all three cards in a row to make the largest three-digit
+    number he can. What number does he make?'
   context_block: null
-  answer_expression: Eq(259 + x, 952)
+  answer_expression: Eq(x, Max(259, 295, 529, 592, 925, 952))
   hint_ladder:
-  - The largest number puts the biggest digit where it is worth the most.
-  - The leftmost place is worth the most and the rightmost place is worth the least.
-  - Build both numbers first, then find the gap between them.
+  - The hundreds place is worth the most, so decide which card goes there first.
+  - To make a number as large as possible, the largest digit belongs in the largest place.
+  - Place the cards in order from largest to smallest, left to right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: For the largest number, put the digits in order from biggest to smallest.
-      expression: 9, then 5, then 2
-      common_mistake: Using the digits in the order they were listed
+      explanation: Sort the digit cards from largest to smallest.
+      expression: 9 > 5 > 2
+      common_mistake: Keeping the cards in the order they were handed over
     - step_number: 2
-      explanation: For the smallest number, put the digits in order from smallest to biggest.
-      expression: 2, then 5, then 9
-      common_mistake: null
+      explanation: The hundreds place is worth the most, so it takes the largest digit; the tens place
+        takes the next one.
+      expression: hundreds = 9, tens = 5, ones = 2
+      common_mistake: Giving the largest digit to the ones place
     - step_number: 3
-      explanation: Find the gap by taking the smaller number away from the larger.
-      expression: 952 - 259 = 693
-      common_mistake: Adding the two numbers together
-    final_answer: '693'
+      explanation: Read the cards left to right to get the number.
+      expression: largest = 952
+      common_mistake: null
+    final_answer: '952'
   random_seed: 200507
-  rendered_question: Ana and Raj are given the digits 5, 2 and 9. Ana arranges them into the largest number
-    she can make. Raj arranges the same digits into the smallest number he can make. How much larger is
-    Ana's number than Raj's?
-  option_a: '747'
-  option_b: '693'
-  option_c: '593'
-  option_d: '1211'
-  correct_option: b
+  rendered_question: 'Leo has three digit cards: 5, 2 and 9. He puts all three cards in a row to make
+    the largest three-digit number he can. What number does he make?'
+  option_a: '952'
+  option_b: '925'
+  option_c: '592'
+  option_d: '295'
+  correct_option: a
 - question_template_id: authored-place_value-d5-200508
   topic_id: place_value
   skill_id: place_value_compare
@@ -656,46 +655,45 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 100
   common_error_tags:
-  - Built one of the two numbers in the wrong order
-  - Added the two numbers instead of comparing them
-  - Used the digits in the order they were listed
+  - Placed the digits in the order they were given
+  - Put the largest digit in the ones place instead of the hundreds place
+  - Made the smallest number instead of the largest
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
-  version: 1
-  stem: Nina and Sam are given the digits 7, 3 and 1. Nina arranges them into the largest number she can
-    make. Sam arranges the same digits into the smallest number he can make. How much larger is Nina's
-    number than Sam's?
+  version: 2
+  stem: 'Leo has three digit cards: 7, 3 and 1. He puts all three cards in a row to make the largest three-digit
+    number he can. What number does he make?'
   context_block: null
-  answer_expression: Eq(137 + x, 731)
+  answer_expression: Eq(x, Max(137, 173, 317, 371, 713, 731))
   hint_ladder:
-  - The largest number puts the biggest digit where it is worth the most.
-  - The leftmost place is worth the most and the rightmost place is worth the least.
-  - Build both numbers first, then find the gap between them.
+  - The hundreds place is worth the most, so decide which card goes there first.
+  - To make a number as large as possible, the largest digit belongs in the largest place.
+  - Place the cards in order from largest to smallest, left to right.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: For the largest number, put the digits in order from biggest to smallest.
-      expression: 7, then 3, then 1
-      common_mistake: Using the digits in the order they were listed
+      explanation: Sort the digit cards from largest to smallest.
+      expression: 7 > 3 > 1
+      common_mistake: Keeping the cards in the order they were handed over
     - step_number: 2
-      explanation: For the smallest number, put the digits in order from smallest to biggest.
-      expression: 1, then 3, then 7
-      common_mistake: null
+      explanation: The hundreds place is worth the most, so it takes the largest digit; the tens place
+        takes the next one.
+      expression: hundreds = 7, tens = 3, ones = 1
+      common_mistake: Giving the largest digit to the ones place
     - step_number: 3
-      explanation: 'Subtract the smaller number from the larger: 731 − 137 = 594.'
-      expression: 731 − 137 = 594
-      common_mistake: Adding the two numbers together
-    final_answer: '594'
+      explanation: Read the cards left to right to get the number.
+      expression: largest = 731
+      common_mistake: null
+    final_answer: '731'
   random_seed: 200508
-  rendered_question: Nina and Sam are given the digits 7, 3 and 1. Nina arranges them into the largest
-    number she can make. Sam arranges the same digits into the smallest number he can make. How much larger
-    is Nina's number than Sam's?
-  option_a: '606'
-  option_b: '494'
-  option_c: '594'
-  option_d: '868'
-  correct_option: c
+  rendered_question: 'Leo has three digit cards: 7, 3 and 1. He puts all three cards in a row to make
+    the largest three-digit number he can. What number does he make?'
+  option_a: '731'
+  option_b: '713'
+  option_c: '371'
+  option_d: '137'
+  correct_option: a
 - question_template_id: authored-place_value-d1-200101
   topic_id: place_value
   skill_id: place_value_identify

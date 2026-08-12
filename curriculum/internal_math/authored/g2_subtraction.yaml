@@ -1,0 +1,408 @@
+curriculum_version: '2026.1'
+topic_id: g2_subtraction
+templates:
+- question_template_id: authored-g2_subtraction-d4-5400
+  topic_id: g2_subtraction
+  skill_id: g2_sub_multi_digit
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - failed_to_borrow_across_all_zeros
+  - added_instead_of_subtracted
+  - borrowed_only_once_from_thousands
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher has 4000 stickers and gives away 237 of them to students. How many stickers does the
+    teacher have left?
+  context_block: null
+  answer_expression: Eq(x, 4000 - 237)
+  hint_ladder:
+  - Start by writing down how many stickers the teacher began with and how many were given away.
+  - To find how many remain, subtract the number given away from the starting amount.
+  - Write 4000 − 237 and borrow carefully across the zeros when you need to regroup.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The teacher starts with 4000 stickers and gives away 237, so we need to find 4000 −
+        237.
+      expression: 4000 - 237
+      common_mistake: null
+    - step_number: 2
+      explanation: Since we cannot subtract 7 ones from 0 ones, we borrow from the tens place. But the
+        tens place is also 0, so we continue borrowing across the zeros until we reach the thousands place.
+      expression: 4000 becomes 3 thousands, 9 hundreds, 9 tens, and 10 ones
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Now subtract in each place: 10 − 7 = 3 ones, 9 − 3 = 6 tens, 9 − 2 = 7 hundreds, 3
+        − 0 = 3 thousands.'
+      expression: '3763'
+      common_mistake: null
+    final_answer: 3763 stickers
+  random_seed: 5400
+  rendered_question: A teacher has 4000 stickers and gives away 237 of them to students. How many stickers
+    does the teacher have left?
+  option_a: 4237 stickers
+  option_b: 3773 stickers
+  option_c: 3763 stickers
+  option_d: 3863 stickers
+  correct_option: c
+- question_template_id: authored-g2_subtraction-d4-5401
+  topic_id: g2_subtraction
+  skill_id: g2_sub_multi_digit
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incorrect_borrow_across_zeros
+  - added_instead_of_subtracted
+  - error_tracking_borrow_in_tens
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A store has 3000 ribbons in stock and sells 456 of them. How many ribbons remain?
+  context_block: null
+  answer_expression: x = 3000 - 456
+  hint_ladder:
+  - How many ribbons did the store start with, and how many were sold?
+  - To find the number remaining, subtract the number sold from the number the store had at the start.
+  - Set up the subtraction 3000 minus 456. Remember to borrow across the zeros when needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the subtraction problem. The store starts with 3000 ribbons and sells 456 ribbons.
+      expression: 3000 - 456
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Start subtracting from the ones place: 0 minus 6 cannot be done, so borrow from the
+        tens place. Since the tens place is also 0, we need to borrow from the hundreds place. The hundreds
+        place is also 0, so we borrow from the thousands place. The thousands become 2, the hundreds become
+        9, the tens become 9, and the ones become 10.'
+      expression: 2999 + 1 becomes 2 9 9 10 in expanded form
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Now subtract: ones place 10 - 6 = 4, tens place 9 - 5 = 4, hundreds place 9 - 4 =
+        5, thousands place 2 - 0 = 2.'
+      expression: '2544'
+      common_mistake: null
+    final_answer: 2544 ribbons
+  random_seed: 5401
+  rendered_question: A store has 3000 ribbons in stock and sells 456 of them. How many ribbons remain?
+  option_a: '2544'
+  option_b: '3456'
+  option_c: '2446'
+  option_d: '2456'
+  correct_option: a
+- question_template_id: authored-g2_subtraction-d5-6501
+  topic_id: g2_subtraction
+  skill_id: g2_sub_three_numbers
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_after_first_subtraction
+  - added_second_number_instead_of_subtracting
+  - subtracted_only_first_number_from_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Jamal has 85 baseball cards. He gives 23 cards to his friend Leo and then gives 18 cards to his
+    friend Ava. How many cards does Jamal have left?
+  context_block: ''
+  answer_expression: Eq(x, 85 - 23 - 18)
+  hint_ladder:
+  - Start with the number of cards Jamal had at the beginning.
+  - Subtract the cards he gave to Leo first, then subtract the cards he gave to Ava from what remains.
+  - Write the expression 85 - 23 - 18 and work from left to right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Jamal starts with 85 cards and gives away 23 to Leo.
+      expression: 85 - 23 = 62
+      common_mistake: null
+    - step_number: 2
+      explanation: From the 62 cards remaining, Jamal gives away 18 to Ava.
+      expression: 62 - 18 = 44
+      common_mistake: null
+    final_answer: 44 cards
+  random_seed: 6501
+  rendered_question: Jamal has 85 baseball cards. He gives 23 cards to his friend Leo and then gives 18
+    cards to his friend Ava. How many cards does Jamal have left?
+  option_a: 80 cards
+  option_b: 62 cards
+  option_c: 44 cards
+  option_d: 126 cards
+  correct_option: c
+- question_template_id: authored-g2_subtraction-d1-7100
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_subtracting
+  - confused_subtrahend_with_difference
+  - did_not_perform_operation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A child has 70 stickers in her collection and gives away 40 of them to friends. How many stickers
+    does she have left?
+  context_block: null
+  answer_expression: Eq(x, 70 - 40)
+  hint_ladder:
+  - Think about what happens to the total number of stickers when some are given away.
+  - You started with 70 stickers and gave away 40. Write a subtraction to show what is left.
+  - Set up the subtraction 70 - 40 and find the difference.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The child starts with 70 stickers and gives away 40 stickers. To find how many remain,
+        we subtract the number given away from the starting amount.
+      expression: 70 - 40
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Subtracting the tens: 7 tens minus 4 tens equals 3 tens, which is 30.'
+      expression: '30'
+      common_mistake: null
+    final_answer: 30 stickers
+  random_seed: 7100
+  rendered_question: A child has 70 stickers in her collection and gives away 40 of them to friends. How
+    many stickers does she have left?
+  option_a: 110 stickers
+  option_b: 30 stickers
+  option_c: 40 stickers
+  option_d: 70 stickers
+  correct_option: b
+- question_template_id: authored-g2_subtraction-d2-7200
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - subtracted_ones_digit_incorrectly
+  - subtracted_tens_digit_incorrectly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student has 68 stickers and gives away 35 of them. How many stickers does the student have left?
+  context_block: null
+  answer_expression: Eq(x, 68 - 35)
+  hint_ladder:
+  - Start with the total number of stickers the student has and think about what happens when some are
+    given away.
+  - Write a subtraction to show 68 stickers minus the 35 that are given away.
+  - Set up 68 - 35 and subtract each place value carefully.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The student starts with 68 stickers and gives away 35, so we need to subtract 35 from
+        68.
+      expression: 68 - 35
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Subtract the ones place: 8 - 5 = 3.'
+      expression: 8 - 5 = 3
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Subtract the tens place: 6 - 3 = 3.'
+      expression: 6 - 3 = 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the tens and ones to get the final answer.
+      expression: 30 + 3 = 33
+      common_mistake: null
+    final_answer: 33 stickers
+  random_seed: 7200
+  rendered_question: A student has 68 stickers and gives away 35 of them. How many stickers does the student
+    have left?
+  option_a: 33 stickers
+  option_b: 103 stickers
+  option_c: 23 stickers
+  option_d: 43 stickers
+  correct_option: a
+- question_template_id: authored-g2_subtraction-d2-7201
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracting
+  - subtracted_only_ones_place
+  - subtracted_smaller_from_larger_in_each_digit
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 68 marbles in his collection. He gives 24 marbles to his friend. How many marbles does
+    Liam have left?
+  context_block: null
+  answer_expression: Eq(x, 68 - 24)
+  hint_ladder:
+  - Think about what happens to Liam's total when he gives marbles away.
+  - You need to subtract the number of marbles he gave away from the number he started with.
+  - Write the subtraction 68 minus 24 and work through the ones place, then the tens place.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 68 marbles and gives away 24. To find how many remain, we subtract.
+      expression: 68 - 24
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Subtract the ones place: 8 minus 4 equals 4.'
+      expression: 8 - 4 = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Subtract the tens place: 6 minus 2 equals 4.'
+      expression: 60 - 20 = 40
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the tens and ones to get the total remaining.
+      expression: 40 + 4 = 44
+      common_mistake: null
+    final_answer: 44 marbles
+  random_seed: 7201
+  rendered_question: Liam has 68 marbles in his collection. He gives 24 marbles to his friend. How many
+    marbles does Liam have left?
+  option_a: 46 marbles
+  option_b: 92 marbles
+  option_c: 42 marbles
+  option_d: 44 marbles
+  correct_option: d
+- question_template_id: authored-g2_subtraction-d3-7300
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_instead_of_subtracted
+  - forgot_to_regroup_in_ones_place
+  - subtracted_smaller_from_larger_in_ones_without_regrouping
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Luca has 63 stickers in his collection. He gives 28 stickers to his friend Maya. How many stickers
+    does Luca have left?
+  context_block: null
+  answer_expression: Eq(x, 63 - 28)
+  hint_ladder:
+  - How many stickers did Luca start with, and how many did he give away?
+  - You need to subtract the number of stickers given away from the number he started with.
+  - Write 63 minus 28 and solve it by regrouping in the ones place.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Luca starts with 63 stickers and gives away 28, so we need to find 63 - 28.
+      expression: 63 - 28
+      common_mistake: null
+    - step_number: 2
+      explanation: In the ones place, 3 is less than 8, so we regroup 1 ten from the tens place. That
+        leaves 5 tens and gives us 13 ones.
+      expression: 13 - 8 = 5
+      common_mistake: null
+    - step_number: 3
+      explanation: In the tens place, we now have 5 tens minus 2 tens.
+      expression: 5 - 2 = 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the tens and ones to get the final answer.
+      expression: 30 + 5 = 35
+      common_mistake: null
+    final_answer: 35 stickers
+  random_seed: 7300
+  rendered_question: Luca has 63 stickers in his collection. He gives 28 stickers to his friend Maya.
+    How many stickers does Luca have left?
+  option_a: 35 stickers
+  option_b: 45 stickers
+  option_c: 31 stickers
+  option_d: 91 stickers
+  correct_option: a
+- question_template_id: authored-g2_subtraction-d3-7301
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_only_ones_digit_without_regrouping
+  - added_instead_of_subtracting
+  - regrouping_arithmetic_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam collects 43 stickers and gives 18 of them to his friend. How many stickers does Liam have
+    left?
+  context_block: ''
+  answer_expression: Eq(x, 43 - 18)
+  hint_ladder:
+  - Start with the number of stickers Liam had at the beginning.
+  - You need to subtract the number of stickers he gave away from the total he started with.
+  - Write 43 minus 18 and regroup if needed to complete the subtraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 43 stickers and gives away 18, so we need to subtract 18 from 43.
+      expression: 43 - 18
+      common_mistake: null
+    - step_number: 2
+      explanation: 'To subtract, look at the ones place: 3 - 8 is not possible without regrouping. Borrow
+        1 ten from the 4 tens, turning 43 into 3 tens and 13 ones.'
+      expression: 3 tens 13 ones - 1 ten 8 ones
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Now subtract the ones: 13 - 8 = 5. Then subtract the tens: 3 - 1 = 2.'
+      expression: 2 tens 5 ones = 25
+      common_mistake: null
+    final_answer: 25 stickers
+  random_seed: 7301
+  rendered_question: Liam collects 43 stickers and gives 18 of them to his friend. How many stickers does
+    Liam have left?
+  option_a: 35 stickers
+  option_b: 25 stickers
+  option_c: 26 stickers
+  option_d: 61 stickers
+  correct_option: b

@@ -33,6 +33,7 @@ def _payload(**overrides: object) -> QuestionJudgePayload:
         option_b="5",
         option_c="10",
         option_d="3",
+        correct_option="a",
         hint_ladder=["What undoes adding 3?"],
         canonical_solution="4",
         topic_name="Linear Equations",

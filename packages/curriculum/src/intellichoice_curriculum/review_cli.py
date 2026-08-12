@@ -257,6 +257,51 @@ async def approve(session: AsyncSession, question_template_id: str) -> str:
     return f"approved {question_template_id}"
 
 
+async def approve_all_pending(
+    session: AsyncSession, topic: str | None
+) -> tuple[list[str], list[str]]:
+    """Approve every pending item without a human reading it (D-273, on the user's explicit
+    instruction, 2026-08-11). Returns `(approved_ids, refused)`.
+
+    **This is a deliberate suspension of D-026, and the evidence says it is the expensive
+    direction.** The only measurement of generated-item quality this project has is D-195's
+    paid pilot: **0 accepted of 4**, every candidate defective, and each caught by a
+    different gate - four hints where the contract says three; an equation that was false
+    (8.5 != 9) with a hint leaking the answer; a two-tier difficulty disagreement; a stem
+    that never stated the numbers needed to solve it. The human read is what catches the
+    class of defect determinism cannot see. Skipping it does not make those items good, it
+    makes them unexamined.
+
+    So the suspension is built to be **visible and undone in one command** rather than to
+    disappear into the bank:
+
+    - It reuses `approve` rather than writing status directly, so the fail-closed
+      servability check still runs. An unservable template is refused here exactly as it
+      would be refused to a human, and comes back in `refused`.
+    - Every item it touches keeps `review_priority='high'`, which is the review queue's
+      sort key - so the pending-review list a human eventually opens leads with precisely
+      the items nobody read.
+    - `scripts/list_unreviewed_bank_items.py` reproduces the set at any time, and the same
+      list is what a bulk revert would take.
+
+    **It is not a path to a student.** Approval here puts an item in the local bank so its
+    content can be *read*; reaching a child additionally requires an export, a commit, CI,
+    and a deploy - each of which is a human action, and the last two are where the review
+    that was skipped here has to happen instead.
+    """
+    repo = QuestionRepository(session)
+    pending = await repo.get_pending_authored_by_priority(topic)
+    approved: list[str] = []
+    refused: list[str] = []
+    for template in pending:
+        try:
+            await approve(session, template.question_template_id)
+            approved.append(template.question_template_id)
+        except UnservableTemplateError as exc:
+            refused.append(f"{template.question_template_id}: {exc}")
+    return approved, refused
+
+
 async def reject(session: AsyncSession, question_template_id: str) -> str:
     repo = QuestionRepository(session)
     await repo.reject_template(question_template_id)
@@ -330,7 +375,41 @@ async def main() -> None:
     parser.add_argument(
         "--limit", type=int, default=20, help="With --rejected, how many runs to show"
     )
+    parser.add_argument(
+        "--approve-all-unreviewed",
+        action="store_true",
+        help=(
+            "Approve every pending item WITHOUT a human reading it. Suspends D-026. "
+            "The only measurement of generated-item quality is D-195's 0-accepted-of-4, "
+            "so expect defects to reach the bank. Items stay review_priority='high' and "
+            "are listable with scripts/list_unreviewed_bank_items.py."
+        ),
+    )
     args = parser.parse_args()
+
+    if args.approve_all_unreviewed:
+        # Like --rejected, this returns before a gateway is built: bulk approval must not
+        # be able to spend money, and it needs no model call to do its job.
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                approved, refused = await approve_all_pending(session, args.topic)
+            print(f"approved without review: {len(approved)}")
+            for template_id in approved:
+                print(f"  {template_id}")
+            if refused:
+                print(f"\nrefused by the servability check: {len(refused)}")
+                for line in refused:
+                    print(f"  {line}")
+            print(
+                "\nD-026 suspended for these items. They are in the bank so their content "
+                "can be read; they have NOT been reviewed, and the review still owes itself "
+                "before anything here is exported, committed and deployed to a student."
+            )
+        finally:
+            await engine.dispose()
+        return
 
     if args.rejected:
         # Returns before a gateway is built, which is the point: inspecting a rejection

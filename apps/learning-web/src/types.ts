@@ -1,3 +1,5 @@
+import type { FigureSpec } from "./components/QuestionFigure";
+
 // Mirrors the Pydantic response/request models in
 // apps/learning-api/src/learning_api/routers/{sessions,students}.py and main.py's
 // DevTokenRequest/Response. Kept as plain hand-written types (no codegen) - the backend
@@ -40,6 +42,7 @@ export interface PendingInterrupt {
 }
 
 export interface QuestionItem {
+  figure_spec?: FigureSpec | null;
   question_variant_id: string;
   display_order: number;
   rendered_question: string;
@@ -61,6 +64,7 @@ export interface QuestionItem {
  * `selected_option` is what the student actually picked, shown back to them on the locked card.
  */
 export interface AssistanceQuestion {
+  figure_spec?: FigureSpec | null;
   question_variant_id: string;
   rendered_question: string;
   option_a: string;

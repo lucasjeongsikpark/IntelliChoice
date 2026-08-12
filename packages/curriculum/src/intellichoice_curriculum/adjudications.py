@@ -144,6 +144,7 @@ def judge_inputs(
         option_b=item.option_b,
         option_c=item.option_c,
         option_d=item.option_d,
+        correct_option=item.correct_option,
         hint_ladder=list(item.hint_ladder),
         canonical_solution=str(item.canonical_solution["final_answer"]),
         topic_name=topic.name,

@@ -1,0 +1,479 @@
+curriculum_version: '2026.1'
+topic_id: g1_subtraction
+templates:
+- question_template_id: authored-g1_subtraction-d5-5500
+  topic_id: g1_subtraction
+  skill_id: g1_sub_three_numbers
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_after_first_subtraction
+  - added_instead_of_subtracting_both
+  - subtracted_only_one_quantity
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya has 12 stickers. She gives 3 to her friend and 4 to her sister. How many stickers does Maya
+    have left?
+  context_block: ''
+  answer_expression: Eq(x, 12 - 3 - 4)
+  hint_ladder:
+  - Start by finding how many stickers Maya has after giving some to her friend.
+  - Maya now has 12 - 3 stickers, and then she gives away 4 more to her sister.
+  - Subtract both the number given to her friend and the number given to her sister from what she started
+    with.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya starts with 12 stickers and gives 3 to her friend.
+      expression: 12 - 3 = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: She now has 9 stickers and gives 4 to her sister.
+      expression: 9 - 4 = 5
+      common_mistake: null
+    final_answer: 5 stickers
+  random_seed: 5500
+  rendered_question: Maya has 12 stickers. She gives 3 to her friend and 4 to her sister. How many stickers
+    does Maya have left?
+  option_a: 8 stickers
+  option_b: 5 stickers
+  option_c: 19 stickers
+  option_d: 9 stickers
+  correct_option: b
+- question_template_id: authored-g1_subtraction-d5-5501
+  topic_id: g1_subtraction
+  skill_id: g1_sub_three_numbers
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_only_first_amount
+  - subtracted_only_second_amount
+  - added_instead_of_subtracting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 15 stickers. He gives 6 to his friend Maya and then gives 4 to his friend Noah. How many
+    stickers does Liam have left?
+  context_block: ''
+  answer_expression: Eq(x, 15 - 6 - 4)
+  hint_ladder:
+  - Start by figuring out how many stickers Liam gave away in total.
+  - Liam gave away 6 stickers first, then 4 more stickers.
+  - Write 15 minus the first amount given away, then minus the second amount.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 15 stickers and gives 6 to Maya, so subtract 6 from 15.
+      expression: 15 - 6 = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: Now Liam has 9 stickers and gives 4 to Noah, so subtract 4 from 9.
+      expression: 9 - 4 = 5
+      common_mistake: null
+    final_answer: 5 stickers
+  random_seed: 5501
+  rendered_question: Liam has 15 stickers. He gives 6 to his friend Maya and then gives 4 to his friend
+    Noah. How many stickers does Liam have left?
+  option_a: 25 stickers
+  option_b: 9 stickers
+  option_c: 5 stickers
+  option_d: 13 stickers
+  correct_option: c
+- question_template_id: authored-g1_subtraction-d1-6100
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_10
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - confused_answer_with_amount_given_away
+  - confused_answer_with_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maria has 7 stickers and gives 3 to her friend. How many stickers does she have left?
+  context_block: ''
+  answer_expression: Eq(x, 7 - 3)
+  hint_ladder:
+  - Think about what happens when Maria gives stickers away.
+  - Write a subtraction to show the stickers she started with minus the stickers she gave away.
+  - Start with 7 and subtract 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maria starts with 7 stickers.
+      expression: '7'
+      common_mistake: null
+    - step_number: 2
+      explanation: She gives away 3 stickers, so we subtract 3 from 7.
+      expression: 7 - 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate the difference.
+      expression: '4'
+      common_mistake: null
+    final_answer: 4 stickers
+  random_seed: 6100
+  rendered_question: Maria has 7 stickers and gives 3 to her friend. How many stickers does she have left?
+  option_a: 10 stickers
+  option_b: 3 stickers
+  option_c: 4 stickers
+  option_d: 7 stickers
+  correct_option: c
+- question_template_id: authored-g1_subtraction-d1-6101
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_10
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - confused_quantity_eaten_with_quantity_remaining
+  - did_not_perform_the_operation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Lena has 8 apple slices on her plate. She eats 2 of them. How many apple slices are left?
+  context_block: null
+  answer_expression: Eq(x, 8 - 2)
+  hint_ladder:
+  - Start with the number of apple slices Lena had on her plate.
+  - If she eats some slices, do you have more or fewer slices left?
+  - Write 8 minus the number she ate.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Lena starts with 8 apple slices.
+      expression: '8'
+      common_mistake: null
+    - step_number: 2
+      explanation: She eats 2 apple slices, so we subtract 2 from 8.
+      expression: 8 - 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtracting gives the number of apple slices left.
+      expression: '6'
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 6101
+  rendered_question: Lena has 8 apple slices on her plate. She eats 2 of them. How many apple slices are
+    left?
+  option_a: 10 apple slices
+  option_b: 2 apple slices
+  option_c: 6 apple slices
+  option_d: 8 apple slices
+  correct_option: c
+- question_template_id: authored-g1_subtraction-d2-6200
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_10
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - confused_parts_of_the_problem
+  - counting_error_by_one
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya has 9 stickers and gives 7 of them to her friend. How many stickers does Maya have left?
+  context_block: null
+  answer_expression: Eq(x, 9 - 7)
+  hint_ladder:
+  - Think about what happens to Maya's stickers when she gives some away.
+  - You need to subtract the number of stickers she gave away from the number she started with.
+  - Write 9 minus 7 and find the answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya starts with 9 stickers and gives away 7 stickers.
+      expression: 9 - 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract to find how many stickers are left.
+      expression: '2'
+      common_mistake: null
+    final_answer: 2 stickers
+  random_seed: 6200
+  rendered_question: Maya has 9 stickers and gives 7 of them to her friend. How many stickers does Maya
+    have left?
+  option_a: 3 stickers
+  option_b: 7 stickers
+  option_c: 2 stickers
+  option_d: 16 stickers
+  correct_option: c
+- question_template_id: authored-g1_subtraction-d2-6201
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_10
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracted
+  - stated_amount_given_away_instead_of_remainder
+  - ignored_subtraction_action
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya has 9 apples and gives away 7 of them to her friend. How many apples does Maya have left?
+  context_block: ''
+  answer_expression: Eq(x, 9 - 7)
+  hint_ladder:
+  - Think about how many apples Maya started with and how many she gave away.
+  - You need to subtract the number of apples she gave away from the number she started with.
+  - Write 9 minus 7 and find the difference.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya starts with 9 apples and gives away 7 apples.
+      expression: 9 - 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtracting 7 from 9 gives 2.
+      expression: '2'
+      common_mistake: null
+    final_answer: 2 apples
+  random_seed: 6201
+  rendered_question: Maya has 9 apples and gives away 7 of them to her friend. How many apples does Maya
+    have left?
+  option_a: 16 apples
+  option_b: 2 apples
+  option_c: 7 apples
+  option_d: 9 apples
+  correct_option: b
+- question_template_id: authored-g1_subtraction-d3-7300
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_20
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracting
+  - read_wrong_quantity_from_problem
+  - subtracted_only_the_ones_digit
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Leo has 13 stickers and gives 7 of them to his friend. How many stickers does Leo have left?
+  context_block: ''
+  answer_expression: Eq(x, 13 - 7)
+  hint_ladder:
+  - Think about how many stickers Leo starts with and how many he gives away.
+  - You need to subtract the number of stickers he gives away from the number he starts with.
+  - 'Write 13 - 7 and break the ten to help subtract: 13 is 10 and 3, so take 7 from the 10 first.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Leo starts with 13 stickers and gives away 7, so we need to find 13 - 7.
+      expression: x = 13 - 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Break the 13 into 10 and 3. First subtract 7 from 10 to get 3.
+      expression: 10 - 7 = 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Now add the remaining 3 ones from the original 13 to the 3 we just found.
+      expression: 3 + 3 = 6
+      common_mistake: null
+    final_answer: 6 stickers
+  random_seed: 7300
+  rendered_question: Leo has 13 stickers and gives 7 of them to his friend. How many stickers does Leo
+    have left?
+  option_a: 6 stickers
+  option_b: 7 stickers
+  option_c: 10 stickers
+  option_d: 20 stickers
+  correct_option: a
+- question_template_id: authored-g1_subtraction-d3-7301
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_20
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracting
+  - subtracted_only_the_ones_without_regrouping
+  - partial_decomposition_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Leo has 13 marbles and gives 6 of them to his friend. How many marbles does Leo have now?
+  context_block: ''
+  answer_expression: Eq(x, 13 - 6)
+  hint_ladder:
+  - Leo started with 13 marbles and gave some away. Does he have more or fewer now?
+  - When you give away marbles, you subtract. Write 13 minus 6.
+  - To find 13 - 6, break the ten in 13 into 10 and 3, then take 6 from the 10.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Leo starts with 13 marbles and gives away 6. We need to subtract 6 from 13.
+      expression: 13 - 6
+      common_mistake: null
+    - step_number: 2
+      explanation: Break 13 into 10 and 3. We cannot take 6 from 3, so we take 6 from the 10.
+      expression: 10 - 6 = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Now add the 4 from the ten and the 3 ones together.
+      expression: 4 + 3 = 7
+      common_mistake: null
+    final_answer: 7 marbles
+  random_seed: 7301
+  rendered_question: Leo has 13 marbles and gives 6 of them to his friend. How many marbles does Leo have
+    now?
+  option_a: 19 marbles
+  option_b: 7 marbles
+  option_c: 3 marbles
+  option_d: 9 marbles
+  correct_option: b
+- question_template_id: authored-g1_subtraction-d4-7400
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_20
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - subtracted_ones_from_ones_without_decomposing_ten
+  - miscounted_after_decomposing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Luca has 13 stickers in his collection and gives 5 of them to his friend. How many stickers does
+    Luca have left?
+  context_block: null
+  answer_expression: Eq(x, 13 - 5)
+  hint_ladder:
+  - Start with the number of stickers Luca has and think about what happens when he gives some away.
+  - You need to subtract 5 from 13. Since 3 is less than 5, break the ten into ones first.
+  - Break 13 into 10 and 3, then take 5 from the 10, leaving 5, and add the 3 back.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Luca starts with 13 stickers and gives away 5, so we need to find 13 - 5.
+      expression: 13 - 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Since the ones digit 3 is less than 5, we break 13 into 10 and 3.
+      expression: 10 + 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 5 from the 10, which leaves 5.
+      expression: 10 - 5 = 5
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the remaining 3 ones back to the 5.
+      expression: 5 + 3 = 8
+      common_mistake: null
+    final_answer: 8 stickers
+  random_seed: 7400
+  rendered_question: Luca has 13 stickers in his collection and gives 5 of them to his friend. How many
+    stickers does Luca have left?
+  option_a: 7 stickers
+  option_b: 8 stickers
+  option_c: 9 stickers
+  option_d: 18 stickers
+  correct_option: b
+- question_template_id: authored-g1_subtraction-d4-7401
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_20
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_only_the_ones_digit
+  - subtracted_the_smaller_from_larger_in_ones_place
+  - added_instead_of_subtracting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam collects 13 stickers and gives 7 of them to his friend. How many stickers does Liam have
+    left?
+  context_block: ''
+  answer_expression: Eq(x, 13 - 7)
+  hint_ladder:
+  - Think about how many stickers Liam started with and how many he gave away.
+  - You need to subtract the number of stickers he gave away from the number he started with.
+  - Break 13 into 10 and 3. Take 7 from the 10 first, then add what is left to the 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 13 stickers and gives away 7. We need to subtract 7 from 13.
+      expression: 13 - 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Since 3 is smaller than 7, we break the 13 into 10 and 3.
+      expression: 10 + 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Now subtract 7 from the 10 to get 3.
+      expression: 10 - 7 = 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the remaining 3 from the ten to the original 3 ones.
+      expression: 3 + 3 = 6
+      common_mistake: null
+    final_answer: 6 stickers
+  random_seed: 7401
+  rendered_question: Liam collects 13 stickers and gives 7 of them to his friend. How many stickers does
+    Liam have left?
+  option_a: 6 stickers
+  option_b: 20 stickers
+  option_c: 4 stickers
+  option_d: 10 stickers
+  correct_option: a

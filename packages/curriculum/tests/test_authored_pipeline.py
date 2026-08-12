@@ -16,6 +16,7 @@ import hashlib
 import random
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from typing import NoReturn
 
 import pytest
@@ -55,6 +56,21 @@ _EMBEDDING_DIM = 1024
 # Deliberately absurd, so no real authoring run would ever choose it and consume the ids
 # these tests assert are free (D-201).
 _TEST_RESERVED_SEED_OFFSET = 990_000_000
+# The SAME lesson, learned twice (D-276). `test_preflight_sees_a_taken_id...` fixed its
+# first offset when a pilot picked 810_000, and left its second one - the 'and the
+# documented remedy works' half - as the bare literal 950_000. The 3-5 wave ran
+# `measurement` at exactly that offset, so the test began failing on any database that
+# had seen the wave. A reserved range is only reserved if every offset in the test uses it.
+_TEST_RESERVED_SEED_OFFSET_ALT = 991_000_000
+# Every other offset these DB-touching tests claim, moved into the same reserved range
+# for the same reason. The pure plan-arithmetic tests (0, 40_000, 400_000) keep their
+# literals - they never touch a database, so no run can take their ids.
+_TEST_RESERVED_SEED_OFFSET_2 = 992_000_000
+_TEST_RESERVED_SEED_OFFSET_3 = 993_000_000
+_TEST_RESERVED_SEED_OFFSET_4 = 994_000_000
+_TEST_RESERVED_SEED_OFFSET_5 = 995_000_000
+_TEST_RESERVED_SEED_OFFSET_6 = 996_000_000
+_TEST_RESERVED_SEED_OFFSET_7 = 997_000_000
 
 
 def _postgres_skip_reason() -> str | None:
@@ -1441,7 +1457,9 @@ def test_two_inference_profiles_for_one_model_are_not_two_solvers() -> None:
 
     async def run() -> None:
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan(candidates_per_slot=1, seed_offset=870_000)
+            plan = pipeline_cli.build_plan(
+                candidates_per_slot=1, seed_offset=_TEST_RESERVED_SEED_OFFSET_2
+            )
             report = await pipeline_cli.preflight(
                 session,
                 _settings(solver_a=f"us.{haiku}", solver_b=f"global.{haiku}"),
@@ -1465,7 +1483,9 @@ def test_preflight_sees_a_taken_id_before_the_run_pays_for_it() -> None:
     async def run() -> None:
         curriculum = load_curriculum()
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan(candidates_per_slot=1, seed_offset=900_000)
+            plan = pipeline_cli.build_plan(
+                candidates_per_slot=1, seed_offset=_TEST_RESERVED_SEED_OFFSET_3
+            )
             report = await pipeline_cli.preflight(session, _settings(), plan)
             assert report.ok, "a fresh offset should be clear"
 
@@ -1501,8 +1521,39 @@ def test_preflight_sees_a_taken_id_before_the_run_pays_for_it() -> None:
             assert "id availability:       FAIL" in report.text
 
             # And the documented remedy works without deleting anything.
-            fresh = pipeline_cli.build_plan(candidates_per_slot=1, seed_offset=950_000)
+            fresh = pipeline_cli.build_plan(
+                candidates_per_slot=1, seed_offset=_TEST_RESERVED_SEED_OFFSET_ALT
+            )
             assert (await pipeline_cli.preflight(session, _settings(), fresh)).ok
+
+    asyncio.run(run())
+
+
+def test_preflight_catches_a_skill_the_database_has_never_been_loaded_with() -> None:
+    """The failure mode that appeared the moment the authoring plan moved into the taxonomy.
+
+    `skills.yaml` is enough to *plan* a run, but `question_templates.skill_id` is a foreign
+    key into the `skills` table, which only `make curriculum-load` populates. Before D-274
+    the mismatch surfaced as a `ForeignKeyViolationError` on the run's first commit - after
+    it had already paid for the candidate. Preflight is free, so this is where it belongs.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            real = pipeline_cli.build_plan(
+                candidates_per_slot=1, seed_offset=_TEST_RESERVED_SEED_OFFSET
+            )
+            assert (await pipeline_cli.preflight(session, _settings(), real)).ok
+
+            # One slot naming a skill no database has. Built by replacing a real slot rather
+            # than by hand, so every other field stays exactly what a real run would use.
+            ghost = replace(real.slots[0], skill_id="skill_that_was_never_loaded")
+            plan = replace(real, slots=(ghost,) + real.slots[1:])
+
+            report = await pipeline_cli.preflight(session, _settings(), plan)
+            assert not report.ok
+            assert any("skill_that_was_never_loaded" in f for f in report.failures)
+            assert any("curriculum-load" in f for f in report.failures)
 
     asyncio.run(run())
 
@@ -1511,7 +1562,9 @@ def test_preflight_refuses_a_budget_above_the_configured_hard_cap() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
             plan = pipeline_cli.build_plan(
-                candidates_per_slot=1, seed_offset=820_000, run_budget_cents=500.0
+                candidates_per_slot=1,
+                seed_offset=_TEST_RESERVED_SEED_OFFSET_4,
+                run_budget_cents=500.0,
             )
             report = await pipeline_cli.preflight(session, _settings(cap=100.0), plan)
             assert not report.ok
@@ -1536,7 +1589,9 @@ def test_preflight_and_dry_run_make_no_provider_call() -> None:
 
     async def run() -> None:
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan(candidates_per_slot=2, seed_offset=830_000)
+            plan = pipeline_cli.build_plan(
+                candidates_per_slot=2, seed_offset=_TEST_RESERVED_SEED_OFFSET_5
+            )
             report = await pipeline_cli.preflight(session, _settings(), plan)
             assert report.text  # it produced a report...
             # ...and the gateway it never touched still refuses to be touched.
@@ -1567,7 +1622,7 @@ def test_preflight_reports_every_field_a_paid_decision_needs() -> None:
                 skill_ids=["linear_both_sides"],
                 difficulties=[4],
                 candidates_per_slot=2,
-                seed_offset=840_000,
+                seed_offset=_TEST_RESERVED_SEED_OFFSET_6,
             )
             report = await pipeline_cli.preflight(session, _settings(), plan)
             for expected in [
@@ -1584,7 +1639,10 @@ def test_preflight_reports_every_field_a_paid_decision_needs() -> None:
                 "scheduled candidates:  2",
                 "planned template ids:",
                 "already-used ids:      0",
-                "seed offset:           840000",
+                # Derived, not hardcoded: this line asserts the report *carries* the
+                # offset, and pinning the digits couples the assertion to a value that
+                # has to move whenever a real run claims it (D-276).
+                f"seed offset:           {_TEST_RESERVED_SEED_OFFSET_6}",
                 "run budget ceiling:",
                 "estimated max calls:   10",
                 "estimated max spend:",
@@ -1607,7 +1665,7 @@ def test_per_candidate_settlement_survives_a_duplicate_id() -> None:
             plan = pipeline_cli.build_plan(skill_ids=["linear_one_step"],
                 difficulties=[1],
                 candidates_per_slot=1,
-                seed_offset=860_000,
+                seed_offset=_TEST_RESERVED_SEED_OFFSET_7,
             )
             slot = plan.slots[0]
             # Take the id first, so the run's only candidate is guaranteed to collide.
@@ -1737,17 +1795,24 @@ def test_a_gated_rejection_persists_the_whole_candidate() -> None:
         async with _rollback_session() as session:
             # Candidate 2's defect: an equation that restates arithmetic instead of
             # modelling the question, so the deterministic gate rejects before any solver.
+            #
+            # **D-276: the assertion below now matches that comment again.** `8.5 != 9`, so
+            # this equation is false, and the comment has always said the gate catches it
+            # first. It asserted `"solver"` because D-202 removed the gate from this path and
+            # the candidate fell through to a paid solver call - the comment stayed right and
+            # the assertion drifted to match the regression. Restoring `validate_authored_item`
+            # here restores the documented behaviour, and the item is rejected for free.
             gateway = _ScriptedAuthoredGateway(
                 item=_good_item(equation="Eq((20 - 3) / 2, (25 - 7) / 2)", proposed_difficulty=2),
                 solver_objection=dict(_SOLVER_OBJECTION),
             )
             outcome, run_row = await _reject_and_fetch(session, gateway, seed=501001)
-            assert outcome.rejected_at == "solver"  # type: ignore[attr-defined]
+            assert outcome.rejected_at == "validation"  # type: ignore[attr-defined]
             snapshot = run_row.stage_results["candidate_snapshot"]
             assert snapshot["equation"] == "Eq((20 - 3) / 2, (25 - 7) / 2)"
             # The stage evidence is still there - the snapshot is an addition, not a
             # replacement. A reviewer needs the content *and* the reading that rejected it.
-            assert run_row.stage_results["solver_a"]["no_option_matches"] is True
+            assert run_row.stage_results["deterministic_gate"]["passed"] is False
             assert run_row.reasons
 
     asyncio.run(run())
@@ -2438,7 +2503,11 @@ def test_the_design_gate_rejects_an_answer_the_equation_does_not_produce() -> No
         final_answer="9",
     )
     failures = ai_pipeline.validate_equation_design(design, target_difficulty=3)
-    assert any("do not divide evenly" in f for f in failures)
+    # The behaviour, not the wording. D-277 routed this gate over answer models, so the
+    # message no longer assumes the cause was an uneven division - it names both values,
+    # which is what the designer needs in order to change one of them.
+    assert failures
+    assert any("62/7" in f and "'9'" in f for f in failures), failures
 
 
 def test_the_design_gate_rejects_a_negative_answer() -> None:
@@ -2863,7 +2932,7 @@ def test_a_real_run_builds_its_own_dispersion_and_then_retiers_on_it() -> None:
                 skill_ids=["linear_one_step"],
                 difficulties=[1],
                 candidates_per_slot=12,
-                seed_offset=870_000,
+                seed_offset=_TEST_RESERVED_SEED_OFFSET_2,
             )
             summary = await pipeline_cli.run_plan(
                 session,

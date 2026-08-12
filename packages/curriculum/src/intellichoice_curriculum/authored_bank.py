@@ -33,12 +33,14 @@ rejections.
 """
 
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from intellichoice_shared.bedrock import (
     AuthoredGeneratedItemResponse,
     SolutionResponse,
 )
+from intellichoice_shared.figures import FigureSpec
 from pydantic import BaseModel, ConfigDict
 
 from intellichoice_curriculum.content import DEFAULT_CONTENT_ROOT
@@ -92,6 +94,14 @@ class AuthoredTemplateDef(BaseModel):
     stem: str
     context_block: str | None = None
     answer_expression: str | None = None
+    # D-279. Family-C items are authored deterministically rather than generated, so the
+    # figure lives in the bank file next to the question it belongs to and the loader's
+    # gate checks the two agree.
+    figure_spec: FigureSpec | None = None
+    # Which question the figure answers, when the answer is READ from it rather than
+    # calculated (D-279). Mutually exclusive with relying on `answer_expression`: a
+    # reading replaces the equation as the source of truth for that item.
+    figure_reading: str | None = None
     hint_ladder: list[str]
     canonical_solution: dict
 
@@ -104,7 +114,12 @@ class AuthoredTemplateDef(BaseModel):
     option_b: str
     option_c: str
     option_d: str
-    correct_option: str
+    # Narrowed from `str` (D-273). It has only ever held one of these four, and every
+    # consumer treats it that way - but the bank file is hand-editable, so a typo'd `correct_
+    # option: e` used to load fine and fail somewhere further downstream. Pydantic now
+    # rejects it at parse time with the id attached, and the two payload constructions that
+    # previously needed `# type: ignore[arg-type]` to pass it along no longer do.
+    correct_option: Literal["a", "b", "c", "d"]
 
     def rendered_for_model(self) -> str:
         """What a student is actually shown - context block first (D-196).
@@ -143,7 +158,7 @@ class AuthoredTemplateDef(BaseModel):
             option_b=self.option_b,
             option_c=self.option_c,
             option_d=self.option_d,
-            correct_option=self.correct_option,  # type: ignore[arg-type]
+            correct_option=self.correct_option,
             equation=self.answer_expression,
             hint_ladder=self.hint_ladder,
             canonical_solution=SolutionResponse.model_validate(self.canonical_solution),

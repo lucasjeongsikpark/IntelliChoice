@@ -28,11 +28,21 @@ node_modules/
 # Local data
 *.sqlite3
 docker-volumes/
-# Anchored with a leading slash on purpose: a bare `curriculum/` also matches
-# `packages/curriculum/`, which silently removed that whole Python package from
-# `ruff check .` (ruff respects .gitignore) - a local `make lint` went green on a
-# package it was no longer reading. Found in D-240.
-/curriculum/
+# `/curriculum/` was here and is deliberately gone (D-273, 2026-08-11).
+#
+# The history is worth keeping because the second fix was as wrong as the first. A bare
+# `curriculum/` matched `packages/curriculum/` too - gitignore patterns are unanchored - and
+# ruff respects .gitignore, so `ruff check .` silently stopped reading that whole Python
+# package while `make lint` went green (D-240). But that line had never been committed: it
+# was a local artifact, and anchoring it to `/curriculum/` committed an ignore of the
+# *content* directory, which D-190 makes the versioned home for authored banks.
+#
+# Nothing wanted that. All 13 files under `curriculum/` were tracked anyway - git does not
+# apply .gitignore to already-tracked files - so the rule was invisible until something new
+# appeared there. C1 Phase 1 creates roughly 34 new authored YAML files by exactly that
+# route: `make question-export` writes them, git would have ignored them, CI would never
+# have seen them, and staging's loader would have found nothing. Removed rather than
+# narrowed, because there is no local data under `curriculum/` to protect.
 
 # S33: OWASP ZAP scan reports (make security-scan-staging) - local scan output, not
 # something to commit.

@@ -114,6 +114,17 @@ def _file_owned_template_fields(
         "stem": template_def.stem,
         "context_block": template_def.context_block,
         "answer_expression": template_def.answer_expression,
+        # `mode="json"` is load-bearing, not cosmetic (D-279). `CoordinateGridFigure`
+        # types its points as tuples; a plain `model_dump()` returns Python tuples, and
+        # the JSON column returns them as lists - so the stored value never equalled the
+        # file value and every load rewrote all six coordinate items. A tuple-typed field
+        # in a JSON column is idempotent only when it is dumped the way it is stored.
+        "figure_spec": (
+            template_def.figure_spec.model_dump(mode="json")
+            if template_def.figure_spec
+            else None
+        ),
+        "figure_reading": template_def.figure_reading,
         "hint_ladder": template_def.hint_ladder,
         "canonical_solution": template_def.canonical_solution,
         "review_priority": template_def.review_priority,
@@ -145,7 +156,12 @@ def _gate(template_def: AuthoredTemplateDef) -> None:
     loaded into every environment, and before D-235 an edit to an item a database already
     had never got here at all.
     """
-    result = validate_authored_item(template_def.difficulty_label, template_def.to_generated_item())
+    result = validate_authored_item(
+        template_def.difficulty_label,
+        template_def.to_generated_item(),
+        figure=template_def.figure_spec,
+        figure_reading=template_def.figure_reading,
+    )
     if not result.passed:
         raise CurriculumLoadError(
             f"authored template {template_def.question_template_id} failed validation: "

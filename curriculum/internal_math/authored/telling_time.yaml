@@ -1,0 +1,355 @@
+curriculum_version: '2026.1'
+topic_id: telling_time
+templates:
+- question_template_id: figure-telling_time-d1-700100
+  topic_id: telling_time
+  skill_id: time_read_clock
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - swapped_hands
+  - read_minute_as_number
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: What time does this clock show?
+  context_block: null
+  answer_expression: null
+  figure_spec:
+    kind: clock
+    hour: 3
+    minute: 0
+  figure_reading: clock_time
+  hint_ladder:
+  - The short hand tells you the hour. Which number has it just passed?
+  - The short hand has passed 3, so the hour is 3.
+  - The long hand counts minutes in fives. Count round from the 12 and you reach 0.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the short hand for the hour.
+      expression: hour = 3
+      common_mistake: reading the long hand as the hour
+    - step_number: 2
+      explanation: Count the long hand round in fives.
+      expression: minute = 0
+      common_mistake: null
+    final_answer: '3:00'
+  random_seed: 700100
+  rendered_question: What time does this clock show?
+  option_a: '3:00'
+  option_b: '3:15'
+  option_c: '3:30'
+  option_d: '3:45'
+  correct_option: a
+- question_template_id: figure-telling_time-d1-700101
+  topic_id: telling_time
+  skill_id: time_read_clock
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - swapped_hands
+  - read_minute_as_number
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: What time does this clock show?
+  context_block: null
+  answer_expression: null
+  figure_spec:
+    kind: clock
+    hour: 6
+    minute: 30
+  figure_reading: clock_time
+  hint_ladder:
+  - The short hand tells you the hour. Which number has it just passed?
+  - The short hand has passed 6, so the hour is 6.
+  - The long hand counts minutes in fives. Count round from the 12 and you reach 30.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the short hand for the hour.
+      expression: hour = 6
+      common_mistake: reading the long hand as the hour
+    - step_number: 2
+      explanation: Count the long hand round in fives.
+      expression: minute = 30
+      common_mistake: null
+    final_answer: '6:30'
+  random_seed: 700101
+  rendered_question: What time does this clock show?
+  option_a: '6:45'
+  option_b: '6:30'
+  option_c: '6:00'
+  option_d: '6:15'
+  correct_option: b
+- question_template_id: figure-telling_time-d2-700102
+  topic_id: telling_time
+  skill_id: time_read_clock
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - swapped_hands
+  - read_minute_as_number
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: What time does this clock show?
+  context_block: null
+  answer_expression: null
+  figure_spec:
+    kind: clock
+    hour: 9
+    minute: 15
+  figure_reading: clock_time
+  hint_ladder:
+  - The short hand tells you the hour. Which number has it just passed?
+  - The short hand has passed 9, so the hour is 9.
+  - The long hand counts minutes in fives. Count round from the 12 and you reach 15.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the short hand for the hour.
+      expression: hour = 9
+      common_mistake: reading the long hand as the hour
+    - step_number: 2
+      explanation: Count the long hand round in fives.
+      expression: minute = 15
+      common_mistake: null
+    final_answer: '9:15'
+  random_seed: 700102
+  rendered_question: What time does this clock show?
+  option_a: '9:00'
+  option_b: '9:30'
+  option_c: '9:15'
+  option_d: '9:45'
+  correct_option: c
+- question_template_id: figure-telling_time-d2-700103
+  topic_id: telling_time
+  skill_id: time_read_clock
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - swapped_hands
+  - read_minute_as_number
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: What time does this clock show?
+  context_block: null
+  answer_expression: null
+  figure_spec:
+    kind: clock
+    hour: 4
+    minute: 45
+  figure_reading: clock_time
+  hint_ladder:
+  - The short hand tells you the hour. Which number has it just passed?
+  - The short hand has passed 4, so the hour is 4.
+  - The long hand counts minutes in fives. Count round from the 12 and you reach 45.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the short hand for the hour.
+      expression: hour = 4
+      common_mistake: reading the long hand as the hour
+    - step_number: 2
+      explanation: Count the long hand round in fives.
+      expression: minute = 45
+      common_mistake: null
+    final_answer: '4:45'
+  random_seed: 700103
+  rendered_question: What time does this clock show?
+  option_a: '4:15'
+  option_b: '4:30'
+  option_c: '4:00'
+  option_d: '4:45'
+  correct_option: d
+- question_template_id: figure-telling_time-d3-700104
+  topic_id: telling_time
+  skill_id: time_read_clock
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - swapped_hands
+  - read_minute_as_number
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: What time does this clock show?
+  context_block: null
+  answer_expression: null
+  figure_spec:
+    kind: clock
+    hour: 7
+    minute: 20
+  figure_reading: clock_time
+  hint_ladder:
+  - The short hand tells you the hour. Which number has it just passed?
+  - The short hand has passed 7, so the hour is 7.
+  - The long hand counts minutes in fives. Count round from the 12 and you reach 20.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the short hand for the hour.
+      expression: hour = 7
+      common_mistake: reading the long hand as the hour
+    - step_number: 2
+      explanation: Count the long hand round in fives.
+      expression: minute = 20
+      common_mistake: null
+    final_answer: '7:20'
+  random_seed: 700104
+  rendered_question: What time does this clock show?
+  option_a: '7:20'
+  option_b: '7:40'
+  option_c: '7:25'
+  option_d: '7:15'
+  correct_option: a
+- question_template_id: figure-telling_time-d4-700105
+  topic_id: telling_time
+  skill_id: time_read_clock
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - swapped_hands
+  - read_minute_as_number
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: What time does this clock show?
+  context_block: null
+  answer_expression: null
+  figure_spec:
+    kind: clock
+    hour: 11
+    minute: 50
+  figure_reading: clock_time
+  hint_ladder:
+  - The short hand tells you the hour. Which number has it just passed?
+  - The short hand has passed 11, so the hour is 11.
+  - The long hand counts minutes in fives. Count round from the 12 and you reach 50.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the short hand for the hour.
+      expression: hour = 11
+      common_mistake: reading the long hand as the hour
+    - step_number: 2
+      explanation: Count the long hand round in fives.
+      expression: minute = 50
+      common_mistake: null
+    final_answer: '11:50'
+  random_seed: 700105
+  rendered_question: What time does this clock show?
+  option_a: '11:55'
+  option_b: '11:50'
+  option_c: '11:10'
+  option_d: '11:45'
+  correct_option: b
+- question_template_id: figure-telling_time-d4-700106
+  topic_id: telling_time
+  skill_id: time_read_clock
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - swapped_hands
+  - read_minute_as_number
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: What time does this clock show?
+  context_block: null
+  answer_expression: null
+  figure_spec:
+    kind: clock
+    hour: 2
+    minute: 35
+  figure_reading: clock_time
+  hint_ladder:
+  - The short hand tells you the hour. Which number has it just passed?
+  - The short hand has passed 2, so the hour is 2.
+  - The long hand counts minutes in fives. Count round from the 12 and you reach 35.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the short hand for the hour.
+      expression: hour = 2
+      common_mistake: reading the long hand as the hour
+    - step_number: 2
+      explanation: Count the long hand round in fives.
+      expression: minute = 35
+      common_mistake: null
+    final_answer: '2:35'
+  random_seed: 700106
+  rendered_question: What time does this clock show?
+  option_a: '2:40'
+  option_b: '2:05'
+  option_c: '2:35'
+  option_d: '2:25'
+  correct_option: c
+- question_template_id: figure-telling_time-d5-700107
+  topic_id: telling_time
+  skill_id: time_read_clock
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - swapped_hands
+  - read_minute_as_number
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: What time does this clock show?
+  context_block: null
+  answer_expression: null
+  figure_spec:
+    kind: clock
+    hour: 12
+    minute: 25
+  figure_reading: clock_time
+  hint_ladder:
+  - The short hand tells you the hour. Which number has it just passed?
+  - The short hand has passed 12, so the hour is 12.
+  - The long hand counts minutes in fives. Count round from the 12 and you reach 25.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the short hand for the hour.
+      expression: hour = 12
+      common_mistake: reading the long hand as the hour
+    - step_number: 2
+      explanation: Count the long hand round in fives.
+      expression: minute = 25
+      common_mistake: null
+    final_answer: '12:25'
+  random_seed: 700107
+  rendered_question: What time does this clock show?
+  option_a: '12:35'
+  option_b: '12:20'
+  option_c: '12:30'
+  option_d: '12:25'
+  correct_option: d

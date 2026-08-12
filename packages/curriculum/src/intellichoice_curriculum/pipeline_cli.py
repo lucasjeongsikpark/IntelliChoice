@@ -27,6 +27,7 @@ from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
 from intellichoice_adapters.bedrock.titan_embedding_provider import TitanEmbeddingProvider
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
+from intellichoice_db.models.curriculum import Skill
 from intellichoice_db.models.questions import QuestionTemplate
 from intellichoice_observability.logging_config import configure_logging
 from intellichoice_shared.bedrock import BedrockGateway, BedrockTask, CostBudgetExceededError
@@ -58,6 +59,11 @@ _AUTHORED_SEED_BASE = 5000
 # runs stay reproducible (D-013's determinism posture). `--preflight` says in advance
 # whether the offset is fresh, and `_settle` contains the damage if it is not.
 DEFAULT_SEED_OFFSET = 0
+
+# How many recent scenarios a design call is told to avoid (D-275). Small on purpose:
+# the repetition measured was local - the model collapsed onto what it had just written -
+# and a longer list crowds the prompt with settings nobody was about to reuse anyway.
+_SCENARIO_MEMORY = 5
 
 
 def authored_seed(*, skill_index: int, difficulty_label: int, index: int, seed_offset: int) -> int:
@@ -478,6 +484,38 @@ async def run_plan(
     # `_MIN_JUDGE_OBSERVATIONS` candidates of any run can never be re-tiered, because the
     # evidence that would justify moving them does not exist yet.
     dispersion = JudgeDispersion()
+    # (skill, tier) -> the equations its earlier candidates already used, so candidate 2 of a
+    # slot is told what candidate 1 chose (D-273).
+    #
+    # **This is the duplication's cause, not a mitigation of it.** `candidates_per_slot` is 2
+    # and both candidates were receiving an identical payload - the seed distinguished their
+    # template ids and nothing else - so the model had no reason to pick different numbers.
+    # Measured in C1's first wave: every duplicate group was a same-slot pair (seeds
+    # 6200/6201 both `6 + 7`, 6400/6401 both `9 + 9`), 27 of 55 items sharing a number set.
+    #
+    # Run-scoped like `dispersion`, and for the same reason: it describes this batch. A
+    # cross-run version is what `arithmetic_identity` is for, once the mock can produce two
+    # distinct items and that check can be tested.
+    #
+    # **Keyed on the SKILL, not on (skill, tier) - widened in D-275 after the first real run
+    # measured the gap.** The `decimals` wave produced `Eq(x, 6.3 / 0.9)` at tier 4 *and* at
+    # tier 5, with near-identical stems, because a per-tier key cannot see across tiers and
+    # a skill's tiers differ in how demanding the numbers are, not in which numbers exist.
+    # A student meets a topic's items as one set, so the duplicate they would notice is the
+    # one this key now covers.
+    used_equations: dict[str, list[str]] = {}
+
+    # The same mechanism, applied to the other thing the first run repeated. Measured on
+    # that run: **11 of 17 stems were about cutting ribbon** - Lena, Emma, Ava, Lila and
+    # Maya all cutting ribbon - because the three few-shot exemplars are algebra word
+    # problems (robots, a bike, a bakery) and a decimals slot therefore invents its own
+    # setting with nothing telling it what has already been invented.
+    #
+    # Carried as data rather than as a "be varied" instruction, on D-252's finding that a
+    # prompt clause protecting one field held 0 of 52 times while structure holds by
+    # construction. `scenario_sketch` is what the design stage already returns, so this
+    # costs no new field on the response and no extra call.
+    used_scenarios: dict[str, list[str]] = {}
 
     for slot in plan.slots:
         if spend >= plan.run_budget_cents:
@@ -500,6 +538,11 @@ async def run_plan(
                 # between-slot check only notices after the money is gone.
                 budget_ceiling_cents=plan.run_budget_cents,
                 dispersion=dispersion,
+                avoid_equations=used_equations.get(slot.skill_id, ()),
+                # Only the most recent few. The whole list would crowd the design prompt and
+                # the repetition being prevented is local - the model collapses onto what it
+                # just wrote, not onto something twelve candidates ago.
+                avoid_scenarios=used_scenarios.get(slot.skill_id, [])[-_SCENARIO_MEMORY:],
             )
         except IntegrityError as exc:
             # The collision surfaces HERE, not at commit: `QuestionRepository.create_template`
@@ -519,6 +562,14 @@ async def run_plan(
             )
             continue
         spend += outcome.cost_cents
+        # Recorded whether or not the candidate survives its gates: the point is what the
+        # *design stage* already chose for this slot, and a rejected item's numbers are just
+        # as used up as an accepted one's. Recording only accepted ones would let a rejected
+        # `9 + 9` be re-proposed by the next candidate and rejected again.
+        if outcome.equation:
+            used_equations.setdefault(slot.skill_id, []).append(outcome.equation)
+        if outcome.scenario_sketch:
+            used_scenarios.setdefault(slot.skill_id, []).append(outcome.scenario_sketch)
         await _settle(
             session,
             summary,
@@ -595,7 +646,27 @@ async def preflight(
     counted twice, and every "independent solver agreement" recorded before this check was
     exactly that. Neither check costs anything, so declining to run it is the only
     expensive option.
+
+    **The skills check was added in D-274, and it was found the way the others were.** Moving
+    the authoring plan into `skills.yaml` meant a new wave's skills existed in the taxonomy
+    the moment the YAML was written - but `question_templates.skill_id` is a foreign key into
+    the `skills` table, which only `make curriculum-load` populates. A run planned from the
+    file and committed to the database therefore died with a `ForeignKeyViolationError` on
+    its first candidate, *after* paying for it. The plan and the database can disagree, so
+    preflight is where that has to surface.
     """
+    planned_skills = {slot.skill_id for slot in plan.slots}
+    known_skills = set(
+        (
+            await session.execute(
+                select(Skill.skill_id).where(Skill.skill_id.in_(planned_skills))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    unloaded = sorted(planned_skills - known_skills)
+
     taken = (
         (
             await session.execute(
@@ -629,6 +700,13 @@ async def preflight(
         failures.append(
             f"{len(taken)} of {len(plan.slots)} planned template ids already exist - "
             f"pick a fresh --seed-offset"
+        )
+    if unloaded:
+        failures.append(
+            f"{len(unloaded)} planned skill(s) are in the taxonomy but not in this "
+            f"database, so every candidate for them would fail its foreign key at commit "
+            f"after being paid for - run `make curriculum-load` first "
+            f"({', '.join(unloaded)})"
         )
     configured_models = {
         generator_model,

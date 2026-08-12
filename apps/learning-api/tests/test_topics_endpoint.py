@@ -142,10 +142,20 @@ def test_the_topic_list_reflects_the_bank_and_never_recommends_an_empty_topic() 
     assert topics["multiplication_division"]["recommended_for_grade"] is False
     for topic in topics.values():
         assert not (topic["recommended_for_grade"] and not topic["available"])
-    # Exactly one topic is recommended to a grade-4 student, and it is the one their band
-    # names - not "whatever is stocked", now that everything is.
+    # A grade-4 student is recommended the topics their BAND names - not "whatever is
+    # stocked", now that everything is.
+    #
+    # Asserted as membership rather than as a frozen list (D-279). It read
+    # `== ["fraction_operations"]`, which broke the moment the 3-5 wave's topics joined the
+    # "4-5" band - a content addition failing a test whose subject is band resolution. The
+    # same correction was made to
+    # `test_adding_a_band_never_steals_a_grade_from_an_existing_one` for the same reason.
     recommended = [t for t, v in topics.items() if v["recommended_for_grade"]]
-    assert recommended == ["fraction_operations"]
+    assert recommended, "grade 4 resolves to no recommended topic"
+    assert "fraction_operations" in recommended
+    # The theft guard: grade 4 must not be handed the grade-3 band's topics.
+    assert "multiplication_division" not in recommended
+    assert "place_value" not in recommended
     # Every topic is still listed - "your grade has no stocked topic" must not read as
     # "there is nothing to study". Asserted against the taxonomy rather than a literal
     # (D-228 made it 4): the invariant is "all of them", not "three of them".
