@@ -481,55 +481,62 @@ def _content(views: list[flow.QuestionItemView]) -> list[tuple[str, str, str, st
 # distribution), so it now appears in the difficulty-4 slot. Rows 8 and 9 are unchanged,
 # and that is the check worth keeping: both are genuine distribution items that stayed at
 # tier 5, so the draw moved for the reason claimed and not for some other one.
+# D-288 re-captured every row. **A content change, not a refactor regression** - the
+# distinction this pin exists to make. 26 approved `linear_equations` items that had been
+# parked at `active_status='pending'` by a wrong revert SQL were activated (D-284), taking
+# the topic from 47 to 73 servable templates, so every difficulty's candidate pool grew and
+# the seeded draw moved with it. Nothing about the *selection code* changed in that commit;
+# had it, this pin would be the thing that said so, and re-capturing would be the mistake.
+# Regenerated from the bank, as every previous re-capture was.
 _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
     (
-        'Liam’s father is filling a large fish tank for a community event. The tank already has some water in it, and he adds more every day.\n\nLiam’s father is preparing a fish tank for a community event. The tank already has 30 litres of water. He adds 5 litres of water every day. How many days will it take for the tank to have 70 litres?',  # noqa: E501
-        '10',
-        '6',
-        '8',
-        '14',
-    ),
-    (
-        'Liam has a lemonade stand. He starts the day with 15 cups of lemonade. By the end of the day, he has sold 7 cups. He wants to know how many cups he needs to make tonight so he will have exactly 20 cups ready for tomorrow. How many cups should he make?',  # noqa: E501
+        'A teacher has 20 markers and wants to divide them equally among some groups. If each group gets 5 markers, how many groups can the teacher make?',  # noqa: E501
+        '15',
         '5',
-        '12',
-        '2',
-        '8',
-    ),
-    (
-        'One third of the members of a chess club left, leaving 18 members. How many members were in the club before anyone left?',  # noqa: E501
-        '27',
-        '24',
-        '54',
-        '12',
-    ),
-    (
-        'A video game awards points for completing levels and bonus points for special achievements. Maya wants to understand how many levels she completed based on her final score.\n\nA video game has three levels. Completing each level earns 15 points. After beating levels, Maya has 72 points total—she earned 12 bonus points for beating the final level quickly. How many levels did she complete?',  # noqa: E501
         '3',
         '4',
-        '5',
-        '6',
     ),
     (
-        'Marcus is training for a race. He runs 3 kilometers every morning and has already run 27 kilometers this month. His goal is to run 48 kilometers total. How many more mornings must he run to reach his goal?',  # noqa: E501
-        '7 mornings',
-        '12 mornings',
-        '5 mornings',
-        '9 mornings',
+        'A student buys several identical notebooks at $3 each and a pen for $4, spending $28 total. How many notebooks did the student buy?',  # noqa: E501
+        '8 notebooks',
+        '12 notebooks',
+        '24 notebooks',
+        '9 notebooks',
     ),
     (
-        'Liam and Zoe are training for a track meet. Liam has already run 1200 metres and continues at 150 metres per minute. Zoe runs the entire 2400 metres at a steady pace. How many minutes will it take for Liam to have run as far as Zoe?',  # noqa: E501
+        'A storage tank at the garden centre starts with 60 litres of water. Each minute, 5 litres drain through a faulty valve. After how many minutes will exactly 20 litres remain in the tank?',  # noqa: E501
         '4 minutes',
-        '-4 minutes',
-        '8 minutes',
+        '12 minutes',
         '16 minutes',
+        '8 minutes',
     ),
     (
-        'Two water tanks are filling up. Tank A starts empty and fills at 8 liters per minute. Tank B starts with 20 liters and fills at 3 liters per minute. After how many minutes will both tanks have the same amount of water?',  # noqa: E501
-        '3 minutes',
-        '4 minutes',
-        '5 minutes',
-        '6 minutes',
+        'Liam earns $5 each week by helping his neighbour with gardening. He already has $8 saved from his birthday. After a few weeks, he checks his savings and finds he has $48 in total. How many weeks has Liam been saving?',  # noqa: E501
+        '6',
+        '10',
+        '9',
+        '8',
+    ),
+    (
+        'Maya and Leo each have savings accounts. Maya starts with $100 and withdraws $3 every week. Leo starts with $40 and deposits $2 every week. After how many weeks will both accounts have the same balance?',  # noqa: E501
+        '20 weeks',
+        '30 weeks',
+        '8 weeks',
+        '12 weeks',
+    ),
+    (
+        'Lena is sewing ribbon onto a dance banner for the school festival. She already has 3/4 metres of ribbon sewn on. Each day, she adds another 1/8 metre of ribbon. The banner needs a total of 3 metres of ribbon. How many days will it take Lena to finish the banner?',  # noqa: E501
+        '18',
+        '12',
+        '6',
+        '-6',
+    ),
+    (
+        'Marcus and his sister are saving money for a gift. They want to know when they’ll have the same amount, so they can combine their savings.\n\nMarcus starts with $24 and saves $3 each week. His sister starts with $6 and saves $5 each week. After how many weeks will they have the same amount of money?',  # noqa: E501
+        '12',
+        '9',
+        '6',
+        '3',
     ),
     (
         'Pool A holds 40 liters and fills at 4 liters per minute. Pool B holds 100 liters and drains at 2 liters per minute. After how many minutes do the pools hold the same amount?',  # noqa: E501
@@ -539,18 +546,18 @@ _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
         '5',
     ),
     (
+        'Leo packs 2 identical boxes. Each box holds 4 more items than the size of Mia’s group, plus he adds 1 loose item. Mia packs 3 groups of items, each the size of her group, and adds 3 loose items. They end up with the same number of items. How many items are in one of Mia’s groups?',  # noqa: E501
+        '10',
+        '4',
+        '6',
+        '5',
+    ),
+    (
         'Liam buys 3 identical packs of game cards. Each pack has x regular cards and 5 bonus cards. He also buys 2x individual regular cards. Altogether, he has 35 cards. How many regular cards are in each pack?',  # noqa: E501
         '4',
         '2',
         '8',
         '6',
-    ),
-    (
-        'Sam fills 4 identical bags. Each bag holds x stickers plus 3 free stickers. He then adds 8 loose stickers, giving 40 stickers in all. How many stickers of the counted kind are in each bag?',  # noqa: E501
-        '5',
-        '3',
-        '7',
-        '10',
     ),
 )
 
