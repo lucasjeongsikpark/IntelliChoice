@@ -55,7 +55,11 @@ class LearningState(BaseModel):
     # `/resume` after a restart so the caller sees the same pending question.
     last_message: str | None = None
     last_is_correct: bool | None = None
-    last_items: list[dict[str, str | int]] | None = None
+    # `object` rather than `str | int` since D-279: an item carries `figure_spec`, which
+    # is a nested dict or None. LangGraph validates state against this annotation, so a
+    # narrower type here does not merely mislead - it rejects the payload at the graph
+    # boundary, which is how this was found (38 tests, all the same ValidationError).
+    last_items: list[dict[str, object]] | None = None
     last_learning_gain: dict | None = None
     last_error: str | None = None
     # Generated hint/solution/video content from `intervention_choice` (SPEC §5.11.3-

@@ -7,61 +7,76 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Session C1: Phases 0 ✅, R ✅, and Phase 1's K-2 ⏸ and 3-5 ✅ waves (2026-08-11,
-D-273/274/275/276). 337 items in the bank across 17 topics, ~$9.14 spent this session,
-1304 passing, PR #234.**
+**Session C1: Phases 0 ✅, R ✅, 1 ✅ (all four grade bands), 5 ✅ (figures). 2026-08-11/12,
+D-273 through D-280. 471 approved + 204 pending in the bank, ~$22 spent, 1330 passing, PR #234.**
 
-**The 3-5 wave cleared every Phase 1 criterion except one.** 7 topics, 26 skills, 160 items at
-91% acceptance for $6.03; ≥10 items in **7 of 7** topics (K-2 managed 2 of 6), **26 of 26**
-skills stocked, and **judge dispersion discriminates in 7 of 7**. `--candidates-per-slot 3` was
-the lever the K-2 entry predicted, and tier spans were not widened.
+**Every one of the 246 CSV rows is now either stocked or dispositioned.** 33 internal topics,
+112 skills. The figures decision — the last open gate in the plan — was taken by the user and
+the answer was build, so family C is no longer deferred: 28 items across `telling_time`,
+`data_graphs`, `plane_figures` and `coordinate_geometry`, plus the contract that makes the
+remaining C rows authorable.
 
-**The exception is the same one, and it is now two waves old: there is no human-rejection
-rate.** Review was skipped on the user's instruction both times. That is precisely the number
-Phase 3's auto-approval decision is supposed to rest on, so either the 6-8 wave supplies it or
-that decision gets made without its evidence. This is the single most important carry-over.
+**Wave results, and what they cost:**
 
-**What the wave cost in defects.** Eight, all found by *running code and reading output*, none
-by reading code. Ranked by what they would have cost unfixed:
+| band | items | acceptance | spend |
+|---|---|---|---|
+| K-2 | 54 | 86% | $1.51 |
+| 3-5 | 160 → 153 kept | 91% | $6.03 |
+| 6-8 + 9-12 | 201 | 57% | $13.05 |
+| figures | 28 | authored, not generated | $0 |
 
-1. **The pipeline had never run `check_sympy_independent_solve`** (D-276). D-202 removed the
-   deterministic gate from the generation path, so **5 items with wrong answer keys were
-   generated, approved and exported** before the bank's own gate caught them - two solvers and a
-   judge passed all five. Pipeline and loader now share one gate, which also means a doomed
-   candidate is rejected before three paid calls rather than after.
-2. **A family rule was installed as a universal constant** (D-274). Every answer in the taxonomy
-   had to be a positive whole number, and **26 of 184 shipped items failed it** - the pipeline
-   could not regenerate 14% of its own bank. `AnswerFamily` now lives in the taxonomy.
-3. **Per-skill config lived in Python** (D-274). A skill missing from `TOPIC_SKILL_DIFFICULTIES`
-   raised `PipelineConfigError`, so every new skill needed a source edit to be generatable at
-   all. Now fields on `SkillDef`; the registries are projections.
-4. **Scenario collapse** (D-275): 11 of 17 stems were about cutting ribbon. Fixed by carrying
-   used scenarios as data, measured down to 3 of 21.
-5. **Two fail-closed violations** (D-274, D-275): a comma in an answer crashed the gate and was
-   order-dependent; `route_answer` raised on `"None"`/`"True"`. Third occurrence of that class,
-   so the second one is fixed at the shared parser rather than at the reporting site.
-6. **Cross-tier duplicates** (D-275), fixed; a **cross-skill** remainder is recorded and
-   deliberately not fixed (2 of 160, real pedagogical difference).
-7. **Two structures hid the skill they exist for** (D-275) - and the general form of that check
-   caught a third case eye inspection had missed.
-8. **The documented undo path for auto-approval had never been run** (D-276): it crashed, its
+**The 57% is understood, not shrugged at.** All 109 rejections were re-gated *offline* against
+the fixed parser — free, because D-195 stores candidate content with the rejection — and the
+parser fixes recover only 11. So "algebra_1 at 4% means the gate is broken" was wrong, and a
+blind re-run would have spent ~$8 reproducing the same yields. Measured causes: 43 answer keys
+disagreeing with their equation, 19 sentences over the readability ceiling, 17 pairs of options
+equal in value, 7 hints stating the answer.
+
+**A re-run of the six weakest topics with D-198's repair path enabled was still in flight when
+this session ended.** It is the lever for the mechanical defects, because the generator prompt
+*already* asks for what 19 items ignored — D-252's finding a third time.
+
+**What this session found, ranked by what missing it would have cost:**
+
+1. **The pipeline never ran `check_sympy_independent_solve`** (D-276). D-202 removed the gate
+   from the generation path, so **5 items with wrong answer keys were generated, approved and
+   exported**; two solvers and a judge passed all five. Pipeline and loader now share one gate.
+2. **The design gate could not design any B-family form** (D-277). It still demanded one
+   equation, one unknown, one solution, so a quadratic, an inequality, a system, a factorisation
+   and a surd could each pass the *item* gate and none could ever be written.
+3. **A family rule installed as a universal constant** (D-274): every answer had to be a
+   positive whole number, and **26 of 184 shipped items failed it**.
+4. **Options were parsed differently from the equations they answer** (D-278) — `2x(x+1)(x+3)`
+   rejected as wrong, and `^` read as XOR.
+5. **160 items sat in topics no student could reach** (D-277): the 3-5 wave's topics were never
+   added to `grade_topic_mapping.yaml`.
+6. **Per-skill config lived in Python** (D-274) — a new skill needed a source edit to be
+   generatable at all.
+7. Three fail-closed violations, all the same class: a comma crashed the gate, `route_answer`
+   raised on `"None"`, and `_parse_side` returned non-values. The third was fixed at the shared
+   parser rather than the reporting site.
+8. **The documented undo path for auto-approval had never been run** (D-276) — it crashed, its
    filter hid 97% of the set, and its revert SQL named the wrong column.
 
-**Three corrections to claims made in this session, kept because a correction that only ever
-runs in the flattering direction is not a correction:** `decimal_divide` was 0 of 6 non-whole
-before the fix, not 2 of 6; `make curriculum-load` reporting "344 unchanged" verified *nothing*
-(the gate runs on insert/update only); and `list_unreviewed_bank_items.py` reports an **upper
-bound** (305), not the auto-approved set (160).
+**Corrections made to my own claims this session, kept because a correction that only ever runs
+in the flattering direction is not a correction:** `decimal_divide` was 0 of 6 non-whole before
+the fix, not 2 of 6; `make curriculum-load` reporting "N unchanged" verifies *nothing* (the gate
+runs on insert/update only); `list_unreviewed_bank_items.py` reports an upper bound (305), not
+the auto-approved set; the readability ceiling is **not** miscalibrated for older students; and
+`test_every_rational_skill_states_that_its_answer_is_not_whole` was my own over-generalisation.
 
-**Two things the next wave should not re-litigate:** Sonnet 4.5 is the Generator and Haiku 4.5
-Solver A (Sonnet 5 reports `AVAILABLE` and denies the call; the shipped defaults make both
-solvers one model). And seed offsets are shared state between tests and real runs - the reserved
-range exists, use it.
+**Carry-over, in the order they matter:**
 
-**Next, in order:** (1) the **6-8 wave**, which starts with the gate the 3-5 wave ended with, so
-its yield is not comparable to 91% - read the rejection mix, not the headline; (2) **review one
-wave by hand** so Phase 3 has its number; (3) Phase 4's video catalog, which needs the taxonomy
-that now exists.
+1. **There is still no human-rejection rate. Three waves now.** Review was skipped on the user's
+   instruction each time, and it is the evidence Phase 3's auto-approval decision is supposed to
+   rest on. **204 items are pending and nobody has read one.**
+2. **The re-run's result is unread** — check `algebra_1`, `algebra_foundations`, `g6_fractions`,
+   `calculus`, `algebra_2`, `statistics_advanced` and decide whether repair earns its cost.
+3. **Nothing is merged or deployed.** PR #234 carries the whole session.
+4. The figure renderers have **no e2e walk** — they typecheck and their specs are gated, but no
+   test has watched a student answer a clock question.
+5. `arithmetic_identity` is still unwired (from D-273), and the cross-skill duplicate limit
+   (2 of 160 in `measurement`) is recorded rather than fixed.
 
 **Superseded plan text below, kept for the phase definitions:** Phase 1 is the first phase that spends money, and two
 things it must carry from Phase R: **teach `Eq(x, Max(...))` in the rubric work** — comparison

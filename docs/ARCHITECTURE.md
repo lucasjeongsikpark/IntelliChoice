@@ -568,6 +568,24 @@ to rot, because nothing fails when it does.)*
   `SKILL_STRUCTURES` survive only as *projections* of the taxonomy — a projection of one source is
   not duplication, a second literal is.
 
+- **A figure is data the gate reads, never an image** (D-279) — 34 taxonomy rows are questions
+  whose subject is a picture, and they are the one place where "generate it" would have put an
+  unverifiable artefact beside a stem whose correctness is proved. A figure is therefore a
+  structured spec (a clock is an hour and a minute; a chart is labels and values), rendered as
+  deterministic SVG in the frontend, with two properties checked server-side: **coupling** (every
+  number in the figure appears in the item) and **reading** (for a question the figure *answers*,
+  the figure is what verifies it, replacing the equation). No image generation, no blob storage,
+  no new PII surface, nothing on a retention schedule.
+
+  The reading is the router's idea applied to the one answer kind that is *read* rather than
+  computed. Without it, "what time does this clock show" fails for the same reason `Museum B`
+  did: `derive_answer` yields a number and the option is a label. Reshaping the curriculum to
+  suit the gate was the alternative, and it would have cost the grade-1 clock skill.
+
+  Family-C items are **authored, not generated** — the content is the numbers, and a table
+  produces them correctly for nothing. Their skills carry no `difficulty_tiers`, so no paid run
+  can schedule them.
+
   **Preflight owns the plan-versus-database gap.** The taxonomy is enough to plan a run, but
   `question_templates.skill_id` is a foreign key into a table only `make curriculum-load`
   populates, so a run planned from a fresh YAML died at its first commit *after paying*. Anything

@@ -1847,6 +1847,33 @@ item are recorded — these numbers are Phase 3's evidence.
 > And it is the last chance to supply a human-rejection rate before Phase 3 has to decide
 > without one.
 
+> **✅ 6-8 AND 9-12 WAVES DONE — 2026-08-12 (D-277/278/280).** 12 topics, 51 skills, **201 items
+> at 57% acceptance for $13.05**. Strong: `pre_algebra` 90%, `g6_word_problems` 100%,
+> `geometry_measures` 80%. Weak and understood: `algebra_1` 4%, `algebra_foundations` 39%,
+> `g6_fractions` 42% — all symbolic topics.
+>
+> **The after-action is the part worth keeping.** All 109 rejections were re-gated *offline*
+> against the fixed parser, free, because D-195 stores candidate content with the rejection. The
+> parser fixes recover 11 of 109 — so the low yields are **not** a broken gate, and a blind
+> re-run would have spent ~$8 reproducing them. The remaining causes, measured: 43 answer keys
+> disagreeing with their equation, 19 sentences over the readability ceiling (the rule is right,
+> the content is wrong), 17 pairs of options equal in value, 7 hints stating the answer.
+>
+> A re-run of the six weakest topics with **D-198's repair path enabled** was in flight when the
+> session ended — that is the lever for the mechanical defects, since the prompt already asks for
+> what 19 items ignored.
+
+**Phase 5 — Figures (family C): ✅ BUILT (D-279), on the user's decision.**
+> Deterministic SVG from a structured spec the gate verifies, not generated images. **28 items
+> across 4 topics** — `telling_time`, `data_graphs`, `plane_figures`, `coordinate_geometry` — and
+> the contract that makes the remaining C rows authorable. The *decision gate* this phase was
+> written around is therefore closed: build, not defer.
+>
+> *Done when* (from the original phase text): the renderer family ships with per-family tests ✅
+> (18), and one C topic passes a Phase-1-style wave — **partially**: four topics are authored and
+> gated, but they are authored rather than generated, so "a wave" does not apply in the form the
+> criterion assumed. Recorded rather than claimed.
+
 **Phase 3 — Scale + the auto-approval decision.**
 Go/no-go per pre-registered criteria: yield ≥ ~50% of scheduled slots, human rejection < ~30%,
 dispersion real per rubric, zero leaked-answer/meta-text defects reaching `pending`, cost per
@@ -1871,7 +1898,9 @@ suitable video keeps the §5.11.6 fallback — designed behaviour, recorded as a
 disposition, staging `youtube_videos` is non-empty, and a staging walk serves a real video from
 the intervention menu.
 
-**Phase 5 — Figures (family C): decision gate, then build if approved.**
+**Phase 5 — Figures (family C): decision gate, then build if approved.** *(Superseded by the
+✅ block above — the decision was taken on 2026-08-12 and the answer was build. Original
+phase text kept because its "done when" is what the block above is measured against.)*
 Proposal on the table (D-273): deterministic parameterized SVG renderers (clock faces, coin
 sets, bar charts, labeled shape/angle diagrams) rendered client-side from structured fields the
 gate already verified — no image generation, no blob storage, no new PII surface. This is a

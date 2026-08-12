@@ -20192,3 +20192,139 @@ plan-arithmetic tests keep their literals — they claim no ids.
 dispersion discriminates in 7 of 7** (dominant tier 28–42%, floor 80%). Yield 91%, ~3.7¢ per
 candidate, **$6.03** for the band. **The human-rejection rate is still absent** — two waves now,
 and it remains the evidence Phase 3's auto-approval decision is supposed to rest on.
+
+---
+
+### D-277 — The design gate learns the router, and grades 6-12 become authorable
+
+**Date:** 2026-08-12 · **Session:** C1 (6-8 and 9-12 waves)
+
+Twelve topics, 51 skills, covering the 79 authorable rows of grades 6-12.
+
+**The blocker, found by probing before writing any of it.** These are the first topics whose
+answers are not single values, and `validate_equation_design` still required *one equation, one
+unknown, one solution* — the pre-Phase-R contract. Measured: **all five B-family forms were
+rejected before they could be written.** A quadratic, an inequality, a system, a factorisation
+and a surd could each pass the *item* gate and none could ever be *designed*. Same defect as
+D-274's number rule, one dimension over: a rule scoped to one answer model, installed as
+universal. The gate now routes, and the number rules apply only to the `value` model — an
+interval is not "positive", a factorisation is not "whole".
+
+**Two answer families added**, both deliberately withheld in D-274 on the rule that a family
+gets added when a topic needs one: `integer` (negative whole numbers) and `signed` (algebra and
+calculus, where no sign or roundness rule applies). Four members is the two booleans crossed,
+which is the whole space.
+
+**A gap from earlier the same session, found while adding bands.** The 3-5 wave's topics had
+never been added to `grade_topic_mapping.yaml` — grades 4 and 5 were recommended
+`fraction_operations` alone while **160 generated items sat in topics no student could reach**.
+Availability is a bank read (D-187), but a topic absent from its band is not a candidate at all.
+
+**Three tests rewritten from snapshots to properties**, because each broke on *content being
+added* rather than on the behaviour it guards: the band-theft guard asserted
+`topics_for_grade("4") == ["fraction_operations"]` while its subject is band *ordering*;
+`topics_for_grade` froze whole recommendation lists; and
+`test_every_rational_skill_states_that_its_answer_is_not_whole` was my own over-generalisation —
+`rational` means a non-whole answer is *permitted*, and a mean or an area from whole lengths is
+legitimately whole.
+
+---
+
+### D-278 — Options were parsed differently from the equations they answer
+
+**Date:** 2026-08-12 · **Session:** C1 (6-12 wave, first results)
+
+`algebra_1` came back **1 accepted of 27**. Reading the rejections found two causes with
+opposite verdicts, which is the reason to read them rather than re-run.
+
+**A real gate defect.** Options go through `_sympify` (plain `sympy.sympify`, no implicit
+multiplication); equations go through `_parse_side`, which carries `_PARSE_TRANSFORMS` and does.
+So `2x(x + 1)(x + 3)` — the natural way anyone writes a factored answer, and a form the
+*equation* side has accepted since D-191 on the stated grounds that "a model writing mathematics
+naturally omits the star" — failed to parse as an option, and **correct items were rejected as
+wrong**. Fixed in the symbolic arm only: turning transforms on inside `_sympify` would change
+what a *value* option means, since `'12 minutes'` currently fails the direct parse and reaches
+the unit-stripping fallback.
+
+Also `^`, which SymPy reads as bitwise XOR — `Eq(x, 3^4)` derived something that was not 81 and
+nothing failed. Nobody writing a question means XOR.
+
+**Not a gate defect — the content was wrong.** `sqrt(75)` **is** `5*sqrt(3)`, so an item offering
+both has two correct options. One rejected item had **three of four options equal to the answer**:
+`2x(x+1)(x+3)`, `x(2x^2+8x+6)` and `2x(x^2+4x+3)` are the same expression. **"Which is
+*completely* factored" is not a difference in value, so it cannot be a multiple-choice question.**
+Twelve skills whose shape invites an equal-valued distractor now say so.
+
+---
+
+### D-279 — Figures: the 34 family-C rows become authorable
+
+**Date:** 2026-08-12 · **Session:** C1 (Phase 5) · **User decision:** build now, do not defer
+
+**Structured data, not images.** Every other part of an item is verified deterministically; a
+generated image would have been the one part nobody could check, sitting beside a stem whose
+correctness is proved. So a figure is data the gate reads — a clock is an hour and a minute — and
+the renderer is deterministic SVG in the frontend. No image generation, no blob storage, no new
+PII surface, nothing to delete on a retention schedule.
+
+**Two properties make a figure safe**, both scored in both directions:
+
+- **Coupling** — every number in the figure appears in the item. A clock showing 3:45 beside a
+  stem about 4:15 is a defect no other check can see.
+- **Reading** — for a question the figure *answers*, the figure verifies it.
+  `check_sympy_independent_solve` cannot: "what time does this clock show" has no arithmetic, so
+  `derive_answer` yields a number while the option says "3:45" — the exact mismatch that made
+  `Museum B` fail in the 3-5 wave. **A reading replaces the equation as the source of truth**; a
+  test asserts every other check still runs.
+
+**Authored, not generated.** For these the content *is* the numbers, and a table produces them
+correctly every time for nothing. Figure skills carry no `difficulty_tiers`, so no paid run can
+schedule them. The authoring script re-validates through the same gate before writing, and caught
+its own tables three times: label answers whose solution still ended on a value, a hint listing
+every bar height for a question whose answer was one of them, and options equal in value.
+
+**Two defects found by running it.** The loader was **not idempotent** for coordinate figures —
+six rows rewritten on every load, because `CoordinateGridFigure` types its points as tuples, a
+plain `model_dump()` returns tuples, and the JSON column returns lists. And `figure_reading` had
+**no column**, so export dropped it — an item that loses its reading reloads *ungated*, because
+the reading is its only verification.
+
+**A regression I introduced and a pinned test caught.** `items_view` gained a batched template
+read for the figure, which took the pre-exam path from 8 statements to 9. The budget was raised
+deliberately rather than worked around: the property that file guards is *one statement, not one
+per item*, and an exact count exists to force that judgement into the open. The post-exam budget
+stayed at 8 — measured, not assumed. Separately, the graph state typed items as
+`dict[str, str | int]` and LangGraph validates against it, so `figure_spec: None` was rejected at
+the graph boundary — 38 tests, all the same error.
+
+---
+
+### D-280 — Re-gating rejections offline, and what it stopped me doing
+
+**Date:** 2026-08-12 · **Session:** C1 (6-12 wave, after action)
+
+The 6-12 wave finished at **201 of 354 (57%) for $13.05**, with the symbolic topics far below:
+`algebra_1` 4%, `algebra_foundations` 39%, `g6_fractions` 42%, `calculus` 43%.
+
+**Before re-running anything, all 109 rejected candidates were re-gated offline** — free, because
+D-195 stores the candidate content with the rejection. **The parser fixes recover 8 of 109; with
+the interval fix below, 11.** So "4% means the parser is broken" was wrong, and a blind re-run
+would have spent ~$8 reproducing the same yields. This is the cheapest measurement in the
+session and it changed the plan.
+
+**One more real gate defect, found in that pass.** An inequality's option carries a unit —
+`x >= 6 weeks` — and the interval arm was the only answer model that could not read the way its
+own questions are written. The subtlety that made a first attempt do nothing: `_parse_side`
+carries implicit multiplication, so `x >= 6 weeks` *parses* as `x >= 6*w*e*e*k*s` and fails later
+on the unknown count. Catching only the exception left the fallback unreachable for every unit
+that is a word, so the retry is on an unusable **result**. Strictness is untouched.
+
+**What was deliberately not changed: the 30-word readability ceiling.** 19 rejections are that
+rule, and the sentences were read rather than assumed miscalibrated for older students. They are
+not: *"A party planner sets up 7 packs of balloons and 3 packs of streamers in the main hall,
+then sets up 4 more packs of balloons and 6 more packs of streamers in the entrance area"* is 36
+words and should be two sentences. **The rule is right and the content is wrong.**
+
+The generator prompt already says "keep every sentence under 30 words" and 19 items broke it
+anyway — D-252's finding a third time. Asking does not hold; the lever is D-198's repair path,
+which is off by default and is what the re-run turns on.
