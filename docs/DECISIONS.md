@@ -20628,3 +20628,50 @@ normalisation is the narrower instrument: it fires on the same sentence, never o
 Both inflated or deflated the headline in opposite directions, which is the argument for
 reporting a detector's own failure modes next to its output: the first draft of this measurement
 said 5% and the corrected one says 1.5%, and nothing about the bank changed in between.
+
+### D-287 — Nothing scores a ladder, and 19% of its rungs are level
+
+**Date:** 2026-08-12 · **Session:** C1 (D-285 follow-up) · **Status:** measured, reported not gated
+
+The hand audit found three "mean of five numbers" items at d1, d2 and d3 that were the same
+task with different digits. This is why nothing caught it: **every automated check scores an
+item against a rubric, on its own.** The judge reads one question and rates it 1-5, and a
+disagreement of 2 or more with the slot's tier rejects it. Nothing anywhere asks whether d3 is
+harder than d2 *for this skill*. A ladder whose rungs are level passes every check there is.
+
+**Measured across the bank: 20 of 107 rungs (19%) are flat** — they introduce no equation shape
+the skill has not already used *and* no larger numbers than the tier below. Several point
+downhill:
+
+```
+statistics_advanced/stat_descriptive d2   Eq(x, (# + # + # + # + #) / #)   58 -> 45  SHRANK
+statistics_advanced/stat_descriptive d3   Eq(x, (# + # + # + # + #) / #)   45 -> 25  SHRANK
+g2_subtraction/g2_sub_two_digit     d3    Eq(x, # - #)                     68 -> 53  SHRANK
+```
+
+The first two are the exact items the hand audit flagged, found again by a script that never
+read them — which is the useful part: the defect the human found is now measurable without one.
+
+**Two signals, because the skills need different ones.** A rung counts as a real step if it adds
+a new equation shape *or* bigger numbers. Scoring only shape would condemn every
+arithmetic-fluency skill (`g1_add_within_20` is `Eq(x, # + #)` forever and its difficulty is
+entirely whether the operands cross ten); scoring only magnitude would condemn every structural
+one (`alg1_quadratics` gets harder by changing form, not size).
+
+**Reported, deliberately not gated.** The first instinct was a check that rejects an item whose
+tier does not exceed the one below, and it is wrong: `9 + 8` and `7 + 2` share a shape and
+nearly a magnitude, and one is genuinely harder for a six-year-old in a way no expression
+captures. A gate built on these two proxies would refuse correct content in exactly the skills
+where the proxies are weakest. The same reasoning as D-286's rejected alternative — the
+instrument has to be narrower than the concept, and where it cannot be, it reports.
+
+**What the measurement is for.** `scripts/measure_difficulty_ladder.py` names the flat rungs so
+the next authoring pass can start there. The fix is content, not code: those tiers need
+different questions, and the pipeline cannot invent the difference because it does not know one
+is missing.
+
+**An honest limit.** The first version of this measurement scored only equation shape and
+reported **44%**. That number was wrong in the alarming direction and would have justified a
+gate that broke K-2. The corrected figure is 19%. Recorded because two measurements of the same
+bank differed by more than a factor of two on a definition choice, and only the definition
+changed.
