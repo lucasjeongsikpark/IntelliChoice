@@ -20572,3 +20572,59 @@ one, and it is cheap to find: this audit took one pass and no model calls.
 the bank, and 7 of 54 has a wide interval — treat 13% as the order of magnitude, not the rate.
 Widening the sample is the obvious next measurement and is now cheap, because the defect
 families above are what to look for.
+
+### D-286 — The gap between two dedup checks, and the 28% that was a sampling artefact
+
+**Date:** 2026-08-12 · **Session:** C1 (D-285 follow-up)
+
+D-285's hand audit reported **28% of the sample** sitting in a near-duplicate pair or trio and
+named it as costing more than the 13% defect rate. Measuring all 620 items instead of 54 gives
+a different number and a much more specific defect.
+
+**The 28% was a sampling artefact, and the sample design caused it.** The audit drew one item
+per (topic × difficulty), which by construction takes adjacent tiers *inside the same skill* —
+exactly where a generator repeats itself. Across the whole bank, **9 items (1.5%) are repeated
+stories**. The lesson is not "the audit was wrong" but that a stratified sample answers the
+question its strata encode, and this one encoded "how similar are neighbouring tiers".
+
+**The real defect is narrower and worse.** Three of those groups cross a *topic* boundary:
+
+```
+g1_addition       "Liam has 9 stickers in his album. His friend gives him 6 more..."
+g2_word_problems  "Liam has 9 stickers in his album. His friend gives him 6 more..."
+```
+
+Two dedup checks already existed and this fell exactly between them:
+
+| check | scope | why it missed |
+|---|---|---|
+| `rendered_question_exists` | every canonical variant, all topics, all runs | needs the **digits** to match, and these differ |
+| stem-embedding cosine | *meaning*, so it would catch these easily | scoped to a single `topic_id`, and all three cross one |
+
+So the fix is the missing third: the same sentence with numbers normalised to `#`, looked up
+across canonical variants in a **different topic**. One query, no embedding call.
+
+**Two scoping decisions, and the rejected alternative is the interesting one.**
+
+*Across topics only, not globally.* Inside one topic a repeated skeleton is usually correct —
+`place_value_compare` asks "Which of these numbers is the largest?" twelve times because the
+question lives in the options. A global version would reject eleven of those twelve.
+
+*Not by widening the embedding check*, which was the obvious move and is wrong. Grade-1 and
+grade-2 addition problems are **supposed** to resemble one another; that is the curriculum
+spiral, and a global cosine threshold would reject correct content by design. Digit
+normalisation is the narrower instrument: it fires on the same sentence, never on the same idea.
+
+**The detector needed two corrections before its own number meant anything**, both kept in
+`scripts/measure_bank_duplicates.py` rather than quietly fixed:
+
+1. **Family-C figure items were counted as duplicates.** Eight identical "What time does this
+   clock show?" stems are invariant *by design* — the variation is in the figure, which
+   `figure_numbers_missing_from_item` already checks. That measured the detector, not the bank.
+2. **A stem opening with a name read as a template.** The first scenario/template rule excluded
+   sentence-initial capitals to avoid matching "Which"/"What", and a story very often *opens*
+   with the name — so "Leo has three digit cards" was filed as by-design, three times.
+
+Both inflated or deflated the headline in opposite directions, which is the argument for
+reporting a detector's own failure modes next to its output: the first draft of this measurement
+said 5% and the corrected one says 1.5%, and nothing about the bank changed in between.
