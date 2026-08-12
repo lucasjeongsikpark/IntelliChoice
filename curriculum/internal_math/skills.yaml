@@ -580,7 +580,7 @@ skills:
     name: "Simplify an algebraic expression"
     difficulty_tiers: [1, 2]
     structure: "a bare EXPRESSION with no equals sign, e.g. 5*x + 3*x - 2 - the answer is the
-      simplified expression itself, checked by equivalence, not a number"
+      simplified expression itself, checked by equivalence, not a number. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
     answer_family: signed
 
   - skill_id: alg_distribute
@@ -588,7 +588,7 @@ skills:
     name: "Expand a bracket and collect like terms"
     difficulty_tiers: [2, 3]
     structure: "a bare EXPRESSION containing a bracket that must be distributed, e.g. 3*(2*x +
-      5) - 4*x - the answer is the expanded expression"
+      5) - 4*x - the answer is the expanded expression. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
     answer_family: signed
 
   - skill_id: alg_linear_functions
@@ -695,7 +695,7 @@ skills:
     name: "Factorise a quadratic expression"
     difficulty_tiers: [2, 3]
     structure: "a bare quadratic EXPRESSION to factorise, e.g. x**2 - 5*x + 6 - the answer is
-      the factored form, checked by equivalence"
+      the factored form, checked by equivalence. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
     answer_family: signed
 
   - skill_id: alg1_quadratics
@@ -726,7 +726,7 @@ skills:
     name: "Work with functions and their graphs"
     difficulty_tiers: [3, 4]
     structure: "a bare EXPRESSION defining the function, e.g. 2*x**2 - 3*x + 1 - the answer is
-      the expression, or its simplified form"
+      the expression, or its simplified form. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
     answer_family: signed
 
 
@@ -735,7 +735,7 @@ skills:
     topic_id: algebra_2
     name: "Simplify irrational numbers"
     difficulty_tiers: [1, 2]
-    structure: "a surd simplified, e.g. Eq(x, sqrt(50)) - the answer is 5*sqrt(2), not a decimal"
+    structure: "a surd simplified, e.g. Eq(x, sqrt(50)) - the answer is 5*sqrt(2), not a decimal. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
     answer_family: rational
 
   - skill_id: alg2_polynomial_factor
@@ -743,7 +743,7 @@ skills:
     name: "Factorise a polynomial"
     difficulty_tiers: [3, 4]
     structure: "a bare polynomial EXPRESSION of degree three or more, e.g. x**3 - 4*x - the
-      answer is the factored form"
+      answer is the factored form. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
     answer_family: signed
 
   - skill_id: alg2_remainder_factor_theorem
@@ -759,7 +759,7 @@ skills:
     name: "Work with quadratic functions"
     difficulty_tiers: [3, 4]
     structure: "a bare quadratic EXPRESSION, e.g. x**2 - 6*x + 5, or its vertex/root value
-      written as an equation"
+      written as an equation. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
     answer_family: signed
 
   - skill_id: alg2_rational_radical
@@ -767,7 +767,7 @@ skills:
     name: "Simplify rational and radical expressions"
     difficulty_tiers: [4, 5]
     structure: "a bare EXPRESSION that simplifies, e.g. (x**2 - 9)/(x - 3) - the answer is the
-      simplified expression, checked by equivalence"
+      simplified expression, checked by equivalence. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
     answer_family: signed
 
   - skill_id: alg2_exponential_log
@@ -800,7 +800,7 @@ skills:
     name: "Evaluate and simplify trigonometric functions"
     difficulty_tiers: [3, 4, 5]
     structure: "an exact value at a special angle, e.g. Eq(x, cos(pi/3)), or a bare EXPRESSION
-      that simplifies by an identity, e.g. sin(t)**2 + cos(t)**2"
+      that simplifies by an identity, e.g. sin(t)**2 + cos(t)**2. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
     answer_family: signed
 
 
@@ -818,7 +818,7 @@ skills:
     name: "Differentiate a function"
     difficulty_tiers: [2, 3, 4]
     structure: "a bare EXPRESSION that is the derivative, e.g. 6*x**2 - 4*x + 3 for the
-      derivative of 2*x**3 - 2*x**2 + 3*x - the answer is an expression, not a number"
+      derivative of 2*x**3 - 2*x**2 + 3*x - the answer is an expression, not a number. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
     answer_family: signed
 
   - skill_id: calc_integrals
@@ -826,7 +826,7 @@ skills:
     name: "Integrate a function"
     difficulty_tiers: [3, 4, 5]
     structure: "a bare EXPRESSION that is the antiderivative, e.g. x**3/3 + 2*x, or a definite
-      integral written as the arithmetic of its evaluation"
+      integral written as the arithmetic of its evaluation. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
     answer_family: signed
 
   - skill_id: calc_differential_equations
@@ -834,7 +834,7 @@ skills:
     name: "Solve a simple differential equation"
     difficulty_tiers: [4, 5]
     structure: "a bare EXPRESSION that is the solution, e.g. 3*exp(2*t) - the answer is a
-      function, checked by equivalence"
+      function, checked by equivalence. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
     answer_family: signed
 
 

@@ -198,6 +198,12 @@ _MATH_TEXT_SUBSTITUTIONS = {
     "—": "-",  # em dash
     "×": "*",  # multiplication sign
     "÷": "/",  # division sign
+    # D-278: in mathematics `^` is exponentiation; in Python it is bitwise XOR, so SymPy
+    # reads `x^2` as `Xor(x, 2)` and quietly derives a different expression rather than
+    # failing. Nobody writing a question means XOR, and the 6-12 wave is the first content
+    # where powers are routine. Safe on both sides of the flag below: an equation with a
+    # caret means the same thing an option with one does.
+    "^": "**",
 }
 # "x = 7" as an option means the value 7 - a restated equation, not a different answer.
 _ASSIGNMENT_PREFIX_RE = re.compile(r"^\s*[A-Za-z]\w*\s*=\s*")
@@ -802,7 +808,23 @@ def _option_matches(derivation: DerivedAnswer, text: str) -> bool:
         return all(_values_equal(p, e) for p, e in zip(parsed, expected_components, strict=True))
 
     if derivation.model == "symbolic":
-        parsed = _sympify(text)
+        # **Parsed the way the EQUATION was parsed, not the way a value option is (D-278).**
+        # `_sympify` is `sympy.sympify`, which has no implicit multiplication; `_parse_side`
+        # carries `_PARSE_TRANSFORMS`, which does. So `2x(x + 1)(x + 3)` - the natural way
+        # anyone writes a factored answer, and a form the equation side has accepted since
+        # D-191 on the grounds that "a model writing mathematics naturally omits the star" -
+        # failed to parse as an *option* and the item was rejected as wrong. Measured on the
+        # 6-12 wave: correct factorisations rejected across every symbolic skill.
+        #
+        # Scoped to this arm on purpose. Turning implicit multiplication on inside `_sympify`
+        # would change what a *value* option means: `'12 minutes'` currently fails the direct
+        # parse and reaches the unit-stripping fallback, and with transforms on it would
+        # succeed as a product of eight symbols and never get there.
+        parsed: sympy.Basic | None
+        try:
+            parsed = _parse_side(_normalize_math_text(text))
+        except _PARSE_ERRORS:
+            parsed = _sympify(text)
         if parsed is None:
             return False
         expected_expression = derivation.payload
