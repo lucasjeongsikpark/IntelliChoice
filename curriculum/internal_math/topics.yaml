@@ -540,3 +540,65 @@ topics:
       4: "a matrix sum or product, or a vector sum and magnitude"
       5: "a conditional probability, or a scalar product used to decide an angle or a
         perpendicularity"
+
+  # ====================================================================================
+  # C1 Phase 5 — family C (D-279). Four topics whose questions ARE pictures, authored
+  # deterministically by `scripts/author_figure_items.py` rather than generated: for these
+  # the content is the numbers, and a table produces them correctly every time for nothing.
+  # ====================================================================================
+
+  - topic_id: telling_time
+    name: "Telling the Time"
+    grade_band: "1-2"
+    description: >
+      Reading an analogue clock face, and working out how much time has passed between two
+      readings of one.
+    difficulty_anchors:
+      1: "the minute hand is on the 12 or the 6, so the reading is o'clock or half past"
+      2: "the minute hand is on a quarter mark, so the reading is quarter past or quarter to"
+      3: "the minute hand is on any five-minute mark and must be counted round in fives"
+      4: "the reading is past the half hour, so the hour hand has visibly moved on and can
+        be misread as the next hour"
+      5: "two readings must be compared, so the answer is an elapsed time rather than a
+        reading"
+
+  - topic_id: data_graphs
+    name: "Reading Graphs and Tables"
+    grade_band: "2-3"
+    description: >
+      Reading values off a bar chart, comparing them, and combining them - the skill the
+      Graphs & Tables rows in grades 3, 4 and 5 all name.
+    difficulty_anchors:
+      1: "read which bar is tallest or shortest, with a scale in ones"
+      2: "read a named bar's value, or compare two bars, with a scale in ones"
+      3: "find the difference between two bars"
+      4: "combine every bar into a total, or work with a scale that counts in fives or tens"
+      5: "a comparison and an arithmetic step both, where the intermediate value is not what
+        is asked for"
+
+  - topic_id: plane_figures
+    name: "Measuring Plane Figures"
+    grade_band: "4-5"
+    description: >
+      Areas, perimeters and circle measures computed from the labels drawn on a figure -
+      the shape is given, so choosing the rule is the work.
+    difficulty_anchors:
+      1: "the area of a rectangle from its two labelled sides"
+      2: "a perimeter, so every labelled side must be used rather than two of them"
+      3: "a triangle or parallelogram, so a factor of a half or a height rather than a side
+        decides the answer"
+      4: "a trapezoid or a circle circumference, so the rule has more than one input"
+      5: "a circle area, where the radius must be squared before the constant is applied"
+
+  - topic_id: coordinate_geometry
+    name: "Coordinate Geometry"
+    grade_band: "6-7"
+    description: >
+      Reading and using points on a coordinate grid: naming them, measuring between them,
+      and using right triangles they form.
+    difficulty_anchors:
+      1: "a point in the first quadrant, both coordinates positive"
+      2: "a point with a negative coordinate, so the direction of the count matters"
+      3: "the distance between two points that share a row or a column"
+      4: "a distance that needs both directions counted and added"
+      5: "a diagonal length, so the right triangle the points form must be used"

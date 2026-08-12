@@ -61,6 +61,17 @@ class QuestionTemplate(Base):
     answer_expression: Mapped[str | None] = mapped_column(String, nullable=True)
     hint_ladder: Mapped[list | None] = mapped_column(JSON, nullable=True)
     canonical_solution: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # D-279: the structured figure this item's question is about, or NULL for the text-only
+    # items that are every item authored before this. JSON rather than a blob because a
+    # figure here is *data the gate reads* - `figure_numbers_missing_from_item` checks that
+    # every number in it appears in the question - and because a bank-file diff should show
+    # what changed about a picture.
+    figure_spec: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Which question the figure answers, when the answer is READ from it rather than
+    # calculated. Stored beside the figure because losing it on export would leave an
+    # item that reloads UNGATED - `check_reading_matches_the_figure` is the only
+    # verification such an item has.
+    figure_reading: Mapped[str | None] = mapped_column(String, nullable=True)
     stem_embedding: Mapped[list[float] | None] = mapped_column(
         Vector(EMBEDDING_DIM), nullable=True
     )

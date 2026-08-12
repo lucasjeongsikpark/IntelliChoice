@@ -52,6 +52,13 @@ def test_loads_every_seeded_topic() -> None:
         "trigonometry",
         "calculus",
         "statistics_advanced",
+        # C1 Phase 5 — family C (D-279). Authored deterministically by
+        # `scripts/author_figure_items.py`, not generated: their skills carry no
+        # `difficulty_tiers`, so no paid run can schedule them.
+        "telling_time",
+        "data_graphs",
+        "plane_figures",
+        "coordinate_geometry",
     }
     assert content.curriculum_version
 

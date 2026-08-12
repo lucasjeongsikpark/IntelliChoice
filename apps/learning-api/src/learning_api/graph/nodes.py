@@ -144,7 +144,7 @@ def _ctx(runtime: Runtime[TurnContext]) -> TurnContext:
     return runtime.context
 
 
-def _items_payload(items: list[flow.QuestionItemView]) -> list[dict[str, str | int]]:
+def _items_payload(items: list[flow.QuestionItemView]) -> list[dict[str, object]]:
     return [
         {
             "question_variant_id": item.question_variant_id,
@@ -154,6 +154,7 @@ def _items_payload(items: list[flow.QuestionItemView]) -> list[dict[str, str | i
             "option_b": item.option_b,
             "option_c": item.option_c,
             "option_d": item.option_d,
+            "figure_spec": item.figure_spec,
         }
         for item in items
     ]

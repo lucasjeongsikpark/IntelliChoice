@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ExamTimer } from "../components/ExamTimer";
 import { QuestionNavBar } from "../components/QuestionNavBar";
+import { QuestionFigure } from "../components/QuestionFigure";
 import { QuestionStem } from "../components/QuestionStem";
 import { SubmitConfirmationModal } from "../components/SubmitConfirmationModal";
 import type { AssistanceQuestion, ExamOverview, QuestionItem } from "../types";
@@ -98,6 +99,7 @@ function AnsweredQuestionCard({
         {phase === "study" && <span>The question you're working on</span>}
       </div>
       <QuestionStem text={question.rendered_question} />
+      <QuestionFigure figure={question.figure_spec} />
       <div className="options">
         {options.map(([key, text]) => {
           const chosen = question.selected_option === key;
@@ -559,6 +561,7 @@ export function ExamScreen({
       )}
 
       <QuestionStem text={currentItem.rendered_question} />
+      <QuestionFigure figure={currentItem.figure_spec} />
 
       {isReadOnly && (
         <p className="readonly-note">

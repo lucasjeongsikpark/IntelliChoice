@@ -122,7 +122,10 @@ def test_the_repo_bank_file_parses_and_every_item_still_validates() -> None:
         assert len(set(ids)) == len(ids), f"duplicate template ids in {topic_id}.yaml"
         for template in templates:
             result = validate_authored_item(
-                template.difficulty_label, template.to_generated_item()
+                template.difficulty_label,
+                template.to_generated_item(),
+                figure=template.figure_spec,
+                figure_reading=template.figure_reading,
             )
             assert result.passed, f"{template.question_template_id}: {result.failures}"
 

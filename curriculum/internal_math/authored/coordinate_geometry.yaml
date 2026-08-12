@@ -1,0 +1,347 @@
+curriculum_version: '2026.1'
+topic_id: coordinate_geometry
+templates:
+- question_template_id: figure-coordinate_geometry-d1-730100
+  topic_id: coordinate_geometry
+  skill_id: coordinate_read_plot
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - swapped_coordinates
+  - miscounted_grid_lines
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: What are the coordinates of point P?
+  context_block: null
+  answer_expression: null
+  figure_spec:
+    kind: coordinate_grid
+    x_range:
+    - -6
+    - 6
+    y_range:
+    - -6
+    - 6
+    points:
+    - - 3.0
+      - 2.0
+    point_labels:
+    - P
+    segments: []
+  figure_reading: point_coordinates
+  hint_ladder:
+  - Start at the origin and read across before you read up or down.
+  - The first number is how far across, the second is how far up.
+  - Count the grid lines carefully, including any that are negative.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read each point off the grid, across then up.
+      expression: (3, 2)
+      common_mistake: reading up before across
+    - step_number: 2
+      explanation: Answer what the question asks about them.
+      expression: Eq(x, 3 + 2)
+      common_mistake: null
+    final_answer: (3, 2)
+  random_seed: 730100
+  rendered_question: What are the coordinates of point P?
+  option_a: (3, 2)
+  option_b: (2, 3)
+  option_c: (-3, 2)
+  option_d: (3, -2)
+  correct_option: a
+- question_template_id: figure-coordinate_geometry-d2-730101
+  topic_id: coordinate_geometry
+  skill_id: coordinate_read_plot
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - swapped_coordinates
+  - miscounted_grid_lines
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: What are the coordinates of point Q?
+  context_block: null
+  answer_expression: null
+  figure_spec:
+    kind: coordinate_grid
+    x_range:
+    - -6
+    - 6
+    y_range:
+    - -6
+    - 6
+    points:
+    - - -4.0
+      - 1.0
+    point_labels:
+    - Q
+    segments: []
+  figure_reading: point_coordinates
+  hint_ladder:
+  - Start at the origin and read across before you read up or down.
+  - The first number is how far across, the second is how far up.
+  - Count the grid lines carefully, including any that are negative.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read each point off the grid, across then up.
+      expression: (-4, 1)
+      common_mistake: reading up before across
+    - step_number: 2
+      explanation: Answer what the question asks about them.
+      expression: Eq(x, -4 + 1)
+      common_mistake: null
+    final_answer: (-4, 1)
+  random_seed: 730101
+  rendered_question: What are the coordinates of point Q?
+  option_a: (-4, -1)
+  option_b: (-4, 1)
+  option_c: (1, -4)
+  option_d: (4, 1)
+  correct_option: b
+- question_template_id: figure-coordinate_geometry-d2-730102
+  topic_id: coordinate_geometry
+  skill_id: coordinate_read_plot
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - swapped_coordinates
+  - miscounted_grid_lines
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: What are the coordinates of point R?
+  context_block: null
+  answer_expression: null
+  figure_spec:
+    kind: coordinate_grid
+    x_range:
+    - -6
+    - 6
+    y_range:
+    - -6
+    - 6
+    points:
+    - - 2.0
+      - -3.0
+    point_labels:
+    - R
+    segments: []
+  figure_reading: point_coordinates
+  hint_ladder:
+  - Start at the origin and read across before you read up or down.
+  - The first number is how far across, the second is how far up.
+  - Count the grid lines carefully, including any that are negative.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read each point off the grid, across then up.
+      expression: (2, -3)
+      common_mistake: reading up before across
+    - step_number: 2
+      explanation: Answer what the question asks about them.
+      expression: Eq(x, 2 + -3)
+      common_mistake: null
+    final_answer: (2, -3)
+  random_seed: 730102
+  rendered_question: What are the coordinates of point R?
+  option_a: (-2, -3)
+  option_b: (2, 3)
+  option_c: (2, -3)
+  option_d: (-3, 2)
+  correct_option: c
+- question_template_id: figure-coordinate_geometry-d3-730103
+  topic_id: coordinate_geometry
+  skill_id: coordinate_read_plot
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - swapped_coordinates
+  - miscounted_grid_lines
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: How far apart are points A and B?
+  context_block: null
+  answer_expression: Eq(x, 4 + 0)
+  figure_spec:
+    kind: coordinate_grid
+    x_range:
+    - -6
+    - 6
+    y_range:
+    - -6
+    - 6
+    points:
+    - - 1.0
+      - 1.0
+    - - 5.0
+      - 1.0
+    point_labels:
+    - A
+    - B
+    segments:
+    - - 0
+      - 1
+  figure_reading: null
+  hint_ladder:
+  - Start at the origin and read across before you read up or down.
+  - The first number is how far across, the second is how far up.
+  - Count the grid lines carefully, including any that are negative.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read each point off the grid, across then up.
+      expression: (1, 1) (5, 1)
+      common_mistake: reading up before across
+    - step_number: 2
+      explanation: Answer what the question asks about them.
+      expression: Eq(x, 4 + 0)
+      common_mistake: null
+    final_answer: 4 units
+  random_seed: 730103
+  rendered_question: How far apart are points A and B?
+  option_a: 8 units
+  option_b: 2 units
+  option_c: 5 units
+  option_d: 4 units
+  correct_option: d
+- question_template_id: figure-coordinate_geometry-d3-730104
+  topic_id: coordinate_geometry
+  skill_id: coordinate_read_plot
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - swapped_coordinates
+  - miscounted_grid_lines
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: How far apart are points C and D?
+  context_block: null
+  answer_expression: Eq(x, 0 + 5)
+  figure_spec:
+    kind: coordinate_grid
+    x_range:
+    - -6
+    - 6
+    y_range:
+    - -6
+    - 6
+    points:
+    - - -2.0
+      - 4.0
+    - - -2.0
+      - -1.0
+    point_labels:
+    - C
+    - D
+    segments:
+    - - 0
+      - 1
+  figure_reading: null
+  hint_ladder:
+  - Start at the origin and read across before you read up or down.
+  - The first number is how far across, the second is how far up.
+  - Count the grid lines carefully, including any that are negative.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read each point off the grid, across then up.
+      expression: (-2, 4) (-2, -1)
+      common_mistake: reading up before across
+    - step_number: 2
+      explanation: Answer what the question asks about them.
+      expression: Eq(x, 0 + 5)
+      common_mistake: null
+    final_answer: 5 units
+  random_seed: 730104
+  rendered_question: How far apart are points C and D?
+  option_a: 5 units
+  option_b: 10 units
+  option_c: 2.5 units
+  option_d: 6 units
+  correct_option: a
+- question_template_id: figure-coordinate_geometry-d5-730105
+  topic_id: coordinate_geometry
+  skill_id: coordinate_read_plot
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - swapped_coordinates
+  - miscounted_grid_lines
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Points X, Y and Z form a right triangle. How long is the side from X to Z?
+  context_block: null
+  answer_expression: Eq(x, sqrt(4**2 + 3**2))
+  figure_spec:
+    kind: coordinate_grid
+    x_range:
+    - -6
+    - 6
+    y_range:
+    - -6
+    - 6
+    points:
+    - - 0.0
+      - 0.0
+    - - 4.0
+      - 0.0
+    - - 4.0
+      - 3.0
+    point_labels:
+    - X
+    - Y
+    - Z
+    segments:
+    - - 0
+      - 1
+    - - 1
+      - 2
+  figure_reading: null
+  hint_ladder:
+  - Start at the origin and read across before you read up or down.
+  - The first number is how far across, the second is how far up.
+  - Count the grid lines carefully, including any that are negative.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read each point off the grid, across then up.
+      expression: (0, 0) (4, 0) (4, 3)
+      common_mistake: reading up before across
+    - step_number: 2
+      explanation: Answer what the question asks about them.
+      expression: Eq(x, sqrt(4**2 + 3**2))
+      common_mistake: null
+    final_answer: 5 units
+  random_seed: 730105
+  rendered_question: Points X, Y and Z form a right triangle. How long is the side from X to Z?
+  option_a: 3 units
+  option_b: 5 units
+  option_c: 7 units
+  option_d: 4 units
+  correct_option: b

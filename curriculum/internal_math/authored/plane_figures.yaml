@@ -1,0 +1,391 @@
+curriculum_version: '2026.1'
+topic_id: plane_figures
+templates:
+- question_template_id: figure-plane_figures-d1-720100
+  topic_id: plane_figures
+  skill_id: figure_measure_shape
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - wrong_formula
+  - doubled_the_answer
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The rectangle is labelled with its two side lengths. What is its area?
+  context_block: null
+  answer_expression: Eq(x, 8 * 5)
+  figure_spec:
+    kind: shape
+    shape: rectangle
+    side_lengths:
+    - 8.0
+    - 5.0
+    angle_degrees: []
+    unit: cm
+  figure_reading: null
+  hint_ladder:
+  - Read the labels on the figure before choosing what to calculate.
+  - The measurements shown are 8, 5 cm.
+  - Use the rule for this shape, then check the units of your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the labelled measurements from the figure.
+      expression: 8, 5
+      common_mistake: using a length the figure does not label
+    - step_number: 2
+      explanation: Apply the rule for this shape.
+      expression: Eq(x, 8 * 5)
+      common_mistake: null
+    final_answer: 40 square cm
+  random_seed: 720100
+  rendered_question: The rectangle is labelled with its two side lengths. What is its area?
+  option_a: 40 square cm
+  option_b: 80 square cm
+  option_c: 20 square cm
+  option_d: 48 square cm
+  correct_option: a
+- question_template_id: figure-plane_figures-d2-720101
+  topic_id: plane_figures
+  skill_id: figure_measure_shape
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - wrong_formula
+  - doubled_the_answer
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The rectangle is labelled with its two side lengths. What is its perimeter?
+  context_block: null
+  answer_expression: Eq(x, 2 * (12 + 7))
+  figure_spec:
+    kind: shape
+    shape: rectangle
+    side_lengths:
+    - 12.0
+    - 7.0
+    angle_degrees: []
+    unit: cm
+  figure_reading: null
+  hint_ladder:
+  - Read the labels on the figure before choosing what to calculate.
+  - The measurements shown are 12, 7 cm.
+  - Use the rule for this shape, then check the units of your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the labelled measurements from the figure.
+      expression: 12, 7
+      common_mistake: using a length the figure does not label
+    - step_number: 2
+      explanation: Apply the rule for this shape.
+      expression: Eq(x, 2 * (12 + 7))
+      common_mistake: null
+    final_answer: 38 cm
+  random_seed: 720101
+  rendered_question: The rectangle is labelled with its two side lengths. What is its perimeter?
+  option_a: 50 cm
+  option_b: 38 cm
+  option_c: 76 cm
+  option_d: 19 cm
+  correct_option: b
+- question_template_id: figure-plane_figures-d2-720102
+  topic_id: plane_figures
+  skill_id: figure_measure_shape
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - wrong_formula
+  - doubled_the_answer
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The triangle is labelled with all three side lengths. What is its perimeter?
+  context_block: null
+  answer_expression: Eq(x, 6 + 8 + 10)
+  figure_spec:
+    kind: shape
+    shape: triangle
+    side_lengths:
+    - 6.0
+    - 8.0
+    - 10.0
+    angle_degrees: []
+    unit: cm
+  figure_reading: null
+  hint_ladder:
+  - Read the labels on the figure before choosing what to calculate.
+  - The measurements shown are 6, 8, 10 cm.
+  - Use the rule for this shape, then check the units of your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the labelled measurements from the figure.
+      expression: 6, 8, 10
+      common_mistake: using a length the figure does not label
+    - step_number: 2
+      explanation: Apply the rule for this shape.
+      expression: Eq(x, 6 + 8 + 10)
+      common_mistake: null
+    final_answer: 24 cm
+  random_seed: 720102
+  rendered_question: The triangle is labelled with all three side lengths. What is its perimeter?
+  option_a: 12 cm
+  option_b: 30 cm
+  option_c: 24 cm
+  option_d: 48 cm
+  correct_option: c
+- question_template_id: figure-plane_figures-d3-720103
+  topic_id: plane_figures
+  skill_id: figure_measure_shape
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - wrong_formula
+  - doubled_the_answer
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The triangle has a right angle between its two shorter sides, which are labelled. What is its
+    area?
+  context_block: null
+  answer_expression: Eq(x, 9 * 12 / 2)
+  figure_spec:
+    kind: shape
+    shape: triangle
+    side_lengths:
+    - 9.0
+    - 12.0
+    - 15.0
+    angle_degrees: []
+    unit: cm
+  figure_reading: null
+  hint_ladder:
+  - Read the labels on the figure before choosing what to calculate.
+  - The measurements shown are 9, 12, 15 cm.
+  - Use the rule for this shape, then check the units of your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the labelled measurements from the figure.
+      expression: 9, 12, 15
+      common_mistake: using a length the figure does not label
+    - step_number: 2
+      explanation: Apply the rule for this shape.
+      expression: Eq(x, 9 * 12 / 2)
+      common_mistake: null
+    final_answer: 54 square cm
+  random_seed: 720103
+  rendered_question: The triangle has a right angle between its two shorter sides, which are labelled.
+    What is its area?
+  option_a: 108 square cm
+  option_b: 27 square cm
+  option_c: 63 square cm
+  option_d: 54 square cm
+  correct_option: d
+- question_template_id: figure-plane_figures-d3-720104
+  topic_id: plane_figures
+  skill_id: figure_measure_shape
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - wrong_formula
+  - doubled_the_answer
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The parallelogram is labelled with its base and its height. What is its area?
+  context_block: null
+  answer_expression: Eq(x, 10 * 6)
+  figure_spec:
+    kind: shape
+    shape: parallelogram
+    side_lengths:
+    - 10.0
+    - 6.0
+    angle_degrees: []
+    unit: cm
+  figure_reading: null
+  hint_ladder:
+  - Read the labels on the figure before choosing what to calculate.
+  - The measurements shown are 10, 6 cm.
+  - Use the rule for this shape, then check the units of your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the labelled measurements from the figure.
+      expression: 10, 6
+      common_mistake: using a length the figure does not label
+    - step_number: 2
+      explanation: Apply the rule for this shape.
+      expression: Eq(x, 10 * 6)
+      common_mistake: null
+    final_answer: 60 square cm
+  random_seed: 720104
+  rendered_question: The parallelogram is labelled with its base and its height. What is its area?
+  option_a: 60 square cm
+  option_b: 120 square cm
+  option_c: 30 square cm
+  option_d: 70 square cm
+  correct_option: a
+- question_template_id: figure-plane_figures-d4-720105
+  topic_id: plane_figures
+  skill_id: figure_measure_shape
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - wrong_formula
+  - doubled_the_answer
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The trapezoid is labelled with its two parallel sides and its height. What is its area?
+  context_block: null
+  answer_expression: Eq(x, (8 + 12) / 2 * 5)
+  figure_spec:
+    kind: shape
+    shape: trapezoid
+    side_lengths:
+    - 8.0
+    - 12.0
+    - 5.0
+    angle_degrees: []
+    unit: cm
+  figure_reading: null
+  hint_ladder:
+  - Read the labels on the figure before choosing what to calculate.
+  - The measurements shown are 8, 12, 5 cm.
+  - Use the rule for this shape, then check the units of your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the labelled measurements from the figure.
+      expression: 8, 12, 5
+      common_mistake: using a length the figure does not label
+    - step_number: 2
+      explanation: Apply the rule for this shape.
+      expression: Eq(x, (8 + 12) / 2 * 5)
+      common_mistake: null
+    final_answer: 50 square cm
+  random_seed: 720105
+  rendered_question: The trapezoid is labelled with its two parallel sides and its height. What is its
+    area?
+  option_a: 58 square cm
+  option_b: 50 square cm
+  option_c: 100 square cm
+  option_d: 25 square cm
+  correct_option: b
+- question_template_id: figure-plane_figures-d4-720106
+  topic_id: plane_figures
+  skill_id: figure_measure_shape
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - wrong_formula
+  - doubled_the_answer
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The circle is labelled with its radius. What is its circumference? Use 3.14 for pi.
+  context_block: null
+  answer_expression: Eq(x, 2 * 3.14 * 7)
+  figure_spec:
+    kind: shape
+    shape: circle
+    side_lengths:
+    - 7.0
+    angle_degrees: []
+    unit: cm
+  figure_reading: null
+  hint_ladder:
+  - Read the labels on the figure before choosing what to calculate.
+  - The measurements shown are 7 cm.
+  - Use the rule for this shape, then check the units of your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the labelled measurements from the figure.
+      expression: '7'
+      common_mistake: using a length the figure does not label
+    - step_number: 2
+      explanation: Apply the rule for this shape.
+      expression: Eq(x, 2 * 3.14 * 7)
+      common_mistake: null
+    final_answer: 43.96 cm
+  random_seed: 720106
+  rendered_question: The circle is labelled with its radius. What is its circumference? Use 3.14 for pi.
+  option_a: 21.98 cm
+  option_b: 50.96 cm
+  option_c: 43.96 cm
+  option_d: 87.92 cm
+  correct_option: c
+- question_template_id: figure-plane_figures-d5-720107
+  topic_id: plane_figures
+  skill_id: figure_measure_shape
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - wrong_formula
+  - doubled_the_answer
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The circle is labelled with its radius. What is its area? Use 3.14 for pi.
+  context_block: null
+  answer_expression: Eq(x, 3.14 * 5**2)
+  figure_spec:
+    kind: shape
+    shape: circle
+    side_lengths:
+    - 5.0
+    angle_degrees: []
+    unit: cm
+  figure_reading: null
+  hint_ladder:
+  - Read the labels on the figure before choosing what to calculate.
+  - The measurements shown are 5 cm.
+  - Use the rule for this shape, then check the units of your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the labelled measurements from the figure.
+      expression: '5'
+      common_mistake: using a length the figure does not label
+    - step_number: 2
+      explanation: Apply the rule for this shape.
+      expression: Eq(x, 3.14 * 5**2)
+      common_mistake: null
+    final_answer: 78.5 square cm
+  random_seed: 720107
+  rendered_question: The circle is labelled with its radius. What is its area? Use 3.14 for pi.
+  option_a: 157 square cm
+  option_b: 39.25 square cm
+  option_c: 83.5 square cm
+  option_d: 78.5 square cm
+  correct_option: d

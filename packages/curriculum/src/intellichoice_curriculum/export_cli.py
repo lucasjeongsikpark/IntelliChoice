@@ -23,6 +23,8 @@ import yaml
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_db.models.questions import QuestionTemplate
 from intellichoice_db.repositories.questions import QuestionRepository
+from intellichoice_shared.figures import FigureSpec
+from pydantic import TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -95,6 +97,15 @@ async def build_bank_file(
                 stem=row.stem or "",
                 context_block=row.context_block,
                 answer_expression=row.answer_expression,
+                # The column is JSON; the bank def wants the model. Validated rather
+                # than cast, so a row whose figure was written by an older shape
+                # fails here instead of reaching a file.
+                figure_spec=(
+                    TypeAdapter(FigureSpec).validate_python(row.figure_spec)
+                    if row.figure_spec
+                    else None
+                ),
+                figure_reading=row.figure_reading,
                 hint_ladder=list(row.hint_ladder or []),
                 canonical_solution=dict(row.canonical_solution or {}),
                 random_seed=variant.random_seed,

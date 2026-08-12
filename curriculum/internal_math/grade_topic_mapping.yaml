@@ -41,6 +41,7 @@ grade_topic_candidates:
     - g1_addition
     - g1_subtraction
     - g1_word_problems
+    - telling_time
     - place_value
   "2-3":
     - g2_addition
@@ -48,6 +49,7 @@ grade_topic_candidates:
     - g2_word_problems
     - multiplication_division
     - g3_word_problems
+    - data_graphs
     - place_value
   # C1 wave 3-5 (D-275) authored these and D-277 found they had never been listed here -
   # so grades 4 and 5 were recommended `fraction_operations` alone while 160 generated items
@@ -61,6 +63,7 @@ grade_topic_candidates:
     - number_sense
     - g4_word_problems
     - g5_word_problems
+    - plane_figures
   "6-7":
     - linear_equations
     - pre_algebra
@@ -70,6 +73,7 @@ grade_topic_candidates:
     - g6_geometry_measurement
     - geometry_measures
     - g68_word_problems
+    - coordinate_geometry
   # C1 waves 6-8 and 9-12 (D-277). Three bands added, and the ordering is what makes them
   # safe: `topics_for_grade` returns the FIRST band whose endpoints contain the grade, so
   # a band placed below an existing one cannot take a grade away from it.

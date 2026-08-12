@@ -40,6 +40,7 @@ from intellichoice_shared.bedrock import (
     AuthoredGeneratedItemResponse,
     SolutionResponse,
 )
+from intellichoice_shared.figures import FigureSpec
 from pydantic import BaseModel, ConfigDict
 
 from intellichoice_curriculum.content import DEFAULT_CONTENT_ROOT
@@ -93,6 +94,14 @@ class AuthoredTemplateDef(BaseModel):
     stem: str
     context_block: str | None = None
     answer_expression: str | None = None
+    # D-279. Family-C items are authored deterministically rather than generated, so the
+    # figure lives in the bank file next to the question it belongs to and the loader's
+    # gate checks the two agree.
+    figure_spec: FigureSpec | None = None
+    # Which question the figure answers, when the answer is READ from it rather than
+    # calculated (D-279). Mutually exclusive with relying on `answer_expression`: a
+    # reading replaces the equation as the source of truth for that item.
+    figure_reading: str | None = None
     hint_ladder: list[str]
     canonical_solution: dict
 

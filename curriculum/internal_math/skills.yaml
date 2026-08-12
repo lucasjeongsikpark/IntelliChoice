@@ -871,3 +871,25 @@ skills:
       + 4**2)) or Eq(x, 2*5 + 3*(-1) + 4*2)"
     answer_family: signed
 
+
+  # ==================================================================================
+  # C1 Phase 5 — family C (D-279). No `difficulty_tiers`, deliberately: these are NOT
+  # generated. `scripts/author_figure_items.py` writes them from tables, so they must not
+  # appear in `generation_plan()` and no paid run can schedule them.
+  # ==================================================================================
+
+  - skill_id: time_read_clock
+    topic_id: telling_time
+    name: "Read the time on a clock face"
+
+  - skill_id: graph_read_bar_chart
+    topic_id: data_graphs
+    name: "Read and compare values on a bar chart"
+
+  - skill_id: figure_measure_shape
+    topic_id: plane_figures
+    name: "Find the area or perimeter of a labelled figure"
+
+  - skill_id: coordinate_read_plot
+    topic_id: coordinate_geometry
+    name: "Read and use points on a coordinate grid"

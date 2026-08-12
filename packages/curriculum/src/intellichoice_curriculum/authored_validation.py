@@ -20,6 +20,11 @@ from tokenize import TokenError
 
 import sympy
 from intellichoice_shared.bedrock import AuthoredGeneratedItemResponse
+from intellichoice_shared.figures import (
+    FigureSpec,
+    figure_derived_answer,
+    figure_numbers_missing_from_item,
+)
 from sympy.parsing.sympy_parser import (
     implicit_multiplication_application,
     parse_expr,
@@ -820,19 +825,19 @@ def _option_matches(derivation: DerivedAnswer, text: str) -> bool:
         # would change what a *value* option means: `'12 minutes'` currently fails the direct
         # parse and reaches the unit-stripping fallback, and with transforms on it would
         # succeed as a product of eight symbols and never get there.
-        parsed: sympy.Basic | None
+        expression: sympy.Basic | None
         try:
-            parsed = _parse_side(_normalize_math_text(text))
+            expression = _parse_side(_normalize_math_text(text))
         except _PARSE_ERRORS:
-            parsed = _sympify(text)
-        if parsed is None:
+            expression = _sympify(text)
+        if expression is None:
             return False
         expected_expression = derivation.payload
         assert isinstance(expected_expression, sympy.Basic)
         # Equivalence, not equality: `(x-3)*(x+3)` and `x**2 - 9` are the same answer
         # written two ways, and an author who writes either should not be rejected for it.
         try:
-            return bool(sympy.simplify(parsed - expected_expression) == 0)  # type: ignore[operator]
+            return bool(sympy.simplify(expression - expected_expression) == 0)  # type: ignore[operator]
         except (TypeError, ValueError, AttributeError):
             return False
 
@@ -1143,17 +1148,118 @@ def check_no_meta_commentary(
             )
 
 
+def check_figure_agrees_with_the_question(
+    figure: FigureSpec | None,
+    item: AuthoredGeneratedItemResponse,
+    result: AuthoredValidationResult,
+) -> None:
+    """Every number in the figure must appear somewhere in the item (D-279).
+
+    A figure is the only part of an item not derived from the verified equation, so this is
+    the property that keeps it honest: a clock showing 3:45 beside a stem about 4:15 is a
+    defect no other check can see and a reader can miss. Reads the options and the solution
+    as well as the stem, because for "what time does this clock show" the numbers are
+    deliberately *not* in the stem - they are the answer.
+    """
+    if figure is None:
+        return
+    solution = " ".join(
+        [step.expression or "" for step in item.canonical_solution.steps]
+        + [item.canonical_solution.final_answer]
+    )
+    text = " ".join(
+        [
+            item.stem,
+            item.context_block or "",
+            item.option_a,
+            item.option_b,
+            item.option_c,
+            item.option_d,
+            solution,
+        ]
+    )
+    missing = figure_numbers_missing_from_item(figure, item_text=text)
+    if missing:
+        result.fail(
+            f"figure carries {missing} which appear nowhere in the question, its options or "
+            f"its solution - a figure must be about the item it is attached to"
+        )
+
+
+def check_reading_matches_the_figure(
+    figure: FigureSpec | None,
+    reading: str | None,
+    item: AuthoredGeneratedItemResponse,
+    result: AuthoredValidationResult,
+) -> None:
+    """For a question the figure *answers*, the figure is what verifies it (D-279).
+
+    `check_sympy_independent_solve` cannot help here: "what time does this clock show" has
+    no arithmetic, so `derive_answer` produces a number and the option says "3:45" - the
+    exact mismatch that made `Museum B` fail in the 3-5 wave. A figure determines its own
+    answer, though, so it can play the part the equation plays everywhere else.
+
+    Fails closed on a reading the figure cannot answer, rather than skipping: an item
+    declaring `chart_max_label` over a clock is precisely the mismatch worth catching.
+    """
+    if reading is None:
+        return
+    if figure is None:
+        result.fail(f"figure_reading {reading!r} is declared but the item has no figure")
+        return
+    expected = figure_derived_answer(figure, reading)
+    if expected is None:
+        result.fail(
+            f"figure_reading {reading!r} does not apply to a {figure.kind} figure"
+        )
+        return
+    declared = _options(item)[item.correct_option]
+    if _normalise_for_reading(declared) != _normalise_for_reading(expected):
+        result.fail(
+            f"the figure reads {expected!r}, but the declared correct option "
+            f"{item.correct_option!r} says {declared!r}"
+        )
+        return
+    others = [
+        label
+        for label, text in _options(item).items()
+        if label != item.correct_option
+        and _normalise_for_reading(text) == _normalise_for_reading(expected)
+    ]
+    if others:
+        result.fail(f"more than one option states what the figure reads: {others}")
+
+
+def _normalise_for_reading(text: str) -> str:
+    return " ".join(text.split()).strip().lower()
+
+
 def validate_authored_item(
-    difficulty_label: int, item: AuthoredGeneratedItemResponse
+    difficulty_label: int,
+    item: AuthoredGeneratedItemResponse,
+    *,
+    figure: FigureSpec | None = None,
+    figure_reading: str | None = None,
 ) -> AuthoredValidationResult:
     """Runs every deterministic §5.8.5 check this module owns against one authored
     generator proposal, before any LLM solver/judge call (plan §7 step 2).
+
+    `figure` is optional and defaults to None, which is what the *pipeline* passes: family-C
+    items are authored deterministically rather than generated (D-279), so the generator's
+    response schema is untouched and no structured-output contract had to change. The loader
+    passes the figure from the bank file, so one gate covers both paths.
     """
     result = AuthoredValidationResult()
+    check_figure_agrees_with_the_question(figure, item, result)
+    check_reading_matches_the_figure(figure, figure_reading, item, result)
     check_schema_and_markdown_safety(item, result)
     check_unique_options(item, result)
-    check_sympy_independent_solve(item, result)
-    check_exactly_one_correct_answer(item, result)
+    # A reading REPLACES the equation as the source of truth, so the two answer-derivation
+    # checks are skipped for it - not weakened, exchanged. `check_reading_matches_the_figure`
+    # above does the same job from the figure, including the "no other option matches" arm.
+    if figure_reading is None:
+        check_sympy_independent_solve(item, result)
+        check_exactly_one_correct_answer(item, result)
     check_no_answer_leakage(item, result)
     check_hint_ladder_monotonicity(item, result)
     check_hint_solution_answer_agreement(item, result)

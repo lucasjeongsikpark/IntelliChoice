@@ -132,6 +132,9 @@ class QuestionItemResponse(BaseModel):
     option_b: str
     option_c: str
     option_d: str
+    # D-279. Defaulted, so every state snapshot written before figures existed still
+    # validates - a resumed session must not fail on a field its payload predates.
+    figure_spec: dict | None = None
 
 
 class AssistanceQuestionResponse(BaseModel):
@@ -167,6 +170,9 @@ class AssistanceQuestionResponse(BaseModel):
     option_c: str
     option_d: str
     selected_option: str | None = None
+    # D-279: the help screen shows the question beside the hint, so it needs the figure too
+    # - a clock question with the clock missing from the left column is unanswerable.
+    figure_spec: dict | None = None
 
 
 class StudyProgressResponse(BaseModel):
@@ -558,8 +564,10 @@ async def _assistance_question(
     variant = await QuestionRepository(db).get_variant(attempt.question_variant_id)
     if variant is None:
         return None
+    template = await QuestionRepository(db).get_template(variant.question_template_id)
     return AssistanceQuestionResponse(
         question_variant_id=variant.question_variant_id,
+        figure_spec=template.figure_spec if template else None,
         rendered_question=variant.rendered_question,
         option_a=variant.option_a,
         option_b=variant.option_b,

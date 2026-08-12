@@ -159,6 +159,12 @@ def test_the_whole_shipped_bank_still_routes_as_value_and_matches_its_own_key():
     checked = 0
     for path in sorted(glob.glob(str(root / "curriculum/internal_math/authored/*.yaml"))):
         for template in yaml.safe_load(open(path))["templates"]:
+            # D-279: a family-C item is verified by its FIGURE, not by an equation - it
+            # carries `figure_reading` instead and `answer_expression` is deliberately
+            # null. Skipping it here is not a gap: `test_figures.py` runs the whole gate
+            # over exactly these items, including the both-directions reading checks.
+            if template.get("figure_reading"):
+                continue
             derivation, error = route_answer(template["answer_expression"])
             assert derivation is not None, f"{template['question_template_id']}: {error}"
             assert derivation.model == "value"

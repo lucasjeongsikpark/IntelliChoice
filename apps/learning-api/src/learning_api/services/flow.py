@@ -122,6 +122,10 @@ class QuestionItemView:
     option_b: str
     option_c: str
     option_d: str
+    # D-279: the figure the question is about, or None for a text-only item - which is
+    # every item authored before family C existed. Lives on the TEMPLATE rather than the
+    # variant, because a figure describes the question and not one rendering of it.
+    figure_spec: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -213,10 +217,16 @@ async def items_view(question_repo: QuestionRepository, items: list) -> list[Que
     of the 47 statements the `select_topic` path issued. `items` order is preserved.
     """
     variants = await question_repo.get_variants([item.question_variant_id for item in items])
+    # One batched template read for the figures, in the spirit of AUD-F-31: reading them
+    # per item would reintroduce exactly the N+1 this function was written to remove.
+    templates = await question_repo.get_templates(
+        [v.question_template_id for v in variants.values()]
+    )
     views = []
     for item in items:
         variant = variants.get(item.question_variant_id)
         assert variant is not None
+        template = templates.get(variant.question_template_id)
         views.append(
             QuestionItemView(
                 question_variant_id=variant.question_variant_id,
@@ -226,6 +236,7 @@ async def items_view(question_repo: QuestionRepository, items: list) -> list[Que
                 option_b=variant.option_b,
                 option_c=variant.option_c,
                 option_d=variant.option_d,
+                figure_spec=template.figure_spec if template else None,
             )
         )
     return views
