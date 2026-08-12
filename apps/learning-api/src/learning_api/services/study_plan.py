@@ -168,6 +168,24 @@ async def build_study_plan(
     if not skills:
         raise StudyPlanBuildError(f"topic {topic_id} has no skills defined")
 
+    # D-288: only skills that can actually serve an item may be study targets. The ranking
+    # below reads the *taxonomy's* skill list, and a taxonomy skill with zero bank items
+    # has no mastery row, ties at 0.0, and wins selection precisely because nobody has
+    # ever practised it - then `create_study_item` finds nothing and the student's exam
+    # finalize dies with a 503. Measured live: the calculus band walk drew
+    # `calc_differential_equations` (in the taxonomy, zero items) on some runs and not
+    # others, because the target set depends on which questions were answered wrong.
+    # Five topics carry such skills today; filtering here is what makes stocking a skill
+    # a content decision rather than a serving outage.
+    stocked = await question_repo.skill_ids_with_servable_items(
+        [skill.skill_id for skill in skills]
+    )
+    skills = [skill for skill in skills if skill.skill_id in stocked]
+    if not skills:
+        # Fail closed exactly as before: a topic with no studyable content at all is a
+        # real outage, not something to paper over with an empty plan.
+        raise StudyPlanBuildError(f"topic {topic_id} has no skills with servable items")
+
     weak_skill_ids: set[str] = set()
     if memory_repo is not None:
         facts = await memory_repo.list_facts_for_student(student_external_id)

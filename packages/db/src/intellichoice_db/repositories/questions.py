@@ -197,6 +197,24 @@ class QuestionRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def skill_ids_with_servable_items(self, skill_ids: Sequence[str]) -> set[str]:
+        """The subset of `skill_ids` that has at least one servable template (D-288).
+
+        Exists for the study-plan selector: it ranks a topic's skills from the *taxonomy*,
+        and a taxonomy skill with zero items ties at mastery 0.0, gets selected, and then
+        `create_study_item` finds nothing - a 503 at exam finalize, measured live when the
+        calculus walk drew `calc_differential_equations`. One query for the whole list,
+        same `_servable()` filter as every serving-path read.
+        """
+        if not skill_ids:
+            return set()
+        stmt = (
+            select(QuestionTemplate.skill_id)
+            .where(QuestionTemplate.skill_id.in_(list(skill_ids)), *_servable())
+            .distinct()
+        )
+        return set((await self._session.execute(stmt)).scalars().all())
+
     async def get_authored_templates(self) -> list[QuestionTemplate]:
         """Every authored template in the bank, whatever its status (D-210).
 

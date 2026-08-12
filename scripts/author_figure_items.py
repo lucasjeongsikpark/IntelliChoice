@@ -138,7 +138,13 @@ _CHARTS = [
     ("Stickers collected", ["Mia", "Noah", "Ori", "Pia"], [16, 9, 13, 11], "least", 2),
     ("Laps swum", ["Week 1", "Week 2", "Week 3", "Week 4"], [14, 22, 8, 17], "difference", 3),
     ("Cans recycled", ["Grade 3", "Grade 4", "Grade 5"], [135, 168, 149], "total", 5),
-    ("Minutes practised", ["Mon", "Tue", "Wed", "Thu", "Fri"], [35, 50, 20, 45, 40], "difference", 5),
+    (
+        "Minutes practised",
+        ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        [35, 50, 20, 45, 40],
+        "difference",
+        5,
+    ),
 ]
 
 
