@@ -20366,8 +20366,16 @@ rejections into passes:
 2. The second reading must match **exactly one** option — the same bar the first one clears.
 3. **An open boundary yields nothing rather than an off-by-one guess.** `m >= 7` admits 7;
    `m > 7` does not, and its smallest *whole* value is 8 only if the quantity is counted at all.
-   That off-by-one is precisely the distractor these items carry. This costs nothing measurable:
-   all 19 recovered inequality items came from closed boundaries, none from open ones.
+   That off-by-one is precisely the distractor these items carry.
+
+   > **Corrected by D-282.** This point originally read "this costs nothing measurable: all 19
+   > recovered items came from closed boundaries, none from open ones." That was **circular** —
+   > open-boundary items were classified `still_wrong` *by construction*, so none could appear
+   > among the recoveries. Measured properly, declining costs **3 items**, and applying a ±1
+   > rule instead would have **misread 6** — their answers are prose descriptions of the
+   > interval ("more than 10 hours"), for which the boundary±1 is a distractor, not the answer.
+   > The conservative choice was right. The reason given for it was not, and a wrong reason
+   > that reaches the same conclusion is the kind that survives into the next decision.
 
 **Result: 27 rejections recover**, 17 in the three inequality skills, re-gated offline for $0.
 
@@ -20393,3 +20401,50 @@ end to end. **A re-gate scores a hypothesis; reading the rejections generates on
 0-of-28 number was available the whole time and nothing was looking at it, which is also why
 `generation_plan` acceptance should be tracked per skill, not per topic — a topic average of
 33% hid a skill at zero.
+
+### D-282 — The gate could not read an answer written the way a child says it
+
+**Date:** 2026-08-12 · **Session:** C1 (during the repair re-run)
+
+`_option_as_solution_set` returned `None` unless the option text contained a `<` or `>`. So
+the gate could check `'x > 10'` and **not** `'more than 10 hours'` — and an item whose options
+were written in the age-appropriate language SPEC §5.10.3 requires was rejected as *wrong*,
+not as unreadable.
+
+**That is an incentive, not merely a gap.** Every rule in this pipeline is a price signal to
+the generator, and this one priced algebra below English for an audience of children. Six
+correct items were rejected for it on the 6-12 wave, every one phrased the way a teacher would
+phrase it: *"more than 10 hours"*, *"Fewer than 15 hours"*, *"More than 25 days"*. Nothing in
+the prompt asked for algebraic options; the gate simply refused the alternative, which is a
+harder failure to notice than a rule that says so out loud.
+
+The reading is reached only when the symbolic one found nothing, so no option that parses
+today changes meaning — the ordering rule D-280 and D-191 both follow.
+
+**Two strictnesses, pinned by tests rather than by the arrangement of the table:**
+
+- **The phrase decides whether the boundary is included.** "more than 10" and "at least 10"
+  are different sets, so an item cannot pass by confusing them. That confusion is the
+  commonest real mistake in inequality work, and a gate that blurred it would be worse than
+  no gate at all.
+- **"no more than 10" contains "more than 10".** Matched in the wrong order, every negated
+  form is read as its own opposite and the gate accepts an item stating exactly the wrong
+  bound — the worst failure available in this change, and the reason the order is a test and
+  not a comment.
+
+Exactly one number may appear. *"between 5 and 10 hours"* is refused rather than guessed at,
+because which bound is which is not recoverable from the phrase alone.
+
+**What this corrects in D-281.** That entry justified declining open boundaries with "this
+costs nothing measurable — all 19 recovered items came from closed boundaries, none from
+open." The claim was **circular**: the rule excluded open boundaries, so open-boundary items
+were classified `still_wrong` by construction and could not appear among the recoveries. The
+honest measurement is 3 items lost — and a ±1 rule would have **misread 6**, because their
+declared answers are exactly these prose intervals, for which boundary±1 is a *distractor*.
+
+So the conservative choice was right and its stated reason was wrong. That combination is the
+one worth writing down: a wrong reason that reaches the right answer is invisible at review
+and survives into the next decision, where the answer may differ. What exposed it was not a
+re-measurement but reading a single rejection — `Interval.open(-oo, 16)` against `'15 hours'` —
+and noticing the gate was refusing something true. **Same lesson as D-281's method note, one
+level up: the aggregate said the rule was free, and one item said otherwise.**
