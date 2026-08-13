@@ -70,6 +70,31 @@ the full detail behind each.
 password (a live Secrets Manager credential) into CloudWatch Logs - and that log output
 then also appeared in the session transcript. Found and fixed live, not after the fact.
 
+**Second real worked example (D-310, C1, 2026-08-13) - three ways it differed from the
+first, each worth knowing before the next one:**
+
+Running `pgrep -fl` to check whether an `e2e-staging` process was alive echoed that
+process's environment, printing both `/dev/token` shared secrets into the session
+transcript. Then:
+
+- **The exposure could not be deleted.** Step 2 below assumes a CloudWatch stream you can
+  drop. Here the vectors were a **process table** (unscrubbable, gone when the process
+  exits) and a **session transcript** (already sent to an API). When the exposure cannot
+  be deleted, rotation is the only containment - which makes step 1 more important, not
+  less.
+- **The vector was documented as safe.** `make e2e-staging` passed the secrets as
+  environment assignments and the Makefile asserted they "never [reach] argv, `ps`, or a
+  shell history". Measured: **4 process-table lines carried an expanded secret**, because
+  npm's `exec` path and Playwright's workers re-expose the inherited environment in their
+  process titles. The comment is why nobody checked for ten sessions. **A safety claim in a
+  comment is a hypothesis; measure it once.**
+- **Rotation was declined, deliberately.** The user's decision, on bounded exposure:
+  staging only, production is a separate frozen system, Postgres holds no PII by design,
+  and the residual risk is Bedrock spend that the gateway caps. Recorded as a departure
+  from step 1's default with its reason, not as an oversight. **The fix went to the source
+  instead** - `e2e/config.ts` fetches the secrets itself, so nothing downstream inherits
+  them (0 exposed process lines after, verified while token minting still works).
+
 Steps, in this order (rotate before investigating - a live credential is actively
 exploitable for as long as it's valid):
 

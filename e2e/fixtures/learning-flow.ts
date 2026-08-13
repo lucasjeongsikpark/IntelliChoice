@@ -126,7 +126,10 @@ export async function chooseTopic(page: Page, label = /linear equations/i): Prom
  * Returns false when there is no answerable question (already answered, or the screen
  * is showing something else) so callers can drive a loop off it.
  */
-export async function answerCurrentQuestion(page: Page): Promise<boolean> {
+export async function answerCurrentQuestion(
+  page: Page,
+  options: { optionIndex?: number } = {},
+): Promise<boolean> {
   // Retried for the same reason `chooseTopic` is: a stage narrative arriving over SSE
   // replaces the exam screen mid-interaction, including between selecting an option and
   // clicking Submit (AUD-F-05). Every journey would otherwise carry that flake.
@@ -144,28 +147,39 @@ export async function answerCurrentQuestion(page: Page): Promise<boolean> {
       .catch(() => undefined);
     const submit = page.getByRole("button", { name: /^submit answer$/i });
     if ((await submit.count()) === 0) return false;
-    const options = page.locator(".options button.option");
-    if ((await options.count()) === 0) {
+    const optionButtons = page.locator(".options button.option");
+    if ((await optionButtons.count()) === 0) {
       // A re-render can empty the option list for a moment. Returning false here would
       // report "no answerable question", which `answerWholeExam` reads as the end of the
       // exam - so a transient race would silently truncate the walk instead of failing it.
       await page.waitForTimeout(250);
       continue;
     }
-    // Any option: correctness is not what this journey is testing, and picking the first
-    // every time keeps the walk deterministic.
+    // Any option: correctness is not what most of this harness is testing, and picking the
+    // first every time keeps a walk deterministic.
+    //
+    // **`optionIndex` exists because "any option" is not good enough for one caller
+    // (D-310).** The student walk asserts the retry ladder engaged, which only happens on a
+    // *wrong* answer - so with a fixed index it depends on the first option happening to be
+    // wrong for some study item, which is an accident of the stored option order, not a
+    // property the test controls. D-302 re-tiered the bank and changed which items that walk
+    // is served; the first option was then correct for all of them and the assertion failed on
+    // staging with the app behaving perfectly. Cycling the index across questions makes a
+    // wrong answer near-certain (all-correct needs the walk to be lucky on every item) without
+    // changing any other caller's behaviour.
     //
     // `isEnabled()` with no timeout waits the full 15 s for an element detached under it and
     // then *throws*, escaping this retry loop entirely - which is how the student walk failed
     // one whole-suite run in S41 after passing the two before it. Every other interaction in
     // this file already degrades to a retry rather than an exception; this one did not.
-    const first = options.first();
-    const enabled = await first.isEnabled({ timeout: 2000 }).catch(() => false);
+    const count = await optionButtons.count();
+    const chosen = optionButtons.nth((options.optionIndex ?? 0) % count);
+    const enabled = await chosen.isEnabled({ timeout: 2000 }).catch(() => false);
     if (!enabled) {
       await page.waitForTimeout(250);
       continue;
     }
-    if ((await stableClick(first)) && (await stableClick(submit))) return true;
+    if ((await stableClick(chosen)) && (await stableClick(submit))) return true;
   }
   return false;
 }

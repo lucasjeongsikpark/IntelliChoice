@@ -88,7 +88,12 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
       interventions += 1;
       continue;
     }
-    if (!(await answerCurrentQuestion(page))) {
+    // `optionIndex: i` cycles the choice across questions (D-310). The ladder only engages on
+    // a WRONG answer, and with a fixed first-option choice this walk depended on the first
+    // option happening to be wrong for some item - an accident of the stored option order.
+    // D-302 changed which items are served here and the accident stopped holding, so the
+    // assertion below failed on staging while the app behaved correctly.
+    if (!(await answerCurrentQuestion(page, { optionIndex: i }))) {
       await page.waitForTimeout(1000);
       continue;
     }
