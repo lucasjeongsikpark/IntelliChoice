@@ -1795,6 +1795,36 @@ had to be matched by timestamp, which stops working the moment two students are 
 > for that long: four filters per service watched Bedrock and none watched telemetry delivery, so a
 > whole leg of this architecture was dark while every dashboard stayed green.
 
+**`trace_id` joins one request; `learning_session_id` joins one sitting, and that second axis did
+not exist until D-316.** Every question this system asks about a *student's* experience spans many
+requests - a 10-item exam, a refresh, a retry ladder - and no field grouped them. The consequence was
+concrete rather than theoretical: D-288's recorded next step, "server-side logs for that session",
+was **impossible** for a week, because there was no query to write. Access-log lines now carry the
+session id from their path via an **allowlist** (`LOGGABLE_PATH_PARAMS`), never a dump of
+`path_params` - `/students/{student_id}` exists, and a wholesale dump would begin logging a reference
+to a real minor the moment a route is added. So: `trace_id` for "what did this request do",
+`learning_session_id` for "what happened to this student today", and both on the same line.
+
+An unmatched route logs `UNMATCHED_PATH` rather than `request.url.path`. That fallback used to run on
+**every CORS preflight** (`CORSMiddleware` answers `OPTIONS` before routing sets `scope["route"]`),
+which put raw `/learning/students/student-ext-N/...` paths in the store - measured at 23 lines in one
+local session - while this module's docstring promised it "never touches `request.url` … by
+construction". The PII floor held (an `*_external_id` is what Postgres stores by design, and `.path`
+drops the query string, so no token leaked), but a guarantee with a branch that denies it is not a
+guarantee, and raw paths are unbounded cardinality in the field the store is grouped by. The edge
+logs still hold raw paths, which is where an unmatched-route question belongs.
+
+**The error surface, both ends (D-315).** learning-api previously had **no exception handler at
+all**: an unhandled `BedrockGatewayError` returned uvicorn's default 500, whose traceback is printed
+outside `JsonLogFormatter` (so it carries no `trace_id` and joins nothing) and whose response is
+raised outside `CORSMiddleware` (so a browser sees `net::ERR_FAILED`, not a status). It now mirrors
+chat-api's narrow 503 - narrow on purpose, because a catch-all reports real bugs as transient
+outages. On the browser side an `ErrorBoundary` wraps `<App/>` and `window.error`/
+`unhandledrejection` listeners cover what a boundary cannot see; a render crash used to blank the
+page and reach no one. **There is still no sink** - both ends log, nobody is notified - and closing
+that needs an authenticated endpoint, a rate limit, and a PII rule for stack text, which is a
+decision rather than a default.
+
 `LangGraph` and `FastAPI` are the same process - the split is about which *sink* answers which
 question, not about which service is running. One `trace_id` still spans FastAPI → LangGraph →
 Bedrock gateway → MySQL/Postgres → MCP tools on the OTel side (SPEC §5.32.2); LangGraph node

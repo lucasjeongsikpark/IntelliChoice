@@ -25,26 +25,38 @@ no PII by design; the residual risk is Bedrock spend, which the gateway caps). S
 decision is ever revisited: rotate at the source, then re-run `deploy-staging.yml`, because ECS
 tasks read the value at container start.
 
-**A UI/UX + observability audit ran on 2026-08-13 (D-314/D-315) and it produced the shortest path to
-the two open staging defects.** Three things were fixed and verified in a browser: the §5.11.6
-no-video dead end together with the three-site support miscount behind it, a stale cross-exam
-view-time flush that 404'd at the pre→post boundary, and the total absence of error visibility (an
-`ErrorBoundary`, global handlers, and learning-api's first exception handler). **All of it is
-uncommitted on `main`'s working tree and has NOT been deployed** — `git status` is the current
-inventory; nothing is on a branch.
+**⚠️ PR #251 IS OPEN AND UNMERGED — the one thing to resolve before anything else.** A UI/UX +
+observability audit ran on 2026-08-13 (D-314 → D-316) and its work sits on
+`fix/help-dead-end-and-error-visibility`: two commits, **CI green on all nine checks**, read from CI
+rather than inferred. Nothing is on `main` and **nothing is deployed**, so staging still serves
+`sha=ae41b7f2212f` and still has all four defects below.
 
-The single most valuable remaining item is the one that unblocks D-288: **the logs carry no
-session-scoped id**, which is precisely why that refresh defect has stalled on "needs server-side
-logs" — they cannot isolate one session. Adding `learning_session_id` (a UUID, non-PII) to the
-session routes' `http_request` lines is the unblock, and A15 (`pre_intro` out of the SSE connect
-path) should ship in the same deploy, since it is the leading candidate for `time-telemetry`'s
-staging-only failure. Eight further findings are listed in that session's log.
+Four things were fixed and verified in a browser and the database, not from the diff:
+
+| fix | evidence at close |
+|---|---|
+| the §5.11.6 no-video dead end + the **three-site** support miscount behind it (D-314) | `video_used = false`, no `video` series on `learning_support_usage_total`, "Videos suggested: **0**" after three unavailable requests, **0** `mcp_tool_calls` so the reopen is free |
+| a stale cross-exam view-time flush that 404'd at the pre→post boundary (D-314) | **zero** 404s/409s across a full journey, including the boundary that produced the 404 before |
+| error visibility, which did not exist at all (D-315) | boundary verified by crashing it; the 503 handler's test fails with the handler disabled |
+| **D-288 made investigable** (D-316) + every CORS preflight was logging a raw student path | fresh process: preflight and 404 both `<unmatched>`, **0** student ids in the log; a two-answer walk logged `answered: 2, first_unanswered: 2` and the client agreed |
+
+**The next step for D-288 is now mechanical rather than open-ended:** merge, deploy, re-run the D-311
+two-test invocation against staging, and read `exam_overview_read` for that session. `answered` short
+of the acknowledged POSTs puts the fault behind the endpoint; `answered` correct while the student
+still lands on question 1 puts it in the client — and means the four already-killed explanations were
+all looking on the wrong side. **A15** (`pre_intro` out of the SSE connect path) should ship in the
+same deploy, since it is the leading candidate for `time-telemetry`'s staging-only failure and one
+run would then answer both.
 
 **What the next session should pick up, in order:**
 
-1. **Decide whether to spend on depth.** It is the only substantial thing left in C1 and it is
-   sized below: ~$13-16 and ~3.5 hours of generation. Nothing is blocked; this is a budget call.
-2. **Decide whether the two exposed staging secrets get rotated after all.** Declined once with a
+1. **Merge PR #251 and deploy it, then read staging.** Everything above is worthless until it runs
+   where the defects are. Note `uvicorn --reload` does not complete while an SSE client is connected
+   (23+ min measured) — the ECS analogue is a task that will not drain, so watch the deploy's drain
+   step rather than assuming it.
+2. **Decide whether to spend on depth.** The only substantial thing left in C1 and it is sized:
+   ~$13-16 and ~3.5 hours of generation. Nothing is blocked; this is a budget call.
+3. **Decide whether the two exposed staging secrets get rotated after all.** Declined once with a
    reason (D-310); the reason may not hold if staging ever serves anything real.
 3. **Coverage is done. The two criteria still open are now SIZED (D-313), so the decision to
    spend on them is a number rather than an impression.**
