@@ -7,30 +7,45 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Session C1 remains ⏸ partial. Closed 2026-08-13 at D-306, on branch
-`c1-tier-labels-and-notation-gate` / PR #247 (six commits, not merged). Bank 936, 33 of 33
-topics openable, pytest 1440 + e2e 70/70, $4.50 spent.**
+**Session C1 remains ⏸ partial. Continued 2026-08-13 to D-308, on branch
+`c1-tier-labels-and-notation-gate` / PR #247 (now nine commits, not merged). Bank 936 → 951,
+33 of 33 topics openable, pytest 1440 → 1485 + e2e 70/70, $5.04 spent in total (54¢ this
+half).**
 
 **What the next session should pick up, in order:**
 
-1. **Merge or review PR #247.** Six commits, 55 files. It contains a **product behaviour change**
-   (exam composition and topic availability) and a **data migration** applied only to the dev
-   database — staging still runs the old build against its own bank. Nothing here has been
-   deployed, and doing so needs the migration plus `scripts/backfill_flagged_to_judged_tier.py`
-   run against staging RDS, then a bank load.
-2. **The canonical-form check (A4), the one open lever on depth.** Depth is **82 of 152 occupied
-   cells** at D-223's 5-per-tier target, and the blocker is now named rather than guessed: the
-   equal-valued-distractor class, 64 rejections, concentrated in the canonical-form skills.
-   D-306 measured the repair path against it at two budgets and it **does not converge**. A
-   deterministic `gcd == 1` / simplest-form test is sized at **16 of 44** recoverable on record
-   and **12 of the 32** repair could not fix. Requires both-directions measurement before it
-   ships, because it relaxes duplicate detection.
-3. **Phase 4 (video catalog) is blocked on a credential, not on work.** The catalog holds **4
+1. **Merge or review PR #247 — still the first item, and now with a green CI.** Nine commits.
+   It contains a **product behaviour change** (exam composition and topic availability), a
+   **gate relaxation** (D-308's canonical-form tie-break) and a **data migration applied only to
+   the dev database** — staging still runs the old build against its own bank. Deploying needs
+   the migration plus `scripts/backfill_flagged_to_judged_tier.py` against staging RDS, then a
+   bank load. **CI was red for this branch through the previous close and I had not read it
+   (D-307); it is green now, and "local green" is no longer the claim this project accepts.**
+2. **The two remaining unstocked skills.** A4 is done and it closed one of three:
+   `g6_fraction_reduce` went **0 → 7 items** at 100% acceptance. Still zero, and untried:
+   **`alg1_functions`** (algebra_1, tiers 3-4) and **`calc_differential_equations`** (calculus,
+   tiers 4-5). Nothing is known about why they are empty — that is the first thing to measure,
+   and D-195's stored rejections make it free.
+3. **Depth against D-223's 5-per-occupied-tier target** is now a volume question rather than a
+   blocked-content one: the class that refused to converge under repair is admitted by the gate,
+   measured at **59 of 74** stored rejections recoverable.
+4. **Phase 4 (video catalog) is blocked on a credential, not on work.** The catalog holds **4
    videos covering 4 of 112 skills and 1 of 33 topics**; closing it needs a real
    `YOUTUBE_API_KEY` plus quota budgeting. Its cost bug is already fixed (D-305).
-4. **The generative tutor path's reading level** — no readability check and `tutor_chat_messages`
+5. **The generative tutor path's reading level** — no readability check and `tutor_chat_messages`
    holds 0 rows, so measuring it means paying to generate a fresh sample (D-303).
-5. **D-288's staging refresh defect** is still open and needs server-side logs.
+6. **D-288's staging refresh defect** is still open and needs server-side logs.
+
+**Carry-over found this half, neither of them blocking:**
+
+- **15 of 92 items with a context block repeat its opening sentence in the stem**, so a student
+  reads it twice — `rendered_question` is `context_block + "\n\n" + stem` and the model writes
+  the setup into both. Concentrated in new content (**6 of 8** in this half's first batch against
+  9 of 84 pre-existing), cosmetic rather than wrong, and there is no gate check for it.
+- **`question_variants` holds 338,778 `runtime` rows against 1,055 `canonical` ones** after four
+  weeks of dev and load-test use. Per-showing minting is designed and correct (D-189); what does
+  not exist is any retention or pruning policy, and this is the fastest-growing table in the
+  product.
 
 **Superseded status text below, kept for its measurements.** Session C1, continued — 2026-08-12,
 D-294/D-295. Two carry-over defects closed, and the rubric question re-ordered rather than
@@ -9326,6 +9341,64 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### Session C1, continued — the canonical-form gate, and a red CI I had already pushed past (2026-08-13)
+
+- **Scope:** PROGRESS's own pickup list, items 1 and 2: get PR #247 reviewable, then A4. The user
+  chose "census first, then build", so the free measurement ran before any code.
+- **The session opened by finding my own reporting error (D-307).** The previous close reported
+  "pytest 1440 passed" — true locally — and pushed. **CI was red at that moment and I never
+  looked:** the two tests D-305 had just added asserted against four `ka-*` rows a fake-provider
+  `youtube-sync` had left in my dev Postgres, and CI's database is fresh. Fixed by seeding inside
+  the rollback transaction, the pattern every other test in that file already used. Verified by
+  *reproducing* CI — ambient rows set `inactive`, pre-fix code 2 failed at the same line, post-fix
+  2 passed, rows restored — because on this machine the fix and the bug are otherwise
+  indistinguishable, which is how it shipped.
+- **A4's sizing was measured before it was built, and it replaced my own estimate.** D-306 put the
+  recoverable share at "16 of 44" from an ad-hoc count I cannot reproduce.
+  `scripts/measure_canonical_form.py` measures **98 of 115 attempts (85%)** and **59 of 74
+  distinct slots (80%)**, with both predicates validated against 26 known cases first.
+- **The number that actually decided it was a coverage number, not a depth one.**
+  `g6_fraction_reduce` held **0 items in the bank** — one of only **3 of 99** authorable skills
+  with nothing at all, which no per-wave table had ever revealed because each wave counted only
+  its own skills. 29 of its slots were recoverable. D-306 had measured repair against it at 0 of
+  4, twice: "several equivalent fractions, pick the reduced one" *is* the model's conception of
+  the item, and it was right.
+- **Built (D-308):** `SkillDef.answer_form` (`"any"` / `"lowest_terms"` / `"simplest_radical"`),
+  declared on exactly two skills and pinned as a set; `canonical_option()` reading the option
+  **text**, because `sympify('4/6')` is `2/3` and `sqrt(80)` is `4*sqrt(5)` — the parsed value has
+  already lost the information. One resolver, `CurriculumContent.answer_form()`, read by the
+  pipeline, the loader, the repo bank test and the gate census; the first draft left the last two
+  at `"any"`, which would have made **the repository stricter than the loader** and the new items
+  unexportable.
+- **The precision test found a real hole instead of confirming one.** Written to check that two
+  lowest-terms options do *not* break the tie, it failed: `_WRITTEN_FRACTION` had no sign, so
+  `-2/-3` read as "no fraction", was excluded, and the gate **accepted** an item showing `-2/-3`
+  beside `2/3`.
+- **Verification:** ruff clean, pyright 0 errors, pytest **1440 → 1485**, whole-bank differential
+  **0 of 936** verdicts changed and not vacuously (8 `alg2_irrational` items do take the new
+  path). Two paid runs, each behind a green preflight and an explicit cap.
+- **What the first batch actually produced, including what is wrong with it.**
+  `g6_fraction_reduce` **8 accepted of 8 (100%), 21.23¢, zero rejections at any stage** — a skill
+  that had never produced one item. Reading them: 7 are exactly the intended shape
+  (`8/12` → `3/2`, `8/12`, **`2/3`**, `4/6`). **1 was mis-filed** — a GCF word problem ("largest
+  number of equal groups", answer 5) that never asks the student to reduce anything, so it passed
+  the gate without needing the tie-break at all. Rejected through `review_cli.reject`.
+- **A content wart this batch concentrated, measured and left alone deliberately.**
+  `rendered_question = context_block + "\n\n" + stem` and the model wrote nearly the same
+  sentence into both fields: **6 of today's 8** items make a student read it twice, against 9 of
+  84 pre-existing (11%). Cosmetic rather than wrong, so it is recorded as carry-over with its
+  number instead of being fixed with money while two skills still hold zero items.
+- **One side finding, reported not fixed:** `question_variants` holds **338,778 `runtime` rows**
+  against 1,055 `canonical` ones, four weeks of dev and load-test usage. Per-showing minting is
+  designed (D-189) and correct; what is absent is any retention or pruning policy, and this is the
+  fastest-growing table the product has.
+- **A stored memory of mine was wrong and is corrected:** repo Python *can* use
+  `jeongsik-staging-admin` via plain `AWS_PROFILE` (botocore: "Found credentials in shared
+  credentials file"). The `[crt]`/export requirement applies to `intellichoice-staging`, which is
+  the `aws login` session.
+- **Decisions:** D-307, D-308.
+
 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —

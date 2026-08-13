@@ -65,6 +65,23 @@ to rot, because nothing fails when it does.)*
   available topic the builder refuses is the 503 that rule exists to prevent, and
   `test_every_topic_the_picker_calls_available_can_actually_build_an_exam` drives all 33 through
   both.
+- **"Exactly one option is correct" is a claim about the answer's *value*, except where a skill
+  declares that it is a claim about the answer's *written form*** (D-308). The gate derives the
+  answer from the item's own equation and refuses the item when more than one option matches. For
+  96 of 99 authorable skills that is the whole rule. For a skill whose question asks for a form —
+  "reduce to lowest terms", "simplify" — it refuses the skill's best item, because `12/18`, `6/9`,
+  `2/3` and `4/6` are one value and four different answers to *that* question. The tie-break
+  therefore reads the option **text**: `sympify('4/6')` is already `2/3` and `sqrt(80)` is already
+  `4*sqrt(5)`, so the parsed value has lost the information before any comparison happens. Three
+  properties make this a scoping rule rather than a loosening: it is keyed on
+  `SkillDef.answer_form`, declared on **exactly two** skills and pinned as a set by a test; it
+  fails closed, so a form that leaves two canonical options or none leaves the rejection standing;
+  and the whole decision — readings, then tie-break — lives in one function, `resolved_matches`,
+  called by the pipeline, the loader and both censuses. That last point is the load-bearing one:
+  the reading sequence had already expired **four** times as a duplicated premise, most recently
+  when a bank-wide test still asserted "exactly one option matches" against content this rule
+  admits by design. Measured: **0 of the 936** items predating it change verdict, and the 14 that
+  depend on it are all new.
 - **`session_scope` is a unit of work: it commits on a clean exit and rolls back on an
   exception** (D-284 addendum, fixed in D-294). It used to do neither — yield a session, close
   it — so a caller that wrote without committing got a **no-op that reported success**:

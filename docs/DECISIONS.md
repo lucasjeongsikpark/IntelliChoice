@@ -21963,3 +21963,110 @@ gate is right in both. One number remains unexplained and is left unexplained ra
 guessed at: **14 of 30** leak rejections have a single-character answer, and this check has
 already been repaired twice for false positives on short answers (D-195). I hypothesised a third
 hole via fractions (`√2/2`) and **measured it at 0 of 17**, so there may be none.
+
+### D-307 — Two tests that passed only on my machine, and CI had already said so
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** fixed, free
+
+The session before this one closed reporting "pytest 1440 passed" and pushed. **CI on PR #247
+was red at that moment and I did not look**: 2 failed / 1438 passed, both of them tests D-305
+had just added. The local number was accurate; the claim built on it — that the branch was
+green and reviewable — was not, because a test suite has two verdicts and I reported one.
+
+**The cause is data dependence, not logic.** Both tests asserted against the four `ka-*` rows a
+fake-provider `make youtube-sync` had left in my dev Postgres:
+
+    assert await repo.has_servable_video() is True     # <- True here, False on CI
+
+CI's database is fresh and no sync step exists, so `has_servable_video()` was correctly `False`
+and the guard was correctly refusing. Every *other* test in `test_video_catalog.py` seeds its own
+`YoutubeVideo` inside the rollback transaction; these two read ambient state, which tests my
+machine rather than the code.
+
+**This class has bitten this repo before and the warning was already in the file that failed.**
+`.github/workflows/ci.yml` carries a comment from S32/D-084 — "a couple of tests exercise real
+seeded fixture data … found live via CI failures once a genuinely fresh, unseeded database
+existed for the first time". The fix then was to add seed steps to CI. The fix now is the
+opposite direction and is better: seed in the test, so the assertion is true because of something
+the test did.
+
+**Verified by reproducing CI rather than by re-running locally.** `active_status` was set to
+`'inactive'` on the four ambient rows — precisely what the guard filters on — and then:
+
+| | pre-fix code | post-fix code |
+|---|---|---|
+| ambient rows hidden | **2 failed** (same assertion, same line as CI) | **2 passed** |
+
+Rows restored to `active` immediately after. Without that step the fix would have been
+indistinguishable from the bug on this machine, which is how the defect shipped in the first
+place.
+
+**The reporting rule this session adopts:** a push is not verified until its CI run is read.
+Local green plus red CI is a red branch.
+
+### D-308 — The value test was the wrong instrument for a skill that asks for a form
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** implemented, measured both directions
+
+`check_sympy_independent_solve` refuses an item when more than one option matches the value
+derived from its equation. For 96 of the 99 authorable skills that is exactly right. For the
+three whose question asks for a **form** rather than a value, it refuses the skill's best item:
+
+    Reduce 12/18 to lowest terms.    12/18   6/9   **2/3**   4/6      all four equal 2/3
+    Write √80 in simplest form.      8√10   **4√5**   √16+√5   2√20    two of them equal 4√5
+
+A student reading either question has exactly one defensible choice. SymPy has none, because
+`sympify('4/6')` returns `2/3` and `sqrt(80)` returns `4*sqrt(5)` — **the distinguishing
+information is normalised away before any comparison happens.** That is why the check reads the
+option *text*, and also why it is safe: it is a presentation rule sitting beside the value rule,
+not a weakening of it.
+
+**Sized before it was built, and the estimate it replaces was mine.** D-306 put the recoverable
+share at "16 of 44 (pure fractions)" from one reading of the rejections. That figure is not
+reproducible — it was an ad-hoc count, not a script — so `scripts/measure_canonical_form.py` now
+measures it over the full history, with both predicates validated against 26 known cases first:
+
+| unit | measured |
+|---|---|
+| rejection attempts absorbed | **98 of 115** (85%) |
+| distinct slots recovered (dedup by seed) | **59 of 74** (80%) |
+
+And the number that decided it: **`g6_fraction_reduce` holds 0 items in the bank.** It is one of
+only three authorable skills with nothing at all, and 29 recoverable slots are its. D-306 had
+already measured the repair path against it at **0 of 4, twice**, because "several equivalent
+fractions, pick the reduced one" *is* the model's conception of the item — it was right and the
+gate could not see it. So this is a coverage fix, not only a depth one.
+
+**Scoped by declaration, never inferred.** `SkillDef.answer_form` (`"any"` default,
+`"lowest_terms"`, `"simplest_radical"`), declared on **exactly two** skills and pinned as a set by
+a test so adding a third is a visible edit. `stat_probability` is deliberately excluded: its
+answers are conventionally reduced but its question asks for a probability, so a student choosing
+`2/6` there is not wrong on the question as written and the equal-valued option really is a
+defect. D-274 and D-304 are both this project installing a rule scoped to one answer model as
+universal; this is the same hazard pointing the other way, and the tie-break must not leak.
+
+**One resolver, because a gate that disagrees with itself is worse than either half.**
+`CurriculumContent.answer_form()` is read by the pipeline *and* the loader *and*
+`test_the_repo_bank_file_parses_and_every_item_still_validates` *and* `measure_gate_census.py`.
+The test and the census had been left at `"any"` in the first draft, which would have made the
+**repository stricter than the loader** — a new `g6_fraction_reduce` item would pass generation
+and `make curriculum-load`, then fail in CI, unexportable, for a rule no environment applies.
+
+**Measured in both directions, and the precision half found a real hole rather than confirming
+one.** A test written to check that two lowest-terms options do *not* break the tie failed:
+`_WRITTEN_FRACTION` had no sign, so `-2/-3` matched nothing, returned "no fraction here", was
+excluded from the tie-break — and the gate **accepted** an item with `-2/-3` beside `2/3`, two
+indistinguishable options on screen. The lowest-terms form of a rational is unique, which is what
+makes the tie-break reliable; a sign is how the same value gets written two canonical ways.
+
+Whole-bank differential, because a relaxation has to be shown not to move anything shipped:
+**0 of 936** items change verdict, and the differential is not vacuous — 8 `alg2_irrational`
+items do belong to a form-declaring skill and were re-gated under the new path.
+
+**What the two authoring prompts said, and why they were wrong.** Both skills' `structure`
+forbade the distractor this decision admits — "No distractor may be an unreduced form of the
+answer (never 6/8 beside 3/4)", "EVERY DISTRACTOR MUST DIFFER IN VALUE … not merely in form".
+Those sentences were the gate's limitation written down as an authoring constraint, and they
+forbade each skill's most instructive distractor. One of the generator's own misconception tags
+for the radical case is literally `stopped_halfway_through_simplification`. Both now ask for the
+equivalent form deliberately.

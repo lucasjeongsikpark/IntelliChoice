@@ -574,6 +574,137 @@ templates:
   option_c: 5 generations
   option_d: 6 generations
   correct_option: c
+- question_template_id: authored-algebra_2-d1-1614241
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - did_not_fully_factor_perfect_squares
+  - failed_to_split_the_radical
+  - left_unsimplified_perfect_square_under_radical
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A landscape designer is laying out a square garden plot. The diagonal distance across the plot
+    is √108 meters. She needs to write the simplified form of this measurement in her design plans. What
+    is the diagonal distance in simplified radical form?
+  context_block: A landscape designer is laying out a square garden plot. The diagonal distance across
+    the plot is √108 meters. She needs to write the simplified form of this measurement in her design
+    plans.
+  answer_expression: Eq(x, sqrt(108))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for perfect square factors of 108 - numbers like 4, 9, 16, 25, or 36 that divide evenly into
+    108.
+  - 'Since 108 = 36 × 3, you can split the square root: √108 = √(36 × 3) = √36 × √3.'
+  - Simplify √36 and write the result with the remaining √3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the largest perfect square that divides 108.
+      expression: 108 = 36 × 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Use the product property of square roots to split the radical.
+      expression: √108 = √(36 × 3) = √36 × √3
+      common_mistake: Forgetting to split the radicand before simplifying
+    - step_number: 3
+      explanation: Simplify √36 since 36 is a perfect square.
+      expression: √36 = 6
+      common_mistake: null
+    - step_number: 4
+      explanation: Write the final answer in simplified radical form.
+      expression: 6 × √3 = 6√3
+      common_mistake: null
+    final_answer: 6√3 meters
+  random_seed: 1614241
+  rendered_question: 'A landscape designer is laying out a square garden plot. The diagonal distance across
+    the plot is √108 meters. She needs to write the simplified form of this measurement in her design
+    plans.
+
+
+    A landscape designer is laying out a square garden plot. The diagonal distance across the plot is
+    √108 meters. She needs to write the simplified form of this measurement in her design plans. What
+    is the diagonal distance in simplified radical form?'
+  option_a: 6√3 meters
+  option_b: √27 meters
+  option_c: 3√12 meters
+  option_d: 2√27 meters
+  correct_option: a
+- question_template_id: authored-algebra_2-d1-1614243
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - extracted_perfect_square_but_didnt_simplify_it
+  - incorrect_factorization_of_72
+  - incomplete_simplification_left_perfect_square_under_radical
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A physics student measures the velocity of a toy car rolling down a ramp. The velocity formula
+    gives v = √72 meters per second. The student needs to simplify this to find the exact speed. What
+    is the simplified form of √72?
+  context_block: A student is working through a physics experiment where measurements must be expressed
+    in simplest radical form.
+  answer_expression: Eq(x, sqrt(72))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Break 72 down into its prime factors: what numbers multiply to make 72?'
+  - Look for perfect square factors of 72. One of them is 36. What does that tell you?
+  - If 72 = 36 × 2, then √72 = √36 × √2. Simplify √36 and leave √2 as is.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the prime factorization of 72 to identify perfect square factors.
+      expression: 72 = 8 × 9 = 2³ × 3²
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite 72 as a product of a perfect square and the remaining factor.
+      expression: 72 = 36 × 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Apply the product property of square roots to separate the radical.
+      expression: √72 = √(36 × 2) = √36 × √2
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate the perfect square root.
+      expression: √36 × √2 = 6 × √2
+      common_mistake: null
+    - step_number: 5
+      explanation: Write the result in simplest radical form.
+      expression: 6√2
+      common_mistake: null
+    final_answer: 6√2 meters per second
+  random_seed: 1614243
+  rendered_question: 'A student is working through a physics experiment where measurements must be expressed
+    in simplest radical form.
+
+
+    A physics student measures the velocity of a toy car rolling down a ramp. The velocity formula gives
+    v = √72 meters per second. The student needs to simplify this to find the exact speed. What is the
+    simplified form of √72?'
+  option_a: 6√2 meters per second
+  option_b: 36√2 meters per second
+  option_c: 2√18 meters per second
+  option_d: 12√6 meters per second
+  correct_option: a
 - question_template_id: authored-algebra_2-d2-1606202
   topic_id: algebra_2
   skill_id: alg2_irrational
@@ -647,6 +778,143 @@ templates:
   option_c: √49 feet
   option_d: 3√7 feet
   correct_option: b
+- question_template_id: authored-algebra_2-d2-1614341
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_only_one_factor
+  - didn't_simplify_the_radical
+  - stopped_before_combining
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An architect is designing a square floor tile with a diagonal of √147 centimetres. To order trim
+    that fits the diagonal edge, the supplier needs the simplified form of this measurement. What is the
+    simplified form of √147?
+  context_block: An architect is designing a square floor tile with a diagonal of √147 centimetres. To
+    order trim that fits the diagonal edge, the supplier needs the simplified form of this measurement.
+  answer_expression: Eq(x, sqrt(147))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What is the prime factorization of 147? Look for perfect square factors.
+  - 147 = 49 × 3, and 49 is a perfect square. Rewrite the square root using this factorization.
+  - Since √(49 × 3) = √49 × √3, and √49 simplifies, evaluate that product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To simplify √147, I need to find the prime factorization and identify perfect square
+        factors.
+      expression: 147 = 3 × 49 = 3 × 7²
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite the radicand as a product of the perfect square and the remaining factor.
+      expression: √147 = √(49 × 3)
+      common_mistake: null
+    - step_number: 3
+      explanation: Use the product rule for radicals to split the square root.
+      expression: √(49 × 3) = √49 × √3
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify √49, which equals 7.
+      expression: √49 × √3 = 7 × √3
+      common_mistake: null
+    - step_number: 5
+      explanation: Write the answer in simplified radical form.
+      expression: 7√3
+      common_mistake: null
+    final_answer: 7√3 centimetres
+  random_seed: 1614341
+  rendered_question: 'An architect is designing a square floor tile with a diagonal of √147 centimetres.
+    To order trim that fits the diagonal edge, the supplier needs the simplified form of this measurement.
+
+
+    An architect is designing a square floor tile with a diagonal of √147 centimetres. To order trim that
+    fits the diagonal edge, the supplier needs the simplified form of this measurement. What is the simplified
+    form of √147?'
+  option_a: 7√3 centimetres
+  option_b: 49√3 centimetres
+  option_c: √49 centimetres
+  option_d: 3√7 centimetres
+  correct_option: a
+- question_template_id: authored-algebra_2-d2-1614343
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - extracted_wrong_perfect_square
+  - incomplete_simplification
+  - stopped_early
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A landscape designer is measuring the diagonal of a square garden plot. Using the Pythagorean
+    theorem, she calculates the diagonal as √192 meters. To order the correct fencing material, she needs
+    the length in simplified radical form. What is the diagonal length simplified?
+  context_block: A landscape designer needs to simplify the diagonal length of a square garden plot that
+    measures √192 meters.
+  answer_expression: Eq(x, sqrt(192))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find all the factor pairs of 192 and identify which ones contain perfect squares like 4, 9, 16, 25,
+    36, 49, or 64.
+  - '192 = 64 × 3. Since 64 is a perfect square (8²), you can split the radical: √192 = √(64 × 3).'
+  - 'Use the product rule for radicals: √(64 × 3) = √64 × √3. Simplify √64, then write what remains under
+    the radical.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify perfect square factors of 192. We look for the largest perfect square that
+        divides 192.
+      expression: 192 = 64 × 3, where 64 = 8²
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite the radical as a product using the factorization found.
+      expression: √192 = √(64 × 3)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Apply the product rule for radicals: √(a × b) = √a × √b.'
+      expression: √(64 × 3) = √64 × √3
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the perfect square radical.
+      expression: √64 = 8, so √64 × √3 = 8√3
+      common_mistake: null
+    - step_number: 5
+      explanation: Verify that 3 is square-free (has no perfect square factors other than 1). Since 3
+        is prime, it is square-free.
+      expression: The simplified form is 8√3
+      common_mistake: null
+    final_answer: 8√3 meters
+  random_seed: 1614343
+  rendered_question: 'A landscape designer needs to simplify the diagonal length of a square garden plot
+    that measures √192 meters.
+
+
+    A landscape designer is measuring the diagonal of a square garden plot. Using the Pythagorean theorem,
+    she calculates the diagonal as √192 meters. To order the correct fencing material, she needs the length
+    in simplified radical form. What is the diagonal length simplified?'
+  option_a: √96 meters
+  option_b: 8√3 meters
+  option_c: 4√12 meters
+  option_d: 6√2 meters
+  correct_option: b
 - question_template_id: authored-algebra_2-d1-1606100
   topic_id: algebra_2
   skill_id: alg2_irrational
@@ -709,6 +977,135 @@ templates:
   option_b: 12√2
   option_c: 6√2
   option_d: √36 + √2
+  correct_option: c
+- question_template_id: authored-algebra_2-d1-1614240
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_at_single_perfect_square_factor
+  - incorrect_decimal_approximation
+  - did_not_simplify_radical
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A landscape designer is planning a garden with a square flower bed. The bed has an area of 98
+    square metres. The designer needs to fence the perimeter, which will be 4 times the side length. What
+    is the simplified form of the side length, in metres?
+  context_block: The designer must work with the exact side length, not a decimal approximation, to calculate
+    the fencing precisely.
+  answer_expression: Eq(x, sqrt(98))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The area of a square is side length squared, so if the area is 98 m², what equation gives you the
+    side?
+  - 'You need to find the square root of 98. Break 98 into factors: 98 = 49 × 2.'
+  - Since 49 is a perfect square (7²) and 2 is not, √98 = √(49 × 2) = √49 × √2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The side length of a square with area 98 m² is the square root of 98.
+      expression: side = √98
+      common_mistake: null
+    - step_number: 2
+      explanation: Factor 98 into a product of a perfect square and a smaller integer.
+      expression: 98 = 49 × 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Use the property √(a × b) = √a × √b to split the radical.
+      expression: √98 = √(49 × 2) = √49 × √2
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify √49, which is a perfect square.
+      expression: √49 = 7
+      common_mistake: null
+    - step_number: 5
+      explanation: The radicand 2 has no perfect square factors, so it stays under the radical.
+      expression: √98 = 7√2
+      common_mistake: null
+    final_answer: 7√2 metres
+  random_seed: 1614240
+  rendered_question: 'The designer must work with the exact side length, not a decimal approximation,
+    to calculate the fencing precisely.
+
+
+    A landscape designer is planning a garden with a square flower bed. The bed has an area of 98 square
+    metres. The designer needs to fence the perimeter, which will be 4 times the side length. What is
+    the simplified form of the side length, in metres?'
+  option_a: 49 metres
+  option_b: 14 metres
+  option_c: 7√2 metres
+  option_d: √98 metres
+  correct_option: c
+- question_template_id: authored-algebra_2-d1-1614242
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incorrect_perfect_square_selection
+  - unsimplified_radical
+  - misapplied_product_rule
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An engineer is installing diagonal support beams in a warehouse frame. The length of one beam
+    must equal √50 meters to reach from a corner on the ground to a point on the wall. Simplify this length
+    into the form a√b meters, where b has no perfect square factors other than 1.
+  context_block: An engineer needs to express the beam length in simplest radical form so the measurements
+    can be clearly marked on construction blueprints.
+  answer_expression: Eq(x, sqrt(50))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the factors of 50 and look for perfect squares like 4, 9, 16, or 25.
+  - Since 50 = 25 × 2 and 25 is a perfect square (5²), you can split the radical.
+  - Write √50 as √(25 × 2), then separate it into √25 × √2 and simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Look for the largest perfect square that divides 50.
+      expression: 50 = 25 × 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite the square root as a product of two radicals, separating the perfect square.
+      expression: √50 = √(25 × 2) = √25 × √2
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify √25 to 5.
+      expression: √25 × √2 = 5 × √2 = 5√2
+      common_mistake: null
+    - step_number: 4
+      explanation: Check that 2 has no perfect square factors other than 1, so 5√2 is fully simplified.
+      expression: x = 5√2
+      common_mistake: null
+    final_answer: 5√2 meters
+  random_seed: 1614242
+  rendered_question: 'An engineer needs to express the beam length in simplest radical form so the measurements
+    can be clearly marked on construction blueprints.
+
+
+    An engineer is installing diagonal support beams in a warehouse frame. The length of one beam must
+    equal √50 meters to reach from a corner on the ground to a point on the wall. Simplify this length
+    into the form a√b meters, where b has no perfect square factors other than 1.'
+  option_a: √50 meters
+  option_b: 2√5 meters
+  option_c: 5√2 meters
+  option_d: 10√5 meters
   correct_option: c
 - question_template_id: authored-algebra_2-d1-1806101
   topic_id: algebra_2
@@ -962,6 +1359,143 @@ templates:
   option_c: 14√2 meters
   option_d: 4√13 meters
   correct_option: d
+- question_template_id: authored-algebra_2-d2-1614340
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - incompletely_factored_radical_left_9_under_root
+  - incompletely_factored_radical_left_4_under_root
+  - partial_extraction_not_fully_simplified
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A carpenter is building a rectangular wooden frame. The diagonal brace must be √180 inches long
+    to properly support the frame. She needs to write the brace length in simplified radical form to order
+    the correct material. What is the simplified form of √180?
+  context_block: A carpenter working on a frame needs to express √180 inches in simplified radical form
+    so she can accurately identify the brace size.
+  answer_expression: Eq(x, sqrt(180))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for perfect square factors of 180 — numbers like 4, 9, 16, 25, 36 that divide evenly into 180.
+  - '180 = 36 × 5. Since 36 is a perfect square (6²), you can separate the square root: √180 = √36 × √5.'
+  - 'Simplify √36 to 6, giving you 6√5. Check: does 5 have any perfect square factors left? If not, you
+    are done.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify perfect square factors of 180. Test whether 180 is divisible by 4, 9, 16,
+        25, 36, etc.
+      expression: 180 = 36 × 5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Since 36 is a perfect square (6²), apply the product rule for radicals: √(a × b) =
+        √a × √b.'
+      expression: √180 = √(36 × 5) = √36 × √5
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify √36 to 6, because 6² = 36.
+      expression: √36 × √5 = 6√5
+      common_mistake: null
+    - step_number: 4
+      explanation: Check that 5 has no perfect square factors other than 1. Since 5 is prime, the radical
+        is fully simplified.
+      expression: 6√5 is fully simplified
+      common_mistake: null
+    final_answer: 6√5 inches
+  random_seed: 1614340
+  rendered_question: 'A carpenter working on a frame needs to express √180 inches in simplified radical
+    form so she can accurately identify the brace size.
+
+
+    A carpenter is building a rectangular wooden frame. The diagonal brace must be √180 inches long to
+    properly support the frame. She needs to write the brace length in simplified radical form to order
+    the correct material. What is the simplified form of √180?'
+  option_a: 3√20 inches
+  option_b: 2√90 inches
+  option_c: 6√5 inches
+  option_d: 4√45 inches
+  correct_option: c
+- question_template_id: authored-algebra_2-d2-1614342
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incomplete_simplification
+  - stopped_early_with_smaller_factor
+  - confused_radical_with_whole_number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A surveyor is measuring the diagonal distance across a rectangular property lot. Using the Pythagorean
+    theorem with the lot's dimensions, she calculates the diagonal is √288 meters. She needs to report
+    this distance in simplified radical form for her official record. What is the simplified form of this
+    distance?
+  context_block: A surveyor uses measurements to find exact distances. When a calculation produces a radical,
+    it should be simplified by extracting perfect square factors from under the radical sign.
+  answer_expression: Eq(x, sqrt(288))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for perfect square factors of the number under the radical sign. What perfect squares divide
+    into 288?
+  - 288 = 144 × 2. Since 144 is a perfect square (it equals 12²), you can separate the radical into a
+    product of two radicals.
+  - Apply the property √(a × b) = √a × √b to write √288 = √144 × √2, then simplify √144 to get a number
+    times √2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the largest perfect square that divides 288.
+      expression: 288 = 144 × 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Recognize that 144 is a perfect square because 144 = 12².
+      expression: 144 = 12²
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Use the product rule for radicals: √(a × b) = √a × √b.'
+      expression: √288 = √(144 × 2) = √144 × √2
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify √144 to 12.
+      expression: √144 = 12
+      common_mistake: null
+    - step_number: 5
+      explanation: Write the final simplified form.
+      expression: √288 = 12√2
+      common_mistake: null
+    final_answer: 12√2 meters
+  random_seed: 1614342
+  rendered_question: 'A surveyor uses measurements to find exact distances. When a calculation produces
+    a radical, it should be simplified by extracting perfect square factors from under the radical sign.
+
+
+    A surveyor is measuring the diagonal distance across a rectangular property lot. Using the Pythagorean
+    theorem with the lot''s dimensions, she calculates the diagonal is √288 meters. She needs to report
+    this distance in simplified radical form for her official record. What is the simplified form of this
+    distance?'
+  option_a: 12√2 meters
+  option_b: 24 meters
+  option_c: 4√18 meters
+  option_d: 6√8 meters
+  correct_option: a
 - question_template_id: authored-algebra_2-d2-1806201
   topic_id: algebra_2
   skill_id: alg2_irrational

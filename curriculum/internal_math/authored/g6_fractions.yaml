@@ -1546,3 +1546,413 @@ templates:
   option_c: 7 pieces
   option_d: 10 pieces
   correct_option: a
+- question_template_id: authored-g6_fractions-d1-1615231
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - did_not_reduce
+  - found_non_gcd_common_divisor
+  - calculated_wrong_denominator
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya has 12 marbles out of 18 total that are her favorite color. She wants to express how many
+    of her marbles are her favorite color as a fraction in lowest terms. What fraction of Maya's marbles
+    are her favorite color?
+  context_block: Maya has 12 marbles out of 18 total that are her favorite color. She wants to express
+    this as a fraction in lowest terms.
+  answer_expression: Eq(x, Rational(12, 18))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the greatest common divisor (GCD) of 12 and 18—the largest number that divides both evenly.
+  - Both 12 and 18 are divisible by 6. Divide the numerator and denominator each by 6.
+  - 12 ÷ 6 = 2 and 18 ÷ 6 = 3. Write your answer as a single fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to reduce the fraction 12/18 to lowest terms by finding the greatest common
+        divisor of 12 and 18.
+      expression: 'Find the factors of 12 and 18: Factors of 12 are 1, 2, 3, 4, 6, 12. Factors of 18 are
+        1, 2, 3, 6, 9, 18. The common factors are 1, 2, 3, 6.'
+      common_mistake: null
+    - step_number: 2
+      explanation: The greatest common divisor is 6, the largest common factor.
+      expression: GCD(12, 18) = 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both the numerator and denominator by the GCD.
+      expression: 12 ÷ 6 = 2 and 18 ÷ 6 = 3
+      common_mistake: null
+    - step_number: 4
+      explanation: The fraction in lowest terms is 2/3.
+      expression: 12/18 = 2/3
+      common_mistake: null
+    final_answer: 2/3
+  random_seed: 1615231
+  rendered_question: 'Maya has 12 marbles out of 18 total that are her favorite color. She wants to express
+    this as a fraction in lowest terms.
+
+
+    Maya has 12 marbles out of 18 total that are her favorite color. She wants to express how many of
+    her marbles are her favorite color as a fraction in lowest terms. What fraction of Maya''s marbles
+    are her favorite color?'
+  option_a: 6/9
+  option_b: 2/3
+  option_c: 12/18
+  option_d: 3/4
+  correct_option: b
+- question_template_id: authored-g6_fractions-d1-1615233
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - reciprocal_error
+  - partial_reduction_halving
+  - no_reduction_attempted
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A basketball player made 8 successful free throws out of 12 attempts. To track her improvement,
+    she needs to reduce this fraction to lowest terms. What fraction represents her success rate in simplest
+    form?
+  context_block: null
+  answer_expression: Eq(x, Rational(8, 12))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the greatest common factor of 8 and 12—the largest number that divides both evenly.
+  - 'Both 8 and 12 are divisible by 4. Check: 4 goes into 8 how many times, and into 12 how many times?'
+  - Divide the numerator and denominator each by 4, then check that the new numerator and denominator
+    have no common factors besides 1.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the greatest common factor (GCF) of 8 and 12 by listing factors or recognizing
+        that both are divisible by 4.
+      expression: 'Factors of 8: 1, 2, 4, 8; Factors of 12: 1, 2, 3, 4, 6, 12; GCF = 4'
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide both the numerator and denominator by the GCF.
+      expression: (8 ÷ 4) / (12 ÷ 4) = 2 / 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Check that 2 and 3 share no common factors other than 1. Since 2 and 3 are both prime,
+        the fraction is in lowest terms.
+      expression: GCF(2, 3) = 1; therefore 2/3 is in lowest terms.
+      common_mistake: null
+    final_answer: 2/3
+  random_seed: 1615233
+  rendered_question: A basketball player made 8 successful free throws out of 12 attempts. To track her
+    improvement, she needs to reduce this fraction to lowest terms. What fraction represents her success
+    rate in simplest form?
+  option_a: 3/2
+  option_b: 8/12
+  option_c: 2/3
+  option_d: 4/6
+  correct_option: c
+- question_template_id: authored-g6_fractions-d2-1615330
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - forgot_to_reduce
+  - subtracted_instead_of_divided_by_GCD
+  - partial_reduction_only
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Your math homework has 24 problems. You complete 18 of them correctly. What fraction of your homework
+    did you complete correctly, written in lowest terms?
+  context_block: null
+  answer_expression: Eq(x, Rational(18, 24))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - You completed 18 problems out of 24 total. Write this as a fraction with 18 on top and 24 on the bottom.
+  - To reduce a fraction, find the largest number that divides evenly into both the numerator and denominator.
+  - The number 6 divides evenly into both 18 and 24. Divide both the top and bottom by 6, then check that
+    no number larger than 1 divides your new numerator and denominator.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the number of correct problems over the total number of problems as a fraction.
+      expression: 18/24
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Find the greatest common divisor (GCD) of 18 and 24. List the factors: 18 has factors
+        1, 2, 3, 6, 9, 18 and 24 has factors 1, 2, 3, 4, 6, 8, 12, 24. The largest common factor is 6.'
+      expression: GCD(18, 24) = 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both the numerator and denominator by the GCD.
+      expression: (18 ÷ 6) / (24 ÷ 6) = 3/4
+      common_mistake: null
+    - step_number: 4
+      explanation: Check that 3 and 4 share no common factors other than 1. Since 3 is odd and 4 is even,
+        and 3 does not divide 4, the fraction 3/4 is in lowest terms.
+      expression: 3/4
+      common_mistake: null
+    final_answer: 3/4
+  random_seed: 1615330
+  rendered_question: Your math homework has 24 problems. You complete 18 of them correctly. What fraction
+    of your homework did you complete correctly, written in lowest terms?
+  option_a: 6/24
+  option_b: 18/24
+  option_c: 3/4
+  option_d: 9/12
+  correct_option: c
+- question_template_id: authored-g6_fractions-d2-1615332
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - did_not_reduce
+  - inverted_numerator_denominator
+  - divided_incorrectly_or_used_wrong_divisor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener plants 15 tomato plants out of 25 total plants in her garden. She wants to record the
+    proportion of tomato plants as a single fraction in simplest form. What fraction represents this proportion?
+  context_block: A gardener has planted 15 tomato plants out of 25 total plants in her garden. She wants
+    to express this proportion as a fraction in lowest terms to track the diversity of her garden.
+  answer_expression: Eq(x, Rational(15, 25))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What do the numerator and denominator tell you in this problem? The top number is the tomato plants,
+    the bottom is the total plants.
+  - 'Find the largest number that divides evenly into both 15 and 25. (Hint: is it 1, 2, 5, or 10?)'
+  - Divide both 15 and 25 by that number. Write the result as a new fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The proportion is the number of tomato plants divided by the total number of plants.
+      expression: 15/25
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the greatest common divisor (GCD) of 15 and 25. The factors of 15 are 1, 3, 5,
+        15. The factors of 25 are 1, 5, 25. The largest common factor is 5.
+      expression: GCD(15, 25) = 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both the numerator and denominator by 5.
+      expression: 15 ÷ 5 = 3 and 25 ÷ 5 = 5
+      common_mistake: null
+    - step_number: 4
+      explanation: Write the reduced fraction.
+      expression: 3/5
+      common_mistake: null
+    final_answer: 3/5
+  random_seed: 1615332
+  rendered_question: 'A gardener has planted 15 tomato plants out of 25 total plants in her garden. She
+    wants to express this proportion as a fraction in lowest terms to track the diversity of her garden.
+
+
+    A gardener plants 15 tomato plants out of 25 total plants in her garden. She wants to record the proportion
+    of tomato plants as a single fraction in simplest form. What fraction represents this proportion?'
+  option_a: 5/3
+  option_b: 15/25
+  option_c: 3/5
+  option_d: 3/25
+  correct_option: c
+- question_template_id: authored-g6_fractions-d2-1615333
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_at_partial_reduction
+  - unreduced_fraction
+  - arithmetic_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian is organizing books in the children's section. She finds that 16 out of 40 books are
+    chapter books. What fraction of the collection are chapter books, written in lowest terms?
+  context_block: A librarian is organizing books in the children's section. She finds that 16 out of 40
+    books are chapter books. What fraction of the collection are chapter books, written in lowest terms?
+  answer_expression: Eq(x, Rational(16, 40))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Write the fraction of chapter books as numerator over denominator: 16 over 40.'
+  - Find the greatest common divisor of 16 and 40. What is the largest number that divides into both?
+  - Divide both the numerator and denominator by their greatest common divisor.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set up the fraction of chapter books in the collection.
+      expression: 16/40
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Find the factors of 16 and 40. Factors of 16: 1, 2, 4, 8, 16. Factors of 40: 1, 2,
+        4, 5, 8, 10, 20, 40. The greatest common divisor is 8.'
+      expression: GCD(16, 40) = 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both the numerator and denominator by 8.
+      expression: (16 ÷ 8) / (40 ÷ 8) = 2/5
+      common_mistake: null
+    - step_number: 4
+      explanation: Check that 2 and 5 share no common factors besides 1, so 2/5 is fully reduced.
+      expression: GCD(2, 5) = 1
+      common_mistake: null
+    final_answer: 2/5
+  random_seed: 1615333
+  rendered_question: 'A librarian is organizing books in the children''s section. She finds that 16 out
+    of 40 books are chapter books. What fraction of the collection are chapter books, written in lowest
+    terms?
+
+
+    A librarian is organizing books in the children''s section. She finds that 16 out of 40 books are
+    chapter books. What fraction of the collection are chapter books, written in lowest terms?'
+  option_a: 2/5
+  option_b: 1/3
+  option_c: 16/40
+  option_d: 4/10
+  correct_option: a
+- question_template_id: authored-g6_fractions-d1-1615232
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - did_not_reduce
+  - subtracted_instead_of_found_gcd
+  - estimated_instead_of_computed
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker measures out 9 cups of flour from a 12-cup batch of dry ingredients. She wants to simplify
+    the fraction of flour she is using. What is this fraction in lowest terms?
+  context_block: null
+  answer_expression: Eq(x, Rational(9, 12))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the largest number that divides evenly into both 9 and 12.
+  - That number is 3. Now divide the top and bottom of 9/12 by 3.
+  - What do you get when you compute 9÷3 and 12÷3?
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To reduce a fraction to lowest terms, find the greatest common divisor (GCD) of the
+        numerator and denominator.
+      expression: GCD(9, 12) = 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide both the numerator and denominator by the GCD.
+      expression: 9 ÷ 3 = 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the denominator by the same GCD.
+      expression: 12 ÷ 3 = 4
+      common_mistake: null
+    - step_number: 4
+      explanation: Write the result as the reduced fraction.
+      expression: 9/12 = 3/4
+      common_mistake: null
+    final_answer: 3/4
+  random_seed: 1615232
+  rendered_question: A baker measures out 9 cups of flour from a 12-cup batch of dry ingredients. She
+    wants to simplify the fraction of flour she is using. What is this fraction in lowest terms?
+  option_a: 3/4
+  option_b: 9/12
+  option_c: 1/2
+  option_d: 2/3
+  correct_option: a
+- question_template_id: authored-g6_fractions-d2-1615331
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - did_not_reduce
+  - found_common_factor_but_divided_only_one_part
+  - used_incomplete_factor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A soccer team won 14 games out of 21 games they played this season. To report their win rate,
+    they need to reduce the fraction to lowest terms. What is their win rate as a simplified fraction?
+  context_block: null
+  answer_expression: Eq(x, Rational(14, 21))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What number divides evenly into both 14 and 21?
+  - Find the greatest common factor of 14 and 21, then divide both the numerator and denominator by it.
+  - The GCF is 7. Divide 14 by 7 and 21 by 7 to get your simplified fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The team's win rate is expressed as wins over total games.
+      expression: 14/21
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the greatest common factor (GCF) of 14 and 21. Both numbers are divisible by 7.
+      expression: GCF(14, 21) = 7
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both the numerator and denominator by 7 to reduce the fraction.
+      expression: (14 ÷ 7) / (21 ÷ 7) = 2/3
+      common_mistake: null
+    final_answer: 2/3
+  random_seed: 1615331
+  rendered_question: A soccer team won 14 games out of 21 games they played this season. To report their
+    win rate, they need to reduce the fraction to lowest terms. What is their win rate as a simplified
+    fraction?
+  option_a: 7/10
+  option_b: 2/3
+  option_c: 7/21
+  option_d: 14/21
+  correct_option: b

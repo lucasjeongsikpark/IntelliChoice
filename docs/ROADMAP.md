@@ -1950,6 +1950,24 @@ change — which is the first item of the next session rather than more generati
 > - **Total spend within per-run caps: ✅** every run behind a green preflight and an explicit
 >   `--run-budget-cents`; **$4.50** across seven paid runs this session.
 
+> **⏸ Amended 2026-08-13 (D-307/D-308). The named blocker is now removed, and a Phase 1 criterion
+> that had been reported as met was not.**
+>
+> - **A4 is built and measured (D-308).** The equal-valued-distractor class is no longer a
+>   blocker: a canonical-form tie-break, scoped by a per-skill `answer_form` declaration, recovers
+>   **59 of 74** distinct stored rejections (80%) and **0 of 936** shipped items change verdict.
+>   The relaxation is negatively controlled — the same item under the default `"any"` is still
+>   refused — and the precision test found a real hole while doing it (`-2/-3` beside `2/3`).
+> - **A Phase 1 "done when" clause was wrong in the waves above: "every skill stocked ≥1" does
+>   not hold.** Measured, not asserted: **3 of 99** authorable skills hold zero items —
+>   `g6_fraction_reduce`, `alg1_functions`, `calc_differential_equations`. The per-wave tables
+>   above report 17 of 17 and 26 of 26 because each wave counted only its own skills; nothing had
+>   ever counted the taxonomy as a whole. `g6_fraction_reduce`'s cause was D-308's, and it is
+>   fixed; the other two are open and untried.
+> - **Depth is unchanged as a criterion but its blocker moved.** What stands between the bank and
+>   D-223's 5-per-tier target is now generation volume against a gate that admits these items,
+>   not a class of content the gate refuses.
+
 > **⏸ Amended 2026-08-12 by D-295 — the diagnosis above is incomplete, and the correction is
 > cheaper than either option it offered.** `judge_difficulty` *retiers* a `slot_gap >= 2` when
 > the run's histogram shows the judge discriminating and rejects only when it does not, so the
