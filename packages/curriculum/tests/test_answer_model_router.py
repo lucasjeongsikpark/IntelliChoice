@@ -14,9 +14,10 @@ from intellichoice_curriculum.authored_validation import (
     DerivedAnswer,
     _option_matches,
     derive_answer,
-    matching_options,
+    resolved_matches,
     route_answer,
 )
+from intellichoice_curriculum.content import load_curriculum
 
 
 def _route(equation: str) -> DerivedAnswer:
@@ -166,6 +167,7 @@ def test_every_shipped_item_routes_and_matches_its_own_key():
     import yaml
 
     root = pathlib.Path(__file__).resolve().parents[3]
+    curriculum = load_curriculum()
     models: Counter[str] = Counter()
     for path in sorted(glob.glob(str(root / "curriculum/internal_math/authored/*.yaml"))):
         for template in yaml.safe_load(open(path))["templates"]:
@@ -178,8 +180,11 @@ def test_every_shipped_item_routes_and_matches_its_own_key():
             derivation, error = route_answer(template["answer_expression"])
             assert derivation is not None, f"{template['question_template_id']}: {error}"
             options = {label: template[f"option_{label}"] for label in "abcd"}
-            matching, derivation = matching_options(
-                derivation, options, template["answer_expression"]
+            matching, _raw, derivation = resolved_matches(
+                derivation,
+                options,
+                template["answer_expression"],
+                curriculum.answer_form(template.get("skill_id")),
             )
             # **The premise moved three times, so the duplicate is gone (D-299).** This
             # loop used to re-implement the gate's reading sequence, which meant every
@@ -197,9 +202,17 @@ def test_every_shipped_item_routes_and_matches_its_own_key():
             # reading here would re-impose, in a test, exactly the restriction those three
             # decisions measured and removed.
             #
-            # The census still catches what it was written for: the item must match
-            # **exactly one** option under the same readings the gate uses, so a silently
-            # reshaped answer or an ambiguous option set still fails.
+            # **The premise moved a fourth time, and the duplicate is now gone one level
+            # up (D-308).** This called `matching_options` and required exactly one match,
+            # which was true of every item shipped before A4 and is false of the ones it
+            # admits on purpose: a "reduce to lowest terms" item has four options equal in
+            # value and is settled by which one is *written* reduced. `resolved_matches` owns
+            # the whole decision - readings, then the canonical-form tie-break - and the gate
+            # calls the same function, so this census cannot drift from it again.
+            #
+            # The census still catches what it was written for: the item must resolve to
+            # **exactly one** option under the same readings and the same tie-break the gate
+            # uses, so a silently reshaped answer or an ambiguous option set still fails.
             assert matching == [template["correct_option"]], template["question_template_id"]
             models[derivation.model] += 1
 

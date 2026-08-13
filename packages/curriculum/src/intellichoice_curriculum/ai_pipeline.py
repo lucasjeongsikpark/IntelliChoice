@@ -1795,7 +1795,9 @@ async def _attempt_authored_candidate(
     #
     # Placed before the solvers deliberately: an item that cannot enter the bank should not
     # be paid for three more times first.
-    gate = validate_authored_item(difficulty_label, item)
+    gate = validate_authored_item(
+        difficulty_label, item, answer_form=curriculum.answer_form(skill_id)
+    )
     if not gate.passed:
         stage_results: dict = {"deterministic_gate": {"passed": False, "failures": gate.failures}}
         return await _reject(list(gate.failures), stage_results, "validation")

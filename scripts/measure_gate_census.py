@@ -40,6 +40,7 @@ from intellichoice_curriculum.authored_validation import (
     check_no_meta_commentary,
     validate_authored_item,
 )
+from intellichoice_curriculum.content import load_curriculum
 
 # The gate reports failures as prose, so attribution is by pattern. Ordered: the first match
 # wins, so put the specific before the general.
@@ -77,6 +78,7 @@ def main() -> int:
     args = parser.parse_args()
 
     bank = load_authored_bank()
+    curriculum = load_curriculum()
     total = sum(len(items) for items in bank.values())
     failing_items = 0
     buckets: collections.Counter[str] = collections.Counter()
@@ -92,6 +94,9 @@ def main() -> int:
                     item,
                     figure=template.figure_spec,
                     figure_reading=template.figure_reading,
+                    # D-308: the loader's reading, not a stricter one. A census that applies a
+                    # rule no environment applies reports defects that are not defects.
+                    answer_form=curriculum.answer_form(template.skill_id),
                 )
             else:
                 result = AuthoredValidationResult()

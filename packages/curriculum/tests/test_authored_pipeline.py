@@ -3400,3 +3400,88 @@ def test_review_priority_ranks_by_what_could_reach_a_student_not_by_any_flag() -
     for label, (judge, difficulty, expected) in graded.items():
         got = ai_pipeline.review_priority_for(judge=judge, difficulty=difficulty)
         assert got == expected, label
+
+
+# --------------------------------------------------------------------------------------
+# D-308: the canonical-form tie-break, verified through the pipeline rather than only at
+# the gate. The gate's own tests live in `test_canonical_form.py`; what is checked here is
+# the part no unit test can see - that the pipeline resolves the *skill's* declared form and
+# hands it to the gate, so an item the loader would accept is not rejected before it exists.
+# --------------------------------------------------------------------------------------
+
+
+def _lowest_terms_item() -> AuthoredGeneratedItemResponse:
+    """A `g6_fraction_reduce` candidate of the shape that had never once passed: the reduced
+    answer beside two unreduced equivalents of it."""
+    return _good_item(
+        stem="Reduce the fraction 12/18 to its lowest terms.",
+        option_a="12/18",
+        option_b="6/9",
+        option_c="2/3",
+        option_d="5/6",
+        correct_option="c",
+        equation="Eq(x, Rational(12, 18))",
+        proposed_difficulty=1,
+        hint_ladder=[
+            "Look for a number that divides both the top and the bottom.",
+            "Both 12 and 18 can be divided by 6.",
+            "Divide the top and the bottom by the same number.",
+        ],
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Divide the top and the bottom by their common factor.",
+                    expression="12/18 = 2/3",
+                    common_mistake=None,
+                )
+            ],
+            final_answer="2/3",
+        ),
+    )
+
+
+def test_the_pipeline_accepts_a_lowest_terms_item_for_the_skill_that_declares_the_form() -> None:
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(item=_lowest_terms_item()),
+                curriculum=curriculum,
+                topic_id="g6_fractions",
+                skill_id="g6_fraction_reduce",
+                difficulty_label=1,
+                seed=774411,
+                session_spend_cents=0.0,
+            )
+            assert outcome.status == "pending", outcome.reasons
+
+    asyncio.run(run())
+
+
+def test_the_same_candidate_is_rejected_for_a_skill_that_declares_no_form() -> None:
+    """The precision half, through the pipeline. `g6_fraction_mul_div` is a real skill in the
+    same topic whose question asks for a value, so the equal-valued options are a genuine
+    defect there and the rejection must survive."""
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(item=_lowest_terms_item()),
+                curriculum=curriculum,
+                topic_id="g6_fractions",
+                skill_id="g6_fraction_mul_div",
+                difficulty_label=2,
+                seed=774412,
+                session_spend_cents=0.0,
+            )
+            assert outcome.status == "rejected"
+            assert outcome.rejected_at == "validation", outcome.rejected_at
+            assert any(
+                "more than one option matches" in r for r in outcome.reasons
+            ), outcome.reasons
+
+    asyncio.run(run())

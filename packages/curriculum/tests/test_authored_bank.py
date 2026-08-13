@@ -116,6 +116,12 @@ def test_the_repo_bank_file_parses_and_every_item_still_validates() -> None:
     answer - without waiting for someone to run the loader.
     """
     banks = load_authored_bank()
+    # D-308: resolved the same way the loader resolves it. Leaving this at the default `"any"`
+    # would make the repository test **stricter than the gate that loads the file**, so a
+    # `g6_fraction_reduce` item could pass generation and `make curriculum-load` and then fail
+    # here - unexportable, for a rule no environment applies. Two gates that disagree about
+    # what a valid item is are worse than either alone, and a test is one of the gates.
+    curriculum = load_curriculum()
     for topic_id, templates in banks.items():
         assert templates, f"{topic_id}.yaml exists but declares no templates"
         ids = [t.question_template_id for t in templates]
@@ -126,6 +132,7 @@ def test_the_repo_bank_file_parses_and_every_item_still_validates() -> None:
                 template.to_generated_item(),
                 figure=template.figure_spec,
                 figure_reading=template.figure_reading,
+                answer_form=curriculum.answer_form(template.skill_id),
             )
             assert result.passed, f"{template.question_template_id}: {result.failures}"
 

@@ -14,6 +14,7 @@ against the values already in hand, mirroring `validation.py`'s own scope split 
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -1206,6 +1207,69 @@ def _second_readings(derivation: DerivedAnswer, equation: str) -> list[DerivedAn
     return []
 
 
+# A written fraction and a written radical. Deliberately **textual**, and that is the whole
+# idea rather than a shortcut: `sympify('4/6')` returns `2/3` and `sqrt(80)` returns
+# `4*sqrt(5)`, so by the time any value comparison happens the information these read has
+# already been normalised away. A canonical-form rule is about how an option is *written*.
+# The signs are not decoration. Written without them this read `-2/-3` as "no fraction here",
+# which returns None, which excludes it from the tie-break - so `-2/-3` beside `2/3` had one
+# canonical option and the gate **accepted** an item with two indistinguishable answers on
+# screen. Found by the precision test in `test_canonical_form.py`, which was written to check
+# something else; the case is exotic but the hole was real and pointed the wrong way.
+_WRITTEN_FRACTION = re.compile(r"(?<![\d.])(-?\d+)\s*/\s*(-?\d+)(?![\d.])")
+_WRITTEN_RADICAL = re.compile(r"(?:√|sqrt)\s*\(?\s*(\d+)\s*\)?")
+
+
+def _is_lowest_terms(text: str) -> bool | None:
+    """Every fraction written in this option is in lowest terms. None = no fraction here.
+
+    None rather than False is load-bearing: an option with no fraction at all (`2`, `0.75`)
+    is not evidence of a reduced form, so it must not win a tie-break. That keeps the
+    `1` / `4/4` and `2 batches` / `12/6 batches` pairs rejected, which is correct - the
+    reduced form of `4/4` really is `1` and this rule is not equipped to say so.
+    """
+    fractions = _WRITTEN_FRACTION.findall(text)
+    if not fractions:
+        return None
+    return all(math.gcd(abs(int(p)), abs(int(q))) == 1 for p, q in fractions)
+
+
+def _square_free(n: int) -> bool:
+    return all(n % (d * d) for d in range(2, math.isqrt(n) + 1))
+
+
+def _is_simplest_radical(text: str) -> bool | None:
+    """Every radicand written in this option is square-free. None = no radical here."""
+    radicands = _WRITTEN_RADICAL.findall(text)
+    if not radicands:
+        return None
+    return all(_square_free(int(r)) for r in radicands)
+
+
+# Keyed by `SkillDef.answer_form`. `"any"` is the default and deliberately absent: a skill that
+# does not declare a form gets no tie-break at all, so the relaxation cannot leak into the 96
+# skills that ask for a value.
+ANSWER_FORMS: dict[str, Callable[[str], bool | None]] = {
+    "lowest_terms": _is_lowest_terms,
+    "simplest_radical": _is_simplest_radical,
+}
+DEFAULT_ANSWER_FORM = "any"
+
+
+def canonical_option(answer_form: str, options: dict[str, str], matches: list[str]) -> str | None:
+    """Of several options equal in value, the one written in the form the question asks for.
+
+    Returns the single canonical label, or None when the form does not settle it - two
+    canonical options, none, or no declared form. **None means the rejection stands**, which
+    is the fail-closed half: a tie-break that cannot break the tie must not weaken it.
+    """
+    predicate = ANSWER_FORMS.get(answer_form)
+    if predicate is None:
+        return None
+    canonical = [label for label in matches if predicate(options[label]) is True]
+    return canonical[0] if len(canonical) == 1 else None
+
+
 def matching_options(
     derivation: DerivedAnswer, options: dict[str, str], equation: str
 ) -> tuple[list[str], DerivedAnswer]:
@@ -1262,8 +1326,39 @@ def matching_options(
     return [], derivation
 
 
+def resolved_matches(
+    derivation: DerivedAnswer,
+    options: dict[str, str],
+    equation: str,
+    answer_form: str = DEFAULT_ANSWER_FORM,
+) -> tuple[list[str], list[str], DerivedAnswer]:
+    """The options the gate holds against a declared key: `matching_options`, then the
+    canonical-form tie-break where the skill declares a form.
+
+    Returns `(resolved, raw, derivation)` - the narrowed set, the set before narrowing, and
+    the reading they matched under. Both are returned because the two rejections a caller can
+    report are different claims: `raw` answers "is your key the derived answer at all", and
+    `resolved` answers "is it the only one left".
+
+    **`matching_options` exists because that reading sequence expired three times as a
+    duplicate; this exists because it expired a fourth.** D-308 added the tie-break to the gate
+    and to two censuses, and `test_every_shipped_item_routes_and_matches_its_own_key` still
+    asserted `matching_options` returns exactly one option - true of every item shipped before
+    A4 and false of the ones it admits by design. One owner of the whole decision, three
+    callers, and nothing left in any of them to fall out of step.
+    """
+    raw, derivation = matching_options(derivation, options, equation)
+    if len(raw) > 1:
+        canonical = canonical_option(answer_form, options, raw)
+        if canonical is not None:
+            return [canonical], raw, derivation
+    return raw, raw, derivation
+
+
 def check_sympy_independent_solve(
-    item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
+    item: AuthoredGeneratedItemResponse,
+    result: AuthoredValidationResult,
+    answer_form: str = DEFAULT_ANSWER_FORM,
 ) -> None:
     """SPEC §5.8.5: derive the answer from the item's own equation and confirm it matches
     the declared correct option (and that no distractor also matches) - the same
@@ -1287,19 +1382,47 @@ def check_sympy_independent_solve(
         return
 
     options = _options(item)
-    matches, derivation = matching_options(derivation, options, item.equation)
+    matches, raw, derivation = resolved_matches(
+        derivation, options, item.equation, answer_form
+    )
     derived = derivation.payload
 
-    if item.correct_option not in matches:
+    if item.correct_option not in raw:
         result.fail(
             f"{derivation.model} answer {derived} derived from the equation does not match "
             f"declared correct option {item.correct_option!r} "
             f"({options[item.correct_option]!r})"
         )
-    elif len(matches) > 1:
+    elif matches != [item.correct_option]:
+        # **D-308: the value test is the wrong instrument for a skill that asks for a form.**
+        # "Reduce 12/18 to lowest terms" with `12/18, 6/9, 2/3, 4/6` has exactly one correct
+        # option to a student and four equal options to SymPy; the same holds for "Simplify
+        # √80" against `4√5` and `2√20`. Measured before this existed: 59 of 74 stored
+        # rejections of this class are that item, and `g6_fraction_reduce` had **0** items in
+        # the bank because every candidate it ever produced died here.
+        #
+        # Scoped by the skill's own `answer_form` declaration, never inferred from the stem.
+        # D-274 and D-304 are both this project installing a rule scoped to one answer model
+        # as universal, and this is the same hazard pointing the other way: a tie-break that
+        # applied everywhere would put two indistinguishable options in front of a student
+        # whenever one of them happened to be written in lowest terms.
+        #
+        # Two ways to land here with a form declared, and the message distinguishes them
+        # because they need different fixes: the form settled the tie on a *different* option
+        # (the item declared the unreduced one - rewrite the key), or it settled nothing
+        # (rewrite the options).
+        if answer_form not in ANSWER_FORMS:
+            form = ""
+        elif len(matches) == 1:
+            form = (
+                f" - the {answer_form} option is {options[matches[0]]!r}, "
+                f"not the declared {options[item.correct_option]!r}"
+            )
+        else:
+            form = f" (the skill asks for {answer_form}, and that does not settle it)"
         result.fail(
             f"more than one option matches the derived {derivation.model} answer "
-            f"{derived}: {matches}"
+            f"{derived}: {raw}{form}"
         )
 
 
@@ -1687,6 +1810,7 @@ def validate_authored_item(
     *,
     figure: FigureSpec | None = None,
     figure_reading: str | None = None,
+    answer_form: str = DEFAULT_ANSWER_FORM,
 ) -> AuthoredValidationResult:
     """Runs every deterministic §5.8.5 check this module owns against one authored
     generator proposal, before any LLM solver/judge call (plan §7 step 2).
@@ -1695,6 +1819,11 @@ def validate_authored_item(
     items are authored deterministically rather than generated (D-279), so the generator's
     response schema is untouched and no structured-output contract had to change. The loader
     passes the figure from the bank file, so one gate covers both paths.
+
+    `answer_form` comes from `SkillDef.answer_form` and defaults to `"any"`, which applies no
+    canonical-form tie-break at all (D-308). The default is the fail-closed one on purpose:
+    every caller that does not know the skill - the measurement scripts, most tests - gets
+    today's behaviour, and only a skill that explicitly declares a form gets the relaxation.
     """
     result = AuthoredValidationResult()
     check_figure_agrees_with_the_question(figure, item, result)
@@ -1705,7 +1834,7 @@ def validate_authored_item(
     # checks are skipped for it - not weakened, exchanged. `check_reading_matches_the_figure`
     # above does the same job from the figure, including the "no other option matches" arm.
     if figure_reading is None:
-        check_sympy_independent_solve(item, result)
+        check_sympy_independent_solve(item, result, answer_form)
         check_exactly_one_correct_answer(item, result)
     check_no_answer_leakage(item, result)
     check_hint_ladder_monotonicity(item, result)
