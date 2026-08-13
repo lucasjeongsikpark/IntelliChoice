@@ -141,7 +141,8 @@ e2e:
 
 # Same suite against the real staging CloudFront distributions. `/dev/token` is
 # secret-gated there (D-097), so the harness mints tokens out of band and seeds
-# localStorage. The target fetches both secrets itself - see the comment above the recipe.
+# localStorage. `e2e/config.ts` fetches both secrets itself (D-310) - see the comment above
+# the recipe for why that moved out of this file.
 #
 # S42: the two URLs are set here, and that is the fix, not a convenience. `E2E_TARGET=
 # staging` alone does NOT retarget the browser - `config.ts` defaults LEARNING_WEB/
@@ -153,31 +154,35 @@ e2e:
 STAGING_LEARNING_WEB_URL ?= https://d35dfnjzmgrm01.cloudfront.net
 STAGING_CHAT_WEB_URL ?= https://d222glidpp4azv.cloudfront.net
 
-# Fetches both `/dev/token` secrets (D-097) the way load-staging-learning does, for the
-# reason D-132 recorded: without them e2e/config.ts defaulted each to "", mintToken sent
-# no header, and all seventeen authenticated journeys failed together on a 404 that looks
-# like an application fault. Same length sanity check as the load target; the values are
-# passed as environment assignments rather than arguments, so they land in the child's envp
-# and never in argv, `ps`, or a shell history, and the recipe is `@`-prefixed so make does
-# not echo the fetch. config.ts now also refuses to start a staging run with either empty.
+# `/dev/token` is secret-gated on staging (D-097), and **`e2e/config.ts` fetches both secrets
+# itself** - this recipe passes neither. That is D-310's fix, not a simplification.
+#
+# What it replaced, and why: this target used to fetch both from Secrets Manager and hand them
+# to Playwright as environment assignments, on the stated grounds that they would "land in the
+# child's envp and never in argv, `ps`, or a shell history". Measured on a live run: **4
+# process-table lines carried an expanded secret**. npm's `exec` path and Playwright's workers
+# re-expose the inherited environment in their process titles, so for the length of a staging
+# run any local process could read both secrets with `ps`. The env-assignment form is necessary
+# but not sufficient, and the comment asserting otherwise is why nobody checked.
+#
+# Now the only thing on any command line is the secret's *id* (`aws secretsmanager
+# get-secret-value --secret-id ...` inside config.ts, via `execFileSync`, no shell), the value
+# arrives on stdout in the Playwright process, and nothing downstream inherits it. Needs the
+# AWS CLI authenticated - `AWS_PROFILE` is honoured and forwarded - which this target already
+# required. `STAGING_TOKEN_SECRET_LEARNING`/`_CHAT` still win if explicitly set, for a CI or
+# one-off without AWS access.
+#
+# The original reason the check exists at all (D-132): with both empty, `mintToken` omitted the
+# header and all seventeen authenticated journeys failed together on a 404 that looks like an
+# application fault - the most expensive shape a harness can fail in. config.ts still refuses to
+# start a staging run rather than produce that wall of failures.
 # E2E_ARGS forwards a spec path or `--repeat-each`, e.g.
 #   make e2e-staging E2E_ARGS="tests/learning/narrative-refresh.spec.ts"
 e2e-staging:
-	@LEARNING_SECRET="$$(aws $${AWS_PROFILE:+--profile $$AWS_PROFILE} secretsmanager get-secret-value \
-	    --secret-id intellichoice-staging/learning-api/staging-token-shared-secret \
-	    --query SecretString --output text)" && \
-	  CHAT_SECRET="$$(aws $${AWS_PROFILE:+--profile $$AWS_PROFILE} secretsmanager get-secret-value \
-	    --secret-id intellichoice-staging/chat-api/staging-token-shared-secret \
-	    --query SecretString --output text)" && \
-	  if [ $${#LEARNING_SECRET} -lt 10 ] || [ $${#CHAT_SECRET} -lt 10 ]; then \
-	    echo "FATAL: a token secret came back too short to be real - refusing to run"; exit 1; \
-	  fi && \
-	  cd e2e && E2E_TARGET=staging \
-	    LEARNING_WEB_URL=$(STAGING_LEARNING_WEB_URL) \
-	    CHAT_WEB_URL=$(STAGING_CHAT_WEB_URL) \
-	    STAGING_TOKEN_SECRET_LEARNING="$$LEARNING_SECRET" \
-	    STAGING_TOKEN_SECRET_CHAT="$$CHAT_SECRET" \
-	    npx playwright test $(E2E_ARGS)
+	cd e2e && E2E_TARGET=staging \
+	  LEARNING_WEB_URL=$(STAGING_LEARNING_WEB_URL) \
+	  CHAT_WEB_URL=$(STAGING_CHAT_WEB_URL) \
+	  npx playwright test $(E2E_ARGS)
 
 e2e-typecheck:
 	cd e2e && npx tsc --noEmit

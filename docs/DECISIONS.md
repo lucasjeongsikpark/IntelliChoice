@@ -22168,3 +22168,100 @@ Same shape in the fountain item (`h(0) = 24`). The judge rejected **6** other ca
 same run for exactly this ("the answer is impossible in the situation described") and let these
 two through, so its application of that check is uneven. Both mathematically correct and
 gradeable; both refused because a stem that contradicts its own function is not a question.
+
+### D-310 — Two staging secrets in the process table, documented as safe, and my own disclosure
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** leak fixed at the source; rotation declined by
+the user
+
+**What happened, in order, because the sequence is the lesson.** Running `pgrep -fl` to check
+whether an `e2e-staging` process was alive printed the process's environment, which contained
+`STAGING_TOKEN_SECRET_LEARNING` and `STAGING_TOKEN_SECRET_CHAT` in plaintext into the session
+transcript. That is my error: a liveness check must not be able to echo an environment.
+
+**Following the leak found the defect, and the defect was documented as its own opposite.** The
+Makefile's comment on `e2e-staging` said the values are
+
+> "passed as environment assignments rather than arguments, so they land in the child's envp and
+> never in argv, `ps`, or a shell history"
+
+Measured on a live run: **4 process-table lines carried an expanded secret** (one more carried it
+unexpanded — make's own `sh -c`, which is the safe case the sentence described). npm's `exec` path
+and Playwright's workers re-expose the inherited environment in their process titles, so for the
+length of a staging run **any local process could read both secrets with `ps`**. The
+env-assignment form is necessary and not sufficient, and the sentence asserting otherwise is
+why nobody checked in the ten sessions since D-132 wrote it.
+
+**A measurement error of mine on the way, kept because it nearly closed the case wrongly.** My
+first reproduction used `ps -ax | grep <canary>` and counted 2 hits for both the leaking and the
+non-leaking form — `grep`'s own command line contains the pattern, so it matched itself. With
+`[c]anary` the count went to 0 for both and I briefly concluded the leak was not real, against a
+direct observation I had already made. The live process settled it: `grep -c
+'STAGING_TOKEN_SECRET_LEARNING=[^$]'` returns **4**, and the same probe after the fix returns
+**0**. A canary test that does not reproduce a defect you have already seen is a broken test, not
+an absolution.
+
+**Fixed at the source rather than by rotating.** `e2e/config.ts` now fetches both secrets itself
+via `execFileSync("aws", ["secretsmanager", "get-secret-value", "--secret-id", ...])`:
+
+- the only thing on any command line is the secret's **id**
+- the value arrives on stdout inside the Playwright process and lives in a module constant
+- no child inherits it, and there is no shell to quote through
+- **no new dependency** — the AWS CLI was already a hard requirement of the target that used to
+  do the fetching
+- an explicitly set `STAGING_TOKEN_SECRET_*` still wins, so a CI or one-off without AWS access is
+  unaffected
+
+Verified both directions on staging: **0** expanded-secret process lines during a run (was 4), and
+`both /dev/token endpoints mint a token` still passes — the one test that proves the secret
+actually reached the API, so the fix is not passing by refusing to work.
+
+**Rotation: the user's decision was not to rotate**, on the exposure being bounded — staging only,
+production (`go.intellichoice.org`) is a separate frozen system these do not touch, Postgres holds
+no PII by design (rule 1), and the residual risk is Bedrock spend through an authenticated staging
+consumer, which the gateway caps. Recorded because a deliberate no-action is a decision, and
+because the runbook's default is "rotate first, ask questions later" — this is a departure from it
+with a stated reason.
+
+**One thing this does not fix:** the secret is injected into the ECS task at start, so a future
+rotation still needs the tasks restarted before the new value takes effect. Re-running
+`deploy-staging.yml` does that.
+
+### D-311 — A test that asserted the retry ladder engaged depended on an accident of option order
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** fixed; one adjacent failure left open
+
+The post-deploy staging suite came back **63 passed / 1 failed**, and the failure was
+`the retry ladder never engaged, so it went unexercised`.
+
+**Not a product defect.** `answerCurrentQuestion` picks the **first** option every time, on the
+stated grounds that "correctness is not what this journey is testing". But the retry ladder only
+engages on a *wrong* answer, so the assertion held only while the first option happened to be
+wrong for some study item — an accident of the stored option order, which the test does not
+control. D-302 re-tiered the bank and changed which items that walk is served, the accident
+stopped holding, and a test asserting a real invariant failed with the app behaving perfectly.
+
+Fixed with an opt-in `optionIndex` cycled across questions, used by that one walk. Every other
+caller keeps the deterministic first-option behaviour, so no other spec's answer pattern moved.
+Verified on staging: the walk passes.
+
+**The staging headline is unchanged and the failing test moved: 63 / 1 before, 63 / 1 after.**
+The ladder walk now passes; the one failure is `time-telemetry`, which D-288 already recorded as
+one of its two.
+
+**And a claim of mine here was too strong, corrected against the full run.** From two invocations
+of `journey-student.spec.ts` alone I wrote that `a refresh mid-exam restores the exact position`
+"fails consistently after the ladder walk" — it does, in *that* invocation, twice, and it passes in
+isolation. But in the **full suite it passes**, so the real statement is narrower: its outcome
+depends on the invocation scope, not on the ladder walk. Three measurements, and only the third
+one is the suite anybody runs:
+
+| invocation | ladder | refresh | time-telemetry |
+|---|---|---|---|
+| that spec file alone (×2) | pass | **fail** | not run |
+| the refresh test alone | not run | pass | not run |
+| the full staging suite | pass | **pass** | **fail** |
+
+So nothing here is evidence about D-288's refresh defect either way, and I am not adding a fifth
+client-side guess to a symptom that already has three fixes and four killed explanations. What is
+worth carrying: **a two-test invocation is not the suite**, and I reported one as though it were.

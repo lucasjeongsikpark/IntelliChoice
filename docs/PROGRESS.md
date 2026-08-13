@@ -7,39 +7,37 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Session C1 remains ⏸ partial. PR #247 is MERGED (`14085ca`, squashed, CI green on all nine
-checks). Work continued past it to D-309 on branch `c1-the-last-two-unstocked-skills`. Bank
-936 → 952, **98 of 99 authorable skills stocked** (was 96), 33 of 33 topics openable, pytest
-1440 → 1495, local e2e 70/70, **$6.51 spent in total**.**
+**Session C1 remains ⏸ partial, and it is now DEPLOYED.** #247 (`14085ca`) and #248 (`4c5b7e8`)
+merged, CI green on all nine checks each. Staging deployed from `4c5b7e8` — run `31708283258`,
+every gate green (migration, bank load, deployed-version gate, `/dev/token` edge gate, canary
+bake, public smoke test). Bank 936 → 952, **98 of 99 authorable skills stocked** (was 96), 33 of
+33 topics openable, pytest 1440 → 1495, local e2e 70/70, **staging e2e 63 / 1**, **$6.51 spent**.
 
-**Deploying is `gh workflow run deploy-staging.yml --ref main` and nothing else — and this
-corrects an instruction I wrote twice in this file.** It said the deploy also needed
-`scripts/backfill_flagged_to_judged_tier.py` run against staging RDS. It does not.
-`difficulty_label` is a **file-owned** field (`_file_owned_template_fields`), the loader
-re-gates and updates in place any item whose file content drifted (D-235), and the bank YAML in
-the repo *is* the post-backfill export — measured: **0 of 952** items disagree between the file
-and the dev database. So the workflow's own "Load the curriculum and approved question bank"
-step performs the re-tier on staging. The backfill script was the tool that produced the
-corrected dev state *before* the export, not a deploy step.
+**Open on the branch `c1-secrets-and-a-test-that-depended-on-luck`:** D-310 (the process-table
+secret leak, fixed at the source) and D-311 (the retry-ladder walk's dependence on option order,
+fixed). Not merged.
 
-The workflow also runs `alembic upgrade head` itself, so migration `d4b81f6c2e70` needs no
-manual step either. The `push` trigger is deliberately commented out, so **merging deploys
-nothing** — the deploy is a manual `workflow_dispatch` by design, and its own comment says to
-verify by pinning the run id, never by "the latest run is green".
+**⚠️ Two staging `/dev/token` secrets were exposed on 2026-08-13 and NOT rotated** — the user's
+decision on bounded exposure (staging only; production is a separate frozen system; Postgres holds
+no PII by design; the residual risk is Bedrock spend, which the gateway caps). See D-310. If that
+decision is ever revisited: rotate at the source, then re-run `deploy-staging.yml`, because ECS
+tasks read the value at container start.
 
 **What the next session should pick up, in order:**
 
-1. **Review the open branch `c1-the-last-two-unstocked-skills`** (D-309), then deploy or don't.
-   The deploy is now the only thing standing between this work and students, and it is a
-   deliberate manual step.
-2. **`calc_differential_equations` is the last unstocked skill and it is RECORDED AS BLOCKED,
+1. **Review and merge `c1-secrets-and-a-test-that-depended-on-luck`** (D-310, D-311), then
+   redeploy if you want the harness fix on staging — nothing in it changes app behaviour, so a
+   redeploy is optional.
+2. **Decide whether the two exposed staging secrets get rotated after all.** Declined once with a
+   reason (D-310); the reason may not hold if staging ever serves anything real.
+3. **`calc_differential_equations` is the last unstocked skill and it is RECORDED AS BLOCKED,
    not untried.** Three levers, three failure modes, 0 items each time, $1.14 — see D-309. What
    it needs is an **answer-model-aware design refusal**: the validator currently rejects a
    differential equation and then advises *"model the question as one relation with one unknown,
    e.g. `Eq(3 + 7*m, 4 + 4*m)`"*, a value example, so the retry is built on feedback that
    teaches the one form that cannot work. Fixing that message helps every symbolic skill, not
    just this one. The alternative is hand authoring, the way family-C figures were (D-279).
-3. **Superseded — both of the other two are closed.** `g6_fraction_reduce` went **0 → 7** items
+4. **Superseded — both of the other two are closed.** `g6_fraction_reduce` went **0 → 7** items
    (D-308) and `alg1_functions` **0 → 1** (D-309). For the record, they were:
    **`alg1_functions`** (algebra_1, tiers 3-4) and **`calc_differential_equations`** (calculus,
    tiers 4-5). **Diagnosed for free from D-195's stored rejections, so the next session starts
@@ -9378,6 +9376,55 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### Session C1, continued — deployed, and then leaked two secrets finding out (2026-08-13)
+
+- **Scope:** merge #248, then deploy or don't. Both done; the deploy surfaced two findings that
+  were not on any list.
+- **#247 and #248 merged** (`14085ca`, `4c5b7e8`, both squash, CI green on all nine checks each,
+  read rather than assumed). **Staging deployed** — run `31708283258` on `4c5b7e8`, every step
+  green including the Alembic migration, the bank load, the deployed-version gate, the
+  `/dev/token` edge gate, the canary bake and the public smoke test.
+- **A deploy instruction I had written twice was wrong, and checking it was free.** PROGRESS said
+  the deploy needed `scripts/backfill_flagged_to_judged_tier.py` run against staging RDS.
+  `difficulty_label` is a **file-owned** field, the loader updates in place on drift (D-235), and
+  the bank YAML *is* the post-backfill export — **0 of 952** items disagree between file and
+  database. The workflow's own bank-load step performs the re-tier. That instruction would have
+  had someone hand-mutate a production-shaped database for no reason.
+- **⚠️ I printed two live staging secrets into the session (D-310).** `pgrep -fl`, run to check
+  whether a process was alive, echoed its environment. My error.
+- **Following it found a defect documented as its own opposite.** The Makefile asserted the
+  secrets "never [reach] argv, `ps`, or a shell history"; measured, **4 process-table lines
+  carried an expanded secret**, because npm's `exec` path and Playwright's workers re-expose the
+  inherited environment in their process titles. Fixed at the source: `e2e/config.ts` fetches
+  both itself, so only the secret's **id** is ever on a command line. Verified both ways — **0**
+  exposed process lines during a run, and `both /dev/token endpoints mint a token` still passes,
+  so the fix is not passing by refusing to work. **Rotation declined by the user** on bounded
+  exposure (staging only, production is a separate frozen system, no PII reachable, Bedrock spend
+  capped); recorded as a departure from the runbook's "rotate first" with its reason.
+- **A measurement error of mine, kept because it nearly closed the case wrongly.** My first
+  canary reproduction counted `ps -ax | grep <canary>` hits — grep matched its own command line —
+  and reported 2 for both the leaking and non-leaking form. With `[c]anary` it went to 0 for both
+  and I briefly concluded the leak was not real, **against an observation I had already made**. A
+  canary that fails to reproduce a defect you have seen is a broken test, not an absolution.
+- **The post-deploy staging suite was 63 passed / 1 failed, and the failure was not the app
+  (D-311).** `answerCurrentQuestion` picks the first option every time, so the assertion "the
+  retry ladder engaged" held only while the first option happened to be *wrong* for some study
+  item — an accident of stored option order. D-302 re-tiered the bank, the accident stopped
+  holding, and a real invariant failed with the app behaving perfectly. Fixed with an opt-in
+  `optionIndex` cycled across questions, used by that one walk so no other spec's answers moved.
+  Verified: the walk passes.
+- **The staging headline is unchanged and the failing test moved: 63 / 1 before, 63 / 1 after.**
+  The ladder passes; the remaining failure is `time-telemetry`, which D-288 already listed as one
+  of its two.
+- **A claim of mine, corrected by the full run.** From two invocations of that spec file *alone* I
+  wrote that `a refresh mid-exam restores the exact position` fails consistently after the ladder
+  walk. It does in that invocation, twice — and it **passes in the full suite**. So its outcome
+  depends on invocation scope, this is no evidence about D-288's refresh defect either way, and
+  the lesson is that **a two-test invocation is not the suite** and I reported one as though it
+  were.
+- **Decisions:** D-310, D-311.
+
 
 ### Session C1, continued — the last two unstocked skills, and one of them cannot be authored (2026-08-13)
 
