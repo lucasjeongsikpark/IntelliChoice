@@ -13,9 +13,11 @@ checks each. Staging deployed from `4c5b7e8` — run `31708283258`, every gate g
 **958**, 33 of 33 topics openable, pytest 1440 → **1501**, local e2e 70/70, staging e2e 63 / 1,
 **$7.02 spent**.
 
-**Open on the branch `c1-the-design-refusal-that-taught-the-wrong-form`:** D-312 — the last
-unstocked skill, stocked. Not merged, and **not deployed**: it adds 6 items and two gate readings,
-so staging serves 952 of the 958 until the next `deploy-staging.yml` run.
+**Everything is merged and deployed. Nothing is open on a branch.** #250 (`ae41b7f`) merged and
+deployed — run `31729464789`, conclusion success, every gate green. Verified against the deployed
+build rather than the workflow's own report: all four `journey-bands` walks pass and the
+build-identity line reads `sha=ae41b7f2212f`, so staging is serving the merged commit and the full
+958-item bank.
 
 **⚠️ Two staging `/dev/token` secrets were exposed on 2026-08-13 and NOT rotated** — the user's
 decision on bounded exposure (staging only; production is a separate frozen system; Postgres holds
@@ -25,16 +27,25 @@ tasks read the value at container start.
 
 **What the next session should pick up, in order:**
 
-1. **Review and merge `c1-the-design-refusal-that-taught-the-wrong-form`** (D-312), then
-   redeploy — this one *does* add content (6 items), so staging is 6 behind until you do.
+1. **Decide whether to spend on depth.** It is the only substantial thing left in C1 and it is
+   sized below: ~$13-16 and ~3.5 hours of generation. Nothing is blocked; this is a budget call.
 2. **Decide whether the two exposed staging secrets get rotated after all.** Declined once with a
    reason (D-310); the reason may not hold if staging ever serves anything real.
-3. **Coverage is done — the depth and multi-tier criteria are not.** D-312 stocked the last
-   skill, so "every authorable skill has ≥1 item" is true for the first time (four wave tables
-   had each reported it as met while counting only their own skills). Still open:
-   `calc_differential_equations` holds 6 items **all at tier 5 and none at tier 4**, so
-   "multi-tier where the skill spans" fails there; and depth against D-223's 5-per-occupied-tier
-   target remains a volume question.
+3. **Coverage is done. The two criteria still open are now SIZED (D-313), so the decision to
+   spend on them is a number rather than an impression.**
+
+   | criterion | where it stands | what closing it costs |
+   |---|---|---|
+   | depth, D-223's 5 per occupied `(topic, tier)` cell | **84 of 153** cells | **189 items** ≈ 315 candidates at the measured 60%, **~$13-16**, ~3.5 h wall clock |
+   | multi-tier where the skill spans | **15 of 91** spanning skills hold items at only one tier | partly a *taxonomy* edit, not generation — see below |
+
+   **The multi-tier clause is measured against a span the content no longer respects.** 106 items
+   across 39 skills carry a stored tier outside their skill's declared `difficulty_tiers`, because
+   D-302 stores the judge's rating and the judge is free to rate outside the plan's range. Nothing
+   breaks — `difficulty_tiers` is read only by the taxonomy and the planner, never by serving code
+   — but some of those 15 skills are "single-tier" only because the judge moved their items off
+   the declared tiers (`alg1_functions` declares `[3, 4]` and holds its item at 2). Where the judge
+   disagrees with the declaration, the honest fix is the **declaration**.
 4. **Superseded — both of the other two are closed.** `g6_fraction_reduce` went **0 → 7** items
    (D-308) and `alg1_functions` **0 → 1** (D-309). For the record, they were:
    **`alg1_functions`** (algebra_1, tiers 3-4) and **`calc_differential_equations`** (calculus,

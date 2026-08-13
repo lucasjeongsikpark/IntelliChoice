@@ -22320,3 +22320,44 @@ notation, with instructive distractors — `9 + 2t` for reading exponential grow
 
 **Coverage: 99 of 99 authorable skills stocked**, bank 952 → 958. The Phase 1 clause that four
 wave tables had each reported as met — "every skill stocked ≥1" — is now true for the first time.
+
+### D-313 — "Multi-tier where the skill spans" is measured against a span the content no longer respects
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** measured; criterion restated, no code change
+
+Sizing what remains of C1 turned up a number nobody had looked at: **106 items across 39 skills
+carry a stored `difficulty_label` that is not in their skill's declared `difficulty_tiers`.**
+
+**It is not a defect, and the reason is worth being precise about.** D-302 decided the stored tier
+is the *judge's* reading. `generation_plan()` schedules only within a skill's declared tiers, but
+the judge is free to rate an item outside them, and on D-302's decision that rating is what gets
+stored. So a skill declaring `[3, 4]` can hold items at 2. Verified that nothing depends on the
+containment: `difficulty_tiers` is read by `content.py` and the planner **only** — no serving code
+reads it, so the assessment builder and topic availability, which work from
+`(topic, difficulty_label)`, are unaffected.
+
+**What it does change is how one of Phase 1's "done when" clauses can be read.** "Multi-tier where
+the skill spans" compares content against the *declared* span, and 11% of the bank is outside it.
+Measured both ways:
+
+| reading | result |
+|---|---|
+| skills declaring more than one tier | 91 |
+| of those, holding items at only one tier | **15** |
+| items outside their skill's declared span | **106** across 39 skills |
+
+So the clause is **15 of 91 short** on its own terms, and some of those 15 are short only because
+the judge moved their items off the declared tiers — `alg1_functions` declares `[3, 4]` and holds
+its single item at 2, `g2_wp_measurement_context` declares `[3, 4]` and holds all 7 at 2.
+
+**Restated rather than re-measured against a different rule**, because changing the rule to
+"multi-tier anywhere" would let a skill declaring `[4, 5]` pass on two tier-1 items: the clause
+means *this skill's content exercises more than one level of difficulty*, and where the judge
+disagrees with the declared span the honest fix is the **declaration**, not the content. That is a
+taxonomy edit and a separate decision from this one.
+
+**The depth clause, sized in the same pass:** D-223's target of 5 per occupied `(topic, tier)` cell
+stands at **84 of 153 cells**, and bringing every occupied cell to 5 needs **189 items** — roughly
+315 candidates at the measured 60% acceptance, ~$13-16, and ~3.5 hours of wall clock at the
+account's measured ~1.5 candidates/minute. Recorded so the decision to spend that is taken against
+a number rather than an impression.
