@@ -233,7 +233,16 @@ throughput was 3× what I read; and I wrote a recall test asserting `x <= 10` ag
    The gate is right; the ladder shape is what does not fit.
 9. **The rejection messages name symptoms, not remedies** (D-283), and `arithmetic_identity` is
    still unwired (D-273).
-10. **`main` is still unprotected** — carried since #20.
+10. **Phase 4 (video catalog) is sized but blocked on a credential; its cost bug is fixed
+    (D-305).** The catalog holds **4 videos covering 4 of 112 skills and 1 of 33 topics**, so
+    closing the phase needs a real `YOUTUBE_API_KEY` plus quota budgeting — a credential I do
+    not have. What was actionable: **D-302 opened all 33 topics**, so 32 of them now hit the
+    §5.11.6 no-video path as the *common* case, and D-207's cost guard was scoped to "the
+    catalog is empty" rather than "this skill has none". Its stated reason — "a semantic rank
+    is the thing deciding that" — is untrue of its own code: `search_catalog` filters on
+    `skill_id` **before** ranking. **108 skills** would each have bought a Titan embedding per
+    "Watch a video" for a foregone conclusion. Now scoped by skill, both directions tested.
+11. **`main` is still unprotected** — carried since #20.
 10. **Phase 4 (video catalog) has never been started** — noticed while scoping this session.
     The existing catalog predates the 245-skill taxonomy, and a real run needs a
     `YOUTUBE_API_KEY` plus quota budgeting. Not a regression, just never picked up.

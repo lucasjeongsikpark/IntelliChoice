@@ -21834,6 +21834,54 @@ solvable equation - it restates the answer instead of deriving it"*. Checked in 
 the bare `diff(...)` form routes to `symbolic`, matches `12x² - 10x + 6` and rejects
 `12x² - 10x + 99`. The prompt change opened no new hole.
 
+### D-305 — D-207's cost guard was scoped to a world that ended, and D-302 ended it
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** fixed, both directions tested, free
+
+Sizing Phase 4 (the video catalog, the one entirely unstarted phase) turned up something more
+urgent than the phase itself. The catalog holds **4 videos covering 4 of 112 skills and 1 of 33
+topics** — so closing Phase 4 needs a real `YOUTUBE_API_KEY` and quota budgeting, which is a
+credential I do not have and did not go looking for. What is actionable now is what a student in
+the other 32 topics hits, because **D-302 just opened all 33**.
+
+**The §5.11.6 fallback itself is sound** — `_video_intervention` returns `FALLBACK_MESSAGE` when
+`search_video` finds nothing. The problem is what it costs to find that out.
+
+**D-207 added exactly this guard** — "no catalog, no embedding", because staging held zero rows and
+every "Watch a video" bought a Titan embedding to reach a foregone conclusion (measured live:
+144.73 ms for nothing). It scoped the check to the catalog as a whole, and said so deliberately:
+
+> "Deliberately *not* filtered by skill or difficulty… the case worth short-circuiting is 'the
+> catalog is empty', not 'this skill is thin'. A non-empty catalog with no match for the skill
+> still runs the embedding and still falls back — correctly, **since a semantic rank is the thing
+> deciding that**."
+
+**That last clause is not true of its own code.** `search_catalog` applies
+`skill_id in v.skill_ids` as a **hard filter before** it ranks, so for a skill with no video the
+candidate list is empty and the rank decides nothing. The conclusion is as foregone as an empty
+catalog — the guard simply could not see it.
+
+**The scoping was right for the world it was written in**, and that is the part worth keeping.
+With zero rows, "the catalog is empty" and "this skill has nothing" are the same question. A
+**sparse** catalog separates them, and 4-videos-covering-4-of-112-skills is sparse: **108 skills**
+would each buy an embedding per click. D-302 turned that from a corner into the common path.
+
+Now `has_servable_video(skill_id)`. The old note's real objection — two places to keep the filter
+in step — is why it reads the same `skill_ids` column with the same membership test rather than
+re-deriving anything: one query, still no paid call.
+
+**Both directions, and the recall half earned its place twice.** A skill with no video costs
+**0.0** and makes **0** embedding calls even though the catalog is non-empty; a skill that does
+have one is still served it, because scoping a guard by skill would otherwise pass its own test by
+refusing everything. And the existing `falls_back_when_no_catalog_match` asserted `cost >= 0.0`,
+which holds for a free call and a paid one alike — it is now `== 0.0` and fails against the
+unscoped guard.
+
+**My own error inside that recall test, kept because it is the session's pattern again.** It first
+asked for difficulty 1, got `None`, and I read it as the new guard over-refusing. The seeded
+fixture spans difficulty 2-4 — it was the difficulty filter working correctly. Checking the
+fixture beat believing the test.
+
 Negative control holds: `x² - 5x + 5` still does not match, and
 `test_a_wrong_symbolic_key_written_with_superscripts_is_still_rejected` pins it. Both new
 recall tests fail against the pre-fix code; the ambiguity test's pre-fix failure message is

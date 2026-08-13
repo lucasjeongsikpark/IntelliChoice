@@ -57,7 +57,11 @@ async def search_video(
     # is servable, and paying Bedrock to reach a foregone conclusion is a cost bug, not a
     # nicety - staging has had zero rows since it was built, so *every* video request took
     # this shape. One indexed existence read replaces one paid call.
-    if not await repo.has_servable_video():
+    # D-305: scoped to this skill, not to the catalog as a whole. D-207 added this guard
+    # when the catalog was empty, where the two questions coincide; with 4 videos covering 4
+    # of 112 skills they do not, and `search_catalog` filters on `skill_id` *before* it ranks,
+    # so a skill with no video is a foregone conclusion the embedding cannot change.
+    if not await repo.has_servable_video(skill_id):
         return None, 0.0
 
     query_text = skill_name
