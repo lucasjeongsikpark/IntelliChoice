@@ -1968,6 +1968,25 @@ change — which is the first item of the next session rather than more generati
 >   D-223's 5-per-tier target is now generation volume against a gate that admits these items,
 >   not a class of content the gate refuses.
 
+> **⏸ Amended 2026-08-13 (D-309). The "every skill stocked ≥1" clause now stands at 98 of 99, and
+> the one exception is blocked with its reason measured rather than untried.**
+>
+> - **`alg1_functions` ✅ stocked.** Its `structure` contradicted itself — "a bare EXPRESSION …
+>   the answer is the expression" beside "not the bare expression" when the stem asks for a value
+>   — and the dates prove emphasis was not the lever: the closing clause was added 2026-08-11 and
+>   every rejection of that class is 2026-08-12. Rewritten as two symmetric kinds with no default;
+>   the class went **3 of 14 → 0 of 8**.
+> - **`calc_differential_equations` ⛔ blocked, three levers tried.** design-on/old structure 9 of
+>   10 die at design; design-on/rewritten structure **identical** 9 of 10; `--design-attempts 0`
+>   8 of 10 die at the gate because the unconstrained generator writes arithmetic word problems.
+>   The mechanism is the design validator's *refusal message*, which advises a **value** example
+>   (`Eq(3 + 7*m, 4 + 4*m)`) to a skill whose answer is a function — so the retry is built on
+>   feedback teaching the one form that cannot work. Needs an answer-model-aware refusal, or hand
+>   authoring per D-279. **Not a spending problem: $1.14 established that.**
+> - **A fifth notation contradiction closed on the way.** `e^(kt)` is what D-288 requires and the
+>   comparison could not read it, while `3*exp(4*t)` reads and D-288 refuses it — so no
+>   exponential answer could pass both rules. Fixed in the D-281 seam, 0 of 952 items changed.
+
 > **⏸ Amended 2026-08-12 by D-295 — the diagnosis above is incomplete, and the correction is
 > cheaper than either option it offered.** `judge_difficulty` *retiers* a `slot_gap >= 2` when
 > the run's histogram shows the judge discriminating and rejects only when it does not, so the

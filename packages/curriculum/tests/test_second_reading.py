@@ -556,3 +556,103 @@ def test_the_gate_itself_applies_the_corrected_sentence_rule():
     assert len(long_decimal_sentence.split()) > 30
     failures = _failures(_item(stem=long_decimal_sentence))
     assert any("readability ceiling" in f for f in failures), failures
+
+
+# --------------------------------------------------------------------------------------
+# 7. D-309: the same contradiction a third time, on the exponential family, and this one
+#    shut a skill out completely - `calc_differential_equations` held 0 items and every
+#    answer it can have is `Ce^(kt)`.
+#
+#        check_math_notation_is_readable  rejects any option containing `*`   (D-288)
+#        the answer comparison            parses `3*exp(4*t)`, raises on `3e^(4t)`
+#
+#    so no exponential answer could pass both rules. The caret was never the problem -
+#    `sympify` converts `^` to `**` already, which is why `x^2 - 9` has always matched - and
+#    the `e` is: `3e**(4t)` parses as `3*e**(4*t)` with `e` a free Symbol, so it never raises
+#    and never matches. D-298's silent trap in a third costume.
+# --------------------------------------------------------------------------------------
+
+
+def _exponential_item(**overrides) -> AuthoredGeneratedItemResponse:
+    base = dict(
+        stem=(
+            "A culture grows so that its rate of change is four times its current size, and "
+            "it starts at 3 grams. Which function gives its size after t hours?"
+        ),
+        option_a="3e^(4t)",
+        option_b="4e^(3t)",
+        option_c="3e^(t/4)",
+        option_d="12e^t",
+        correct_option="a",
+        hint_ladder=[
+            "A rate of change proportional to the amount is exponential growth.",
+            "The constant of proportionality becomes the coefficient of t in the exponent.",
+            "The starting amount is the coefficient in front.",
+        ],
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Separate the variables and integrate both sides.",
+                    expression="dy/dt = 4y",
+                    common_mistake=None,
+                )
+            ],
+            final_answer="3e^(4t)",
+        ),
+        estimated_time_seconds=110,
+        misconception_tags=["swapped_the_coefficient_and_the_rate"],
+        proposed_difficulty=4,
+        difficulty_rationale="separating variables and applying the initial condition",
+        required_prerequisites=["integrating an exponential"],
+        equation="3*exp(4*t)",
+    )
+    return AuthoredGeneratedItemResponse(**{**base, **overrides})
+
+
+def test_an_exponential_written_the_way_a_student_reads_it_is_accepted():
+    """The whole point: the notation D-288 *requires* now matches, where it previously did not
+    and the rejection blamed a correct answer key."""
+    item = _exponential_item()
+    assert validate_authored_item(4, item).passed, _failures(item)
+
+
+def test_the_same_answer_written_for_sympy_is_rejected_by_the_readability_rule():
+    """The other half of the contradiction, asserted so nobody 'fixes' this by telling the
+    generator to write stars. `3*exp(4*t)` matches the equation and D-288 refuses it."""
+    failures = _failures(_exponential_item(option_a="3*exp(4*t)"))
+    assert any("programmer notation" in f for f in failures), failures
+
+
+@pytest.mark.parametrize(
+    "wrong",
+    ["4e^(4t)", "3e^(5t)", "3e^(-4t)", "12e^(4t)", "3e^(4t) + 1", "e^(4t)"],
+)
+def test_a_wrong_exponential_is_still_rejected(wrong):
+    """The direction that matters. Reading a notation must not turn into accepting anything
+    shaped like it - D-246's lesson, and D-298's fix needed exactly this control to catch a
+    version that only inserted a star."""
+    item = _exponential_item(option_a=wrong)
+    assert not validate_authored_item(4, item).passed, wrong
+
+
+def test_the_caret_was_never_the_missing_piece():
+    """Recorded because I nearly fixed the wrong half. `sympify` already converts `^` to `**`,
+    so a caret power has matched since long before this - and a caret-ONLY pattern matched
+    nothing on the symbolic arm, because `_normalize_math_text` rewrites `^` to `**` before the
+    student reading runs. The pattern accepts both forms for that reason."""
+    derivation = av.route_answer("(x - 3)*(x + 3)")[0]
+    assert derivation is not None
+    assert av._option_matches(derivation, "x^2 - 9")
+    exponential = av.route_answer("3*exp(4*t)")[0]
+    assert exponential is not None
+    for written in ("3e^(4t)", "3e**(4t)", "3e^(4*t)"):
+        assert av._option_matches(exponential, written, student_notation=True), written
+        assert not av._option_matches(exponential, written), written
+
+
+def test_an_identifier_containing_an_e_is_not_read_as_an_exponential():
+    """`time**2` and `degrees**2` must survive the reading untouched, or a units-carrying
+    option would silently become an exponential."""
+    for text in ("time^2", "the^2", "degrees^2", "1e5"):
+        assert "exp(" not in av._student_notation(av._normalize_math_text(text)), text

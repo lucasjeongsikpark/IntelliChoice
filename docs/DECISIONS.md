@@ -22070,3 +22070,101 @@ Those sentences were the gate's limitation written down as an authoring constrai
 forbade each skill's most instructive distractor. One of the generator's own misconception tags
 for the radical case is literally `stopped_halfway_through_simplification`. Both now ask for the
 equivalent form deliberately.
+
+### D-309 — Two skills, one closed by a notation the gate could not read and one that is unauthorable
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** one skill stocked, one recorded as blocked, $1.47
+
+D-308 found that **3 of 99** authorable skills held zero items, which no per-wave table had
+revealed because each wave counted only its own skills. It closed one. This is the other two, and
+they turned out to be different problems with different answers.
+
+#### `alg1_functions`: the skill contradicted itself, and it is now stocked
+
+Its `structure` opened with *"a bare EXPRESSION defining the function … the answer is the
+expression"* and closed with *"THE EQUATION MUST MATCH WHAT THE STEM ASKS FOR … not the bare
+expression"*. The first sentence sets the model's conception of the item, so it wrote a stem
+asking for a root and an equation giving the function — 3 of the skill's 14 rejections.
+
+**The dates settle whether emphasis was the problem:** the closing clause was added **2026-08-11**
+and every one of those rejections is **2026-08-12**. The model saw the clause and ignored it,
+which is D-252's record that emphasis does not fix a contradiction. Rewritten as **two symmetric
+kinds with no default** — value question → write the equation that derives it; function question →
+write the bare expression — the remedy D-304 applied one level up.
+
+Measured: the target class went **3 of 14 → 0 of 8**, and the skill produced its first items ever.
+
+#### `calc_differential_equations`: three levers, three failure modes, zero items
+
+| attempt | result |
+|---|---|
+| design stage on, old structure | **9 of 10** die at design |
+| design stage on, rewritten structure (bare expression demanded three times) | **9 of 10** die at design — *unchanged* |
+| `--design-attempts 0` | **8 of 10** die at the gate |
+
+Each failed differently, and that is the diagnosis. With design on, the model writes the three
+natural forms and the validator refuses all three:
+
+    'dy/dt = -0.05*y, with y(0) = 100'  ->  "is not a single equation"
+    'Eq(y, 50*exp(-0.1*t))'             ->  "has 2 unknowns, expected exactly one"
+    'Eq(8, C*exp(-3*0))'                ->  "derives the value answer (8,), but final_answer
+                                             says '8*exp(-3*t)'"
+
+The second **is** the intended answer, wrapped; the validator is right to refuse it, because
+`Eq(y, <the answer>)` is D-191's vacuous form. But its refusal then says *"model the question as
+one relation with one unknown, e.g. `Eq(3 + 7*m, 4 + 4*m)`"* — a **value** example, the one answer
+model a differential equation cannot use. **The message teaches the form that cannot work.**
+D-274 and D-304 are this project installing a rule scoped to one answer model as universal; this
+is the same thing in a *rejection message*, which is worse, because it is the feedback the retry
+is built on.
+
+Turning the pre-filter off does not help either: unconstrained, the generator writes arithmetic
+word problems and calls them calculus — `Eq(8 + 0.5*t, h)`, "a population growing by 8 per
+month", `B = 8t`. The design stage was the only thing forcing an exponential.
+
+**Recorded as blocked rather than attempted a fourth time.** It needs an answer-model-aware design
+refusal, or hand authoring the way family-C figures were (D-279). The rewritten `structure` is
+kept because it states what the gate actually needs, with its own comment saying it changed
+nothing.
+
+#### The notation defect found on the way, and it is the fifth of one shape
+
+`calc_differential_equations`' answers are all `Ce^(kt)`, and the two rules contradicted each
+other exactly:
+
+    check_math_notation_is_readable  rejects any option containing `*`   (D-288)
+    the answer comparison            parses `3*exp(4*t)`, raises on `3e^(4t)`
+
+so no exponential answer could pass both. **The caret was never the missing piece** — `sympify`
+converts `^` to `**` already, which is why `x^2 - 9` has matched all along. The `e` is:
+`sympify('e^2')` returns `e**2` with `e` a free **Symbol**, so it never raises and never matches,
+which is D-298's silent trap in a third costume.
+
+Now read in the D-281 seam. **The fix nearly shipped broken and the recall check caught it:** the
+symbolic arm calls `_normalize_math_text` *before* the student reading, and that already rewrites
+`^` to `**`, so a caret-only pattern matched nothing on the one path that needed it. Both forms
+are accepted for that reason. Scored: 5 of 5 written forms match, **0 of 8** wrong exponentials
+match, `time^2`/`degrees^2`/`1e5` untouched, and **0 of 952** bank items change verdict.
+
+#### A cost bug in the test suite, found by a skip count that moved
+
+`packages/evals/tests/test_llm_judge.py` skipped on `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`
+alone, on a premise its docstring stated plainly: *"no real AWS credentials exist anywhere in this
+codebase's history, D-025"*. Staging credentials have existed since S32/D-084, and this project's
+documented way to give repo Python AWS access is
+`eval "$(aws --profile <p> configure export-credentials --format env)"` — which sets exactly those
+two variables. So under the workflow this project recommends, **`make test` makes a real paid
+Bedrock call.** Nothing was spent (runs here use `AWS_PROFILE`, which botocore resolves from
+`~/.aws/credentials` without exporting anything), but a suite that becomes paid depending on how
+you authenticated is a cost bug waiting for another shell. Now requires `EVAL_REAL_BEDROCK=1`,
+matching the sibling in `chat-api` that had the pattern right all along.
+
+**Coverage after this: 98 of 99 authorable skills stocked**, bank 951 → 952.
+
+**Two generated items were rejected on reading, and the judge had passed both.** Their stems
+contradict themselves: *"shoots the ball straight up from ground level"* with
+`h(t) = t² − 14t + 40`, so `h(0) = 40`, and the parabola opens **upward** — nothing is thrown.
+Same shape in the fountain item (`h(0) = 24`). The judge rejected **6** other candidates in the
+same run for exactly this ("the answer is impossible in the situation described") and let these
+two through, so its application of that check is uneven. Both mathematically correct and
+gradeable; both refused because a stem that contradicts its own function is not a question.

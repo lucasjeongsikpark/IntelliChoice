@@ -7,22 +7,30 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Session C1 remains ⏸ partial. Continued 2026-08-13 to D-308, on branch
-`c1-tier-labels-and-notation-gate` / PR #247 (now nine commits, not merged). Bank 936 → 951,
-33 of 33 topics openable, pytest 1440 → 1485 + e2e 70/70, $5.04 spent in total (54¢ this
-half).**
+**Session C1 remains ⏸ partial. PR #247 is MERGED (`14085ca`, squashed, CI green on all nine
+checks). Work continued past it to D-309 on branch `c1-the-last-two-unstocked-skills`. Bank
+936 → 952, **98 of 99 authorable skills stocked** (was 96), 33 of 33 topics openable, pytest
+1440 → 1495, local e2e 70/70, **$6.51 spent in total**.**
+
+**Nothing is deployed.** Staging still runs the pre-#247 build against its own bank. Deploying
+needs migration `d4b81f6c2e70` plus `scripts/backfill_flagged_to_judged_tier.py` against
+staging RDS, then a bank load, then `gh workflow run deploy-staging.yml --ref main` (the push
+trigger is deliberately commented out, so merging deployed nothing).
 
 **What the next session should pick up, in order:**
 
-1. **Merge or review PR #247 — still the first item, and now with a green CI.** Nine commits.
-   It contains a **product behaviour change** (exam composition and topic availability), a
-   **gate relaxation** (D-308's canonical-form tie-break) and a **data migration applied only to
-   the dev database** — staging still runs the old build against its own bank. Deploying needs
-   the migration plus `scripts/backfill_flagged_to_judged_tier.py` against staging RDS, then a
-   bank load. **CI was red for this branch through the previous close and I had not read it
-   (D-307); it is green now, and "local green" is no longer the claim this project accepts.**
-2. **The two remaining unstocked skills.** A4 is done and it closed one of three:
-   `g6_fraction_reduce` went **0 → 7 items** at 100% acceptance. Still zero, and untried:
+1. **Review the open branch `c1-the-last-two-unstocked-skills`** (D-309), then deploy or don't.
+   The deploy is now the only thing standing between this work and students, and it is a
+   deliberate manual step.
+2. **`calc_differential_equations` is the last unstocked skill and it is RECORDED AS BLOCKED,
+   not untried.** Three levers, three failure modes, 0 items each time, $1.14 — see D-309. What
+   it needs is an **answer-model-aware design refusal**: the validator currently rejects a
+   differential equation and then advises *"model the question as one relation with one unknown,
+   e.g. `Eq(3 + 7*m, 4 + 4*m)`"*, a value example, so the retry is built on feedback that
+   teaches the one form that cannot work. Fixing that message helps every symbolic skill, not
+   just this one. The alternative is hand authoring, the way family-C figures were (D-279).
+3. **Superseded — both of the other two are closed.** `g6_fraction_reduce` went **0 → 7** items
+   (D-308) and `alg1_functions` **0 → 1** (D-309). For the record, they were:
    **`alg1_functions`** (algebra_1, tiers 3-4) and **`calc_differential_equations`** (calculus,
    tiers 4-5). **Diagnosed for free from D-195's stored rejections, so the next session starts
    with a cause rather than a survey** — and the two are not the same problem:
@@ -9360,6 +9368,56 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### Session C1, continued — the last two unstocked skills, and one of them cannot be authored (2026-08-13)
+
+- **Scope:** PROGRESS's pickup list after #247 merged. Item 1 (merge) and item 2 (the two
+  remaining unstocked skills).
+- **PR #247 merged as `14085ca`** (squash, the repo's convention), CI green on all nine checks —
+  read this time rather than assumed, which is D-307's rule. Verified first that merging deploys
+  nothing: `deploy-staging.yml` is `workflow_dispatch` only, its `push` trigger deliberately
+  commented out.
+- **`alg1_functions`: the skill contradicted itself and is now stocked.** Its `structure` said
+  "a bare EXPRESSION … the answer is the expression" and also "not the bare expression" when the
+  stem asks for a value. **The dates settle whether emphasis was the problem:** clause added
+  2026-08-11, all 3 rejections of that class 2026-08-12. Rewritten as two symmetric kinds with no
+  default; the class went **3 of 14 → 0 of 8** and the skill produced its first items.
+- **`calc_differential_equations`: three levers, three failure modes, 0 items each time, $1.14 —
+  recorded as blocked rather than attempted a fourth time.** With the design stage on the model
+  writes `dy/dt = -0.05*y, with y(0) = 100`, `Eq(y, 50*exp(-0.1*t))` and `dP/dt = 3*P; P(0) = 2`,
+  and the validator refuses all three — correctly, since the second is D-191's vacuous form. But
+  its refusal then advises *"model the question as one relation with one unknown, e.g.
+  `Eq(3 + 7*m, 4 + 4*m)`"*, a **value** example, so the retry is built on feedback teaching the
+  one answer model a differential equation cannot use. With the design stage **off**, the
+  generator writes arithmetic word problems and calls them calculus. My rewritten `structure`
+  changed the yield by nothing — 9 of 10 design failures before and after — and that is written
+  into the file so nobody reads it as a fix.
+- **A notation defect found on the way, fifth of one shape (D-309).** `check_math_notation_is_readable`
+  refuses any option containing `*` while the answer comparison could only parse `3*exp(4*t)`, so
+  **no exponential answer could pass both rules**. The caret was never the missing piece —
+  `sympify` converts `^` to `**`, which is why `x^2 - 9` always matched — the `e` was:
+  `sympify('e^2')` returns `e**2` with `e` a free **Symbol**, D-298's silent trap again. Fixed in
+  the D-281 seam. **The fix nearly shipped broken:** `_normalize_math_text` rewrites `^` to `**`
+  *before* the student reading, so a caret-only pattern matched nothing on the one path that
+  needed it, and the recall check caught it. Scored 5 of 5 forms matching, **0 of 8** wrong
+  exponentials, 0 of 952 bank items changed.
+- **A cost bug in the test suite, found because a skip count moved between two runs.**
+  `test_llm_judge.py` skipped on exported AWS keys alone, on the stated premise that "no real AWS
+  credentials exist anywhere in this codebase's history" — false since S32/D-084, and this
+  project's *documented* way to give repo Python AWS access exports exactly those two variables.
+  So `make test` would have made a **real paid Bedrock call** under the recommended workflow.
+  Nothing was spent; now gated on `EVAL_REAL_BEDROCK=1`, matching the `chat-api` sibling that had
+  it right.
+- **Two accepted items were rejected on reading, and the judge had passed both.** "Shoots the ball
+  straight up from ground level" with `h(t) = t² − 14t + 40` gives `h(0) = 40` and the parabola
+  opens **upward** — nothing is thrown. Same in the fountain item. The judge rejected **6** other
+  candidates in the same run for exactly this and let these two through, so its application of
+  "impossible in the situation described" is uneven.
+- **Verification:** ruff clean, pyright 0 errors, pytest **1485 → 1495**, 952 items re-gated with
+  0 failures, coverage **98 of 99** authorable skills stocked. Four paid runs, each behind a green
+  preflight and an explicit cap; **$1.47** this half, **$6.51** across the session.
+- **Decisions:** D-309.
+
 
 ### Session C1, continued — the canonical-form gate, and a red CI I had already pushed past (2026-08-13)
 

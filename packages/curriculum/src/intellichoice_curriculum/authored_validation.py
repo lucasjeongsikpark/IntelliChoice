@@ -278,13 +278,51 @@ _RADICAL_SURD = re.compile(r"√\s*(\d+(?:\.\d+)?)")
 _RADICAL_IMPLICIT_MUL = re.compile(r"(?<=[0-9])\s*(?=sqrt\()")
 
 
+# D-309: the fifth occurrence of one shape, and this one shut a skill out entirely.
+# `calc_differential_equations` held 0 items and its answers are all `Ce^(kt)`. The two rules
+# contradict each other exactly:
+#
+#   check_math_notation_is_readable  rejects any option containing `*`   (D-288)
+#   the answer comparison            parses `3*exp(4*t)`, raises on `3e^(4t)`
+#
+# so there was no way to write an exponential answer that passed both. Measured before writing
+# this: `sympify('3e^(4t)')` raises `SympifyError`, and `sympify('e^2')` returns `e**2` with `e`
+# a free **Symbol** - the same silent mis-parse `√2` had, where nothing raises and the option
+# simply compares unequal forever. The caret itself needed nothing: `sympify` already converts
+# `^` to `**`, so `x^2 - 9` matched all along and only the `e` did not.
+#
+# The lookbehind excludes letters but **not digits**, deliberately: `3e^(4t)` is the shape D-288
+# asks for, so blocking a digit before the `e` would refuse the only case this exists for.
+# Requiring an exponent operator is what keeps scientific notation (`1e5`) out of it.
+#
+# **`**` is accepted as well as `^`, and leaving it out is the mistake this nearly shipped
+# with.** The symbolic arm calls `_normalize_math_text` *before* the student reading, and that
+# already rewrites `^` to `**` - so a caret-only pattern matched nothing on the one path that
+# needed it, and `3e**(4t)` went on to parse as `3*e**(4*t)` with `e` a free Symbol. It never
+# raised and it never matched. Caught by the recall check reporting False on the exact string
+# the fix was written for.
+_STUDENT_EXPONENTIAL = re.compile(
+    r"(?<![A-Za-z_])e\s*(?:\^|\*\*)\s*(?:\(([^()]*)\)|([A-Za-z0-9.]+))"
+)
+
+
+def _exponentials_to_exp(text: str) -> str:
+    """`3e^(4t)` -> `3exp(4t)`, for the second reading only. `e^2` -> `exp(2)`."""
+
+    def _repl(match: re.Match[str]) -> str:
+        body = match.group(1) if match.group(1) is not None else match.group(2)
+        return f"exp({body})"
+
+    return _STUDENT_EXPONENTIAL.sub(_repl, text)
+
+
 def _student_notation(text: str) -> str:
     """Read an option the way it was *written for a student*, not for SymPy.
 
-    One reading covering both notations D-288 asks the generator to use and the gate could
-    not parse: superscript powers (D-297) and a coefficient in front of a radical (D-298).
-    Consulted only from the D-281 seam - see the comment there for why that scoping is
-    load-bearing rather than cautious.
+    One reading covering the three notations D-288 asks the generator to use and the gate could
+    not parse: superscript powers (D-297), a coefficient in front of a radical (D-298), and
+    `e^(kt)` for an exponential (D-309). Consulted only from the D-281 seam - see the comment
+    there for why that scoping is load-bearing rather than cautious.
 
     **A stated limitation rather than a silent one:** only a radical over *digits* is read.
     `√x` and `√(x + 1)` still parse as symbols and still fail to match, because reading them
@@ -293,6 +331,7 @@ def _student_notation(text: str) -> str:
     that does will be rejected, not silently mis-derived.
     """
     text = _superscripts_to_powers(text)
+    text = _exponentials_to_exp(text)
     text = _RADICAL_SURD.sub(r"sqrt(\1)", text)
     return _RADICAL_IMPLICIT_MUL.sub("*", text)
 

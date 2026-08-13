@@ -114,6 +114,71 @@ templates:
   option_c: 6 inches
   option_d: 24 inches
   correct_option: c
+- question_template_id: authored-algebra_1-d3-1614602
+  topic_id: algebra_1
+  skill_id: alg1_functions
+  grade_band: 8-9
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incorrect_sum_in_factoring
+  - factoring_error_wrong_pair
+  - stopped_after_first_root
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular garden has area modeled by the function A(w) = w² − 9w + 20 square meters, where
+    w is the width in meters. The gardener notices that at certain widths, the area becomes zero. Find
+    all widths where this happens.
+  context_block: The area of a rectangular garden is given by the function A(w) = w² − 9w + 20, where
+    w represents the width in meters.
+  answer_expression: Eq(w**2 - 9*w + 20, 0)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find when the area is zero, set A(w) equal to 0 and solve for w.
+  - The expression w² − 9w + 20 can be written as a product of two linear factors (w − a)(w − b).
+  - Once you have the factored form, use the fact that a product equals zero only when one of the factors
+    equals zero.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set the area function equal to zero to find the widths where area becomes zero.
+      expression: w² - 9w + 20 = 0
+      common_mistake: null
+    - step_number: 2
+      explanation: Factor the quadratic by finding two numbers that multiply to 20 and add to -9. Those
+        numbers are -4 and -5.
+      expression: (w - 4)(w - 5) = 0
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Apply the zero product property: if a product equals zero, at least one factor must
+        be zero.'
+      expression: w - 4 = 0  or  w - 5 = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: Solve each equation for w.
+      expression: w = 4  or  w = 5
+      common_mistake: null
+    final_answer: 4 and 5 meters
+  random_seed: 1614602
+  rendered_question: 'The area of a rectangular garden is given by the function A(w) = w² − 9w + 20, where
+    w represents the width in meters.
+
+
+    A rectangular garden has area modeled by the function A(w) = w² − 9w + 20 square meters, where w is
+    the width in meters. The gardener notices that at certain widths, the area becomes zero. Find all
+    widths where this happens.'
+  option_a: 4 meters only
+  option_b: 4 and 5 meters
+  option_c: 5 and 9 meters
+  option_d: 4 and 9 meters
+  correct_option: b
 - question_template_id: authored-algebra_1-d2-1407200
   topic_id: algebra_1
   skill_id: alg1_inequalities
