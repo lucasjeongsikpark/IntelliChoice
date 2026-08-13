@@ -362,3 +362,76 @@ def test_a_determined_system_still_routes_to_tuple():
     assert derivation is not None, error
     assert derivation.model == "tuple"
     assert derivation.payload == (6, 4)
+
+
+# --------------------------------------------------------------------------------------
+# D-312: what a refusal TEACHES, not only what it refuses. Two of the router's refusals
+# become the design stage's retry instructions, and both used to advise the `value` model's
+# shape - to any skill, including one whose answer is a function. Measured consequence:
+# `calc_differential_equations` held 0 items with 9 of 10 candidates dying at design.
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "equation",
+    [
+        # The three forms the model actually reached for, from the stored attempts.
+        "dy/dt = -0.05*y, with y(0) = 100",
+        "dy/dt = 2*y, y(0) = 5",
+        "Eq(y, 50*exp(-0.1*t))",
+    ],
+)
+def test_a_refusal_names_the_bare_expression_form_it_used_to_omit(equation):
+    """The retry is a paid model call, so the refusal is the prompt it gets. A refusal that
+    lists only numeric-answer forms sends that call back to the model that cannot work."""
+    derivation, error = route_answer(equation)
+    assert derivation is None
+    assert error is not None
+    assert "BARE EXPRESSION" in error, error
+    assert "3*exp(2*t)" in error, error
+
+
+def test_the_form_the_refusal_now_advises_actually_works():
+    """The advice has to be true, or it is a new wrong turn rather than a fix. A bare
+    exponential routes to `symbolic` and matches the answer written for a student."""
+    derivation, error = route_answer("3*exp(2*t)")
+    assert derivation is not None, error
+    assert derivation.model == "symbolic"
+    assert _option_matches(derivation, "3e^(2t)", student_notation=True)
+    assert not _option_matches(derivation, "3e^(3t)", student_notation=True)
+
+
+def test_the_value_only_path_still_advises_the_value_shape():
+    """`derive_answer` handles one answer model, so naming that model's form is correct
+    there - the D-312 change is scoped to the router, which handles five."""
+    _, error = derive_answer("Eq(x + y, 10); Eq(x - y, 2)")
+    assert error is not None
+    assert "BARE EXPRESSION" not in error
+
+
+def test_the_design_gate_reads_the_notation_the_readability_rule_requires():
+    """D-312: the design stage claimed to apply "the same predicate the item gate uses" and did
+    not - it consulted only the first reading, so it refused every correct exponential design.
+
+    Both directions, because a reading that accepts anything shaped like the answer is worse
+    than one that accepts nothing.
+    """
+    from intellichoice_curriculum.ai_pipeline import validate_equation_design
+    from intellichoice_shared.bedrock import EquationDesignResponse
+
+    def design(final_answer: str) -> EquationDesignResponse:
+        return EquationDesignResponse(
+            reasoning="a colony growing in proportion to its size",
+            scenario_sketch="A culture triples every unit of time from a starting mass.",
+            unknown_meaning="the mass after t hours",
+            equation="2*exp(3*t)",
+            final_answer=final_answer,
+        )
+
+    # The notation D-288 requires, which used to be refused.
+    assert validate_equation_design(design("2e^(3t)"), target_difficulty=4) == []
+    # The SymPy form still passes, unchanged.
+    assert validate_equation_design(design("2*exp(3*t)"), target_difficulty=4) == []
+    # And a wrong answer in the same notation is still refused.
+    assert validate_equation_design(design("2e^(4t)"), target_difficulty=4) != []
+    assert validate_equation_design(design("3e^(3t)"), target_difficulty=4) != []

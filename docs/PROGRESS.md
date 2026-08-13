@@ -7,15 +7,15 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Session C1 remains ⏸ partial, and it is now DEPLOYED.** #247 (`14085ca`) and #248 (`4c5b7e8`)
-merged, CI green on all nine checks each. Staging deployed from `4c5b7e8` — run `31708283258`,
-every gate green (migration, bank load, deployed-version gate, `/dev/token` edge gate, canary
-bake, public smoke test). Bank 936 → 952, **98 of 99 authorable skills stocked** (was 96), 33 of
-33 topics openable, pytest 1440 → 1495, local e2e 70/70, **staging e2e 63 / 1**, **$6.51 spent**.
+**Session C1 remains ⏸ partial, deployed, and coverage is now COMPLETE at 99 of 99 authorable
+skills.** #247 (`14085ca`), #248 (`4c5b7e8`) and #249 (`72e7c04`) merged, CI green on all nine
+checks each. Staging deployed from `4c5b7e8` — run `31708283258`, every gate green. Bank 936 →
+**958**, 33 of 33 topics openable, pytest 1440 → **1501**, local e2e 70/70, staging e2e 63 / 1,
+**$7.02 spent**.
 
-**Open on the branch `c1-secrets-and-a-test-that-depended-on-luck`:** D-310 (the process-table
-secret leak, fixed at the source) and D-311 (the retry-ladder walk's dependence on option order,
-fixed). Not merged.
+**Open on the branch `c1-the-design-refusal-that-taught-the-wrong-form`:** D-312 — the last
+unstocked skill, stocked. Not merged, and **not deployed**: it adds 6 items and two gate readings,
+so staging serves 952 of the 958 until the next `deploy-staging.yml` run.
 
 **⚠️ Two staging `/dev/token` secrets were exposed on 2026-08-13 and NOT rotated** — the user's
 decision on bounded exposure (staging only; production is a separate frozen system; Postgres holds
@@ -25,18 +25,16 @@ tasks read the value at container start.
 
 **What the next session should pick up, in order:**
 
-1. **Review and merge `c1-secrets-and-a-test-that-depended-on-luck`** (D-310, D-311), then
-   redeploy if you want the harness fix on staging — nothing in it changes app behaviour, so a
-   redeploy is optional.
+1. **Review and merge `c1-the-design-refusal-that-taught-the-wrong-form`** (D-312), then
+   redeploy — this one *does* add content (6 items), so staging is 6 behind until you do.
 2. **Decide whether the two exposed staging secrets get rotated after all.** Declined once with a
    reason (D-310); the reason may not hold if staging ever serves anything real.
-3. **`calc_differential_equations` is the last unstocked skill and it is RECORDED AS BLOCKED,
-   not untried.** Three levers, three failure modes, 0 items each time, $1.14 — see D-309. What
-   it needs is an **answer-model-aware design refusal**: the validator currently rejects a
-   differential equation and then advises *"model the question as one relation with one unknown,
-   e.g. `Eq(3 + 7*m, 4 + 4*m)`"*, a value example, so the retry is built on feedback that
-   teaches the one form that cannot work. Fixing that message helps every symbolic skill, not
-   just this one. The alternative is hand authoring, the way family-C figures were (D-279).
+3. **Coverage is done — the depth and multi-tier criteria are not.** D-312 stocked the last
+   skill, so "every authorable skill has ≥1 item" is true for the first time (four wave tables
+   had each reported it as met while counting only their own skills). Still open:
+   `calc_differential_equations` holds 6 items **all at tier 5 and none at tier 4**, so
+   "multi-tier where the skill spans" fails there; and depth against D-223's 5-per-occupied-tier
+   target remains a volume question.
 4. **Superseded — both of the other two are closed.** `g6_fraction_reduce` went **0 → 7** items
    (D-308) and `alg1_functions` **0 → 1** (D-309). For the record, they were:
    **`alg1_functions`** (algebra_1, tiers 3-4) and **`calc_differential_equations`** (calculus,
@@ -9376,6 +9374,39 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### Session C1, continued — the last skill, and the fix that lied about working (2026-08-13)
+
+- **Scope:** merge #249, then `calc_differential_equations`, which D-309 had recorded as blocked
+  with its mechanism named. Both done; coverage is now **99 of 99** authorable skills.
+- **#249 merged** (`72e7c04`, CI green on all nine checks).
+- **D-309's diagnosis was right and insufficient, and the gap is the lesson.** Two of the router's
+  refusals become the design stage's retry instructions and both advised only the `value` model's
+  shape. Fixing that moved the design-failure count from 9 of 10 to **8 of 10** — which read like
+  another clause that does nothing (D-252). **Reading the stored attempts said the opposite:** the
+  model immediately started writing `2*exp(3*t)`, exactly the form the new refusal advised. The
+  lever worked completely; the tally hid it because the failure moved one layer deeper inside the
+  same stage.
+- **The layer underneath was mine, from four decisions earlier.** `validate_equation_design`,
+  whose own comment calls it "the same predicate the item gate uses", consulted only the **first**
+  reading — so it refused `final_answer '2e^(3t)'` against the equation `2*exp(3*t)`, which state
+  the same thing and where `2e^(3t)` is the notation D-288 *requires*. D-297, D-298 and D-309 each
+  taught the **item** gate a notation the generator is told to use; none reached the **design**
+  gate. One `student_notation=True` fallback, ordered as `matching_options` orders it, and design
+  failures went **8 of 10 → 0 of 10**, accepted **6 of 10 (60%)**.
+- **Sixth occurrence of one shape, and this time it was mine:** two parts of the system demanding
+  incompatible things with the failure charged to the model. D-309 wrote the diagnosis and stopped
+  one layer short of a reading I had added myself.
+- **The six items, read rather than assumed:** all genuine solve-the-differential-equation items
+  (`dP/dt = 3P`, `P(0) = 5` → `5e^(3t)`), in student notation, with instructive distractors
+  (`9 + 2t` for reading exponential growth as linear, `2e^(9t)` for swapping coefficient and
+  rate). **All six at tier 5, none at tier 4**, because the judge rated every one a 5 — so
+  "stocked" holds for this skill and "multi-tier where it spans" does not.
+- **Verification:** ruff clean, pyright 0 errors, pytest **1495 → 1501**, 958 items re-gated with
+  0 failures, coverage **99 of 99**. Two paid runs behind green preflights and explicit caps,
+  **51¢**; **$7.02** across the session.
+- **Decisions:** D-312.
+
 
 ### Session C1, continued — deployed, and then leaked two secrets finding out (2026-08-13)
 

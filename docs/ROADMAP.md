@@ -1976,6 +1976,15 @@ change — which is the first item of the next session rather than more generati
 >   — and the dates prove emphasis was not the lever: the closing clause was added 2026-08-11 and
 >   every rejection of that class is 2026-08-12. Rewritten as two symmetric kinds with no default;
 >   the class went **3 of 14 → 0 of 8**.
+> **✅ Superseded 2026-08-13 by D-312: `calc_differential_equations` is stocked and coverage is
+> 99 of 99.** Two more levers did it, and the second was only findable by reading the stored
+> attempts rather than the tally: the router's refusals now name every accepted form (which got
+> the model writing `2*exp(3*t)` immediately, while moving the failure count by one), and
+> `validate_equation_design` now reads the student notation D-288 requires — it had been
+> consulting a strictly weaker predicate than the item gate it claims to duplicate, so it refused
+> every correct exponential design. Design failures 8 of 10 → **0 of 10**, accepted **6 of 10**.
+> All six at tier 5, none at tier 4, so "multi-tier where the skill spans" still does not hold.
+>
 > - **`calc_differential_equations` ⛔ blocked, three levers tried.** design-on/old structure 9 of
 >   10 die at design; design-on/rewritten structure **identical** 9 of 10; `--design-attempts 0`
 >   8 of 10 die at the gate because the unconstrained generator writes arithmetic word problems.

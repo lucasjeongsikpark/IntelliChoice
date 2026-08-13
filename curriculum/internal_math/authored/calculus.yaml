@@ -525,6 +525,468 @@ templates:
   option_c: 62 thousands of cubic meters per day
   option_d: 54 thousands of cubic meters per day
   correct_option: b
+- question_template_id: authored-calculus-d4-1615100
+  topic_id: calculus
+  skill_id: calc_differential_equations
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 420
+  common_error_tags:
+  - swapped_coefficient_and_initial_condition
+  - treated_as_linear_growth
+  - forgot_to_exponentiate
+  - lost_arbitrary_constant
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bacteria culture in a lab starts with 5 bacteria cells. Scientists observe that at any moment,
+    the population grows at a rate proportional to the number of bacteria present—specifically, the rate
+    of growth equals 3 times the current population. What is the population as a function of time t (in
+    hours)?
+  context_block: The differential equation dP/dt = 3P describes exponential growth where the population's
+    rate of change is always 3 times its current size. Students must solve this separable differential
+    equation and apply the initial condition P(0) = 5.
+  answer_expression: 5*exp(3*t)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write the differential equation dP/dt = 3P. To solve it, separate P and t to opposite sides.
+  - 'Separating gives dP/P = 3dt. Integrate both sides: the left becomes ln|P| and the right becomes 3t
+    + C.'
+  - After integrating and exponentiating, you get P(t) = Ae^(3t). Now use P(0) = 5 to find the constant
+    A.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the separable differential equation in standard form.
+      expression: dP/dt = 3P
+      common_mistake: null
+    - step_number: 2
+      explanation: Separate variables by moving all P terms to the left and all t terms to the right.
+      expression: dP/P = 3dt
+      common_mistake: null
+    - step_number: 3
+      explanation: Integrate both sides of the equation.
+      expression: ∫(1/P)dP = ∫3dt
+      common_mistake: Forgetting to include the constant of integration on at least one side.
+    - step_number: 4
+      explanation: Evaluate the integrals.
+      expression: ln|P| = 3t + C
+      common_mistake: null
+    - step_number: 5
+      explanation: Exponentiate both sides to solve for P.
+      expression: P(t) = e^(3t + C) = e^C · e^(3t) = Ae^(3t)
+      common_mistake: Writing e^(3t + C) as e^3t + e^C instead of e^C · e^(3t).
+    - step_number: 6
+      explanation: Apply the initial condition P(0) = 5 to find A.
+      expression: 5 = A·e^(3·0) = A·e^0 = A
+      common_mistake: null
+    - step_number: 7
+      explanation: Substitute A = 5 back into the general solution.
+      expression: P(t) = 5e^(3t)
+      common_mistake: null
+    - step_number: 8
+      explanation: 'Verify by differentiating: d/dt(5e^(3t)) = 5·3e^(3t) = 15e^(3t), and 3P = 3(5e^(3t))
+        = 15e^(3t). ✓'
+      expression: Both sides equal 15e^(3t)
+      common_mistake: null
+    final_answer: 5e^(3t)
+  random_seed: 1615100
+  rendered_question: 'The differential equation dP/dt = 3P describes exponential growth where the population''s
+    rate of change is always 3 times its current size. Students must solve this separable differential
+    equation and apply the initial condition P(0) = 5.
+
+
+    A bacteria culture in a lab starts with 5 bacteria cells. Scientists observe that at any moment, the
+    population grows at a rate proportional to the number of bacteria present—specifically, the rate of
+    growth equals 3 times the current population. What is the population as a function of time t (in hours)?'
+  option_a: e^(5t)
+  option_b: 3e^(5t)
+  option_c: 5e^(3t)
+  option_d: 5 + 3t
+  correct_option: c
+- question_template_id: authored-calculus-d4-1615101
+  topic_id: calculus
+  skill_id: calc_differential_equations
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 300
+  common_error_tags:
+  - omitted_initial_coefficient
+  - positive_exponent_instead_of_negative
+  - linear_instead_of_exponential
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A radioactive sample of Cobalt-60 has an initial mass of 8 grams. Scientists observe that the
+    rate at which the sample decays is proportional to its current mass, with the decay rate constant
+    at -2 per year. Write an equation that models the mass of the sample, y, as a function of time t in
+    years.
+  context_block: 'The sample''s decay follows a separable differential equation: dy/dt = -2y. When a quantity
+    decays at a rate proportional to itself, the solution involves an exponential function.'
+  answer_expression: 8*exp(-2*t)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'For a separable differential equation dy/dt = -2y, rearrange to isolate y on one side: dy/y = -2
+    dt.'
+  - Integrate both sides to get ln|y| = -2t + C, then exponentiate to find y = Ae^(-2t).
+  - Use the initial condition y(0) = 8 to determine the value of A, then substitute it into your general
+    solution.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Recognize that dy/dt = -2y is a separable differential equation. Separate variables
+        by dividing both sides by y and multiplying both sides by dt.
+      expression: dy/y = -2 dt
+      common_mistake: null
+    - step_number: 2
+      explanation: Integrate both sides of the separated equation.
+      expression: ∫(dy/y) = ∫(-2) dt
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the integrals to get ln|y| on the left and -2t + C on the right.
+      expression: ln|y| = -2t + C
+      common_mistake: Forgetting to include the constant of integration C
+    - step_number: 4
+      explanation: Exponentiate both sides to solve for y. Since e^(ln|y|) = |y|, we get y = Ae^(-2t)
+        where A = e^C is an arbitrary constant.
+      expression: y = Ae^(-2t)
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Apply the initial condition y(0) = 8 to find A. Substitute t = 0: y(0) = Ae^(-2·0)
+        = Ae^0 = A.'
+      expression: 8 = A
+      common_mistake: Forgetting to use the initial condition to determine A
+    - step_number: 6
+      explanation: Substitute A = 8 into the general solution to get the particular solution.
+      expression: y = 8e^(-2t)
+      common_mistake: null
+    final_answer: 8e^(-2t)
+  random_seed: 1615101
+  rendered_question: 'The sample''s decay follows a separable differential equation: dy/dt = -2y. When
+    a quantity decays at a rate proportional to itself, the solution involves an exponential function.
+
+
+    A radioactive sample of Cobalt-60 has an initial mass of 8 grams. Scientists observe that the rate
+    at which the sample decays is proportional to its current mass, with the decay rate constant at -2
+    per year. Write an equation that models the mass of the sample, y, as a function of time t in years.'
+  option_a: y = 8e^(2t)
+  option_b: y = 8 - 2t
+  option_c: y = e^(-2t)
+  option_d: y = 8e^(-2t)
+  correct_option: d
+- question_template_id: authored-calculus-d4-1615102
+  topic_id: calculus
+  skill_id: calc_differential_equations
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 420
+  common_error_tags:
+  - linear_instead_of_exponential
+  - discrete_compound_instead_of_continuous
+  - incorrect_constant_placement
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An investment account begins with $6. Due to compound interest, the balance grows at a rate proportional
+    to the current amount, with a constant of 0.5 per year. Write a formula for the account balance B
+    as a function of time t (in years).
+  context_block: In real investments, money often grows continuously at a rate tied to how much you already
+    have. The more you have, the more it grows each year.
+  answer_expression: 6*exp(0.5*t)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write the differential equation that describes 'the rate of change of B is proportional to B itself'
+    using the constant 0.5.
+  - 'Your equation should be dB/dt = 0.5 · B. This is a separable differential equation: separate the
+    variables and integrate both sides.'
+  - Integrate 1/B dB on the left and 0.5 dt on the right to get ln(B) = 0.5t + C. Use the initial condition
+    B(0) = 6 to find C, then solve for B.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The rate of change of B is proportional to B with constant 0.5, so we write the differential
+        equation.
+      expression: dB/dt = 0.5*B
+      common_mistake: null
+    - step_number: 2
+      explanation: Separate variables by dividing both sides by B and multiplying by dt.
+      expression: (1/B) dB = 0.5 dt
+      common_mistake: null
+    - step_number: 3
+      explanation: Integrate both sides.
+      expression: ∫(1/B) dB = ∫0.5 dt ⟹ ln(B) = 0.5*t + C
+      common_mistake: null
+    - step_number: 4
+      explanation: Apply the initial condition B(0) = 6 to find C.
+      expression: ln(6) = 0.5*(0) + C ⟹ C = ln(6)
+      common_mistake: null
+    - step_number: 5
+      explanation: Substitute C back into the equation.
+      expression: ln(B) = 0.5*t + ln(6)
+      common_mistake: null
+    - step_number: 6
+      explanation: Exponentiate both sides to solve for B.
+      expression: B = e^(0.5*t + ln(6)) = e^ln(6) * e^(0.5*t) = 6*e^(0.5*t)
+      common_mistake: null
+    final_answer: 6e^(0.5t)
+  random_seed: 1615102
+  rendered_question: 'In real investments, money often grows continuously at a rate tied to how much you
+    already have. The more you have, the more it grows each year.
+
+
+    An investment account begins with $6. Due to compound interest, the balance grows at a rate proportional
+    to the current amount, with a constant of 0.5 per year. Write a formula for the account balance B
+    as a function of time t (in years).'
+  option_a: B = 6(1 + 0.5)^t
+  option_b: B = 6 + 0.5t
+  option_c: B = 6e^(0.5t)
+  option_d: B = 0.5 · 6^t
+  correct_option: c
+- question_template_id: authored-calculus-d4-1615104
+  topic_id: calculus
+  skill_id: calc_differential_equations
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - sign_error_in_exponent
+  - omitted_initial_condition
+  - linear_instead_of_exponential_decay
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A water treatment plant monitors a holding tank contaminated with a toxic chemical. When treatment
+    begins, the concentration is 4 units per litre. The chemical decays at a rate proportional to the
+    current concentration, with a rate constant of −0.6 per hour. Write an expression for the concentration
+    C (in units per litre) as a function of time t (in hours).
+  context_block: The tank operator needs to predict when the concentration will drop to safe levels. The
+    decay follows the differential equation dC/dt = −0.6C, where C is concentration and t is time in hours.
+  answer_expression: 4*exp(-0.6*t)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Exponential decay models have the form A·e^(kt), where A is the starting amount and k is the rate
+    constant. What is the starting concentration?
+  - Since the starting concentration is 4 units and the rate constant is −0.6, substitute these into A·e^(kt).
+  - 'Build the expression step by step: starting amount is 4, the exponent is the rate constant −0.6 times
+    t.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Exponential decay is modeled by C(t) = A·e^(kt), where A is the initial concentration
+        and k is the rate constant from the differential equation dC/dt = kC.
+      expression: C(t) = A·e^(kt)
+      common_mistake: null
+    - step_number: 2
+      explanation: From the problem, the initial concentration is 4 units per litre, so A = 4.
+      expression: A = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: The rate constant is k = −0.6 per hour (from dC/dt = −0.6C).
+      expression: k = -0.6
+      common_mistake: null
+    - step_number: 4
+      explanation: Substitute A = 4 and k = −0.6 into the general form C(t) = A·e^(kt).
+      expression: C(t) = 4·e^(-0.6·t)
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Verify: at t = 0, C(0) = 4·e^(0) = 4·1 = 4 ✓. The derivative dC/dt = 4·(−0.6)·e^(−0.6t)
+        = −0.6·(4e^(−0.6t)) = −0.6C ✓.'
+      expression: C(t) = 4e^(-0.6t)
+      common_mistake: null
+    final_answer: 4e^(-0.6t)
+  random_seed: 1615104
+  rendered_question: 'The tank operator needs to predict when the concentration will drop to safe levels.
+    The decay follows the differential equation dC/dt = −0.6C, where C is concentration and t is time
+    in hours.
+
+
+    A water treatment plant monitors a holding tank contaminated with a toxic chemical. When treatment
+    begins, the concentration is 4 units per litre. The chemical decays at a rate proportional to the
+    current concentration, with a rate constant of −0.6 per hour. Write an expression for the concentration
+    C (in units per litre) as a function of time t (in hours).'
+  option_a: e^(-0.6t)
+  option_b: 4e^(-0.6t)
+  option_c: 4 - 0.6t
+  option_d: 4e^(0.6t)
+  correct_option: b
+- question_template_id: authored-calculus-d5-1615200
+  topic_id: calculus
+  skill_id: calc_differential_equations
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - linear_growth_instead_of_exponential
+  - rate_constant_as_initial_value
+  - coefficient_order_reversal
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A virus colony starts with a population of 9 units. Scientists observe that the population grows
+    at a rate proportional to its current size, with the rate constant k = 2 per hour. If y represents
+    the population after t hours, which expression gives the population at any time t?
+  context_block: A virus colony's growth follows the differential equation dy/dt = 2y, where y is the
+    population and t is time in hours.
+  answer_expression: 9*exp(2*t)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The differential equation dy/dt = 2y means the rate of change is always twice the current population.
+    This is exponential growth, not linear.
+  - When dy/dt = ky, the solution has the form y = Ae^(kt). Your job is to find A using the starting population.
+  - At t = 0, the population is 9 units. Substitute t = 0 into y = Ae^(kt) with k = 2 to find A.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The differential equation dy/dt = ky has the general solution y = Ae^(kt), where A
+        is determined by the initial condition.
+      expression: 'General solution: y = Ae^(kt)'
+      common_mistake: null
+    - step_number: 2
+      explanation: From the problem, k = 2 per hour. Substitute this into the general form.
+      expression: y = Ae^(2t)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Use the initial condition: at t = 0, the population is y = 9 units.'
+      expression: 9 = Ae^(2·0) = Ae^0 = A
+      common_mistake: null
+    - step_number: 4
+      explanation: Therefore A = 9. Substitute back into the solution.
+      expression: y = 9e^(2t)
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Verify: at t = 0, y = 9e^0 = 9·1 = 9 ✓. The solution matches the initial condition.'
+      expression: 'Check: y(0) = 9e^(2·0) = 9'
+      common_mistake: null
+    final_answer: 9e^(2t)
+  random_seed: 1615200
+  rendered_question: 'A virus colony''s growth follows the differential equation dy/dt = 2y, where y is
+    the population and t is time in hours.
+
+
+    A virus colony starts with a population of 9 units. Scientists observe that the population grows at
+    a rate proportional to its current size, with the rate constant k = 2 per hour. If y represents the
+    population after t hours, which expression gives the population at any time t?'
+  option_a: 18e^t
+  option_b: 9e^(2t)
+  option_c: 9 + 2t
+  option_d: 2e^(9t)
+  correct_option: b
+- question_template_id: authored-calculus-d5-1615201
+  topic_id: calculus
+  skill_id: calc_differential_equations
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - sign_error_in_exponent
+  - ignored_initial_condition
+  - negated_entire_solution
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A cup of hot tea is cooling down in a room. At the moment you check it, the tea is 10 degrees
+    Celsius hotter than the room. The rate at which the temperature difference decreases is proportional
+    to the current temperature difference itself—specifically, it decreases at 0.3 times the current difference
+    each minute. Write an expression for the temperature difference (in degrees Celsius) between the tea
+    and the room after t minutes.
+  context_block: In this problem, T(t) represents the temperature difference in degrees Celsius between
+    the tea and the room air at time t minutes. You are solving a differential equation that models exponential
+    decay.
+  answer_expression: 10*exp(-0.3*t)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The differential equation is dT/dt = -0.3T. To solve it, separate the variables so that all T terms
+    are on one side and all t terms are on the other.
+  - 'After separating, integrate both sides: ∫dT/T = ∫-0.3 dt. This gives ln|T| = -0.3t + C.'
+  - Exponentiate both sides to remove the natural log, then use the initial condition T(0) = 10 to find
+    the constant multiplying the exponential.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the differential equation modeling the cooling rate: the rate of change of temperature
+        difference equals -0.3 times the current temperature difference.'
+      expression: dT/dt = -0.3T
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Separate variables: divide both sides by T and multiply both sides by dt.'
+      expression: dT/T = -0.3 dt
+      common_mistake: null
+    - step_number: 3
+      explanation: Integrate both sides. The left side integrates to ln|T| and the right side integrates
+        to -0.3t + C.
+      expression: ∫(1/T) dT = ∫(-0.3) dt
+      common_mistake: null
+    - step_number: 4
+      explanation: After integration, we have ln|T| = -0.3t + C. Exponentiate both sides using e as the
+        base.
+      expression: T = e^(-0.3t + C) = e^C · e^(-0.3t) = A·e^(-0.3t)
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Use the initial condition: at t = 0, T(0) = 10. Substitute into T = A·e^(-0.3t).'
+      expression: 10 = A·e^(-0.3·0) = A·e^0 = A
+      common_mistake: null
+    - step_number: 6
+      explanation: Therefore, A = 10. The solution is T(t) = 10e^(-0.3t).
+      expression: T(t) = 10e^(-0.3t)
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Verification: T(0) = 10e^0 = 10 ✓; dT/dt = 10·(-0.3)e^(-0.3t) = -0.3·(10e^(-0.3t))
+        = -0.3T ✓'
+      expression: dT/dt = -0.3(10e^(-0.3t)) = -0.3T
+      common_mistake: null
+    final_answer: 10e^(-0.3t)
+  random_seed: 1615201
+  rendered_question: 'In this problem, T(t) represents the temperature difference in degrees Celsius between
+    the tea and the room air at time t minutes. You are solving a differential equation that models exponential
+    decay.
+
+
+    A cup of hot tea is cooling down in a room. At the moment you check it, the tea is 10 degrees Celsius
+    hotter than the room. The rate at which the temperature difference decreases is proportional to the
+    current temperature difference itself—specifically, it decreases at 0.3 times the current difference
+    each minute. Write an expression for the temperature difference (in degrees Celsius) between the tea
+    and the room after t minutes.'
+  option_a: 10e^(0.3t)
+  option_b: e^(-0.3t)
+  option_c: -10e^(-0.3t)
+  option_d: 10e^(-0.3t)
+  correct_option: d
 - question_template_id: authored-calculus-d3-1307301
   topic_id: calculus
   skill_id: calc_integrals
