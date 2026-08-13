@@ -22507,3 +22507,74 @@ trigger would mean adding a crash path to product code.
 **The 503 handler's test was checked in both directions** (D-107 §1's rule): it fails with the
 handler disabled and passes with it, and it asserts that `str(exc)` does **not** reach the student
 alongside asserting the status.
+
+### D-316 — The logs could not name a session, and every CORS preflight logged a raw path
+
+**Date:** 2026-08-13 · **Session:** UI/UX audit · **Status:** built and verified against a fresh
+process · pytest 1512
+
+D-288 — the staging-only mid-exam refresh that lands on the wrong question — has been parked at
+"the next step is server-side logs for that session" since 2026-08-07. That step was not *undone*;
+it was **impossible**. `http_request` lines carried the route template, method, status and duration,
+and `trace_id` joins the spans of one *request*, not the requests of one student's sitting. Nothing
+in the store could group a session's lines, so there was no query to write.
+
+**Three changes, one purpose.**
+
+**1. An allowlisted session id on every access-log line.** `LOGGABLE_PATH_PARAMS =
+("learning_session_id", "chat_session_id")` — read from `scope["path_params"]` after `call_next`,
+flat keys so `PiiDenylistFilter` (top-level only, its own documented limit) actually inspects them.
+
+An allowlist rather than dumping `path_params`, because `/students/{student_id}` already exists and
+a wholesale dump would start logging a reference to a real minor the moment someone adds a route.
+`student_id` and `assessment_item_id` are deliberately excluded. Absent, not null, when a route has
+no session — `logging_config` already omits rather than nulls its trace fields when nothing is
+tracing, and a `learning_session_id: null` on every `/healthz` line is noise a Logs Insights filter
+would then have to exclude.
+
+**2. `exam_overview_read` — the line that splits D-288 in two.** The overview response is the sole
+input to the client's position restore (derived, deliberately not persisted), so the server's own
+view of it is exactly the missing evidence: `items`, `answered`, `first_unanswered`, `phase`,
+`marked_viewed`, keyed by both session ids. `answered` short of the acknowledged POSTs puts the
+fault behind the endpoint; `answered` correct while the student still lands on question 1 puts it in
+the client, and means D-288's four already-killed explanations were all looking on the wrong side.
+
+`first_unanswered` is computed with the *same* rule the restore uses (`status != "answered"`, so
+`skipped`/`flagged` count as remaining) rather than re-derived — a diagnostic that computes the
+position differently from the code it is diagnosing can disagree with it and be believed.
+
+**3. A raw path on every CORS preflight, found by verifying (2).** Grepping a local session's log
+for the student fixtures returned **23 hits, every one an `OPTIONS`** carrying
+`/learning/students/student-ext-N/...` verbatim. `CORSMiddleware` answers a preflight before routing
+sets `scope["route"]`, so the middleware's fallback — `request.url.path` — ran on every one of them.
+
+This contradicted the module's own docstring, which promised it "never touches `request.url` … so a
+token can't leak through it by construction". Not a rule-1 violation (an `*_external_id` is the
+reference Postgres stores by design) and the *token* claim did survive, because `.path` drops the
+query string. But a guarantee stated "by construction" with a branch that denies it is not a
+guarantee, and there were two further costs: the same endpoint logged as `GET` and as `OPTIONS`
+could not be grouped by `path`, and the raw form is unbounded cardinality in the field the store is
+queried by. Now `UNMATCHED_PATH = "<unmatched>"`. Nothing is lost that the system does not already
+hold — the ALB and CloudFront access logs record raw paths at the edge.
+
+**Verified against a fresh process, after two readings that were not.** The first probe said the
+preflight fix had not worked; the running server was executing **stale code**, because
+`request_logging.py` lives under `packages/` and uvicorn's `--reload` was not watching it. The
+restart then failed to bind, twice, with `address already in use` — the holder was the reloader's
+spawned worker (`python -c from multiprocessing.spawn import…`), whose command line contains no
+"uvicorn" and which `pkill -f 'uvicorn learning_api.main:app'` therefore never matched. Found with
+`lsof -nP -iTCP:8001 -sTCP:LISTEN`. On a genuinely fresh process: preflight → `<unmatched>`, a real
+404 → `<unmatched>`, and **0** occurrences of any student id in the whole log.
+
+**The test for (3) failed first for a reason that was not the subject.** It added `CORSMiddleware`
+*after* the logging middleware, so CORS was outermost, answered the preflight, and the logging
+middleware never ran — an empty buffer, which reads as "the fix does not work" rather than "the app
+is wrong". Starlette's stack is LIFO by registration and both real apps install CORS *first*
+(`learning_api.main` ~line 272 vs ~327); S34's comment in that file records the same ordering rule
+after ~1,100 real 429s were invisible for the same reason. `_capturing_app(with_cors=True)` now
+mirrors the shipped order, and says why in its docstring.
+
+**Measured working end to end**, on a walk that answered two questions and reloaded: the server
+logged `answered: 2, first_unanswered: 2` and the client restored to question 3 — agreeing, which is
+the *non*-defective case and therefore also the control that shows the instrument reads correctly
+when nothing is wrong. What it does on staging is now a question with an answer.

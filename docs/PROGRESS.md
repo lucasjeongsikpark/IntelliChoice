@@ -728,9 +728,9 @@ and D-220 measured zero wrong tiers live.
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
 
-### Session log — the help system's dead end, found by walking to the end (2026-08-13, D-314/D-315)
+### Session log — the help system's dead end, found by walking to the end (2026-08-13, D-314 → D-316)
 
-**Verification:** `ruff` clean · `pyright` 0 errors · **1508 passed**, 2 skipped, 1 xfailed (+7 on
+**Verification:** `ruff` clean · `pyright` 0 errors · **1512 passed**, 2 skipped, 1 xfailed (+11 on
 the 1501 baseline) · **local e2e 70/70** including `time-telemetry`, `post-finalize-poll` (asserts
 zero 409s) and the ladder journey · web `tsc --noEmit` and `oxlint` clean. **$0 spent** — no paid
 call, the whole session ran against the dev mock and read-only AWS. Not deployed, not committed:
@@ -764,6 +764,16 @@ On staging all 26 CloudWatch alarms read OK (the two `p95-latency-scale-in` ALAR
 at-rest state, D-182), and **`langsmith-ingest-failed` had zero failures** — a positive-controlled
 window, not an empty-store false negative.
 
+**Also fixed: D-288 is now investigable (D-316).** Access-log lines carry the session id from
+their path (an allowlist — `student_id` is deliberately excluded), and `exam_overview_read` records
+the server's own view of the exam position (`items`, `answered`, `first_unanswered`). That one line
+splits D-288 in two: `answered` short of the acknowledged POSTs puts the fault behind the endpoint,
+`answered` correct while the student still lands on question 1 puts it in the client. Verifying it
+turned up a third thing — **every CORS preflight was logging the raw path**, student external id
+included (23 lines in one local session), because `CORSMiddleware` answers `OPTIONS` before routing
+and the middleware's fallback read `request.url.path`. That contradicted the module's own docstring
+and is now `<unmatched>`.
+
 **Also fixed: error visibility at both ends of the telemetry stack (D-315).** An `ErrorBoundary`
 around `<App/>` turns a render crash from a blank screen into a `role="alert"` recovery screen that
 reloads (resuming the same session, since the id is in `sessionStorage`); `window.onerror` /
@@ -779,7 +789,7 @@ no test runner; it was verified by crashing it in a browser.
 
 | # | finding | why it matters |
 |---|---|---|
-| 1 | **No session-scoped identifier in logs** — `request_logging` logs the route template only | this is *why* D-288 has been stuck at "needs server-side logs": the logs cannot isolate one session. Adding `learning_session_id` (a UUID, non-PII) is the unblock, and A15's `pre_intro` fix should ship with it |
+| 1 | **A15: `pre_intro` still makes a Bedrock call inside the SSE connect path** and drops a modal over the live exam | the leading candidate for `time-telemetry`'s staging-only failure, and it should ship in the same deploy as D-316's logging so one staging run answers both |
 | 2 | **No sink for client-side errors** (D-315's stated boundary) | the recovery screen and the console records exist; nobody is told. Needs the endpoint/rate-limit/PII decision, or Sentry |
 | 3 | **No URL routing** — the whole app lives at `/` | any reload drops the student back into the session flow; dashboard, results and sign-in are unbookmarkable and the back button is dead. Also a prerequisite for §5.1.2's first-visit notice, which needs a route-aware gate |
 | 4 | **The study phase can re-serve the session's own exam items** — a study question came back verbatim as pre-exam Q1 *and* post-exam Q1 | pre/post sharing a fixed set is a defensible gain design; the *study* phase serving the same variant inflates measured gain. **Needs a product decision, not a quiet patch** |
