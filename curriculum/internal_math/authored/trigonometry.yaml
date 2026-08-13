@@ -53,6 +53,60 @@ templates:
   option_c: 72 meters
   option_d: 31.2 meters
   correct_option: b
+- question_template_id: authored-trigonometry-d5-1705502
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - returned_sine_only
+  - multiplied_numerators_only
+  - confused_special_angles
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A guitar technician is calibrating a soundboard and needs to calculate the resonance factor for
+    a critical harmonic. The resonance factor equals the product of the sine and cosine of the angle π/3
+    radians. What is the resonance factor?
+  context_block: null
+  answer_expression: Eq(x, sin(pi/3) * cos(pi/3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Recall the exact values: sin(π/3) and cos(π/3) are both special angles you should know.'
+  - sin(π/3) = √3/2 and cos(π/3) = 1/2; now multiply these two fractions together.
+  - When you multiply (√3/2) by (1/2), simplify both the numerator and the denominator separately.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the exact values of sin(π/3) and cos(π/3) from the unit circle.
+      expression: sin(π/3) = √3/2, cos(π/3) = 1/2
+      common_mistake: null
+    - step_number: 2
+      explanation: Write the resonance factor as the product of these two values.
+      expression: x = (√3/2) × (1/2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators together and the denominators together.
+      expression: x = (√3 × 1)/(2 × 2) = √3/4
+      common_mistake: Forgetting to multiply the denominators, leaving the denominator as 2 instead of
+        4.
+    final_answer: √3/4
+  random_seed: 1705502
+  rendered_question: A guitar technician is calibrating a soundboard and needs to calculate the resonance
+    factor for a critical harmonic. The resonance factor equals the product of the sine and cosine of
+    the angle π/3 radians. What is the resonance factor?
+  option_a: √3/2
+  option_b: 1/4
+  option_c: √2/4
+  option_d: √3/4
+  correct_option: d
 - question_template_id: authored-trigonometry-d5-1285501
   topic_id: trigonometry
   skill_id: trig_functions
@@ -172,6 +226,143 @@ templates:
   option_b: 50 metres
   option_c: 25 metres
   option_d: 35.4 metres
+  correct_option: c
+- question_template_id: authored-trigonometry-d5-1705500
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - recalled_only_one_value
+  - added_radicals_instead_of_multiplying
+  - factored_out_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A lighting technician is adjusting two fixtures for a stage performance. The main beam makes a
+    45° angle with the stage floor, and its intensity factor is cos(45°). A secondary reflector is angled
+    at 60° and contributes a factor of sin(60°). The technician needs to find the exact combined illumination
+    intensity by multiplying these two factors. What is the product of cos(45°) and sin(60°)?
+  context_block: Both angles are standard angles found on the unit circle. You may leave your answer in
+    simplified radical form.
+  answer_expression: Eq(x, cos(pi/4) * sin(pi/3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Recall the exact values: cos(45°) = √2/2 and sin(60°) = √3/2. You need to multiply these two fractions
+    together.'
+  - 'When you multiply fractions, multiply the numerators and multiply the denominators separately: (√2/2)
+    · (√3/2) = (√2 · √3)/(2 · 2).'
+  - 'Simplify the numerator by combining the radicals: √2 · √3 = √(2 · 3) = √6. Then reduce the denominator.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Recall the exact trigonometric values for standard angles from the unit circle.
+      expression: cos(45°) = √2/2 and sin(60°) = √3/2
+      common_mistake: null
+    - step_number: 2
+      explanation: Set up the product using these values.
+      expression: x = (√2/2) · (√3/2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators together and the denominators together.
+      expression: x = (√2 · √3)/(2 · 2) = √6/4
+      common_mistake: 'Adding the radicals instead: √2 + √3, which is incorrect for multiplication'
+    - step_number: 4
+      explanation: Check that √6/4 is fully simplified. Since 6 has no perfect square factors other than
+        1, this is the final answer.
+      expression: x = √6/4
+      common_mistake: null
+    final_answer: √6/4
+  random_seed: 1705500
+  rendered_question: 'Both angles are standard angles found on the unit circle. You may leave your answer
+    in simplified radical form.
+
+
+    A lighting technician is adjusting two fixtures for a stage performance. The main beam makes a 45°
+    angle with the stage floor, and its intensity factor is cos(45°). A secondary reflector is angled
+    at 60° and contributes a factor of sin(60°). The technician needs to find the exact combined illumination
+    intensity by multiplying these two factors. What is the product of cos(45°) and sin(60°)?'
+  option_a: √6/4
+  option_b: √2/2
+  option_c: √3/2
+  option_d: (√2 + √3)/4
+  correct_option: a
+- question_template_id: authored-trigonometry-d5-1705501
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - read_only_one_value
+  - confused_special_angles
+  - arithmetic_error_with_radicals
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: 'A surveyor is measuring a hillside to calculate its grade. She finds that the slope involves
+    two complementary angles: one angle has a sine value of sin(π/6), and the other has a sine value of
+    sin(π/3). To model the exact steepness coefficient, she needs to find the product of these two sine
+    values. What is the exact value of sin(π/6) × sin(π/3)?'
+  context_block: 'The surveyor is working with two special angles commonly used in trigonometry: π/6 (30
+    degrees) and π/3 (60 degrees). These angles are complementary (they add to 90 degrees or π/2 radians).
+    Their sine values are exact, not approximate, and are often used in engineering and surveying calculations.'
+  answer_expression: Eq(x, sin(pi/6) * sin(pi/3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Recall the exact values: sin(π/6) = 1/2 and sin(π/3) = √3/2. You need to multiply these two fractions
+    together.'
+  - 'When you multiply two fractions, multiply the numerators and multiply the denominators: (1/2) × (√3/2)
+    = (1 × √3)/(2 × 2).'
+  - Your final step is to simplify (√3)/(4). This cannot be reduced further, so this is your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the exact sine values for the special angles π/6 and π/3, which appear in
+        most trigonometry reference tables.
+      expression: sin(π/6) = 1/2 and sin(π/3) = √3/2
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Set up the product that the surveyor needs: multiply the two sine values together.'
+      expression: sin(π/6) × sin(π/3) = (1/2) × (√3/2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators together and the denominators together.
+      expression: (1 × √3)/(2 × 2) = √3/4
+      common_mistake: Adding the fractions as if they were 1/2 + √3/2 instead of multiplying, which would
+        give (1 + √3)/2.
+    - step_number: 4
+      explanation: The fraction √3/4 is already in simplest form and cannot be reduced further.
+      expression: x = √3/4
+      common_mistake: null
+    final_answer: √3/4
+  random_seed: 1705501
+  rendered_question: 'The surveyor is working with two special angles commonly used in trigonometry: π/6
+    (30 degrees) and π/3 (60 degrees). These angles are complementary (they add to 90 degrees or π/2 radians).
+    Their sine values are exact, not approximate, and are often used in engineering and surveying calculations.
+
+
+    A surveyor is measuring a hillside to calculate its grade. She finds that the slope involves two complementary
+    angles: one angle has a sine value of sin(π/6), and the other has a sine value of sin(π/3). To model
+    the exact steepness coefficient, she needs to find the product of these two sine values. What is the
+    exact value of sin(π/6) × sin(π/3)?'
+  option_a: √2/4
+  option_b: 1/2
+  option_c: √3/4
+  option_d: √3/2
   correct_option: c
 - question_template_id: authored-trigonometry-d3-1285302
   topic_id: trigonometry
@@ -613,6 +804,70 @@ templates:
   option_c: √3
   option_d: '1'
   correct_option: a
+- question_template_id: authored-trigonometry-d4-1705400
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - evaluated_each_term_separately
+  - inverted_the_formula
+  - computed_the_product_instead_of_sum
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An architect is designing a triangular roof truss and needs to find an exact ratio related to
+    its geometry. She calculates the expression sin(π/3)cos(π/6) + cos(π/3)sin(π/6) to determine the height
+    of the truss relative to its base. What is the exact value of this expression?
+  context_block: The architect recognizes that the expression given has a special form that matches a
+    well-known trigonometric identity.
+  answer_expression: Eq(x, sin(pi/3)*cos(pi/6) + cos(pi/3)*sin(pi/6))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Look at the structure of the expression: a sine times a cosine, plus a cosine times a sine. Does
+    this pattern match any identity you know?'
+  - The sine addition formula states sin(A + B) = sin(A)cos(B) + cos(A)sin(B). What would A and B need
+    to be here?
+  - Once you recognize that the expression is sin(π/3 + π/6), simplify the angle sum first, then evaluate
+    the sine of that special angle.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Recognize that the given expression matches the sine addition formula sin(A + B) =
+        sin(A)cos(B) + cos(A)sin(B), where A = π/3 and B = π/6.
+      expression: sin(π/3)cos(π/6) + cos(π/3)sin(π/6) = sin(π/3 + π/6)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the angles inside the sine function. Convert to a common denominator: π/3 = 2π/6,
+        so π/3 + π/6 = 2π/6 + π/6 = 3π/6.'
+      expression: sin(2π/6 + π/6) = sin(3π/6) = sin(π/2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate sin(π/2), which is a special angle. The sine of π/2 radians (90 degrees) equals
+        1.
+      expression: sin(π/2) = 1
+      common_mistake: null
+    final_answer: '1'
+  random_seed: 1705400
+  rendered_question: 'The architect recognizes that the expression given has a special form that matches
+    a well-known trigonometric identity.
+
+
+    An architect is designing a triangular roof truss and needs to find an exact ratio related to its
+    geometry. She calculates the expression sin(π/3)cos(π/6) + cos(π/3)sin(π/6) to determine the height
+    of the truss relative to its base. What is the exact value of this expression?'
+  option_a: √3/2
+  option_b: √2/2
+  option_c: 1/2
+  option_d: '1'
+  correct_option: d
 - question_template_id: authored-trigonometry-d4-35402
   topic_id: trigonometry
   skill_id: trig_functions

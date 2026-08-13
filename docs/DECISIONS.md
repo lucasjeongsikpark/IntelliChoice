@@ -21764,6 +21764,76 @@ the same lesson `matching_options` taught in D-299 — so
 `test_the_gate_itself_applies_the_corrected_sentence_rule` goes through
 `validate_authored_item` and does fail against the old call site.
 
+### D-304 — The design prompt contradicted the skill structure it was handed, and the prompt won
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** fixed and measured, 46.28¢
+
+`design=7 of 18` was the dominant rejection in the calculus/trigonometry re-run, and I had flagged
+it as "the design stage cannot express much of that content". That was wrong in an instructive
+way: it can, and something was telling it not to.
+
+**Read from the stored attempts: 12 of 21 failed designs were one shape.** The model tried to
+express a derivative as `f(x) = 4*x**3 + 6*x**2 - 5*x + 2` or `y = 15*x**2 + 8*x - 7`, and was
+told it had *"2 unknowns, expected exactly one"*. Two more died on `f'(x)` — the apostrophe does
+not parse.
+
+**Both sides of the contradiction were already in the repo.** `calc_derivatives.structure` says:
+
+> "a bare EXPRESSION that is the derivative, e.g. `6*x**2 - 4*x + 3` … **the answer is an
+> expression, not a number**"
+
+and `_EQUATION_DESIGN_SYSTEM_PROMPT` said, in capitals:
+
+> "The equation must contain EXACTLY ONE unknown, written as a single letter" · "The answer must
+> be a positive whole number" · "state `final_answer` as a bare number … never 'x = 7'"
+
+**D-277 widened `validate_equation_design` from "one equation, one unknown, one solution" to the
+full router and left this prompt demanding the first of the five models.** The validator's own
+docstring names that pattern — "a rule scoped to one answer model, installed as universal" — about
+D-274's number rule, one dimension over. This is the same defect a third time, and it is this
+session's recurring shape: two parts of the system asking for incompatible things, with the
+failure charged to the model.
+
+**Fixed by scoping, not by adding emphasis.** The numeric rules now announce that they are about
+numeric answers, and the prompt defers to the skill structure when it says the answer is an
+expression. The measured-for-a-reason numeric guidance (six paid runs of answers that do not
+divide) is untouched for the case it was written for.
+
+**Measured, because D-252's record is that clauses like this often do nothing** — identical scope,
+identical models, fresh seed offset:
+
+| | before | after |
+|---|---|---|
+| rejected at **design** | **7 of 18** | **0 of 18** |
+| yield | 39% | 28% |
+
+**The clause worked and the yield still fell, which is the honest headline.** Candidates that used
+to die cheaply at the design stage now proceed and die at the deterministic gate, so the same
+content costs a full authoring call to reject. What they hit now:
+
+| new binding constraint | n |
+|---|---|
+| `hint_ladder` leaks the correct answer verbatim | **5** |
+| readability ceiling | 2 |
+| difficulty disagreement | 2 |
+| ambiguity / no solution / restates the answer / schema | 4 |
+
+**The leak is structural for these skills, not sloppiness.** For
+`Eq(diff(4*x**3 - 5*x**2 + 6*x - 2, x), …)`, hint 2 gives the term-by-term derivatives
+(`3·4x², 2·(-5)x, 1·6`) and the only remaining step is to simplify them — so hint 3 reads
+`Simplify: 12x² - 10x + 6`, which *is* the answer. **The last step of differentiating is
+simplification, and simplification produces the answer**, so a three-rung ladder over a symbolic
+answer will tend to leak on the third rung. The gate is right; the ladder shape is what does not
+fit. Left as the next lever with the evidence attached rather than fixed with another prompt
+clause on a rule that is behaving correctly.
+
+**And one guard confirmed rather than assumed.** The model sometimes now writes
+`Eq(diff(...), 12*x**2 - 10*x + 6)` — the answer restated on the right. That would verify nothing
+(D-191's vacuous-`Eq` class), and the gate refuses it with exactly that reading: *"is not a
+solvable equation - it restates the answer instead of deriving it"*. Checked in both directions:
+the bare `diff(...)` form routes to `symbolic`, matches `12x² - 10x + 6` and rejects
+`12x² - 10x + 99`. The prompt change opened no new hole.
+
 Negative control holds: `x² - 5x + 5` still does not match, and
 `test_a_wrong_symbolic_key_written_with_superscripts_is_still_rejected` pins it. Both new
 recall tests fail against the pre-fix code; the ambiguity test's pre-fix failure message is

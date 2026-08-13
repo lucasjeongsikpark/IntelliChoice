@@ -220,9 +220,20 @@ throughput was 3× what I read; and I wrote a recall test asserting `x <= 10` ag
    The remaining half is mostly tiers 4-5, so item 2 above gates it.
 7. ~~**`session_scope` never commits**~~ — **closed by D-294.** It now commits on a clean exit
    and rolls back on an exception, verified in both directions.
-8. **The rejection messages name symptoms, not remedies** (D-283), and `arithmetic_identity` is
+8. **The design stage's `design=7 of 18` is fixed, and the next lever is the hint ladder
+   (D-304).** The cause was not "the design stage cannot express calculus" — it was that
+   `_EQUATION_DESIGN_SYSTEM_PROMPT` demanded "EXACTLY ONE unknown" and "a positive whole
+   number" while `calc_derivatives.structure` said "the answer is an expression, not a number".
+   D-277 widened the *validator* to five answer models and left the *prompt* on the first.
+   Measured after scoping the prompt: **design 7 of 18 → 0 of 18** on identical scope.
+   **Yield still fell 39% → 28%**, because the failures moved downstream rather than away.
+   **The new binding constraint is `hint_ladder` leaking the answer (5 of 13 rejections), and it
+   is structural**: the last step of differentiating is simplification, and simplification
+   produces the answer, so a three-rung ladder over a symbolic answer tends to leak on rung 3.
+   The gate is right; the ladder shape is what does not fit.
+9. **The rejection messages name symptoms, not remedies** (D-283), and `arithmetic_identity` is
    still unwired (D-273).
-9. **`main` is still unprotected** — carried since #20.
+10. **`main` is still unprotected** — carried since #20.
 10. **Phase 4 (video catalog) has never been started** — noticed while scoping this session.
     The existing catalog predates the 245-skill taxonomy, and a real run needs a
     `YOUTUBE_API_KEY` plus quota budgeting. Not a regression, just never picked up.

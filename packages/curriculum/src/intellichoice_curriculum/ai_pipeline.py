@@ -1054,18 +1054,34 @@ _EQUATION_DESIGN_SYSTEM_PROMPT = (
     "You are choosing the mathematics for ONE K-12 word problem, before anyone writes it "
     "up. Output only the skeleton: a one-sentence scenario sketch, what the unknown "
     "stands for, the equation that models it, and the answer. "
-    "The equation must contain EXACTLY ONE unknown, written as a single letter, and it "
-    "must match the difficulty anchor you are given - that anchor describes the STRUCTURE "
-    "the equation must have, and an equation of the wrong structure is the wrong answer to "
-    "this task however neat it is. "
+    "The equation must match the difficulty anchor and the skill structure you are given - "
+    "they describe the STRUCTURE the equation must have, and an equation of the wrong "
+    "structure is the wrong answer to this task however neat it is. "
+    # D-304, and the shape is this session's recurring one: two parts of the system asking
+    # for incompatible things, with the failure charged to the model. D-277 widened
+    # `validate_equation_design` from "one equation, one unknown, one solution" to the full
+    # router - a quadratic, an inequality, a system, a factorisation and a surd are all
+    # designable - and left this prompt still demanding the first of those, in capitals.
+    #
+    # Measured on the C1 re-run: **12 of 21 failed design attempts** were the model trying to
+    # express a derivative as `f(x) = 4*x**3 + ...` or `y = 15*x**2 + ...` and being told it
+    # had "2 unknowns, expected exactly one". `calc_derivatives.structure` already said "a
+    # bare EXPRESSION that is the derivative ... the answer is an expression, not a number";
+    # the skill was right, the prompt overrode it, and `design=7 of 18` was the result.
+    "MOST skills have a single unknown and a numeric answer, and the rules below are about "
+    "those. But read the skill structure first: when it says the answer is an EXPRESSION "
+    "rather than a number - a derivative, a factorisation, an integral - then the equation "
+    "IS that bare expression, `final_answer` states the expression, and the numeric rules "
+    "below do not apply to it. Follow the worked example the structure gives you. "
     # The measured defect this whole stage exists for. Across six paid runs the commonest
     # failure by far was a declared answer the item's own equation does not produce -
     # 21/5, 62/7, 12/5, -10/3, 50/13, 8/3 - i.e. the model picked numbers that do not
     # divide and then wrote down the answer it wanted instead of the one it had built.
-    "CHOOSE NUMBERS THAT COME OUT EVEN. Solve your own equation before you answer, and if "
-    "the solution is a fraction, a negative, or zero, CHANGE YOUR NUMBERS and solve again. "
-    "The answer must be a positive whole number, because it will be counted in a real "
-    "situation - trips to a shop, weeks of saving, cards swapped. Nobody makes 2.4 trips. "
+    "WHEN THE ANSWER IS A NUMBER: choose numbers that come out even. Solve your own equation "
+    "before you answer, and if the solution is a fraction, a negative, or zero, CHANGE YOUR "
+    "NUMBERS and solve again - unless the skill's answer family says otherwise, the answer "
+    "must be a positive whole number, because it will be counted in a real situation: trips "
+    "to a shop, weeks of saving, cards swapped. Nobody makes 2.4 trips. "
     "Work the arithmetic in `reasoning` first, then state `final_answer` as a bare number "
     "with no units and no variable ('7', never 'x = 7' or '7 weeks'); put any unit in "
     "`answer_units`. "

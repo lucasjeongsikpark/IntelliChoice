@@ -250,6 +250,83 @@ templates:
   option_c: 10 items
   option_d: 20 items
   correct_option: b
+- question_template_id: authored-calculus-d3-1705301
+  topic_id: calculus
+  skill_id: calc_derivatives
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_multiply_by_exponent_on_quadratic_term
+  - forgot_to_reduce_exponent
+  - included_the_constant_term_in_the_derivative
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A meteorologist is tracking temperature patterns throughout the day. She models the temperature
+    (in degrees Celsius) at hour h after dawn using T(h) = 6h³ - 4h² + 8h - 5. To predict how fast the
+    temperature is changing at any given hour, she needs the derivative dT/dh. Find dT/dh.
+  context_block: A meteorologist is tracking temperature patterns throughout the day using a polynomial
+    model.
+  answer_expression: diff(6*h**3 - 4*h**2 + 8*h - 5, h)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Recall the power rule: the derivative of h^n is n·h^(n-1). Apply this to each term separately, treating
+    constants carefully.'
+  - For 6h³, bring down the 3 and reduce the exponent by 1. For -4h², bring down the 2. The term 8h has
+    an exponent of 1, and the constant -5 has derivative 0.
+  - After applying the power rule to each term, you should have 18h², -8h, and 8. Combine them into one
+    expression.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to find the derivative of T(h) = 6h³ - 4h² + 8h - 5. The power rule states
+        that d/dh(h^n) = n·h^(n-1). We apply this rule to each term separately.
+      expression: T(h) = 6h³ - 4h² + 8h - 5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'For the first term, 6h³: bring down the exponent 3 and multiply by the coefficient
+        6, then reduce the exponent by 1.'
+      expression: d/dh(6h³) = 3 · 6h^(3-1) = 18h²
+      common_mistake: null
+    - step_number: 3
+      explanation: 'For the second term, -4h²: bring down the exponent 2 and multiply by the coefficient
+        -4, then reduce the exponent by 1.'
+      expression: d/dh(-4h²) = 2 · (-4)h^(2-1) = -8h
+      common_mistake: null
+    - step_number: 4
+      explanation: 'For the third term, 8h: this is 8h¹, so bring down the exponent 1 and reduce it to
+        0.'
+      expression: d/dh(8h) = 1 · 8h^(1-1) = 8
+      common_mistake: null
+    - step_number: 5
+      explanation: 'For the constant term -5: the derivative of any constant is 0.'
+      expression: d/dh(-5) = 0
+      common_mistake: null
+    - step_number: 6
+      explanation: Combine all the derivatives of each term to get the final answer.
+      expression: dT/dh = 18h² - 8h + 8 + 0 = 18h² - 8h + 8
+      common_mistake: null
+    final_answer: 18h² - 8h + 8
+  random_seed: 1705301
+  rendered_question: 'A meteorologist is tracking temperature patterns throughout the day using a polynomial
+    model.
+
+
+    A meteorologist is tracking temperature patterns throughout the day. She models the temperature (in
+    degrees Celsius) at hour h after dawn using T(h) = 6h³ - 4h² + 8h - 5. To predict how fast the temperature
+    is changing at any given hour, she needs the derivative dT/dh. Find dT/dh.'
+  option_a: 6h² - 4h + 8
+  option_b: 18h³ - 8h² + 8h
+  option_c: 18h² - 4h + 8
+  option_d: 18h² - 8h + 8
+  correct_option: d
 - question_template_id: authored-calculus-d3-1465301
   topic_id: calculus
   skill_id: calc_derivatives
