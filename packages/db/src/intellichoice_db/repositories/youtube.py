@@ -119,7 +119,7 @@ class YoutubeRepository:
         await self._session.flush()
         return result.rowcount or 0
 
-    async def has_servable_video(self) -> bool:
+    async def has_servable_video(self, skill_id: str | None = None) -> bool:
         """Is there any video `search_catalog` could possibly return?
 
         D-207: the same three unconditional gates `search_catalog` applies (active,
@@ -129,20 +129,33 @@ class YoutubeRepository:
         a Titan embedding and then hit the §5.11.6 fallback anyway, ~145 ms and a real
         (if tiny) charge for a foregone conclusion.
 
-        Deliberately *not* filtered by skill or difficulty. Those filters live in
-        `search_catalog` and are applied in Python over the fetched rows; duplicating them
-        here would mean two places to keep in step, and the case worth short-circuiting is
-        "the catalog is empty", not "this skill is thin". A non-empty catalog with no match
-        for the skill still runs the embedding and still falls back - correctly, since a
-        semantic rank is the thing deciding that.
+        **Now filtered by skill, and D-305 is a correction to this docstring's own
+        reasoning.** It used to say the skill filter belonged only in `search_catalog`
+        because "a semantic rank is the thing deciding that". It is not: `search_catalog`
+        applies `skill_id in v.skill_ids` as a **hard filter before** the rank, so for a
+        skill with no video the candidate list is empty and the outcome is foregone - which
+        is precisely the condition this check exists to short-circuit.
+
+        The original scope was right for the world it was written in: staging held **zero**
+        rows, so "the catalog is empty" and "this skill has nothing" were the same question.
+        A sparse catalog separates them. Measured in dev: 4 videos covering 4 of 112 skills,
+        so **108 skills** would pay a Titan embedding per "Watch a video" to reach a
+        conclusion one indexed read already knows - and D-302 opened all 33 topics, so that
+        is now the common path rather than a corner.
+
+        The objection the old note raised - two places to keep the filter in step - is real
+        and is why this reads `skill_ids` rather than re-deriving anything: same column, same
+        membership test as `search_catalog`, one query, still no paid call.
         """
-        stmt = select(YoutubeVideo.youtube_video_id).where(
+        stmt = select(YoutubeVideo.skill_ids).where(
             YoutubeVideo.active_status == "active",
             YoutubeVideo.suitability_status == "approved",
             YoutubeVideo.embedding.is_not(None),
         )
-        result = await self._session.execute(stmt.limit(1))
-        return result.first() is not None
+        if skill_id is None:
+            return (await self._session.execute(stmt.limit(1))).first() is not None
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return any(skill_id in (skill_ids or []) for skill_ids in rows)
 
     async def search_catalog(
         self,

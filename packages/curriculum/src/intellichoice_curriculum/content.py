@@ -5,6 +5,12 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
+# The taxonomy importing the gate looks backwards, and the alternative is worse: naming the
+# valid forms here and mapping them to predicates there would be two lists to keep in step,
+# which is precisely the objection D-305 raised against duplicating a filter. One source,
+# and there is no cycle - `authored_validation` imports nothing from this module.
+from intellichoice_curriculum.authored_validation import ANSWER_FORMS, DEFAULT_ANSWER_FORM
+
 # Repo root is four levels up from this file: src/intellichoice_curriculum/content.py
 # -> intellichoice_curriculum -> src -> curriculum (package dir) -> packages -> repo root.
 DEFAULT_CONTENT_ROOT = Path(__file__).resolve().parents[4] / "curriculum" / "internal_math"
@@ -120,6 +126,14 @@ class SkillDef(BaseModel):
     difficulty_tiers: list[int] = Field(default_factory=list)
     structure: str = ""
     answer_family: str = DEFAULT_ANSWER_FAMILY
+    # D-308. Orthogonal to `answer_family`, which is about the answer's *value* (sign,
+    # wholeness); this is about how the answer must be *written*. It exists because a skill
+    # whose question asks for a form - "reduce to lowest terms", "simplify" - has its best
+    # distractor be an equal-valued rewrite, which the value test cannot tell from the answer
+    # and therefore refuses. Only declare it where the question genuinely asks for the form:
+    # `stat_probability`'s answers are conventionally reduced but its question asks for a
+    # value, so it is deliberately left at "any" and its equal-valued options stay rejected.
+    answer_form: str = DEFAULT_ANSWER_FORM
 
     @field_validator("answer_family")
     @classmethod
@@ -128,6 +142,16 @@ class SkillDef(BaseModel):
             raise ValueError(
                 f"unknown answer_family {value!r} "
                 f"(known: {', '.join(sorted(ANSWER_FAMILIES))})"
+            )
+        return value
+
+    @field_validator("answer_form")
+    @classmethod
+    def _known_form(cls, value: str) -> str:
+        if value != DEFAULT_ANSWER_FORM and value not in ANSWER_FORMS:
+            raise ValueError(
+                f"unknown answer_form {value!r} (known: "
+                f"{', '.join([DEFAULT_ANSWER_FORM, *sorted(ANSWER_FORMS)])})"
             )
         return value
 
@@ -167,6 +191,22 @@ class CurriculumContent(BaseModel):
 
     def skill(self, skill_id: str) -> SkillDef | None:
         return next((s for s in self.skills if s.skill_id == skill_id), None)
+
+    def answer_form(self, skill_id: str | None) -> str:
+        """The canonical form this skill's answers must be written in, or `"any"` (D-308).
+
+        One resolver rather than two lookups, because the pipeline and the loader must agree
+        about it exactly: an item the pipeline accepts under a declared form and the loader
+        re-gates under `"any"` would be paid for, reviewed, approved, exported and then fail
+        `make curriculum-load` - the failure mode `ai_pipeline`'s own comment at the gate call
+        warns about ("two gates that disagree about what a valid item is are worse than either
+        alone").
+
+        An unknown or absent `skill_id` resolves to `"any"`, which is the fail-closed
+        direction: no tie-break, today's behaviour.
+        """
+        skill = self.skill(skill_id) if skill_id else None
+        return skill.answer_form if skill else DEFAULT_ANSWER_FORM
 
     def generation_plan(self) -> dict[str, dict[str, list[int]]]:
         """topic_id -> skill_id -> the tiers that skill should carry content at.

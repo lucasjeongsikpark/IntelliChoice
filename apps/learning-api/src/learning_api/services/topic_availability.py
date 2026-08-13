@@ -16,7 +16,7 @@ the 503 this exists to prevent.
 from intellichoice_curriculum.content import CurriculumContent
 from pydantic import BaseModel
 
-from learning_api.services.assessment_builder import DIFFICULTIES, QUESTIONS_PER_DIFFICULTY
+from learning_api.services.assessment_builder import DIFFICULTIES, EXAM_QUESTION_COUNT
 
 
 class TopicOption(BaseModel):
@@ -69,10 +69,20 @@ def build_topic_options(
 
 
 def _is_available(counts_by_difficulty: dict[int, int]) -> bool:
-    """`build_pre_exam`'s precondition, asked without building anything: every difficulty
-    the exam spans needs at least as many approved templates as it samples.
+    """`build_pre_exam`'s precondition, asked without building anything: the topic must hold
+    enough approved templates to fill one exam.
+
+    **Changed in D-302 from "at least two at every difficulty" to "enough in total."** The
+    old rule made one short tier close a whole topic, and D-301 measured that a third of
+    serving items carry the slot's tier over a judge disagreement - so storing the judge's
+    tier (which D-302 does) empties the top tiers and would have taken openable topics from
+    26 to 12. Under this rule it is 33 of 33. The user's decision was to follow the judge,
+    accept an uneven and biased tier distribution, and fill the question count.
+
+    Still imported from the builder rather than restated, for the reason this module's
+    docstring gives: a topic called available that the builder then refuses is exactly the
+    503 this exists to prevent. The threshold and the draw are the same number.
     """
-    return all(
-        counts_by_difficulty.get(difficulty, 0) >= QUESTIONS_PER_DIFFICULTY
-        for difficulty in DIFFICULTIES
+    return sum(counts_by_difficulty.get(difficulty, 0) for difficulty in DIFFICULTIES) >= (
+        EXAM_QUESTION_COUNT
     )

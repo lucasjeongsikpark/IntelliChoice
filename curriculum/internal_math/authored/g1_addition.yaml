@@ -52,57 +52,6 @@ templates:
   option_c: 10 apples
   option_d: 1 apple
   correct_option: a
-- question_template_id: authored-g1_addition-d1-5101
-  topic_id: g1_addition
-  skill_id: g1_add_within_10
-  grade_band: 1-2
-  difficulty_label: 1
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 45
-  common_error_tags:
-  - subtracted_instead_of_adding
-  - counted_one_less
-  - counted_one_more
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: A child has 5 apples in a basket and receives 4 more apples from a friend. How many apples does
-    the child have now?
-  context_block: null
-  answer_expression: Eq(x, 5 + 4)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - The child starts with some apples and gets more - think about what operation combines those amounts.
-  - Write down the number of apples in the basket, then add the number of apples the friend gives.
-  - Set up 5 + 4 and find the total.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The child starts with 5 apples in the basket.
-      expression: '5'
-      common_mistake: null
-    - step_number: 2
-      explanation: The friend gives 4 more apples, so we add them to the original amount.
-      expression: 5 + 4
-      common_mistake: null
-    - step_number: 3
-      explanation: Adding 5 and 4 gives the total number of apples.
-      expression: '9'
-      common_mistake: null
-    final_answer: 9 apples
-  random_seed: 5101
-  rendered_question: A child has 5 apples in a basket and receives 4 more apples from a friend. How many
-    apples does the child have now?
-  option_a: 10 apples
-  option_b: 9 apples
-  option_c: 1 apple
-  option_d: 8 apples
-  correct_option: b
 - question_template_id: authored-g1_addition-d1-97100
   topic_id: g1_addition
   skill_id: g1_add_within_10
@@ -206,6 +155,108 @@ templates:
   option_c: 3 seashells
   option_d: 2 seashells
   correct_option: b
+- question_template_id: authored-g1_addition-d2-5201
+  topic_id: g1_addition
+  skill_id: g1_add_within_10
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - subtracted_instead_of_added
+  - miscounted_by_one_less
+  - miscounted_by_one_more
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A child has 5 stickers in her album and receives 4 more stickers from a friend. How many stickers
+    does she have now?
+  context_block: null
+  answer_expression: x = 5 + 4
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by writing down how many stickers the child had at the beginning.
+  - She gets 4 more stickers, so you need to combine that with what she already had.
+  - Write 5 + 4 and then find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The child starts with 5 stickers.
+      expression: '5'
+      common_mistake: null
+    - step_number: 2
+      explanation: She receives 4 more stickers from a friend.
+      expression: 5 + 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the two amounts together to find the total.
+      expression: '9'
+      common_mistake: null
+    final_answer: 9 stickers
+  random_seed: 5201
+  rendered_question: A child has 5 stickers in her album and receives 4 more stickers from a friend. How
+    many stickers does she have now?
+  option_a: 9 stickers
+  option_b: 1 sticker
+  option_c: 10 stickers
+  option_d: 8 stickers
+  correct_option: a
+- question_template_id: authored-g1_addition-d1-5101
+  topic_id: g1_addition
+  skill_id: g1_add_within_10
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - counted_one_less
+  - counted_one_more
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A child has 5 apples in a basket and receives 4 more apples from a friend. How many apples does
+    the child have now?
+  context_block: null
+  answer_expression: Eq(x, 5 + 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The child starts with some apples and gets more - think about what operation combines those amounts.
+  - Write down the number of apples in the basket, then add the number of apples the friend gives.
+  - Set up 5 + 4 and find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The child starts with 5 apples in the basket.
+      expression: '5'
+      common_mistake: null
+    - step_number: 2
+      explanation: The friend gives 4 more apples, so we add them to the original amount.
+      expression: 5 + 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Adding 5 and 4 gives the total number of apples.
+      expression: '9'
+      common_mistake: null
+    final_answer: 9 apples
+  random_seed: 5101
+  rendered_question: A child has 5 apples in a basket and receives 4 more apples from a friend. How many
+    apples does the child have now?
+  option_a: 10 apples
+  option_b: 9 apples
+  option_c: 1 apple
+  option_d: 8 apples
+  correct_option: b
 - question_template_id: authored-g1_addition-d2-5200
   topic_id: g1_addition
   skill_id: g1_add_within_10
@@ -257,57 +308,6 @@ templates:
   option_c: 9 crayons
   option_d: 8 crayons
   correct_option: c
-- question_template_id: authored-g1_addition-d2-5201
-  topic_id: g1_addition
-  skill_id: g1_add_within_10
-  grade_band: 1-2
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 45
-  common_error_tags:
-  - subtracted_instead_of_added
-  - miscounted_by_one_less
-  - miscounted_by_one_more
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A child has 5 stickers in her album and receives 4 more stickers from a friend. How many stickers
-    does she have now?
-  context_block: null
-  answer_expression: x = 5 + 4
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Start by writing down how many stickers the child had at the beginning.
-  - She gets 4 more stickers, so you need to combine that with what she already had.
-  - Write 5 + 4 and then find the total.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The child starts with 5 stickers.
-      expression: '5'
-      common_mistake: null
-    - step_number: 2
-      explanation: She receives 4 more stickers from a friend.
-      expression: 5 + 4
-      common_mistake: null
-    - step_number: 3
-      explanation: Add the two amounts together to find the total.
-      expression: '9'
-      common_mistake: null
-    final_answer: 9 stickers
-  random_seed: 5201
-  rendered_question: A child has 5 stickers in her album and receives 4 more stickers from a friend. How
-    many stickers does she have now?
-  option_a: 9 stickers
-  option_b: 1 sticker
-  option_c: 10 stickers
-  option_d: 8 stickers
-  correct_option: a
 - question_template_id: authored-g1_addition-d2-97200
   topic_id: g1_addition
   skill_id: g1_add_within_10
@@ -624,6 +624,54 @@ templates:
   option_c: 12 apples
   option_d: 10 apples
   correct_option: b
+- question_template_id: authored-g1_addition-d3-98301
+  topic_id: g1_addition
+  skill_id: g1_add_within_20
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - counting_error_one_less
+  - counting_error_one_more
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Ethan has 10 toy cars in his red box and 4 toy cars in his blue box. How many toy cars does he
+    have altogether?
+  context_block: null
+  answer_expression: Eq(x, 10 + 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by thinking about how many cars are in the red box and how many are in the blue box.
+  - To find the total, you need to add the cars from both boxes together.
+  - 'Write 10 + 4 and solve by bridging through ten: 10 + 4 is 10 plus 4 more.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Ethan has 10 toy cars in the red box and 4 in the blue box, so I need to add those
+        amounts.
+      expression: 10 + 4
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Starting at 10, I count on 4 more: 11, 12, 13, 14.'
+      expression: '14'
+      common_mistake: null
+    final_answer: 14 toy cars
+  random_seed: 98301
+  rendered_question: Ethan has 10 toy cars in his red box and 4 toy cars in his blue box. How many toy
+    cars does he have altogether?
+  option_a: 6 toy cars
+  option_b: 14 toy cars
+  option_c: 15 toy cars
+  option_d: 13 toy cars
+  correct_option: b
 - question_template_id: authored-g1_addition-d4-98400
   topic_id: g1_addition
   skill_id: g1_add_within_20
@@ -680,57 +728,6 @@ templates:
   option_c: 17 crayons
   option_d: 19 crayons
   correct_option: b
-- question_template_id: authored-g1_addition-d3-6300
-  topic_id: g1_addition
-  skill_id: g1_add_within_20
-  grade_band: 1-2
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 45
-  common_error_tags:
-  - miscounted_by_one_below
-  - miscounted_by_one_above
-  - subtracted_instead_of_added
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Liam has 9 stickers in his album. His friend gives him 6 more stickers. How many stickers does
-    Liam have now?
-  context_block: null
-  answer_expression: Eq(x, 9 + 6)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Think about how many stickers Liam starts with and how many he gets.
-  - You need to add 9 and 6 together. Try making 10 first by breaking apart the 6.
-  - Take 1 from the 6 to add to 9, so you have 10. Then add the 5 that is left.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Liam starts with 9 stickers and receives 6 more, so we need to find 9 + 6.
-      expression: 9 + 6
-      common_mistake: null
-    - step_number: 2
-      explanation: We can bridge through ten. Take 1 from the 6 to add to 9, making 10.
-      expression: 9 + 1 = 10
-      common_mistake: null
-    - step_number: 3
-      explanation: Now we have 5 left from the 6 (since 6 = 1 + 5). Add that 5 to the 10.
-      expression: 10 + 5 = 15
-      common_mistake: null
-    final_answer: 15 stickers
-  random_seed: 6300
-  rendered_question: Liam has 9 stickers in his album. His friend gives him 6 more stickers. How many
-    stickers does Liam have now?
-  option_a: 5 stickers
-  option_b: 16 stickers
-  option_c: 15 stickers
-  option_d: 14 stickers
-  correct_option: c
 - question_template_id: authored-g1_addition-d3-6301
   topic_id: g1_addition
   skill_id: g1_add_within_20
@@ -781,11 +778,62 @@ templates:
   option_c: 16 stickers
   option_d: 14 stickers
   correct_option: b
+- question_template_id: authored-g1_addition-d3-6300
+  topic_id: g1_addition
+  skill_id: g1_add_within_20
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - miscounted_by_one_below
+  - miscounted_by_one_above
+  - subtracted_instead_of_added
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 9 stickers in his album. His friend gives him 6 more stickers. How many stickers does
+    Liam have now?
+  context_block: null
+  answer_expression: Eq(x, 9 + 6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how many stickers Liam starts with and how many he gets.
+  - You need to add 9 and 6 together. Try making 10 first by breaking apart the 6.
+  - Take 1 from the 6 to add to 9, so you have 10. Then add the 5 that is left.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 9 stickers and receives 6 more, so we need to find 9 + 6.
+      expression: 9 + 6
+      common_mistake: null
+    - step_number: 2
+      explanation: We can bridge through ten. Take 1 from the 6 to add to 9, making 10.
+      expression: 9 + 1 = 10
+      common_mistake: null
+    - step_number: 3
+      explanation: Now we have 5 left from the 6 (since 6 = 1 + 5). Add that 5 to the 10.
+      expression: 10 + 5 = 15
+      common_mistake: null
+    final_answer: 15 stickers
+  random_seed: 6300
+  rendered_question: Liam has 9 stickers in his album. His friend gives him 6 more stickers. How many
+    stickers does Liam have now?
+  option_a: 5 stickers
+  option_b: 16 stickers
+  option_c: 15 stickers
+  option_d: 14 stickers
+  correct_option: c
 - question_template_id: authored-g1_addition-d3-98300
   topic_id: g1_addition
   skill_id: g1_add_within_20
   grade_band: 1-2
-  difficulty_label: 3
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -832,54 +880,6 @@ templates:
   option_c: 17 stickers
   option_d: 16 stickers
   correct_option: d
-- question_template_id: authored-g1_addition-d3-98301
-  topic_id: g1_addition
-  skill_id: g1_add_within_20
-  grade_band: 1-2
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 60
-  common_error_tags:
-  - subtracted_instead_of_adding
-  - counting_error_one_less
-  - counting_error_one_more
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Ethan has 10 toy cars in his red box and 4 toy cars in his blue box. How many toy cars does he
-    have altogether?
-  context_block: null
-  answer_expression: Eq(x, 10 + 4)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Start by thinking about how many cars are in the red box and how many are in the blue box.
-  - To find the total, you need to add the cars from both boxes together.
-  - 'Write 10 + 4 and solve by bridging through ten: 10 + 4 is 10 plus 4 more.'
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Ethan has 10 toy cars in the red box and 4 in the blue box, so I need to add those
-        amounts.
-      expression: 10 + 4
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Starting at 10, I count on 4 more: 11, 12, 13, 14.'
-      expression: '14'
-      common_mistake: null
-    final_answer: 14 toy cars
-  random_seed: 98301
-  rendered_question: Ethan has 10 toy cars in his red box and 4 toy cars in his blue box. How many toy
-    cars does he have altogether?
-  option_a: 6 toy cars
-  option_b: 14 toy cars
-  option_c: 15 toy cars
-  option_d: 13 toy cars
-  correct_option: b
 - question_template_id: authored-g1_addition-d4-6400
   topic_id: g1_addition
   skill_id: g1_add_within_20
@@ -1147,7 +1147,7 @@ templates:
   topic_id: g1_addition
   skill_id: g1_add_within_28
   grade_band: 1-2
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1198,7 +1198,7 @@ templates:
   topic_id: g1_addition
   skill_id: g1_add_within_28
   grade_band: 1-2
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1296,7 +1296,7 @@ templates:
   topic_id: g1_addition
   skill_id: g1_add_within_28
   grade_band: 1-2
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1347,7 +1347,7 @@ templates:
   topic_id: g1_addition
   skill_id: g1_add_within_28
   grade_band: 1-2
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1402,7 +1402,7 @@ templates:
   topic_id: g1_addition
   skill_id: g1_add_within_28
   grade_band: 1-2
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:

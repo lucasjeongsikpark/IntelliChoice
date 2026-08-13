@@ -1,7 +1,11 @@
 """D-187: the topic picker's availability, and the invariant tying it to the grade map."""
 
 from intellichoice_curriculum.content import CurriculumContent, TopicDef, load_curriculum
-from learning_api.services.assessment_builder import DIFFICULTIES, QUESTIONS_PER_DIFFICULTY
+from learning_api.services.assessment_builder import (
+    DIFFICULTIES,
+    EXAM_QUESTION_COUNT,
+    QUESTIONS_PER_DIFFICULTY,
+)
 from learning_api.services.topic_availability import build_topic_options
 
 
@@ -39,11 +43,41 @@ def test_a_topic_with_a_full_bank_is_available_and_an_empty_one_is_not() -> None
     assert options["empty"].available is False
 
 
-def test_one_short_difficulty_makes_the_whole_topic_unavailable() -> None:
-    # The exam samples every difficulty, so a gap anywhere is a build failure - not a
-    # smaller exam. `build_pre_exam` raises on exactly this shape.
+def test_one_short_difficulty_no_longer_closes_a_topic_that_can_still_fill_an_exam() -> None:
+    """**Inverted in D-302, and the two halves have to move together.**
+
+    This used to assert that a gap at any single tier closed the whole topic, because the
+    exam sampled `QUESTIONS_PER_DIFFICULTY` from each of five tiers and a short tier was a
+    build failure rather than a smaller exam. D-302 stores the judge's tier on a `flagged`
+    verdict, which moved 214 items down against 116 up and emptied the top tiers: under the
+    old rule openable topics would have gone 26 -> 12. Measured under this one: 33 -> 33.
+
+    So the rule is now "can this topic fill one exam", and a topic short at d3 but holding a
+    surplus elsewhere is available - it serves a tier-skewed exam, which is the uneven and
+    biased distribution the user accepted in exchange for filling the question count.
+    """
     bank = _full_bank()
     bank[3] = QUESTIONS_PER_DIFFICULTY - 1
+    bank[2] += 1  # the surplus pass 2 tops up from
+    assert sum(bank.values()) == EXAM_QUESTION_COUNT
+    options = {
+        o.topic_id: o
+        for o in build_topic_options(
+            curriculum=_content(), active_counts={"stocked": bank}, grade=None
+        )
+    }
+
+    assert options["stocked"].available is True
+
+
+def test_a_topic_that_cannot_fill_one_exam_is_still_unavailable() -> None:
+    """The floor did not disappear, it moved. A topic one item short of an exam must stay
+    closed, because `build_pre_exam` raises on exactly this shape and an available topic the
+    builder refuses is the 503 this module exists to prevent.
+    """
+    bank = _full_bank()
+    bank[3] = QUESTIONS_PER_DIFFICULTY - 1
+    assert sum(bank.values()) == EXAM_QUESTION_COUNT - 1
     options = {
         o.topic_id: o
         for o in build_topic_options(

@@ -1,59 +1,58 @@
 curriculum_version: '2026.1'
 topic_id: g6_fractions
 templates:
-- question_template_id: authored-g6_fractions-d3-1105301
+- question_template_id: authored-g6_fractions-d5-1505501
   topic_id: g6_fractions
   skill_id: g6_fraction_decimal_percent
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
-  estimated_time_seconds: 120
+  estimated_time_seconds: 45
   common_error_tags:
-  - stopped_before_converting_to_percent
-  - incorrect_division_by_fraction
-  - converted_to_decimal_not_percent
+  - divided_by_100_instead_of_multiplied
+  - ignored_decimal_no_conversion
+  - multiplied_by_1000_instead_of_100
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
     solver_b: bedrock-question-review
     judge: bedrock-question-judge
-  review_priority: normal
+  review_priority: high
   version: 1
-  stem: A gardener has 3 gallons of water and pours it into containers that each hold 1/4 gallon. She
-    needs 24 containers in total. What percent of the containers can she fill?
-  context_block: ''
-  answer_expression: Eq(x, (3 / (1/4)) / 24 * 100)
+  stem: A recipe for hot chocolate uses 0.65 of a cup of milk. The chef wants to express this amount as
+    a percent to track ingredient proportions. What percent of a cup is 0.65?
+  context_block: A recipe for hot chocolate uses 0.65 of a cup of milk. The chef wants to express this
+    amount as a percent to track ingredient proportions.
+  answer_expression: Eq(x, 0.65 * 100)
   figure_spec: null
   figure_reading: null
   hint_ladder:
-  - First find how many containers the gardener can fill with 3 gallons if each container holds 1/4 gallon.
-  - Divide the total water by the size of one container, then compare that number to the 24 containers
-    she needs.
-  - Write the fraction of filled containers over total containers, then convert that fraction to a percent
-    by multiplying by 100.
+  - 'To convert a decimal to a percent, think about what percent means: ''per hundred.'' What number out
+    of 100 equals 0.65?'
+  - If 0.65 represents a part of a whole, multiply it by 100 to get how many parts per hundred.
+  - 'Set up: x = 0.65 × 100, then calculate the product.'
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Divide the total water by the capacity of one container to find how many containers
-        can be filled.
-      expression: 3 ÷ (1/4) = 3 × 4 = 12
+      explanation: To convert a decimal to a percent, we multiply the decimal by 100.
+      expression: x = 0.65 × 100
       common_mistake: null
     - step_number: 2
-      explanation: Write the ratio of filled containers to total containers needed.
-      expression: 12 / 24 = 1/2
+      explanation: Multiply 0.65 by 100. Moving the decimal point two places to the right gives 65.
+      expression: x = 65
       common_mistake: null
-    - step_number: 3
-      explanation: Convert the fraction to a percent by multiplying by 100.
-      expression: (1/2) × 100 = 0.5 × 100 = 50
-      common_mistake: null
-    final_answer: '50'
-  random_seed: 1105301
-  rendered_question: A gardener has 3 gallons of water and pours it into containers that each hold 1/4
-    gallon. She needs 24 containers in total. What percent of the containers can she fill?
-  option_a: '0.5'
-  option_b: '12'
-  option_c: '75'
-  option_d: '50'
+    final_answer: 65 percent
+  random_seed: 1505501
+  rendered_question: 'A recipe for hot chocolate uses 0.65 of a cup of milk. The chef wants to express
+    this amount as a percent to track ingredient proportions.
+
+
+    A recipe for hot chocolate uses 0.65 of a cup of milk. The chef wants to express this amount as a
+    percent to track ingredient proportions. What percent of a cup is 0.65?'
+  option_a: 6.5 percent
+  option_b: 650 percent
+  option_c: 0.65 percent
+  option_d: 65 percent
   correct_option: d
 - question_template_id: authored-g6_fractions-d3-1105302
   topic_id: g6_fractions
@@ -110,7 +109,7 @@ templates:
   topic_id: g6_fractions
   skill_id: g6_fraction_decimal_percent
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -160,6 +159,112 @@ templates:
   option_c: 60 percent
   option_d: 54 percent
   correct_option: a
+- question_template_id: authored-g6_fractions-d3-1105301
+  topic_id: g6_fractions
+  skill_id: g6_fraction_decimal_percent
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_before_converting_to_percent
+  - incorrect_division_by_fraction
+  - converted_to_decimal_not_percent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener has 3 gallons of water and pours it into containers that each hold 1/4 gallon. She
+    needs 24 containers in total. What percent of the containers can she fill?
+  context_block: ''
+  answer_expression: Eq(x, (3 / (1/4)) / 24 * 100)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First find how many containers the gardener can fill with 3 gallons if each container holds 1/4 gallon.
+  - Divide the total water by the size of one container, then compare that number to the 24 containers
+    she needs.
+  - Write the fraction of filled containers over total containers, then convert that fraction to a percent
+    by multiplying by 100.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Divide the total water by the capacity of one container to find how many containers
+        can be filled.
+      expression: 3 ÷ (1/4) = 3 × 4 = 12
+      common_mistake: null
+    - step_number: 2
+      explanation: Write the ratio of filled containers to total containers needed.
+      expression: 12 / 24 = 1/2
+      common_mistake: null
+    - step_number: 3
+      explanation: Convert the fraction to a percent by multiplying by 100.
+      expression: (1/2) × 100 = 0.5 × 100 = 50
+      common_mistake: null
+    final_answer: '50'
+  random_seed: 1105301
+  rendered_question: A gardener has 3 gallons of water and pours it into containers that each hold 1/4
+    gallon. She needs 24 containers in total. What percent of the containers can she fill?
+  option_a: '0.5'
+  option_b: '12'
+  option_c: '75'
+  option_d: '50'
+  correct_option: d
+- question_template_id: authored-g6_fractions-d4-1505400
+  topic_id: g6_fractions
+  skill_id: g6_fraction_decimal_percent
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - split_mixed_parts
+  - incorrect_fraction_multiplication
+  - whole_number_confusion
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker makes 4 batches of cookies. Each batch requires 2 3/4 cups of flour. How many cups of
+    flour does the baker need in total?
+  context_block: null
+  answer_expression: Eq(x, Rational(11,4) * 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First, convert the mixed number 2 3/4 into an improper fraction by thinking of it as a single fraction.
+  - The improper fraction is 11/4. Now you need to multiply this by 4 batches.
+  - 'Multiply: (11/4) × 4. What numerator do you get, and what happens when you divide by the denominator?'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the mixed number 2 3/4 to an improper fraction by multiplying the whole number
+        by the denominator and adding the numerator.
+      expression: 2 3/4 = (2 × 4 + 3)/4 = (8 + 3)/4 = 11/4
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the improper fraction by the number of batches.
+      expression: (11/4) × 4 = (11 × 4)/4 = 44/4
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the result by dividing the numerator by the denominator.
+      expression: 44/4 = 11
+      common_mistake: null
+    final_answer: 11 cups
+  random_seed: 1505400
+  rendered_question: A baker makes 4 batches of cookies. Each batch requires 2 3/4 cups of flour. How
+    many cups of flour does the baker need in total?
+  option_a: 9 cups
+  option_b: 11 cups
+  option_c: 8 3/4 cups
+  option_d: 6 3/4 cups
+  correct_option: b
 - question_template_id: authored-g6_fractions-d5-1105502
   topic_id: g6_fractions
   skill_id: g6_fraction_decimal_percent
@@ -339,11 +444,286 @@ templates:
   option_c: 27/4 pounds
   option_d: 11/6 pounds
   correct_option: a
-- question_template_id: authored-g6_fractions-d2-1446200
+- question_template_id: authored-g6_fractions-d2-1806201
   topic_id: g6_fractions
   skill_id: g6_fraction_mul_div
   grade_band: 6-7
   difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_fractions_instead_of_multiplying
+  - only_reduced_one_pair
+  - stopped_at_unreduced_fraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maria tends a community garden plot that takes up 2/3 of a large field. She plants flowers in
+    3/5 of her garden plot. What fraction of the total field is covered with flowers?
+  context_block: null
+  answer_expression: Eq(x, Rational(2,3) * Rational(3,5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The garden plot is 2/3 of the whole field. Within that plot, flowers cover 3/5 of the garden. You
+    need the fraction of the entire field.
+  - 'To find what part of the whole field the flowers occupy, you multiply: the garden''s share of the
+    field times the flowers'' share of the garden.'
+  - 'Set up: x = (2/3) × (3/5). Now multiply the numerators together and the denominators together.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The garden plot occupies 2/3 of the field. Flowers cover 3/5 of the garden plot. To
+        find what fraction of the total field has flowers, multiply these two fractions.
+      expression: x = (2/3) × (3/5)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the numerators: 2 × 3 = 6. Multiply the denominators: 3 × 5 = 15.'
+      expression: x = 6/15
+      common_mistake: null
+    - step_number: 3
+      explanation: Reduce the fraction by dividing both numerator and denominator by their greatest common
+        divisor, 3.
+      expression: x = 6÷3 / 15÷3 = 2/5
+      common_mistake: null
+    final_answer: 2/5
+  random_seed: 1806201
+  rendered_question: Maria tends a community garden plot that takes up 2/3 of a large field. She plants
+    flowers in 3/5 of her garden plot. What fraction of the total field is covered with flowers?
+  option_a: 2/5
+  option_b: 3/5
+  option_c: 5/8
+  option_d: 1/3
+  correct_option: a
+- question_template_id: authored-g6_fractions-d2-97200
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_numerators_and_denominators_instead_of_multiplying
+  - multiplied_numerators_but_added_denominators
+  - added_numerators_and_multiplied_denominators
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker is following a recipe that calls for 8/3 cups of flour, but she only wants to make 3/4
+    of the recipe. How many cups of flour does she use?
+  context_block: ''
+  answer_expression: Eq(x, Rational(3,4) * Rational(8,3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find part of an amount, multiply the fraction by the total amount.
+  - You need to calculate 3/4 times 8/3. Multiply the numerators together and the denominators together.
+  - Set up (3 × 8)/(4 × 3) and simplify the resulting fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find 3/4 of 8/3 cups, multiply the two fractions.
+      expression: x = (3/4) × (8/3)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the numerators: 3 × 8 = 24.'
+      expression: numerator = 24
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply the denominators: 4 × 3 = 12.'
+      expression: denominator = 12
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify 24/12 by dividing both numerator and denominator by 12.
+      expression: 24/12 = 2
+      common_mistake: null
+    final_answer: 2 cups
+  random_seed: 97200
+  rendered_question: A baker is following a recipe that calls for 8/3 cups of flour, but she only wants
+    to make 3/4 of the recipe. How many cups of flour does she use?
+  option_a: 24/7 cups
+  option_b: 2 cups
+  option_c: 11/7 cups
+  option_d: 11/12 cups
+  correct_option: b
+- question_template_id: authored-g6_fractions-d3-1806300
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_instead_of_divided
+  - stopped_at_intermediate_fraction
+  - reciprocal_not_used_correctly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker has 4/5 of a batch of cookies and wants to divide them into packages that each hold 2/5
+    of a batch. How many full packages can the baker fill?
+  context_block: null
+  answer_expression: Eq(x, Rational(4, 5) / Rational(2, 5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - When you divide one fraction by another, what operation and number do you use instead?
+  - To divide by 2/5, multiply by its reciprocal, which is 5/2. So you need to compute (4/5) × (5/2).
+  - Multiply the numerators together and the denominators together, then simplify your result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To divide fractions, we multiply by the reciprocal of the divisor.
+      expression: (4/5) ÷ (2/5) = (4/5) × (5/2)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the numerators: 4 × 5 = 20. Multiply the denominators: 5 × 2 = 10.'
+      expression: (4 × 5) / (5 × 2) = 20/10
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the fraction by dividing both numerator and denominator by their greatest
+        common factor, 10.
+      expression: 20/10 = 2
+      common_mistake: null
+    final_answer: 2 packages
+  random_seed: 1806300
+  rendered_question: A baker has 4/5 of a batch of cookies and wants to divide them into packages that
+    each hold 2/5 of a batch. How many full packages can the baker fill?
+  option_a: 2 packages
+  option_b: 3 packages
+  option_c: 1 package
+  option_d: 8/10 packages
+  correct_option: a
+- question_template_id: authored-g6_fractions-d3-1806301
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_fractions_instead_of_multiplying
+  - subtracted_fractions_instead_of_multiplying
+  - added_denominators_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A runner is training for a marathon. She completes 5/6 of the full race distance, but learns that
+    only 3/5 of the portion she ran will count toward her official training log. What fraction of the
+    full marathon distance counts toward her goal?
+  context_block: null
+  answer_expression: Eq(x, Rational(5,6) * Rational(3,5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The runner completed 5/6 of the full marathon distance. How much of that portion counts?
+  - 'You need to find 3/5 of 5/6. Write this as a multiplication: 3/5 times 5/6.'
+  - Multiply the numerators together and the denominators together. Then reduce the result by finding
+    common factors.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The runner completed 5/6 of the marathon, but only 3/5 of her completed portion counts.
+        We need to find what fraction of the full distance is 3/5 of 5/6.
+      expression: 'Multiply: 3/5 × 5/6'
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the numerators: 3 × 5 = 15. Multiply the denominators: 5 × 6 = 30.'
+      expression: 15/30
+      common_mistake: null
+    - step_number: 3
+      explanation: Both 15 and 30 share a common factor of 15. Reduce by dividing both by 15.
+      expression: 15/30 = (15÷15)/(30÷15) = 1/2
+      common_mistake: null
+    final_answer: 1/2
+  random_seed: 1806301
+  rendered_question: A runner is training for a marathon. She completes 5/6 of the full race distance,
+    but learns that only 3/5 of the portion she ran will count toward her official training log. What
+    fraction of the full marathon distance counts toward her goal?
+  option_a: 1/2
+  option_b: 15/11
+  option_c: 2/11
+  option_d: 8/11
+  correct_option: a
+- question_template_id: authored-g6_fractions-d4-1806401
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incorrect_mixed_number_conversion
+  - error_in_fraction_multiplication
+  - forgot_to_apply_the_multiplier
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A painter has 1 1/3 gallons of paint and applies 3/4 of that amount to a wall. How many gallons
+    of paint does the painter use?
+  context_block: A painter has 1 1/3 gallons of paint and applies 3/4 of that amount to a wall.
+  answer_expression: Eq(x, Rational(4,3) * Rational(3,4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First, write 1 1/3 as a single fraction. What is that?
+  - 'You now have 4/3 gallons. Applying 3/4 of it means you multiply: 4/3 × 3/4.'
+  - Multiply the numerators together and the denominators together, then simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the mixed number 1 1/3 to an improper fraction.
+      expression: 1 1/3 = (1 × 3 + 1) / 3 = 4/3
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Set up the multiplication: the painter uses 3/4 of 4/3 gallons.'
+      expression: x = 4/3 × 3/4
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators and denominators.
+      expression: (4 × 3) / (3 × 4) = 12/12
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction.
+      expression: 12/12 = 1
+      common_mistake: null
+    final_answer: 1 gallon
+  random_seed: 1806401
+  rendered_question: 'A painter has 1 1/3 gallons of paint and applies 3/4 of that amount to a wall.
+
+
+    A painter has 1 1/3 gallons of paint and applies 3/4 of that amount to a wall. How many gallons of
+    paint does the painter use?'
+  option_a: 7/12 gallon
+  option_b: 4/3 gallons
+  option_c: 1 gallon
+  option_d: 1 1/9 gallons
+  correct_option: c
+- question_template_id: authored-g6_fractions-d2-1446200
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -401,7 +781,7 @@ templates:
   topic_id: g6_fractions
   skill_id: g6_fraction_mul_div
   grade_band: 6-7
-  difficulty_label: 2
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -454,61 +834,6 @@ templates:
   option_c: 1/9 containers
   option_d: 4 containers
   correct_option: d
-- question_template_id: authored-g6_fractions-d2-97200
-  topic_id: g6_fractions
-  skill_id: g6_fraction_mul_div
-  grade_band: 6-7
-  difficulty_label: 2
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 90
-  common_error_tags:
-  - added_numerators_and_denominators_instead_of_multiplying
-  - multiplied_numerators_but_added_denominators
-  - added_numerators_and_multiplied_denominators
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A baker is following a recipe that calls for 8/3 cups of flour, but she only wants to make 3/4
-    of the recipe. How many cups of flour does she use?
-  context_block: ''
-  answer_expression: Eq(x, Rational(3,4) * Rational(8,3))
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - To find part of an amount, multiply the fraction by the total amount.
-  - You need to calculate 3/4 times 8/3. Multiply the numerators together and the denominators together.
-  - Set up (3 × 8)/(4 × 3) and simplify the resulting fraction.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: To find 3/4 of 8/3 cups, multiply the two fractions.
-      expression: x = (3/4) × (8/3)
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Multiply the numerators: 3 × 8 = 24.'
-      expression: numerator = 24
-      common_mistake: null
-    - step_number: 3
-      explanation: 'Multiply the denominators: 4 × 3 = 12.'
-      expression: denominator = 12
-      common_mistake: null
-    - step_number: 4
-      explanation: Simplify 24/12 by dividing both numerator and denominator by 12.
-      expression: 24/12 = 2
-      common_mistake: null
-    final_answer: 2 cups
-  random_seed: 97200
-  rendered_question: A baker is following a recipe that calls for 8/3 cups of flour, but she only wants
-    to make 3/4 of the recipe. How many cups of flour does she use?
-  option_a: 24/7 cups
-  option_b: 2 cups
-  option_c: 11/7 cups
-  option_d: 11/12 cups
-  correct_option: b
 - question_template_id: authored-g6_fractions-d3-1106300
   topic_id: g6_fractions
   skill_id: g6_fraction_mul_div
@@ -800,7 +1125,7 @@ templates:
   topic_id: g6_fractions
   skill_id: g6_fraction_mul_div
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 150
   common_error_tags:
@@ -860,7 +1185,7 @@ templates:
   topic_id: g6_fractions
   skill_id: g6_fraction_mul_div
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -919,7 +1244,7 @@ templates:
   topic_id: g6_fractions
   skill_id: g6_fraction_mul_div
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -978,7 +1303,7 @@ templates:
   topic_id: g6_fractions
   skill_id: g6_fraction_mul_div
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -1037,7 +1362,7 @@ templates:
   topic_id: g6_fractions
   skill_id: g6_fraction_mul_div
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -1091,4 +1416,543 @@ templates:
   option_b: 10 pieces
   option_c: 5/8 pieces
   option_d: 5 pieces
+  correct_option: b
+- question_template_id: authored-g6_fractions-d4-1506401
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - incorrect_mixed_conversion
+  - forgot_reciprocal_step
+  - dropped_simplification
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A tailor has 2¼ yards of fabric. She cuts it into equal pieces, each ⅜ yard long. How many pieces
+    does she get?
+  context_block: null
+  answer_expression: Eq(x, Rational(9,4) / Rational(3,8))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Convert 2¼ to an improper fraction. What is the numerator?
+  - You have 9/4 yards total. Each piece is 3/8 yard. To divide fractions, multiply by the reciprocal
+    of 3/8.
+  - Multiply 9/4 by 8/3, then simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the mixed number 2¼ to an improper fraction by multiplying the whole part by
+        the denominator and adding the numerator.
+      expression: 2¼ = (2 × 4 + 1)/4 = 9/4 yards
+      common_mistake: null
+    - step_number: 2
+      explanation: To divide fractions, multiply by the reciprocal of the divisor.
+      expression: (9/4) ÷ (3/8) = (9/4) × (8/3)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply the numerators and denominators: (9 × 8)/(4 × 3).'
+      expression: (9 × 8)/(4 × 3) = 72/12
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction by dividing both numerator and denominator by their greatest
+        common divisor, 12.
+      expression: 72/12 = 6
+      common_mistake: null
+    final_answer: 6 pieces
+  random_seed: 1506401
+  rendered_question: A tailor has 2¼ yards of fabric. She cuts it into equal pieces, each ⅜ yard long.
+    How many pieces does she get?
+  option_a: 5 pieces
+  option_b: 6 pieces
+  option_c: 9 pieces
+  option_d: 4 pieces
+  correct_option: b
+- question_template_id: authored-g6_fractions-d4-1806400
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - ignored_reciprocal_rule
+  - multiplied_instead_of_divided
+  - incomplete_fraction_reduction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A seamstress has 3 1/2 meters of fabric. She needs to cut it into pieces that are each 1/4 meter
+    long for a quilting project. How many pieces can she cut from the fabric?
+  context_block: A seamstress is preparing fabric for a quilting project. She has one piece of fabric
+    that measures 3 1/2 meters long. She needs to cut this fabric into smaller identical pieces, each
+    measuring exactly 1/4 meter, with no fabric left over.
+  answer_expression: Eq(x, Rational(7,2) / Rational(1,4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'First, convert 3 1/2 to an improper fraction: how many fourths would that be? (Hint: think about
+    what 3 is as fourths, then add the extra 1/2.)'
+  - To divide by a fraction, you multiply by its reciprocal. So 7/2 ÷ 1/4 becomes 7/2 × ?/? — what reciprocal
+    goes there?
+  - 'Multiply: 7/2 × 4/1 = (7 × 4)/(2 × 1). Complete the arithmetic to find how many pieces.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the mixed number 3 1/2 to an improper fraction by multiplying the whole number
+        by the denominator and adding the numerator.
+      expression: 3 1/2 = (3 × 2 + 1)/2 = 7/2 meters
+      common_mistake: null
+    - step_number: 2
+      explanation: To find how many 1/4-meter pieces fit into 7/2 meters, divide the total length by the
+        piece length.
+      expression: x = 7/2 ÷ 1/4
+      common_mistake: null
+    - step_number: 3
+      explanation: Division by a fraction is the same as multiplication by its reciprocal. The reciprocal
+        of 1/4 is 4/1.
+      expression: x = 7/2 × 4/1
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply the numerators together and the denominators together.
+      expression: x = (7 × 4)/(2 × 1) = 28/2
+      common_mistake: null
+    - step_number: 5
+      explanation: Reduce the fraction by dividing numerator and denominator by their common factor.
+      expression: x = 28/2 = 14
+      common_mistake: null
+    final_answer: 14 pieces
+  random_seed: 1806400
+  rendered_question: 'A seamstress is preparing fabric for a quilting project. She has one piece of fabric
+    that measures 3 1/2 meters long. She needs to cut this fabric into smaller identical pieces, each
+    measuring exactly 1/4 meter, with no fabric left over.
+
+
+    A seamstress has 3 1/2 meters of fabric. She needs to cut it into pieces that are each 1/4 meter long
+    for a quilting project. How many pieces can she cut from the fabric?'
+  option_a: 14 pieces
+  option_b: 28 pieces
+  option_c: 7 pieces
+  option_d: 10 pieces
+  correct_option: a
+- question_template_id: authored-g6_fractions-d1-1615231
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - did_not_reduce
+  - found_non_gcd_common_divisor
+  - calculated_wrong_denominator
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya has 12 marbles out of 18 total that are her favorite color. She wants to express how many
+    of her marbles are her favorite color as a fraction in lowest terms. What fraction of Maya's marbles
+    are her favorite color?
+  context_block: Maya has 12 marbles out of 18 total that are her favorite color. She wants to express
+    this as a fraction in lowest terms.
+  answer_expression: Eq(x, Rational(12, 18))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the greatest common divisor (GCD) of 12 and 18—the largest number that divides both evenly.
+  - Both 12 and 18 are divisible by 6. Divide the numerator and denominator each by 6.
+  - 12 ÷ 6 = 2 and 18 ÷ 6 = 3. Write your answer as a single fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to reduce the fraction 12/18 to lowest terms by finding the greatest common
+        divisor of 12 and 18.
+      expression: 'Find the factors of 12 and 18: Factors of 12 are 1, 2, 3, 4, 6, 12. Factors of 18 are
+        1, 2, 3, 6, 9, 18. The common factors are 1, 2, 3, 6.'
+      common_mistake: null
+    - step_number: 2
+      explanation: The greatest common divisor is 6, the largest common factor.
+      expression: GCD(12, 18) = 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both the numerator and denominator by the GCD.
+      expression: 12 ÷ 6 = 2 and 18 ÷ 6 = 3
+      common_mistake: null
+    - step_number: 4
+      explanation: The fraction in lowest terms is 2/3.
+      expression: 12/18 = 2/3
+      common_mistake: null
+    final_answer: 2/3
+  random_seed: 1615231
+  rendered_question: 'Maya has 12 marbles out of 18 total that are her favorite color. She wants to express
+    this as a fraction in lowest terms.
+
+
+    Maya has 12 marbles out of 18 total that are her favorite color. She wants to express how many of
+    her marbles are her favorite color as a fraction in lowest terms. What fraction of Maya''s marbles
+    are her favorite color?'
+  option_a: 6/9
+  option_b: 2/3
+  option_c: 12/18
+  option_d: 3/4
+  correct_option: b
+- question_template_id: authored-g6_fractions-d1-1615233
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - reciprocal_error
+  - partial_reduction_halving
+  - no_reduction_attempted
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A basketball player made 8 successful free throws out of 12 attempts. To track her improvement,
+    she needs to reduce this fraction to lowest terms. What fraction represents her success rate in simplest
+    form?
+  context_block: null
+  answer_expression: Eq(x, Rational(8, 12))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the greatest common factor of 8 and 12—the largest number that divides both evenly.
+  - 'Both 8 and 12 are divisible by 4. Check: 4 goes into 8 how many times, and into 12 how many times?'
+  - Divide the numerator and denominator each by 4, then check that the new numerator and denominator
+    have no common factors besides 1.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the greatest common factor (GCF) of 8 and 12 by listing factors or recognizing
+        that both are divisible by 4.
+      expression: 'Factors of 8: 1, 2, 4, 8; Factors of 12: 1, 2, 3, 4, 6, 12; GCF = 4'
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide both the numerator and denominator by the GCF.
+      expression: (8 ÷ 4) / (12 ÷ 4) = 2 / 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Check that 2 and 3 share no common factors other than 1. Since 2 and 3 are both prime,
+        the fraction is in lowest terms.
+      expression: GCF(2, 3) = 1; therefore 2/3 is in lowest terms.
+      common_mistake: null
+    final_answer: 2/3
+  random_seed: 1615233
+  rendered_question: A basketball player made 8 successful free throws out of 12 attempts. To track her
+    improvement, she needs to reduce this fraction to lowest terms. What fraction represents her success
+    rate in simplest form?
+  option_a: 3/2
+  option_b: 8/12
+  option_c: 2/3
+  option_d: 4/6
+  correct_option: c
+- question_template_id: authored-g6_fractions-d2-1615330
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - forgot_to_reduce
+  - subtracted_instead_of_divided_by_GCD
+  - partial_reduction_only
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Your math homework has 24 problems. You complete 18 of them correctly. What fraction of your homework
+    did you complete correctly, written in lowest terms?
+  context_block: null
+  answer_expression: Eq(x, Rational(18, 24))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - You completed 18 problems out of 24 total. Write this as a fraction with 18 on top and 24 on the bottom.
+  - To reduce a fraction, find the largest number that divides evenly into both the numerator and denominator.
+  - The number 6 divides evenly into both 18 and 24. Divide both the top and bottom by 6, then check that
+    no number larger than 1 divides your new numerator and denominator.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the number of correct problems over the total number of problems as a fraction.
+      expression: 18/24
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Find the greatest common divisor (GCD) of 18 and 24. List the factors: 18 has factors
+        1, 2, 3, 6, 9, 18 and 24 has factors 1, 2, 3, 4, 6, 8, 12, 24. The largest common factor is 6.'
+      expression: GCD(18, 24) = 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both the numerator and denominator by the GCD.
+      expression: (18 ÷ 6) / (24 ÷ 6) = 3/4
+      common_mistake: null
+    - step_number: 4
+      explanation: Check that 3 and 4 share no common factors other than 1. Since 3 is odd and 4 is even,
+        and 3 does not divide 4, the fraction 3/4 is in lowest terms.
+      expression: 3/4
+      common_mistake: null
+    final_answer: 3/4
+  random_seed: 1615330
+  rendered_question: Your math homework has 24 problems. You complete 18 of them correctly. What fraction
+    of your homework did you complete correctly, written in lowest terms?
+  option_a: 6/24
+  option_b: 18/24
+  option_c: 3/4
+  option_d: 9/12
+  correct_option: c
+- question_template_id: authored-g6_fractions-d2-1615332
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - did_not_reduce
+  - inverted_numerator_denominator
+  - divided_incorrectly_or_used_wrong_divisor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener plants 15 tomato plants out of 25 total plants in her garden. She wants to record the
+    proportion of tomato plants as a single fraction in simplest form. What fraction represents this proportion?
+  context_block: A gardener has planted 15 tomato plants out of 25 total plants in her garden. She wants
+    to express this proportion as a fraction in lowest terms to track the diversity of her garden.
+  answer_expression: Eq(x, Rational(15, 25))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What do the numerator and denominator tell you in this problem? The top number is the tomato plants,
+    the bottom is the total plants.
+  - 'Find the largest number that divides evenly into both 15 and 25. (Hint: is it 1, 2, 5, or 10?)'
+  - Divide both 15 and 25 by that number. Write the result as a new fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The proportion is the number of tomato plants divided by the total number of plants.
+      expression: 15/25
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the greatest common divisor (GCD) of 15 and 25. The factors of 15 are 1, 3, 5,
+        15. The factors of 25 are 1, 5, 25. The largest common factor is 5.
+      expression: GCD(15, 25) = 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both the numerator and denominator by 5.
+      expression: 15 ÷ 5 = 3 and 25 ÷ 5 = 5
+      common_mistake: null
+    - step_number: 4
+      explanation: Write the reduced fraction.
+      expression: 3/5
+      common_mistake: null
+    final_answer: 3/5
+  random_seed: 1615332
+  rendered_question: 'A gardener has planted 15 tomato plants out of 25 total plants in her garden. She
+    wants to express this proportion as a fraction in lowest terms to track the diversity of her garden.
+
+
+    A gardener plants 15 tomato plants out of 25 total plants in her garden. She wants to record the proportion
+    of tomato plants as a single fraction in simplest form. What fraction represents this proportion?'
+  option_a: 5/3
+  option_b: 15/25
+  option_c: 3/5
+  option_d: 3/25
+  correct_option: c
+- question_template_id: authored-g6_fractions-d2-1615333
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_at_partial_reduction
+  - unreduced_fraction
+  - arithmetic_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian is organizing books in the children's section. She finds that 16 out of 40 books are
+    chapter books. What fraction of the collection are chapter books, written in lowest terms?
+  context_block: A librarian is organizing books in the children's section. She finds that 16 out of 40
+    books are chapter books. What fraction of the collection are chapter books, written in lowest terms?
+  answer_expression: Eq(x, Rational(16, 40))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Write the fraction of chapter books as numerator over denominator: 16 over 40.'
+  - Find the greatest common divisor of 16 and 40. What is the largest number that divides into both?
+  - Divide both the numerator and denominator by their greatest common divisor.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set up the fraction of chapter books in the collection.
+      expression: 16/40
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Find the factors of 16 and 40. Factors of 16: 1, 2, 4, 8, 16. Factors of 40: 1, 2,
+        4, 5, 8, 10, 20, 40. The greatest common divisor is 8.'
+      expression: GCD(16, 40) = 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both the numerator and denominator by 8.
+      expression: (16 ÷ 8) / (40 ÷ 8) = 2/5
+      common_mistake: null
+    - step_number: 4
+      explanation: Check that 2 and 5 share no common factors besides 1, so 2/5 is fully reduced.
+      expression: GCD(2, 5) = 1
+      common_mistake: null
+    final_answer: 2/5
+  random_seed: 1615333
+  rendered_question: 'A librarian is organizing books in the children''s section. She finds that 16 out
+    of 40 books are chapter books. What fraction of the collection are chapter books, written in lowest
+    terms?
+
+
+    A librarian is organizing books in the children''s section. She finds that 16 out of 40 books are
+    chapter books. What fraction of the collection are chapter books, written in lowest terms?'
+  option_a: 2/5
+  option_b: 1/3
+  option_c: 16/40
+  option_d: 4/10
+  correct_option: a
+- question_template_id: authored-g6_fractions-d1-1615232
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - did_not_reduce
+  - subtracted_instead_of_found_gcd
+  - estimated_instead_of_computed
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker measures out 9 cups of flour from a 12-cup batch of dry ingredients. She wants to simplify
+    the fraction of flour she is using. What is this fraction in lowest terms?
+  context_block: null
+  answer_expression: Eq(x, Rational(9, 12))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the largest number that divides evenly into both 9 and 12.
+  - That number is 3. Now divide the top and bottom of 9/12 by 3.
+  - What do you get when you compute 9÷3 and 12÷3?
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To reduce a fraction to lowest terms, find the greatest common divisor (GCD) of the
+        numerator and denominator.
+      expression: GCD(9, 12) = 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide both the numerator and denominator by the GCD.
+      expression: 9 ÷ 3 = 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the denominator by the same GCD.
+      expression: 12 ÷ 3 = 4
+      common_mistake: null
+    - step_number: 4
+      explanation: Write the result as the reduced fraction.
+      expression: 9/12 = 3/4
+      common_mistake: null
+    final_answer: 3/4
+  random_seed: 1615232
+  rendered_question: A baker measures out 9 cups of flour from a 12-cup batch of dry ingredients. She
+    wants to simplify the fraction of flour she is using. What is this fraction in lowest terms?
+  option_a: 3/4
+  option_b: 9/12
+  option_c: 1/2
+  option_d: 2/3
+  correct_option: a
+- question_template_id: authored-g6_fractions-d2-1615331
+  topic_id: g6_fractions
+  skill_id: g6_fraction_reduce
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - did_not_reduce
+  - found_common_factor_but_divided_only_one_part
+  - used_incomplete_factor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A soccer team won 14 games out of 21 games they played this season. To report their win rate,
+    they need to reduce the fraction to lowest terms. What is their win rate as a simplified fraction?
+  context_block: null
+  answer_expression: Eq(x, Rational(14, 21))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What number divides evenly into both 14 and 21?
+  - Find the greatest common factor of 14 and 21, then divide both the numerator and denominator by it.
+  - The GCF is 7. Divide 14 by 7 and 21 by 7 to get your simplified fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The team's win rate is expressed as wins over total games.
+      expression: 14/21
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the greatest common factor (GCF) of 14 and 21. Both numbers are divisible by 7.
+      expression: GCF(14, 21) = 7
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both the numerator and denominator by 7 to reduce the fraction.
+      expression: (14 ÷ 7) / (21 ÷ 7) = 2/3
+      common_mistake: null
+    final_answer: 2/3
+  random_seed: 1615331
+  rendered_question: A soccer team won 14 games out of 21 games they played this season. To report their
+    win rate, they need to reduce the fraction to lowest terms. What is their win rate as a simplified
+    fraction?
+  option_a: 7/10
+  option_b: 2/3
+  option_c: 7/21
+  option_d: 14/21
   correct_option: b

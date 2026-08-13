@@ -228,6 +228,19 @@ so rule 7 holds for the eval path too. Tests: `packages/adapters/tests/test_bedr
 `packages/db/tests/test_cost_reservation.py`,
 `apps/learning-api/tests/test_cost_reservation_estimates.py`.
 
+**Scope correction, 2026-08-12 (D-294).** Everything above is about the gateway *enforcing* the
+caps, and that remained true throughout. What this row did not cover is whether the cost the
+system **persists** equals the cost it spent — and it did not: the authoring pipeline's
+`question_validation_runs.cost_cents` omitted the per-slot equation-design call, understating
+accepted rows by a measured **32.0%**, and the column meant two different things depending on
+which path wrote it. "Caps are enforced" and "spend is recorded correctly" are different claims
+and only the first was traced here. Now both are:
+`packages/curriculum/tests/test_authored_pipeline.py::test_a_slots_rows_account_for_every_cent_the_slot_reports`
+pins `sum(rows) == what the run summary was told`, and
+`scripts/measure_spend_reconciliation.py` re-checks it against real rows. Still not covered by a
+test: the `skipped_duplicate_id` path, where the row is rolled back and the money stays
+attributable only to the run total (D-294 records why that one cannot be fixed at the row).
+
 ### 8. Solution images deleted immediately, never in backups/traces/logs (§5.17)
 
 **Dispositioned — the feature does not exist.** S29 deferred, D-078. There is no image path, so

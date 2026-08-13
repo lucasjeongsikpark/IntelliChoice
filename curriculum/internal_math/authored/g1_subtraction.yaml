@@ -1,6 +1,53 @@
 curriculum_version: '2026.1'
 topic_id: g1_subtraction
 templates:
+- question_template_id: authored-g1_subtraction-d5-5501
+  topic_id: g1_subtraction
+  skill_id: g1_sub_three_numbers
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_only_first_amount
+  - subtracted_only_second_amount
+  - added_instead_of_subtracting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 15 stickers. He gives 6 to his friend Maya and then gives 4 to his friend Noah. How many
+    stickers does Liam have left?
+  context_block: ''
+  answer_expression: Eq(x, 15 - 6 - 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by figuring out how many stickers Liam gave away in total.
+  - Liam gave away 6 stickers first, then 4 more stickers.
+  - Write 15 minus the first amount given away, then minus the second amount.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 15 stickers and gives 6 to Maya, so subtract 6 from 15.
+      expression: 15 - 6 = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: Now Liam has 9 stickers and gives 4 to Noah, so subtract 4 from 9.
+      expression: 9 - 4 = 5
+      common_mistake: null
+    final_answer: 5 stickers
+  random_seed: 5501
+  rendered_question: Liam has 15 stickers. He gives 6 to his friend Maya and then gives 4 to his friend
+    Noah. How many stickers does Liam have left?
+  option_a: 25 stickers
+  option_b: 9 stickers
+  option_c: 5 stickers
+  option_d: 13 stickers
+  correct_option: c
 - question_template_id: authored-g1_subtraction-d5-5500
   topic_id: g1_subtraction
   skill_id: g1_sub_three_numbers
@@ -49,53 +96,6 @@ templates:
   option_c: 19 stickers
   option_d: 9 stickers
   correct_option: b
-- question_template_id: authored-g1_subtraction-d5-5501
-  topic_id: g1_subtraction
-  skill_id: g1_sub_three_numbers
-  grade_band: 1-2
-  difficulty_label: 5
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - subtracted_only_first_amount
-  - subtracted_only_second_amount
-  - added_instead_of_subtracting
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Liam has 15 stickers. He gives 6 to his friend Maya and then gives 4 to his friend Noah. How many
-    stickers does Liam have left?
-  context_block: ''
-  answer_expression: Eq(x, 15 - 6 - 4)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Start by figuring out how many stickers Liam gave away in total.
-  - Liam gave away 6 stickers first, then 4 more stickers.
-  - Write 15 minus the first amount given away, then minus the second amount.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Liam starts with 15 stickers and gives 6 to Maya, so subtract 6 from 15.
-      expression: 15 - 6 = 9
-      common_mistake: null
-    - step_number: 2
-      explanation: Now Liam has 9 stickers and gives 4 to Noah, so subtract 4 from 9.
-      expression: 9 - 4 = 5
-      common_mistake: null
-    final_answer: 5 stickers
-  random_seed: 5501
-  rendered_question: Liam has 15 stickers. He gives 6 to his friend Maya and then gives 4 to his friend
-    Noah. How many stickers does Liam have left?
-  option_a: 25 stickers
-  option_b: 9 stickers
-  option_c: 5 stickers
-  option_d: 13 stickers
-  correct_option: c
 - question_template_id: authored-g1_subtraction-d5-95500
   topic_id: g1_subtraction
   skill_id: g1_sub_three_numbers
@@ -251,7 +251,7 @@ templates:
   topic_id: g1_subtraction
   skill_id: g1_sub_within_10
   grade_band: 1-2
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 45
   common_error_tags:
@@ -301,7 +301,7 @@ templates:
   topic_id: g1_subtraction
   skill_id: g1_sub_within_10
   grade_band: 1-2
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 45
   common_error_tags:
@@ -347,7 +347,7 @@ templates:
   topic_id: g1_subtraction
   skill_id: g1_sub_within_10
   grade_band: 1-2
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 30
   common_error_tags:
@@ -589,7 +589,7 @@ templates:
   topic_id: g1_subtraction
   skill_id: g1_sub_within_20
   grade_band: 1-2
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -635,17 +635,17 @@ templates:
   option_c: 10 stickers
   option_d: 20 stickers
   correct_option: a
-- question_template_id: authored-g1_subtraction-d3-7301
+- question_template_id: authored-g1_subtraction-d3-97301
   topic_id: g1_subtraction
   skill_id: g1_sub_within_20
   grade_band: 1-2
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
-  - added_instead_of_subtracting
-  - subtracted_only_the_ones_without_regrouping
-  - partial_decomposition_error
+  - added_instead_of_subtracted
+  - subtracted_from_ones_only
+  - miscounted_by_one
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
@@ -653,38 +653,38 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: Leo has 13 marbles and gives 6 of them to his friend. How many marbles does Leo have now?
-  context_block: ''
-  answer_expression: Eq(x, 13 - 6)
+  stem: Liam has 13 marbles. He loses 5 marbles at recess. How many marbles does Liam have left?
+  context_block: null
+  answer_expression: Eq(x, 13 - 5)
   figure_spec: null
   figure_reading: null
   hint_ladder:
-  - Leo started with 13 marbles and gave some away. Does he have more or fewer now?
-  - When you give away marbles, you subtract. Write 13 minus 6.
-  - To find 13 - 6, break the ten in 13 into 10 and 3, then take 6 from the 10.
+  - Think about how many marbles Liam started with and how many he lost.
+  - You need to subtract the marbles he lost from the marbles he started with.
+  - 'Break the ten: 13 is 10 + 3, so take 5 from the 10 to get 5, then add back the 3.'
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Leo starts with 13 marbles and gives away 6. We need to subtract 6 from 13.
-      expression: 13 - 6
+      explanation: 'Liam starts with 13 marbles and loses 5 marbles, so we subtract: 13 - 5.'
+      expression: 13 - 5
       common_mistake: null
     - step_number: 2
-      explanation: Break 13 into 10 and 3. We cannot take 6 from 3, so we take 6 from the 10.
-      expression: 10 - 6 = 4
+      explanation: Break 13 into 10 + 3. Subtract 5 from 10 to get 5.
+      expression: 10 - 5 = 5
       common_mistake: null
     - step_number: 3
-      explanation: Now add the 4 from the ten and the 3 ones together.
-      expression: 4 + 3 = 7
+      explanation: 'Now add the remaining 3 back: 5 + 3 = 8.'
+      expression: 5 + 3 = 8
       common_mistake: null
-    final_answer: 7 marbles
-  random_seed: 7301
-  rendered_question: Leo has 13 marbles and gives 6 of them to his friend. How many marbles does Leo have
-    now?
-  option_a: 19 marbles
-  option_b: 7 marbles
-  option_c: 3 marbles
-  option_d: 9 marbles
-  correct_option: b
+    final_answer: 8 marbles
+  random_seed: 97301
+  rendered_question: Liam has 13 marbles. He loses 5 marbles at recess. How many marbles does Liam have
+    left?
+  option_a: 7 marbles
+  option_b: 9 marbles
+  option_c: 18 marbles
+  option_d: 8 marbles
+  correct_option: d
 - question_template_id: authored-g1_subtraction-d3-97300
   topic_id: g1_subtraction
   skill_id: g1_sub_within_20
@@ -736,17 +736,17 @@ templates:
   option_c: 12 stickers
   option_d: 5 stickers
   correct_option: a
-- question_template_id: authored-g1_subtraction-d3-97301
+- question_template_id: authored-g1_subtraction-d3-7301
   topic_id: g1_subtraction
   skill_id: g1_sub_within_20
   grade_band: 1-2
-  difficulty_label: 3
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
-  - added_instead_of_subtracted
-  - subtracted_from_ones_only
-  - miscounted_by_one
+  - added_instead_of_subtracting
+  - subtracted_only_the_ones_without_regrouping
+  - partial_decomposition_error
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
@@ -754,38 +754,38 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: Liam has 13 marbles. He loses 5 marbles at recess. How many marbles does Liam have left?
-  context_block: null
-  answer_expression: Eq(x, 13 - 5)
+  stem: Leo has 13 marbles and gives 6 of them to his friend. How many marbles does Leo have now?
+  context_block: ''
+  answer_expression: Eq(x, 13 - 6)
   figure_spec: null
   figure_reading: null
   hint_ladder:
-  - Think about how many marbles Liam started with and how many he lost.
-  - You need to subtract the marbles he lost from the marbles he started with.
-  - 'Break the ten: 13 is 10 + 3, so take 5 from the 10 to get 5, then add back the 3.'
+  - Leo started with 13 marbles and gave some away. Does he have more or fewer now?
+  - When you give away marbles, you subtract. Write 13 minus 6.
+  - To find 13 - 6, break the ten in 13 into 10 and 3, then take 6 from the 10.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: 'Liam starts with 13 marbles and loses 5 marbles, so we subtract: 13 - 5.'
-      expression: 13 - 5
+      explanation: Leo starts with 13 marbles and gives away 6. We need to subtract 6 from 13.
+      expression: 13 - 6
       common_mistake: null
     - step_number: 2
-      explanation: Break 13 into 10 + 3. Subtract 5 from 10 to get 5.
-      expression: 10 - 5 = 5
+      explanation: Break 13 into 10 and 3. We cannot take 6 from 3, so we take 6 from the 10.
+      expression: 10 - 6 = 4
       common_mistake: null
     - step_number: 3
-      explanation: 'Now add the remaining 3 back: 5 + 3 = 8.'
-      expression: 5 + 3 = 8
+      explanation: Now add the 4 from the ten and the 3 ones together.
+      expression: 4 + 3 = 7
       common_mistake: null
-    final_answer: 8 marbles
-  random_seed: 97301
-  rendered_question: Liam has 13 marbles. He loses 5 marbles at recess. How many marbles does Liam have
-    left?
-  option_a: 7 marbles
-  option_b: 9 marbles
-  option_c: 18 marbles
-  option_d: 8 marbles
-  correct_option: d
+    final_answer: 7 marbles
+  random_seed: 7301
+  rendered_question: Leo has 13 marbles and gives 6 of them to his friend. How many marbles does Leo have
+    now?
+  option_a: 19 marbles
+  option_b: 7 marbles
+  option_c: 3 marbles
+  option_d: 9 marbles
+  correct_option: b
 - question_template_id: authored-g1_subtraction-d4-7400
   topic_id: g1_subtraction
   skill_id: g1_sub_within_20

@@ -152,7 +152,9 @@ def test_search_video_falls_back_when_no_catalog_match() -> None:
                 session_spend_cents=0.0,
             )
             assert video is None
-            assert cost >= 0.0
+            # D-305: `>= 0.0` was vacuous - it holds for a free call and a paid one alike.
+            # A skill with no video is a foregone conclusion, so it must cost nothing.
+            assert cost == 0.0
             assert "not currently available" in video_catalog.FALLBACK_MESSAGE
 
     asyncio.run(run())
@@ -300,5 +302,144 @@ def test_search_video_enriches_the_embedding_query_with_available_context() -> N
             assert "sign_error" in enriched_query
             assert "6-7" in enriched_query
             assert "weak_skill" in enriched_query
+
+    asyncio.run(run())
+
+
+async def _seed_video(
+    repo: YoutubeRepository,
+    gateway: ResilientBedrockGateway,
+    *,
+    video_id: str,
+    skill_id: str,
+    difficulty: tuple[int, int] = (2, 4),
+) -> None:
+    """Put one servable row in the catalog, inside the caller's rollback transaction.
+
+    **D-307: the two tests below used to read the dev database instead of writing to it.**
+    They asserted against the four `ka-*` rows a fake-provider `make youtube-sync` had left
+    in local dev, so they passed here and failed on CI, where the database is fresh and no
+    sync ever runs. `has_servable_video()` was correctly `False` there. The comment at
+    `.github/workflows/ci.yml` already records this class biting the repo once before
+    (S32/D-084) - a test that reads ambient state is not testing the code, it is testing my
+    machine.
+    """
+    await repo.upsert_video(
+        YoutubeVideo(
+            youtube_video_id=video_id,
+            channel_id="zqxvvc-channel",
+            channel_title="Khan Academy",
+            video_url=f"https://example.test/{video_id}",
+            title="Solve one-step linear equations",
+            description="An intro video.",
+            playlist_ids=[],
+            duration="PT5M",
+            published_at=datetime(2024, 1, 1, tzinfo=UTC),
+            thumbnail_url="https://example.test/thumb.jpg",
+            language="en",
+            topic_ids=["linear_equations"],
+            skill_ids=[skill_id],
+            grade_band="6-7",
+            difficulty_min=difficulty[0],
+            difficulty_max=difficulty[1],
+            embedding=(
+                await gateway.create_embedding(
+                    texts=["Solve one-step linear equations"], session_spend_cents=0.0
+                )
+            ).vectors[0],
+            last_synced_at=datetime.now(UTC),
+        )
+    )
+
+
+def test_a_skill_with_no_video_pays_nothing_even_when_the_catalog_is_not_empty() -> None:
+    """D-305: the case D-207's guard was scoped to miss, and D-302 made it the common path.
+
+    D-207 short-circuited the embedding when the catalog was **empty**, and said the skill
+    filter belonged only in `search_catalog` because "a semantic rank is the thing deciding
+    that". It is not: `search_catalog` applies `skill_id in v.skill_ids` as a hard filter
+    *before* it ranks, so a skill with no video cannot match however good the embedding is.
+
+    That scoping was right while staging held zero rows - "the catalog is empty" and "this
+    skill has nothing" were then the same question. A sparse catalog separates them: dev holds
+    4 videos covering 4 of 112 skills, so 108 skills would each buy a Titan embedding per
+    "Watch a video" to reach a conclusion one indexed read already knows. D-302 opened all 33
+    topics, and only one of them has any video at all.
+
+    Counts calls rather than trusting cost, for the reason the empty-catalog test gives: a
+    zero cost could also mean the embedding happened to be free.
+    """
+
+    class _CountingGateway:
+        def __init__(self) -> None:
+            self.embed_calls = 0
+
+        async def create_embedding(self, *, texts: list[str], session_spend_cents: float):
+            self.embed_calls += 1
+            raise AssertionError("a skill with no servable video must not reach the provider")
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = YoutubeRepository(session)
+            # The catalog is NOT empty - this is the whole point, so the row is seeded here
+            # rather than hoped for: the guard must refuse on "this skill has nothing", not
+            # on "the catalog is empty", and those are only different questions once a row
+            # exists.
+            await _seed_video(
+                repo, _gateway(), video_id="zqxvvc-servable", skill_id="zqxvvc_has_video"
+            )
+            assert await repo.has_servable_video() is True
+            assert await repo.has_servable_video("zqxvvc_no_such_skill") is False
+
+            gateway = _CountingGateway()
+            video, cost = await video_catalog.search_video(
+                repo=repo,
+                gateway=gateway,  # type: ignore[arg-type]
+                mcp_call_repo=McpToolCallRepository(session),
+                caller_external_id="zqxvvc-caller-1",
+                skill_id="zqxvvc_no_such_skill",
+                skill_name="Some skill with no seeded video",
+                difficulty=1,
+                session_spend_cents=0.0,
+            )
+            assert video is None
+            assert cost == 0.0
+            assert gateway.embed_calls == 0
+
+    asyncio.run(run())
+
+
+def test_a_skill_that_does_have_a_video_still_reaches_the_ranker() -> None:
+    """The recall half: the guard must not turn into a blanket refusal.
+
+    Without this, scoping the existence check by skill would pass its own test by never
+    serving a video at all - the same shape as the vacuous `cost >= 0.0` above.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = YoutubeRepository(session)
+            gateway = _gateway()
+            await _seed_video(
+                repo, gateway, video_id="zqxvvc-servable", skill_id="zqxvvc_has_video"
+            )
+            assert await repo.has_servable_video("zqxvvc_has_video") is True
+
+            video, _cost = await video_catalog.search_video(
+                repo=repo,
+                gateway=gateway,
+                mcp_call_repo=McpToolCallRepository(session),
+                caller_external_id="zqxvvc-caller-1",
+                skill_id="zqxvvc_has_video",
+                skill_name="Solve one-step linear equations",
+                # The row above spans difficulty 2-4. My first version of this test asked for
+                # 1, got None, and I read it as the new guard over-refusing - it was the
+                # difficulty filter doing its job. Kept because the misreading is the reason
+                # this test exists in both directions.
+                difficulty=2,
+                session_spend_cents=0.0,
+            )
+            assert video is not None, "a skill with a seeded video must still be served one"
+            assert video.video_id == "zqxvvc-servable"
 
     asyncio.run(run())

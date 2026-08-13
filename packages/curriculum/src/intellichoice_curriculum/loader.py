@@ -149,18 +149,23 @@ def _drifted(row: object, fields: dict[str, object]) -> set[str]:
     return {field for field, value in fields.items() if getattr(row, field) != value}
 
 
-def _gate(template_def: AuthoredTemplateDef) -> None:
+def _gate(template_def: AuthoredTemplateDef, curriculum: CurriculumContent) -> None:
     """The §5.8.5 deterministic gate, on the insert path and the update path alike.
 
     Being reachable from the update path is the point: this file is hand-editable YAML
     loaded into every environment, and before D-235 an edit to an item a database already
     had never got here at all.
+
+    `curriculum` is passed for one reason: the skill's `answer_form` (D-308). It has to be
+    the *same* value the pipeline used, so both read it through `CurriculumContent.answer_form`
+    rather than each looking the skill up its own way.
     """
     result = validate_authored_item(
         template_def.difficulty_label,
         template_def.to_generated_item(),
         figure=template_def.figure_spec,
         figure_reading=template_def.figure_reading,
+        answer_form=curriculum.answer_form(template_def.skill_id),
     )
     if not result.passed:
         raise CurriculumLoadError(
@@ -252,7 +257,7 @@ async def _load_authored_templates(
                 summary.templates_skipped_existing += 1
                 continue
 
-            _gate(template_def)
+            _gate(template_def, curriculum)
             for field, value in template_fields.items():
                 setattr(existing, field, value)
             if existing_variant is not None:
@@ -262,7 +267,7 @@ async def _load_authored_templates(
             summary.templates_updated += 1
             continue
 
-        _gate(template_def)
+        _gate(template_def, curriculum)
 
         template = await repo.create_template(
             QuestionTemplate(

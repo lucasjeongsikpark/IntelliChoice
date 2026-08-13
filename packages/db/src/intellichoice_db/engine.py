@@ -121,5 +121,33 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
 async def session_scope(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> AsyncIterator[AsyncSession]:
+    """A unit of work: commits on a clean exit, rolls back on an exception.
+
+    **It used to do neither** (D-284 addendum, fixed in D-294). It yielded a session and
+    closed it, so a caller that wrote without committing got a **no-op that reported
+    success** - `set_active_status` flushes, so a one-off script printed
+    `activated 26, retired 3` and rolled the whole thing back on the way out. The count
+    came from the script's own loop, not from the database, and nothing said a word. It
+    was caught only because the export that followed produced an empty diff.
+
+    **Why commit-on-exit rather than a louder error.** Measured before changing it: all 66
+    `session_scope` blocks in the repo already commit explicitly, so this changes the
+    behaviour of exactly nothing that exists - the CLIs commit deliberately (`_settle`
+    exists for that) and the tests commit because they assert across sessions. What it
+    protects is the *ad-hoc* script, which is where the bug bit, where it is least likely
+    to be noticed and most likely to be trusted. It also matches the convention the
+    request path already sets: `get_db_session` in both apps commits after its yield.
+
+    **Reads are unaffected.** SQLAlchemy autobegins a transaction for a `SELECT` too, so a
+    read-only scope commits an empty transaction here - which is a no-op, not a write.
+
+    The rollback is written out rather than left to `AsyncSession.__aexit__`, which would
+    do it anyway: the whole defect was behaviour that had to be inferred instead of read.
+    """
     async with session_factory() as session:
-        yield session
+        try:
+            yield session
+        except BaseException:
+            await session.rollback()
+            raise
+        await session.commit()

@@ -5,7 +5,7 @@ templates:
   topic_id: pre_algebra
   skill_id: prealg_evaluate_expressions
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 5
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -68,7 +68,7 @@ templates:
   topic_id: pre_algebra
   skill_id: prealg_evaluate_expressions
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 5
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -356,11 +356,220 @@ templates:
   option_c: 10 bacteria
   option_d: 32 bacteria
   correct_option: d
-- question_template_id: authored-pre_algebra-d2-1166201
+- question_template_id: authored-pre_algebra-d2-1166202
   topic_id: pre_algebra
   skill_id: prealg_exponents
   grade_band: 6-7
   difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - confused_exponent_with_base
+  - computed_dividend_only
+  - arithmetic_error_in_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A printing shop organizes paper. Each stack contains 5 folders, and each folder contains 5 sheets.
+    Initially they had 5³ sheets arranged this way. Now they reorganize into 5¹ folders. How many sheets
+    are in each folder now?
+  context_block: null
+  answer_expression: Eq(x, 5**3 / 5**1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First calculate how many sheets the shop has in total by evaluating the power 5³.
+  - Now determine how many folders they are reorganizing into by evaluating 5¹.
+  - Divide the total number of sheets by the number of folders to find how many sheets go in each folder.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the total number of sheets by evaluating the exponent 5³.
+      expression: 5**3 = 5 * 5 * 5 = 125
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the number of folders by evaluating the exponent 5¹.
+      expression: 5**1 = 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the total sheets by the number of folders to find sheets per folder.
+      expression: 125 / 5 = 25
+      common_mistake: null
+    final_answer: 25 sheets
+  random_seed: 1166202
+  rendered_question: A printing shop organizes paper. Each stack contains 5 folders, and each folder contains
+    5 sheets. Initially they had 5³ sheets arranged this way. Now they reorganize into 5¹ folders. How
+    many sheets are in each folder now?
+  option_a: 15 sheets
+  option_b: 5 sheets
+  option_c: 125 sheets
+  option_d: 25 sheets
+  correct_option: d
+- question_template_id: authored-pre_algebra-d3-1166300
+  topic_id: pre_algebra
+  skill_id: prealg_exponents
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplying
+  - evaluated_one_exponent_only_multiplied_base
+  - added_bases_and_exponents_instead_of_evaluating
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A tournament has 2³ groups and each group contains 3² players. How many players are in the tournament
+    altogether?
+  context_block: null
+  answer_expression: Eq(x, 2**3 * 3**2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Start by evaluating each exponent separately: 2³ and 3².'
+  - The number of groups is 2³ = 8, and each group has 3² = 9 players.
+  - Multiply the number of groups by the number of players in each group to find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Evaluate the first exponent: 2 raised to the third power.'
+      expression: 2^3 = 8
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the second exponent: 3 raised to the second power.'
+      expression: 3^2 = 9
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the number of groups by the number of players in each group.
+      expression: 8 * 9 = 72
+      common_mistake: null
+    final_answer: 72 players
+  random_seed: 1166300
+  rendered_question: A tournament has 2³ groups and each group contains 3² players. How many players are
+    in the tournament altogether?
+  option_a: 17 players
+  option_b: 36 players
+  option_c: 13 players
+  option_d: 72 players
+  correct_option: d
+- question_template_id: authored-pre_algebra-d3-1166301
+  topic_id: pre_algebra
+  skill_id: prealg_exponents
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_after_first_exponent
+  - subtracted_exponents_instead_of_dividing
+  - multiplied_base_by_exponent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A warehouse receives a shipment of 4 to the power of 4 boxes. The manager redistributes them into
+    packages, each holding 4 to the power of 1 boxes. How many packages are created?
+  context_block: ''
+  answer_expression: Eq(x, 4**4 / 4**1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'First, write out what 4 to the power of 4 means: how many times do you multiply 4 by itself?'
+  - Calculate 4 raised to the fourth power, then calculate 4 raised to the first power.
+  - Divide the total number of boxes by the number of boxes in each package to find how many packages
+    are created.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate 4 to the power of 4, which means 4 multiplied by itself four times.
+      expression: 4^4 = 4 × 4 × 4 × 4 = 256
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate 4 to the power of 1, which is simply 4.
+      expression: 4^1 = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the total number of boxes by the number of boxes in each package.
+      expression: 256 ÷ 4 = 64
+      common_mistake: null
+    final_answer: 64 packages
+  random_seed: 1166301
+  rendered_question: A warehouse receives a shipment of 4 to the power of 4 boxes. The manager redistributes
+    them into packages, each holding 4 to the power of 1 boxes. How many packages are created?
+  option_a: 4 packages
+  option_b: 256 packages
+  option_c: 16 packages
+  option_d: 64 packages
+  correct_option: d
+- question_template_id: authored-pre_algebra-d3-1166302
+  topic_id: pre_algebra
+  skill_id: prealg_exponents
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used_wrong_exponent_for_base_three
+  - added_exponents_instead_of_multiplying_bases
+  - ignored_second_exponent_or_miscounted_multiplications
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A garden has 3 sections, each section has 3 rows, each row has 3 planters, and each planter holds
+    2 to the fourth power flower bulbs. How many flower bulbs are in the garden altogether?
+  context_block: null
+  answer_expression: Eq(x, 3**3 * 2**4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First find how many planters are in the garden by multiplying 3 sections times 3 rows times 3 planters.
+  - Each planter holds 2 to the fourth power bulbs, which means 2 × 2 × 2 × 2.
+  - Multiply the total number of planters by the number of bulbs per planter to find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Calculate the number of planters in the garden: 3 sections × 3 rows × 3 planters =
+        3³.'
+      expression: 3**3 = 27
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Calculate the number of bulbs in each planter: 2 to the fourth power = 2⁴ = 2 × 2
+        × 2 × 2.'
+      expression: 2**4 = 16
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the total number of planters by the number of bulbs per planter.
+      expression: 27 * 16 = 432
+      common_mistake: null
+    final_answer: 432 bulbs
+  random_seed: 1166302
+  rendered_question: A garden has 3 sections, each section has 3 rows, each row has 3 planters, and each
+    planter holds 2 to the fourth power flower bulbs. How many flower bulbs are in the garden altogether?
+  option_a: 432 bulbs
+  option_b: 1296 bulbs
+  option_c: 144 bulbs
+  option_d: 243 bulbs
+  correct_option: a
+- question_template_id: authored-pre_algebra-d2-1166201
+  topic_id: pre_algebra
+  skill_id: prealg_exponents
+  grade_band: 6-7
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -421,220 +630,11 @@ templates:
   option_c: 12 people
   option_d: 64 people
   correct_option: a
-- question_template_id: authored-pre_algebra-d2-1166202
-  topic_id: pre_algebra
-  skill_id: prealg_exponents
-  grade_band: 6-7
-  difficulty_label: 2
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 90
-  common_error_tags:
-  - confused_exponent_with_base
-  - computed_dividend_only
-  - arithmetic_error_in_division
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A printing shop organizes paper. Each stack contains 5 folders, and each folder contains 5 sheets.
-    Initially they had 5³ sheets arranged this way. Now they reorganize into 5¹ folders. How many sheets
-    are in each folder now?
-  context_block: null
-  answer_expression: Eq(x, 5**3 / 5**1)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - First calculate how many sheets the shop has in total by evaluating the power 5³.
-  - Now determine how many folders they are reorganizing into by evaluating 5¹.
-  - Divide the total number of sheets by the number of folders to find how many sheets go in each folder.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Calculate the total number of sheets by evaluating the exponent 5³.
-      expression: 5**3 = 5 * 5 * 5 = 125
-      common_mistake: null
-    - step_number: 2
-      explanation: Calculate the number of folders by evaluating the exponent 5¹.
-      expression: 5**1 = 5
-      common_mistake: null
-    - step_number: 3
-      explanation: Divide the total sheets by the number of folders to find sheets per folder.
-      expression: 125 / 5 = 25
-      common_mistake: null
-    final_answer: 25 sheets
-  random_seed: 1166202
-  rendered_question: A printing shop organizes paper. Each stack contains 5 folders, and each folder contains
-    5 sheets. Initially they had 5³ sheets arranged this way. Now they reorganize into 5¹ folders. How
-    many sheets are in each folder now?
-  option_a: 15 sheets
-  option_b: 5 sheets
-  option_c: 125 sheets
-  option_d: 25 sheets
-  correct_option: d
-- question_template_id: authored-pre_algebra-d3-1166300
-  topic_id: pre_algebra
-  skill_id: prealg_exponents
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - added_instead_of_multiplying
-  - evaluated_one_exponent_only_multiplied_base
-  - added_bases_and_exponents_instead_of_evaluating
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A tournament has 2³ groups and each group contains 3² players. How many players are in the tournament
-    altogether?
-  context_block: null
-  answer_expression: Eq(x, 2**3 * 3**2)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - 'Start by evaluating each exponent separately: 2³ and 3².'
-  - The number of groups is 2³ = 8, and each group has 3² = 9 players.
-  - Multiply the number of groups by the number of players in each group to find the total.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: 'Evaluate the first exponent: 2 raised to the third power.'
-      expression: 2^3 = 8
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Evaluate the second exponent: 3 raised to the second power.'
-      expression: 3^2 = 9
-      common_mistake: null
-    - step_number: 3
-      explanation: Multiply the number of groups by the number of players in each group.
-      expression: 8 * 9 = 72
-      common_mistake: null
-    final_answer: 72 players
-  random_seed: 1166300
-  rendered_question: A tournament has 2³ groups and each group contains 3² players. How many players are
-    in the tournament altogether?
-  option_a: 17 players
-  option_b: 36 players
-  option_c: 13 players
-  option_d: 72 players
-  correct_option: d
-- question_template_id: authored-pre_algebra-d3-1166301
-  topic_id: pre_algebra
-  skill_id: prealg_exponents
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 120
-  common_error_tags:
-  - stopped_after_first_exponent
-  - subtracted_exponents_instead_of_dividing
-  - multiplied_base_by_exponent
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A warehouse receives a shipment of 4 to the power of 4 boxes. The manager redistributes them into
-    packages, each holding 4 to the power of 1 boxes. How many packages are created?
-  context_block: ''
-  answer_expression: Eq(x, 4**4 / 4**1)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - 'First, write out what 4 to the power of 4 means: how many times do you multiply 4 by itself?'
-  - Calculate 4 raised to the fourth power, then calculate 4 raised to the first power.
-  - Divide the total number of boxes by the number of boxes in each package to find how many packages
-    are created.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Calculate 4 to the power of 4, which means 4 multiplied by itself four times.
-      expression: 4^4 = 4 × 4 × 4 × 4 = 256
-      common_mistake: null
-    - step_number: 2
-      explanation: Calculate 4 to the power of 1, which is simply 4.
-      expression: 4^1 = 4
-      common_mistake: null
-    - step_number: 3
-      explanation: Divide the total number of boxes by the number of boxes in each package.
-      expression: 256 ÷ 4 = 64
-      common_mistake: null
-    final_answer: 64 packages
-  random_seed: 1166301
-  rendered_question: A warehouse receives a shipment of 4 to the power of 4 boxes. The manager redistributes
-    them into packages, each holding 4 to the power of 1 boxes. How many packages are created?
-  option_a: 4 packages
-  option_b: 256 packages
-  option_c: 16 packages
-  option_d: 64 packages
-  correct_option: d
-- question_template_id: authored-pre_algebra-d3-1166302
-  topic_id: pre_algebra
-  skill_id: prealg_exponents
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 180
-  common_error_tags:
-  - used_wrong_exponent_for_base_three
-  - added_exponents_instead_of_multiplying_bases
-  - ignored_second_exponent_or_miscounted_multiplications
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A garden has 3 sections, each section has 3 rows, each row has 3 planters, and each planter holds
-    2 to the fourth power flower bulbs. How many flower bulbs are in the garden altogether?
-  context_block: null
-  answer_expression: Eq(x, 3**3 * 2**4)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - First find how many planters are in the garden by multiplying 3 sections times 3 rows times 3 planters.
-  - Each planter holds 2 to the fourth power bulbs, which means 2 × 2 × 2 × 2.
-  - Multiply the total number of planters by the number of bulbs per planter to find the total.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: 'Calculate the number of planters in the garden: 3 sections × 3 rows × 3 planters =
-        3³.'
-      expression: 3**3 = 27
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Calculate the number of bulbs in each planter: 2 to the fourth power = 2⁴ = 2 × 2
-        × 2 × 2.'
-      expression: 2**4 = 16
-      common_mistake: null
-    - step_number: 3
-      explanation: Multiply the total number of planters by the number of bulbs per planter.
-      expression: 27 * 16 = 432
-      common_mistake: null
-    final_answer: 432 bulbs
-  random_seed: 1166302
-  rendered_question: A garden has 3 sections, each section has 3 rows, each row has 3 planters, and each
-    planter holds 2 to the fourth power flower bulbs. How many flower bulbs are in the garden altogether?
-  option_a: 432 bulbs
-  option_b: 1296 bulbs
-  option_c: 144 bulbs
-  option_d: 243 bulbs
-  correct_option: a
 - question_template_id: authored-pre_algebra-d4-1166400
   topic_id: pre_algebra
   skill_id: prealg_exponents
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 5
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -913,6 +913,70 @@ templates:
   option_c: 30 boxes
   option_d: 6 boxes
   correct_option: c
+- question_template_id: authored-pre_algebra-d2-1167202
+  topic_id: pre_algebra
+  skill_id: prealg_gcf_lcm
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - divided_gcf_by_two
+  - took_only_one_common_prime_factor_missing_2
+  - took_only_one_common_prime_factor_missing_7
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener has 56 tulip bulbs and 84 daffodil bulbs. She wants to plant them in identical garden
+    beds, with each bed having the same number of tulip bulbs and the same number of daffodil bulbs. What
+    is the greatest number of beds she can make?
+  context_block: ''
+  answer_expression: Eq(x, gcd(56, 84))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Each bed must have the same number of tulips and the same number of daffodils. What does that tell
+    you about the number of beds?
+  - The number of beds must divide evenly into both 56 and 84. List the factors of each number.
+  - The greatest number of beds is the largest number that divides both 56 and 84 with no remainder.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The number of beds must divide evenly into both 56 tulip bulbs and 84 daffodil bulbs
+        so each bed receives a whole number of each type.
+      expression: x divides 56 and x divides 84
+      common_mistake: null
+    - step_number: 2
+      explanation: 'We need the greatest common divisor of 56 and 84. Find the prime factorization of
+        56: 56 = 2³ × 7.'
+      expression: 56 = 8 × 7 = 2^3 × 7
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Find the prime factorization of 84: 84 = 2² × 3 × 7.'
+      expression: 84 = 4 × 21 = 2^2 × 3 × 7
+      common_mistake: null
+    - step_number: 4
+      explanation: The common prime factors are 2² and 7. Multiply the lowest powers of common factors.
+      expression: gcd(56, 84) = 2^2 × 7 = 4 × 7
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the product to find the greatest common factor.
+      expression: 4 × 7 = 28
+      common_mistake: null
+    final_answer: 28 beds
+  random_seed: 1167202
+  rendered_question: A gardener has 56 tulip bulbs and 84 daffodil bulbs. She wants to plant them in identical
+    garden beds, with each bed having the same number of tulip bulbs and the same number of daffodil bulbs.
+    What is the greatest number of beds she can make?
+  option_a: 4 beds
+  option_b: 14 beds
+  option_c: 7 beds
+  option_d: 28 beds
+  correct_option: d
 - question_template_id: authored-pre_algebra-d2-1167200
   topic_id: pre_algebra
   skill_id: prealg_gcf_lcm
@@ -1030,130 +1094,11 @@ templates:
   option_c: 15 kits
   option_d: 3 kits
   correct_option: c
-- question_template_id: authored-pre_algebra-d2-1167202
-  topic_id: pre_algebra
-  skill_id: prealg_gcf_lcm
-  grade_band: 6-7
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 120
-  common_error_tags:
-  - divided_gcf_by_two
-  - took_only_one_common_prime_factor_missing_2
-  - took_only_one_common_prime_factor_missing_7
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A gardener has 56 tulip bulbs and 84 daffodil bulbs. She wants to plant them in identical garden
-    beds, with each bed having the same number of tulip bulbs and the same number of daffodil bulbs. What
-    is the greatest number of beds she can make?
-  context_block: ''
-  answer_expression: Eq(x, gcd(56, 84))
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Each bed must have the same number of tulips and the same number of daffodils. What does that tell
-    you about the number of beds?
-  - The number of beds must divide evenly into both 56 and 84. List the factors of each number.
-  - The greatest number of beds is the largest number that divides both 56 and 84 with no remainder.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The number of beds must divide evenly into both 56 tulip bulbs and 84 daffodil bulbs
-        so each bed receives a whole number of each type.
-      expression: x divides 56 and x divides 84
-      common_mistake: null
-    - step_number: 2
-      explanation: 'We need the greatest common divisor of 56 and 84. Find the prime factorization of
-        56: 56 = 2³ × 7.'
-      expression: 56 = 8 × 7 = 2^3 × 7
-      common_mistake: null
-    - step_number: 3
-      explanation: 'Find the prime factorization of 84: 84 = 2² × 3 × 7.'
-      expression: 84 = 4 × 21 = 2^2 × 3 × 7
-      common_mistake: null
-    - step_number: 4
-      explanation: The common prime factors are 2² and 7. Multiply the lowest powers of common factors.
-      expression: gcd(56, 84) = 2^2 × 7 = 4 × 7
-      common_mistake: null
-    - step_number: 5
-      explanation: Calculate the product to find the greatest common factor.
-      expression: 4 × 7 = 28
-      common_mistake: null
-    final_answer: 28 beds
-  random_seed: 1167202
-  rendered_question: A gardener has 56 tulip bulbs and 84 daffodil bulbs. She wants to plant them in identical
-    garden beds, with each bed having the same number of tulip bulbs and the same number of daffodil bulbs.
-    What is the greatest number of beds she can make?
-  option_a: 4 beds
-  option_b: 14 beds
-  option_c: 7 beds
-  option_d: 28 beds
-  correct_option: d
-- question_template_id: authored-pre_algebra-d5-1168500
-  topic_id: pre_algebra
-  skill_id: prealg_negative_numbers
-  grade_band: 6-7
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 120
-  common_error_tags:
-  - subtracted_absolute_values_instead_of_adding_negatives
-  - ignored_multiplier_in_repeated_operation
-  - added_absolute_values_then_applied_sign
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: A submarine starts at 20 meters below sea level. It dives 6 meters deeper on each of 3 missions.
-    What is the submarine's final depth in meters?
-  context_block: Depths below sea level are represented by negative numbers.
-  answer_expression: Eq(x, -20 + 3 * (-6))
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Start by writing the submarine's starting depth as a negative number since it is below sea level.
-  - The submarine dives 6 meters deeper on each mission, so the total change in depth is 3 times -6.
-  - 'Write the expression -20 + 3 × (-6) and follow the order of operations: multiply first, then add.'
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The submarine starts at 20 meters below sea level, which is represented as -20 meters.
-      expression: '-20'
-      common_mistake: null
-    - step_number: 2
-      explanation: Each of the 3 missions involves diving 6 meters deeper, which is -6 meters per mission.
-        The total change is 3 times -6.
-      expression: 3 * (-6) = -18
-      common_mistake: null
-    - step_number: 3
-      explanation: 'Add the starting depth and the total change: -20 + (-18).'
-      expression: -20 + (-18) = -38
-      common_mistake: null
-    final_answer: '-38'
-  random_seed: 1168500
-  rendered_question: 'Depths below sea level are represented by negative numbers.
-
-
-    A submarine starts at 20 meters below sea level. It dives 6 meters deeper on each of 3 missions. What
-    is the submarine''s final depth in meters?'
-  option_a: '-38'
-  option_b: '-44'
-  option_c: '-26'
-  option_d: '-14'
-  correct_option: a
 - question_template_id: authored-pre_algebra-d3-1168300
   topic_id: pre_algebra
   skill_id: prealg_negative_numbers
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1205,7 +1150,7 @@ templates:
   topic_id: pre_algebra
   skill_id: prealg_negative_numbers
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -1262,11 +1207,117 @@ templates:
   option_c: -17 dollars
   option_d: -7 dollars
   correct_option: a
-- question_template_id: authored-pre_algebra-d3-1168302
+- question_template_id: authored-pre_algebra-d5-1168500
+  topic_id: pre_algebra
+  skill_id: prealg_negative_numbers
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - subtracted_absolute_values_instead_of_adding_negatives
+  - ignored_multiplier_in_repeated_operation
+  - added_absolute_values_then_applied_sign
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A submarine starts at 20 meters below sea level. It dives 6 meters deeper on each of 3 missions.
+    What is the submarine's final depth in meters?
+  context_block: Depths below sea level are represented by negative numbers.
+  answer_expression: Eq(x, -20 + 3 * (-6))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by writing the submarine's starting depth as a negative number since it is below sea level.
+  - The submarine dives 6 meters deeper on each mission, so the total change in depth is 3 times -6.
+  - 'Write the expression -20 + 3 × (-6) and follow the order of operations: multiply first, then add.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The submarine starts at 20 meters below sea level, which is represented as -20 meters.
+      expression: '-20'
+      common_mistake: null
+    - step_number: 2
+      explanation: Each of the 3 missions involves diving 6 meters deeper, which is -6 meters per mission.
+        The total change is 3 times -6.
+      expression: 3 * (-6) = -18
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the starting depth and the total change: -20 + (-18).'
+      expression: -20 + (-18) = -38
+      common_mistake: null
+    final_answer: '-38'
+  random_seed: 1168500
+  rendered_question: 'Depths below sea level are represented by negative numbers.
+
+
+    A submarine starts at 20 meters below sea level. It dives 6 meters deeper on each of 3 missions. What
+    is the submarine''s final depth in meters?'
+  option_a: '-38'
+  option_b: '-44'
+  option_c: '-26'
+  option_d: '-14'
+  correct_option: a
+- question_template_id: authored-pre_algebra-d4-1168402
   topic_id: pre_algebra
   skill_id: prealg_negative_numbers
   grade_band: 6-7
   difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_terms_without_multiplying
+  - linear_addition_of_all_values
+  - treated_negative_as_positive
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A parking garage entrance starts at 12 levels below street level. An elevator descends 3 more
+    levels on each of 4 trips. What is the elevator's final position relative to street level?
+  context_block: ''
+  answer_expression: x = -12 + 4 * (-3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Street level is 0. Starting at 12 levels below means starting at -12.
+  - Each of the 4 trips goes down 3 levels, so multiply 4 by -3 to find the total change from those trips.
+  - Add the starting position and the change from the four trips.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The elevator starts at 12 levels below street level, which is -12.
+      expression: '-12'
+      common_mistake: null
+    - step_number: 2
+      explanation: Each of the 4 trips descends 3 levels, so the total descent is 4 times -3.
+      expression: 4 * (-3) = -12
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the starting position and the total descent to find the final position.
+      expression: -12 + (-12) = -24
+      common_mistake: null
+    final_answer: -24 levels
+  random_seed: 1168402
+  rendered_question: A parking garage entrance starts at 12 levels below street level. An elevator descends
+    3 more levels on each of 4 trips. What is the elevator's final position relative to street level?
+  option_a: 0 levels
+  option_b: -15 levels
+  option_c: -24 levels
+  option_d: -9 levels
+  correct_option: c
+- question_template_id: authored-pre_algebra-d3-1168302
+  topic_id: pre_algebra
+  skill_id: prealg_negative_numbers
+  grade_band: 6-7
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1376,62 +1427,11 @@ templates:
   option_c: '-32'
   option_d: '4'
   correct_option: c
-- question_template_id: authored-pre_algebra-d4-1168402
-  topic_id: pre_algebra
-  skill_id: prealg_negative_numbers
-  grade_band: 6-7
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - added_terms_without_multiplying
-  - linear_addition_of_all_values
-  - treated_negative_as_positive
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A parking garage entrance starts at 12 levels below street level. An elevator descends 3 more
-    levels on each of 4 trips. What is the elevator's final position relative to street level?
-  context_block: ''
-  answer_expression: x = -12 + 4 * (-3)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Street level is 0. Starting at 12 levels below means starting at -12.
-  - Each of the 4 trips goes down 3 levels, so multiply 4 by -3 to find the total change from those trips.
-  - Add the starting position and the change from the four trips.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The elevator starts at 12 levels below street level, which is -12.
-      expression: '-12'
-      common_mistake: null
-    - step_number: 2
-      explanation: Each of the 4 trips descends 3 levels, so the total descent is 4 times -3.
-      expression: 4 * (-3) = -12
-      common_mistake: null
-    - step_number: 3
-      explanation: Add the starting position and the total descent to find the final position.
-      expression: -12 + (-12) = -24
-      common_mistake: null
-    final_answer: -24 levels
-  random_seed: 1168402
-  rendered_question: A parking garage entrance starts at 12 levels below street level. An elevator descends
-    3 more levels on each of 4 trips. What is the elevator's final position relative to street level?
-  option_a: 0 levels
-  option_b: -15 levels
-  option_c: -24 levels
-  option_d: -9 levels
-  correct_option: c
 - question_template_id: authored-pre_algebra-d5-1168501
   topic_id: pre_algebra
   skill_id: prealg_negative_numbers
   grade_band: 6-7
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -1484,7 +1484,7 @@ templates:
   topic_id: pre_algebra
   skill_id: prealg_negative_numbers
   grade_band: 6-7
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 150
   common_error_tags:
@@ -1535,6 +1535,63 @@ templates:
   option_b: -2 degrees
   option_c: -42 degrees
   option_d: -18 degrees
+  correct_option: c
+- question_template_id: authored-pre_algebra-d3-1169301
+  topic_id: pre_algebra
+  skill_id: prealg_order_of_operations
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - squared_after_multiplying
+  - added_before_multiplying
+  - misapplied_exponent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery calculates their morning sales. They sold 7 cupcakes at opening, then 3 batches, each
+    batch containing a number of cupcakes equal to the square of the temperature difference between two
+    ovens. The ovens are set at 9 and 5 degrees apart. How many cupcakes were sold in total?
+  context_block: null
+  answer_expression: x = 7 + 3 * (9 - 5)**2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First, find the temperature difference between the two ovens.
+  - Square that difference, then multiply by the number of batches.
+  - Add the 7 cupcakes sold at opening to complete the calculation.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the temperature difference between the two ovens.
+      expression: 9 - 5 = 4
+      common_mistake: null
+    - step_number: 2
+      explanation: Square the temperature difference.
+      expression: 4**2 = 16
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply by the number of batches.
+      expression: 3 * 16 = 48
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the 7 cupcakes sold at opening.
+      expression: 7 + 48 = 55
+      common_mistake: null
+    final_answer: 55 cupcakes
+  random_seed: 1169301
+  rendered_question: A bakery calculates their morning sales. They sold 7 cupcakes at opening, then 3
+    batches, each batch containing a number of cupcakes equal to the square of the temperature difference
+    between two ovens. The ovens are set at 9 and 5 degrees apart. How many cupcakes were sold in total?
+  option_a: 31 cupcakes
+  option_b: 91 cupcakes
+  option_c: 55 cupcakes
+  option_d: 151 cupcakes
   correct_option: c
 - question_template_id: authored-pre_algebra-d4-1169401
   topic_id: pre_algebra
@@ -1650,63 +1707,6 @@ templates:
   option_c: 17 points
   option_d: 41 points
   correct_option: a
-- question_template_id: authored-pre_algebra-d3-1169301
-  topic_id: pre_algebra
-  skill_id: prealg_order_of_operations
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 120
-  common_error_tags:
-  - squared_after_multiplying
-  - added_before_multiplying
-  - misapplied_exponent
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A bakery calculates their morning sales. They sold 7 cupcakes at opening, then 3 batches, each
-    batch containing a number of cupcakes equal to the square of the temperature difference between two
-    ovens. The ovens are set at 9 and 5 degrees apart. How many cupcakes were sold in total?
-  context_block: null
-  answer_expression: x = 7 + 3 * (9 - 5)**2
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - First, find the temperature difference between the two ovens.
-  - Square that difference, then multiply by the number of batches.
-  - Add the 7 cupcakes sold at opening to complete the calculation.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Calculate the temperature difference between the two ovens.
-      expression: 9 - 5 = 4
-      common_mistake: null
-    - step_number: 2
-      explanation: Square the temperature difference.
-      expression: 4**2 = 16
-      common_mistake: null
-    - step_number: 3
-      explanation: Multiply by the number of batches.
-      expression: 3 * 16 = 48
-      common_mistake: null
-    - step_number: 4
-      explanation: Add the 7 cupcakes sold at opening.
-      expression: 7 + 48 = 55
-      common_mistake: null
-    final_answer: 55 cupcakes
-  random_seed: 1169301
-  rendered_question: A bakery calculates their morning sales. They sold 7 cupcakes at opening, then 3
-    batches, each batch containing a number of cupcakes equal to the square of the temperature difference
-    between two ovens. The ovens are set at 9 and 5 degrees apart. How many cupcakes were sold in total?
-  option_a: 31 cupcakes
-  option_b: 91 cupcakes
-  option_c: 55 cupcakes
-  option_d: 151 cupcakes
-  correct_option: c
 - question_template_id: authored-pre_algebra-d3-1169302
   topic_id: pre_algebra
   skill_id: prealg_order_of_operations
@@ -1763,6 +1763,63 @@ templates:
   option_b: 74 plants
   option_c: 138 plants
   option_d: 26 plants
+  correct_option: b
+- question_template_id: authored-pre_algebra-d4-1169402
+  topic_id: pre_algebra
+  skill_id: prealg_order_of_operations
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incorrect_order_of_exponent_and_multiplication
+  - forgot_to_square_or_squared_incorrectly
+  - added_before_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A submarine calculates its depth as -8 metres plus 4 times the square of the difference between
+    two sonar readings. The first reading is 3 metres and the second is 7 metres. What is the final depth
+    measurement?
+  context_block: null
+  answer_expression: x = -8 + 4 * (3 - 7)**2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by finding the difference between the two sonar readings.
+  - Square that difference before multiplying by 4.
+  - Add the result to -8, remembering order of operations.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the difference between the two sonar readings.
+      expression: 3 - 7 = -4
+      common_mistake: null
+    - step_number: 2
+      explanation: Square the difference.
+      expression: (-4)**2 = 16
+      common_mistake: Students sometimes forget that squaring a negative number gives a positive result.
+    - step_number: 3
+      explanation: Multiply the squared result by 4.
+      expression: 4 * 16 = 64
+      common_mistake: null
+    - step_number: 4
+      explanation: Add this to the initial -8 metres to find the final depth measurement.
+      expression: -8 + 64 = 56
+      common_mistake: null
+    final_answer: 56 metres
+  random_seed: 1169402
+  rendered_question: A submarine calculates its depth as -8 metres plus 4 times the square of the difference
+    between two sonar readings. The first reading is 3 metres and the second is 7 metres. What is the
+    final depth measurement?
+  option_a: -24 metres
+  option_b: 56 metres
+  option_c: -72 metres
+  option_d: 48 metres
   correct_option: b
 - question_template_id: authored-pre_algebra-d4-1169400
   topic_id: pre_algebra
@@ -1821,114 +1878,11 @@ templates:
   option_c: -23 degrees
   option_d: -83 degrees
   correct_option: a
-- question_template_id: authored-pre_algebra-d4-1169402
-  topic_id: pre_algebra
-  skill_id: prealg_order_of_operations
-  grade_band: 6-7
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 180
-  common_error_tags:
-  - incorrect_order_of_exponent_and_multiplication
-  - forgot_to_square_or_squared_incorrectly
-  - added_before_multiplying
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A submarine calculates its depth as -8 metres plus 4 times the square of the difference between
-    two sonar readings. The first reading is 3 metres and the second is 7 metres. What is the final depth
-    measurement?
-  context_block: null
-  answer_expression: x = -8 + 4 * (3 - 7)**2
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Start by finding the difference between the two sonar readings.
-  - Square that difference before multiplying by 4.
-  - Add the result to -8, remembering order of operations.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Calculate the difference between the two sonar readings.
-      expression: 3 - 7 = -4
-      common_mistake: null
-    - step_number: 2
-      explanation: Square the difference.
-      expression: (-4)**2 = 16
-      common_mistake: Students sometimes forget that squaring a negative number gives a positive result.
-    - step_number: 3
-      explanation: Multiply the squared result by 4.
-      expression: 4 * 16 = 64
-      common_mistake: null
-    - step_number: 4
-      explanation: Add this to the initial -8 metres to find the final depth measurement.
-      expression: -8 + 64 = 56
-      common_mistake: null
-    final_answer: 56 metres
-  random_seed: 1169402
-  rendered_question: A submarine calculates its depth as -8 metres plus 4 times the square of the difference
-    between two sonar readings. The first reading is 3 metres and the second is 7 metres. What is the
-    final depth measurement?
-  option_a: -24 metres
-  option_b: 56 metres
-  option_c: -72 metres
-  option_d: 48 metres
-  correct_option: b
-- question_template_id: authored-pre_algebra-d2-1170200
-  topic_id: pre_algebra
-  skill_id: prealg_percent_convert
-  grade_band: 6-7
-  difficulty_label: 2
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 90
-  common_error_tags:
-  - divided_by_1000_instead_of_100
-  - multiplied_without_dividing_by_100
-  - used_percent_value_as_answer
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: A library donated 30% of its 200 old books to a school. How many books did the school receive?
-  context_block: null
-  answer_expression: x = 0.30 * 200
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Convert the percentage to a decimal before calculating the number of books.
-  - To change 30% to a decimal, divide 30 by 100, then multiply that decimal by 200.
-  - 'Write an equation for the number of books donated: number = 0.30 × 200.'
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Convert the percentage to a decimal by dividing by 100.
-      expression: 30% = 30 ÷ 100 = 0.30
-      common_mistake: null
-    - step_number: 2
-      explanation: Multiply the decimal by the total number of books to find how many were donated.
-      expression: 0.30 × 200 = 60
-      common_mistake: null
-    final_answer: 60 books
-  random_seed: 1170200
-  rendered_question: A library donated 30% of its 200 old books to a school. How many books did the school
-    receive?
-  option_a: 30 books
-  option_b: 6000 books
-  option_c: 6 books
-  option_d: 60 books
-  correct_option: d
 - question_template_id: authored-pre_algebra-d2-1170201
   topic_id: pre_algebra
   skill_id: prealg_percent_convert
   grade_band: 6-7
-  difficulty_label: 2
+  difficulty_label: 1
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1979,7 +1933,7 @@ templates:
   topic_id: pre_algebra
   skill_id: prealg_percent_convert
   grade_band: 6-7
-  difficulty_label: 2
+  difficulty_label: 1
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -2022,11 +1976,57 @@ templates:
   option_c: 55 assignments
   option_d: 2000 assignments
   correct_option: a
+- question_template_id: authored-pre_algebra-d2-1170200
+  topic_id: pre_algebra
+  skill_id: prealg_percent_convert
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_by_1000_instead_of_100
+  - multiplied_without_dividing_by_100
+  - used_percent_value_as_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A library donated 30% of its 200 old books to a school. How many books did the school receive?
+  context_block: null
+  answer_expression: x = 0.30 * 200
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Convert the percentage to a decimal before calculating the number of books.
+  - To change 30% to a decimal, divide 30 by 100, then multiply that decimal by 200.
+  - 'Write an equation for the number of books donated: number = 0.30 × 200.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the percentage to a decimal by dividing by 100.
+      expression: 30% = 30 ÷ 100 = 0.30
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the decimal by the total number of books to find how many were donated.
+      expression: 0.30 × 200 = 60
+      common_mistake: null
+    final_answer: 60 books
+  random_seed: 1170200
+  rendered_question: A library donated 30% of its 200 old books to a school. How many books did the school
+    receive?
+  option_a: 30 books
+  option_b: 6000 books
+  option_c: 6 books
+  option_d: 60 books
+  correct_option: d
 - question_template_id: authored-pre_algebra-d3-1170300
   topic_id: pre_algebra
   skill_id: prealg_percent_convert
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -2073,7 +2073,7 @@ templates:
   topic_id: pre_algebra
   skill_id: prealg_percent_convert
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -2120,7 +2120,7 @@ templates:
   topic_id: pre_algebra
   skill_id: prealg_percent_convert
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:

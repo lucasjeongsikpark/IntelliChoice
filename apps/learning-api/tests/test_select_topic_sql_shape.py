@@ -490,11 +490,18 @@ def _content(views: list[flow.QuestionItemView]) -> list[tuple[str, str, str, st
 # Regenerated from the bank, as every previous re-capture was.
 _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
     (
-        'A teacher has 20 markers and wants to divide them equally among some groups. If each group gets 5 markers, how many groups can the teacher make?',  # noqa: E501
-        '15',
-        '5',
-        '3',
-        '4',
+        'Keisha is preparing for a running challenge. Each week, her training increases by a fixed amount.\n\nKeisha is training for a 10-kilometer running race. She runs 2 kilometers the first week and plans to add 1 kilometer each week. In which week will she reach exactly 10 kilometers?',  # noqa: E501
+        '8 weeks',
+        '12 weeks',
+        '9 weeks',
+        '10 weeks',
+    ),
+    (
+        'A student saves some money for a game. After earning $12 from chores, they have $28 total. How much had they saved before the chores?',  # noqa: E501
+        '14',
+        '40',
+        '2',
+        '16',
     ),
     (
         'A student buys several identical notebooks at $3 each and a pen for $4, spending $28 total. How many notebooks did the student buy?',  # noqa: E501
@@ -504,18 +511,25 @@ _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
         '9 notebooks',
     ),
     (
-        'A storage tank at the garden centre starts with 60 litres of water. Each minute, 5 litres drain through a faulty valve. After how many minutes will exactly 20 litres remain in the tank?',  # noqa: E501
-        '4 minutes',
-        '12 minutes',
-        '16 minutes',
-        '8 minutes',
+        'Marcus has 50 trading cards. He gives 6 cards to each of his friends and has 2 cards left. How many friends received cards from Marcus?',  # noqa: E501
+        '9 friends',
+        '48 friends',
+        '8 friends',
+        '7 friends',
     ),
     (
-        'Liam earns $5 each week by helping his neighbour with gardening. He already has $8 saved from his birthday. After a few weeks, he checks his savings and finds he has $48 in total. How many weeks has Liam been saving?',  # noqa: E501
+        'Liam has 120 trading cards and gives Emma 5 cards every week. Emma starts with no cards. After how many weeks will they have the same number of cards?',  # noqa: E501
         '6',
-        '10',
-        '9',
         '8',
+        '12',
+        '24',
+    ),
+    (
+        'A chef is preparing a large batch of soup. She starts with a 10-liter pot that already has 2 liters of broth. She pours in soup at a rate of 0.5 liters per minute. How many minutes until the pot contains 8 liters of soup?',  # noqa: E501
+        '10 minutes',
+        '20 minutes',
+        '16 minutes',
+        '12 minutes',
     ),
     (
         'Maya and Leo each have savings accounts. Maya starts with $100 and withdraws $3 every week. Leo starts with $40 and deposits $2 every week. After how many weeks will both accounts have the same balance?',  # noqa: E501
@@ -523,20 +537,6 @@ _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
         '30 weeks',
         '8 weeks',
         '12 weeks',
-    ),
-    (
-        'Lena is sewing ribbon onto a dance banner for the school festival. She already has 3/4 metres of ribbon sewn on. Each day, she adds another 1/8 metre of ribbon. The banner needs a total of 3 metres of ribbon. How many days will it take Lena to finish the banner?',  # noqa: E501
-        '18',
-        '12',
-        '6',
-        '-6',
-    ),
-    (
-        'Marcus and his sister are saving money for a gift. They want to know when they’ll have the same amount, so they can combine their savings.\n\nMarcus starts with $24 and saves $3 each week. His sister starts with $6 and saves $5 each week. After how many weeks will they have the same amount of money?',  # noqa: E501
-        '12',
-        '9',
-        '6',
-        '3',
     ),
     (
         'Pool A holds 40 liters and fills at 4 liters per minute. Pool B holds 100 liters and drains at 2 liters per minute. After how many minutes do the pools hold the same amount?',  # noqa: E501
@@ -565,6 +565,19 @@ _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
 def test_pre_exam_content_matches_the_pre_refactor_capture() -> None:
     """AUD-F-31's content-preservation check: the seed that built this exam before the
     batching refactor must still build exactly it.
+
+    **Re-captured 2026-08-13 for D-302, and establishing *why* first is the point.** D-284's
+    addendum records the rule: re-capturing is correct when a *content* change moves the draw
+    and is the wrong response when a *refactor* does. Both were in flight here, so they were
+    separated before the pin was touched:
+
+    - **Content moved it.** D-302 re-tiered 330 bank items to the judge's reading, 31 of them
+      in `linear_equations`. `rng.sample(templates, 2)` depends on the length and order of each
+      tier's candidate list and the backfill changed both, so the draw legitimately differs.
+    - **The builder did not.** `linear_equations` holds 21/38/27/22/15 active templates at
+      tiers 1-5, so pass 1's `min(QUESTIONS_PER_DIFFICULTY, len(templates))` is 2 at every
+      tier - same count, same loop order, same RNG consumption - and pass 2 never runs because
+      the exam is already full. Read off the counts rather than inferred from the code.
     """
 
     async def scenario() -> None:

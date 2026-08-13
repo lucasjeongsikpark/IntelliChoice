@@ -1,6 +1,105 @@
 curriculum_version: '2026.1'
 topic_id: g5_word_problems
 templates:
+- question_template_id: authored-g5_word_problems-d3-985301
+  topic_id: g5_word_problems
+  skill_id: g5_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplied
+  - misplaced_decimal_point
+  - confused_part_with_whole
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker buys a 25-pound bag of flour. She uses 0.6 of the bag to make bread for the week. How
+    many pounds of flour does she use?
+  context_block: ''
+  answer_expression: Eq(x, 0.6 * 25)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What does 0.6 of the bag mean in terms of a calculation?
+  - To find a decimal part of a quantity, multiply the decimal by the total amount.
+  - Write 0.6 times 25 and compute the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker uses 0.6 of the 25-pound bag, so we multiply the decimal by the total pounds.
+      expression: x = 0.6 * 25
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply 0.6 by 25. Think of 0.6 as 6 tenths: 6 times 25 is 150, so 0.6 times 25 is
+        15.'
+      expression: x = 15
+      common_mistake: null
+    final_answer: 15 pounds
+  random_seed: 985301
+  rendered_question: A baker buys a 25-pound bag of flour. She uses 0.6 of the bag to make bread for the
+    week. How many pounds of flour does she use?
+  option_a: 15 pounds
+  option_b: 25.6 pounds
+  option_c: 10 pounds
+  option_d: 2.5 pounds
+  correct_option: a
+- question_template_id: authored-g5_word_problems-d3-985302
+  topic_id: g5_word_problems
+  skill_id: g5_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - treated_of_as_addition
+  - divided_instead_of_multiplied
+  - arithmetic_error_in_decimal_multiplication
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener plants flowers in 0.8 of her 35 garden beds. How many beds does she plant with flowers?
+  context_block: null
+  answer_expression: x = 0.8 * 35
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Think about what 0.8 means: it is the fraction of beds that get flowers.'
+  - To find 0.8 of 35, multiply the decimal by the total number of beds.
+  - Set up the multiplication 0.8 × 35 and carry it out.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The gardener plants flowers in 0.8 of her 35 garden beds, so we multiply the decimal
+        by the total number of beds.
+      expression: x = 0.8 * 35
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply 0.8 by 35. We can think of this as (8 ÷ 10) × 35 = (8 × 35) ÷ 10.
+      expression: x = 280 ÷ 10
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide 280 by 10.
+      expression: x = 28
+      common_mistake: null
+    final_answer: 28 garden beds
+  random_seed: 985302
+  rendered_question: A gardener plants flowers in 0.8 of her 35 garden beds. How many beds does she plant
+    with flowers?
+  option_a: 28 garden beds
+  option_b: 7 garden beds
+  option_c: 27.2 garden beds
+  option_d: 43 garden beds
+  correct_option: a
 - question_template_id: authored-g5_word_problems-d4-985401
   topic_id: g5_word_problems
   skill_id: g5_wp_decimals
@@ -100,110 +199,11 @@ templates:
   option_c: 18 dollars
   option_d: 17 dollars
   correct_option: c
-- question_template_id: authored-g5_word_problems-d3-985301
-  topic_id: g5_word_problems
-  skill_id: g5_wp_decimals
-  grade_band: 4-5
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - added_instead_of_multiplied
-  - misplaced_decimal_point
-  - confused_part_with_whole
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: A baker buys a 25-pound bag of flour. She uses 0.6 of the bag to make bread for the week. How
-    many pounds of flour does she use?
-  context_block: ''
-  answer_expression: Eq(x, 0.6 * 25)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - What does 0.6 of the bag mean in terms of a calculation?
-  - To find a decimal part of a quantity, multiply the decimal by the total amount.
-  - Write 0.6 times 25 and compute the product.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The baker uses 0.6 of the 25-pound bag, so we multiply the decimal by the total pounds.
-      expression: x = 0.6 * 25
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Multiply 0.6 by 25. Think of 0.6 as 6 tenths: 6 times 25 is 150, so 0.6 times 25 is
-        15.'
-      expression: x = 15
-      common_mistake: null
-    final_answer: 15 pounds
-  random_seed: 985301
-  rendered_question: A baker buys a 25-pound bag of flour. She uses 0.6 of the bag to make bread for the
-    week. How many pounds of flour does she use?
-  option_a: 15 pounds
-  option_b: 25.6 pounds
-  option_c: 10 pounds
-  option_d: 2.5 pounds
-  correct_option: a
-- question_template_id: authored-g5_word_problems-d3-985302
-  topic_id: g5_word_problems
-  skill_id: g5_wp_decimals
-  grade_band: 4-5
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - treated_of_as_addition
-  - divided_instead_of_multiplied
-  - arithmetic_error_in_decimal_multiplication
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A gardener plants flowers in 0.8 of her 35 garden beds. How many beds does she plant with flowers?
-  context_block: null
-  answer_expression: x = 0.8 * 35
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - 'Think about what 0.8 means: it is the fraction of beds that get flowers.'
-  - To find 0.8 of 35, multiply the decimal by the total number of beds.
-  - Set up the multiplication 0.8 × 35 and carry it out.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The gardener plants flowers in 0.8 of her 35 garden beds, so we multiply the decimal
-        by the total number of beds.
-      expression: x = 0.8 * 35
-      common_mistake: null
-    - step_number: 2
-      explanation: Multiply 0.8 by 35. We can think of this as (8 ÷ 10) × 35 = (8 × 35) ÷ 10.
-      expression: x = 280 ÷ 10
-      common_mistake: null
-    - step_number: 3
-      explanation: Divide 280 by 10.
-      expression: x = 28
-      common_mistake: null
-    final_answer: 28 garden beds
-  random_seed: 985302
-  rendered_question: A gardener plants flowers in 0.8 of her 35 garden beds. How many beds does she plant
-    with flowers?
-  option_a: 28 garden beds
-  option_b: 7 garden beds
-  option_c: 27.2 garden beds
-  option_d: 43 garden beds
-  correct_option: a
 - question_template_id: authored-g5_word_problems-d4-985400
   topic_id: g5_word_problems
   skill_id: g5_wp_decimals
   grade_band: 4-5
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -251,7 +251,7 @@ templates:
   topic_id: g5_word_problems
   skill_id: g5_wp_decimals
   grade_band: 4-5
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -300,6 +300,224 @@ templates:
   option_c: 45.6 eggs
   option_d: 27 eggs
   correct_option: d
+- question_template_id: authored-g5_word_problems-d4-1505400
+  topic_id: g5_word_problems
+  skill_id: g5_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_total_by_ratio_term
+  - assigned_all_sugar_to_larger
+  - found_only_one_part
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker has 10.5 kg of sugar to divide between two recipes in the ratio 2:1. The larger recipe
+    needs twice as much sugar as the smaller one. How much sugar does the larger recipe get?
+  context_block: A ratio of 2:1 means for every 2 parts going to the larger recipe, 1 part goes to the
+    smaller recipe.
+  answer_expression: Eq(x, 10.5 / 3 * 2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - In a 2:1 ratio, the total is split into how many equal parts?
+  - If the total has 3 equal parts, what is the size of one part when the total is 10.5 kg?
+  - The larger recipe gets 2 of those equal parts. Multiply the size of one part by 2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: A 2:1 ratio means the total is divided into 2 + 1 = 3 equal parts.
+      expression: 2 + 1 = 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the size of one equal part by dividing the total sugar by the number of parts.
+      expression: 10.5 ÷ 3 = 3.5
+      common_mistake: null
+    - step_number: 3
+      explanation: The larger recipe gets 2 of the 3 equal parts.
+      expression: 3.5 × 2 = 7
+      common_mistake: null
+    final_answer: 7 kg
+  random_seed: 1505400
+  rendered_question: 'A ratio of 2:1 means for every 2 parts going to the larger recipe, 1 part goes to
+    the smaller recipe.
+
+
+    A baker has 10.5 kg of sugar to divide between two recipes in the ratio 2:1. The larger recipe needs
+    twice as much sugar as the smaller one. How much sugar does the larger recipe get?'
+  option_a: 10.5 kg
+  option_b: 5 kg
+  option_c: 3.5 kg
+  option_d: 7 kg
+  correct_option: d
+- question_template_id: authored-g5_word_problems-d4-1505401
+  topic_id: g5_word_problems
+  skill_id: g5_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_by_2_instead_of_3
+  - stopped_at_one_part
+  - arithmetic_error_in_scaling
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener has 16.5 liters of fertilizer to split between two garden beds. The larger bed needs
+    twice as much as the smaller bed. How many liters should the larger bed receive?
+  context_block: The fertilizer must be split in the ratio 2:1 between the larger and smaller beds.
+  answer_expression: x = 16.5 / 3 * 2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - If the smaller bed gets some amount, the larger bed gets twice that. What do those two amounts add
+    up to?
+  - The smaller bed is 1 part and the larger bed is 2 parts, so there are 3 equal parts in total. Divide
+    the total fertilizer by 3 to find the size of one part.
+  - One part is 16.5 ÷ 3. Multiply that by 2 to find how much the larger bed gets.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ratio 2:1 means the larger bed gets 2 parts while the smaller bed gets 1 part.
+        Together that is 2 + 1 = 3 equal parts.
+      expression: 2 + 1 = 3 parts
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total fertilizer by the number of parts to find how much one part is worth.
+      expression: 16.5 ÷ 3 = 5.5 liters per part
+      common_mistake: null
+    - step_number: 3
+      explanation: The larger bed receives 2 parts, so multiply one part by 2.
+      expression: 5.5 × 2 = 11 liters
+      common_mistake: null
+    final_answer: 11 liters
+  random_seed: 1505401
+  rendered_question: 'The fertilizer must be split in the ratio 2:1 between the larger and smaller beds.
+
+
+    A gardener has 16.5 liters of fertilizer to split between two garden beds. The larger bed needs twice
+    as much as the smaller bed. How many liters should the larger bed receive?'
+  option_a: 5.5 liters
+  option_b: 11 liters
+  option_c: 13.2 liters
+  option_d: 8.25 liters
+  correct_option: b
+- question_template_id: authored-g5_word_problems-d1-1806100
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_denominators
+  - multiplied_instead_of_added
+  - used_wrong_denominator
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Sarah has 3/8 of a pizza and her brother has 2/8 of the same pizza. They combine their pieces
+    together. What fraction of the whole pizza do they have?
+  context_block: null
+  answer_expression: Eq(x, Rational(3,8) + Rational(2,8))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'When Sarah and her brother put their pizza pieces together, what are you trying to find: a single
+    amount or two separate amounts?'
+  - Both pieces are measured in eighths, so you can add them by combining the top numbers and keeping
+    the bottom the same.
+  - Add 3 and 2 to get the numerator, and keep 8 as the denominator.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Sarah has 3/8 of a pizza and her brother has 2/8 of a pizza. To find the total fraction
+        they have together, add the two fractions.
+      expression: 3/8 + 2/8
+      common_mistake: null
+    - step_number: 2
+      explanation: Both fractions have the same denominator (eighths). When adding fractions with like
+        denominators, add the numerators and keep the denominator the same.
+      expression: (3 + 2)/8
+      common_mistake: Some students might multiply the numerators and denominators, or add the denominators
+        too.
+    - step_number: 3
+      explanation: Simplify by adding the numerators.
+      expression: 5/8
+      common_mistake: null
+    final_answer: 5/8 of a pizza
+  random_seed: 1806100
+  rendered_question: Sarah has 3/8 of a pizza and her brother has 2/8 of the same pizza. They combine
+    their pieces together. What fraction of the whole pizza do they have?
+  option_a: 5/16 of a pizza
+  option_b: 5/8 of a pizza
+  option_c: 6/8 of a pizza
+  option_d: 1/6 of a pizza
+  correct_option: b
+- question_template_id: authored-g5_word_problems-d1-1806101
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_denominators_instead_of_numerators
+  - misinterpreted_two_events_as_whole
+  - attempted_common_denominator_without_simplifying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maya is reading a book. On Monday she read 2/6 of the book. On Tuesday she read 3/6 of the book.
+    What fraction of the book has Maya read in total?
+  context_block: null
+  answer_expression: Eq(x, Rational(2,6) + Rational(3,6))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Maya read a part of the book each day. Think about what happens when you add fractions with the same
+    denominator.
+  - 'When the denominators are the same, add just the numerators: the bottom number stays 6.'
+  - You are adding 2 + 3 in the numerator, with 6 as the denominator.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya read 2/6 on Monday and 3/6 on Tuesday. Both fractions have the same denominator,
+        so we can add them by adding the numerators and keeping the denominator.
+      expression: 2/6 + 3/6 = (2 + 3)/6
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the numerators.
+      expression: (2 + 3)/6 = 5/6
+      common_mistake: null
+    final_answer: 5/6 of the book
+  random_seed: 1806101
+  rendered_question: Maya is reading a book. On Monday she read 2/6 of the book. On Tuesday she read 3/6
+    of the book. What fraction of the book has Maya read in total?
+  option_a: 5/12 of the book
+  option_b: 6/12 of the book
+  option_c: 5/6 of the book
+  option_d: 1 whole book
+  correct_option: c
 - question_template_id: authored-g5_word_problems-d1-66101
   topic_id: g5_word_problems
   skill_id: g5_wp_fractions
@@ -348,11 +566,234 @@ templates:
   option_c: 12/64
   option_d: 7/16
   correct_option: a
-- question_template_id: authored-g5_word_problems-d2-986200
+- question_template_id: authored-g5_word_problems-d1-1506100
   topic_id: g5_word_problems
   skill_id: g5_wp_fractions
   grade_band: 4-5
   difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_numerators_and_denominators
+  - failed_to_simplify
+  - ignored_denominator
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya is baking cookies and measures her flour. She has 5/4 cups of flour in one bowl and pours
+    3/4 cups from another bowl into it. How many cups of flour does she have altogether?
+  context_block: null
+  answer_expression: Eq(x, Rational(5, 4) + Rational(3, 4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - When you add amounts of flour with the same measuring unit (fourths), what do you do with the numbers
+    on top?
+  - 'Since both 5/4 and 3/4 have 4 in the denominator, add the numerators: 5 + 3 in the numerator, keeping
+    4 in the denominator.'
+  - You get 8/4. Now simplify this fraction by dividing the numerator and denominator by what they share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the total flour as the sum of both amounts.
+      expression: x = 5/4 + 3/4
+      common_mistake: null
+    - step_number: 2
+      explanation: Since both fractions have the same denominator (4), add the numerators and keep the
+        denominator.
+      expression: (5 + 3)/4 = 8/4
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the fraction by dividing both numerator and denominator by their greatest
+        common factor, 4.
+      expression: 8/4 = 8 ÷ 4 / 4 ÷ 4 = 2/1 = 2
+      common_mistake: null
+    final_answer: 2 cups
+  random_seed: 1506100
+  rendered_question: Maya is baking cookies and measures her flour. She has 5/4 cups of flour in one bowl
+    and pours 3/4 cups from another bowl into it. How many cups of flour does she have altogether?
+  option_a: 1 cup
+  option_b: 1 1/2 cups
+  option_c: 8/8 cups
+  option_d: 2 cups
+  correct_option: d
+- question_template_id: authored-g5_word_problems-d2-1806200
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_numerators_and_denominators
+  - subtracted_instead_of_added
+  - incorrect_common_denominator_arithmetic
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Marcus received his allowance of $60. He spent 1/3 of it on a video game and 1/4 of it on new
+    socks. What fraction of his total allowance did he spend on both items?
+  context_block: null
+  answer_expression: Eq(x, Rational(1,3) + Rational(1,4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Marcus needs to combine the fraction spent on the video game and the fraction spent on socks. What
+    do you add together?
+  - You're adding 1/3 + 1/4. Since the denominators are different, find a common denominator that both
+    3 and 4 divide into evenly.
+  - Once you have the same denominator for both fractions, add the numerators and write the sum as a single
+    fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Marcus spent 1/3 on a video game and 1/4 on socks. We need to add these fractions to
+        find the total fraction spent.
+      expression: x = 1/3 + 1/4
+      common_mistake: null
+    - step_number: 2
+      explanation: To add fractions, we need a common denominator. The least common multiple of 3 and
+        4 is 12.
+      expression: LCM(3, 4) = 12
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Convert 1/3 to twelfths: 1/3 = 4/12 (multiply numerator and denominator by 4).'
+      expression: 1/3 = 4/12
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Convert 1/4 to twelfths: 1/4 = 3/12 (multiply numerator and denominator by 3).'
+      expression: 1/4 = 3/12
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Now add the fractions with the same denominator: 4/12 + 3/12 = 7/12.'
+      expression: 4/12 + 3/12 = 7/12
+      common_mistake: null
+    final_answer: 7/12 of the allowance
+  random_seed: 1806200
+  rendered_question: Marcus received his allowance of $60. He spent 1/3 of it on a video game and 1/4
+    of it on new socks. What fraction of his total allowance did he spend on both items?
+  option_a: 5/12
+  option_b: 1/7
+  option_c: 7/12
+  option_d: 7/24
+  correct_option: c
+- question_template_id: authored-g5_word_problems-d2-1806201
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_numerators_and_denominators
+  - added_across_without_common_denominator
+  - computed_reciprocal_sum
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker is preparing for a big order and uses flour from a large bag for two recipes. The first
+    recipe calls for 1/2 of the bag, and the second recipe calls for 1/3 of the bag. What fraction of
+    the flour bag does the baker use in total?
+  context_block: null
+  answer_expression: Eq(x, Rational(1,2) + Rational(1,3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The baker uses some of the bag for the first recipe and some for the second. You need to find the
+    total amount used.
+  - To add fractions with different denominators, you need a common denominator. What is a denominator
+    that works for both 2 and 3?
+  - Convert 1/2 to sixths and 1/3 to sixths, then add the numerators together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To add 1/2 and 1/3, we need a common denominator. The least common multiple of 2 and
+        3 is 6.
+      expression: 1/2 = 3/6 and 1/3 = 2/6
+      common_mistake: null
+    - step_number: 2
+      explanation: Now that both fractions have the same denominator, we can add them by adding the numerators.
+      expression: 3/6 + 2/6 = (3 + 2)/6 = 5/6
+      common_mistake: null
+    final_answer: 5/6 of the flour bag
+  random_seed: 1806201
+  rendered_question: A baker is preparing for a big order and uses flour from a large bag for two recipes.
+    The first recipe calls for 1/2 of the bag, and the second recipe calls for 1/3 of the bag. What fraction
+    of the flour bag does the baker use in total?
+  option_a: 5/6 of the flour bag
+  option_b: 1/6 of the flour bag
+  option_c: 2/5 of the flour bag
+  option_d: 11/6 of the flour bag
+  correct_option: a
+- question_template_id: authored-g5_word_problems-d3-1806300
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - inverted_fraction_operation
+  - took_complement_fraction
+  - rounded_or_truncated_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A community garden has 60 tomato plants growing. Three-fifths of the plants are ripe and ready
+    to pick. How many plants are ripe?
+  context_block: null
+  answer_expression: Eq(x, Rational(3,5) * 60)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - You need to find what fraction 3/5 means of the total 60 plants.
+  - To find a fraction of a number, multiply the fraction by the total number.
+  - Calculate 3/5 × 60 by multiplying 3 times 60, then dividing by 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to find how many plants are ripe, which is 3/5 of all 60 plants. This means
+        we multiply the fraction by the total.
+      expression: x = (3/5) × 60
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the numerator by 60 first: 3 × 60 = 180.'
+      expression: x = 180/5
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide 180 by 5 to get the final answer.
+      expression: x = 36
+      common_mistake: null
+    final_answer: 36 plants
+  random_seed: 1806300
+  rendered_question: A community garden has 60 tomato plants growing. Three-fifths of the plants are ripe
+    and ready to pick. How many plants are ripe?
+  option_a: 20 plants
+  option_b: 45 plants
+  option_c: 40 plants
+  option_d: 36 plants
+  correct_option: d
+- question_template_id: authored-g5_word_problems-d2-986200
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -403,7 +844,7 @@ templates:
   topic_id: g5_word_problems
   skill_id: g5_wp_fractions
   grade_band: 4-5
-  difficulty_label: 2
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -452,7 +893,7 @@ templates:
   topic_id: g5_word_problems
   skill_id: g5_wp_fractions
   grade_band: 4-5
-  difficulty_label: 2
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -499,6 +940,62 @@ templates:
   option_c: 213 seeds
   option_d: 64 seeds
   correct_option: a
+- question_template_id: authored-g5_word_problems-d3-1806301
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_one_half_instead
+  - used_one_third_instead
+  - subtracted_complement_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Alex has a collection of 90 stickers. She decides to give 2/3 of her stickers to her friend Maya
+    as a birthday gift. How many stickers does Alex give to Maya?
+  context_block: null
+  answer_expression: Eq(x, Rational(2,3) * 90)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Think about what 2/3 means: if you split all the stickers into 3 equal groups, how many groups are
+    you giving away?'
+  - 'You need to find 2/3 of 90. That means you multiply: (2/3) × 90. First, multiply 2 times 90.'
+  - Once you have 2 × 90, divide the result by 3 to get your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Alex starts with 90 stickers and gives 2/3 of them away. We need to find 2/3 of 90.
+      expression: x = (2/3) × 90
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the numerator by 90 first.
+      expression: x = (2 × 90) / 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 2 times 90.
+      expression: x = 180 / 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide 180 by 3 to find the final answer.
+      expression: x = 60
+      common_mistake: null
+    final_answer: 60 stickers
+  random_seed: 1806301
+  rendered_question: Alex has a collection of 90 stickers. She decides to give 2/3 of her stickers to
+    her friend Maya as a birthday gift. How many stickers does Alex give to Maya?
+  option_a: 45 stickers
+  option_b: 75 stickers
+  option_c: 30 stickers
+  option_d: 60 stickers
+  correct_option: d
 - question_template_id: authored-g5_word_problems-d3-986300
   topic_id: g5_word_problems
   skill_id: g5_wp_fractions
@@ -653,6 +1150,127 @@ templates:
   option_c: 96 miles
   option_d: 144 miles
   correct_option: c
+- question_template_id: authored-g5_word_problems-d4-1507401
+  topic_id: g5_word_problems
+  skill_id: g5_wp_ratios_mixed
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - ignored_the_sum_of_ratio_parts
+  - interpreted_ratio_as_direct_multiplication
+  - computed_the_larger_share_instead
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya and her brother are dividing a batch of 56 cookies between them in the ratio 2:5. Maya gets
+    the smaller share. How many cookies does Maya get?
+  context_block: null
+  answer_expression: Eq(x, 56 * 2 / 7)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - A ratio of 2:5 means the total is split into 2 + 5 equal parts. How many parts altogether?
+  - Maya gets 2 parts and her brother gets 5 parts. What fraction of the 56 cookies is 2 parts?
+  - Multiply 56 by 2, then divide by the total number of parts.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ratio 2:5 tells us the total is divided into equal parts. Add the numbers in the
+        ratio to find how many parts there are in total.
+      expression: 2 + 5 = 7 parts
+      common_mistake: null
+    - step_number: 2
+      explanation: Maya gets the smaller share, which is 2 parts out of 7. To find how many cookies that
+        is, multiply the total cookies by the fraction representing her share.
+      expression: 56 × (2/7)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 56 by 2 first, then divide by 7.
+      expression: 56 × 2 = 112
+      common_mistake: null
+    - step_number: 4
+      explanation: Now divide 112 by 7 to get Maya's share.
+      expression: 112 ÷ 7 = 16
+      common_mistake: null
+    final_answer: 16 cookies
+  random_seed: 1507401
+  rendered_question: Maya and her brother are dividing a batch of 56 cookies between them in the ratio
+    2:5. Maya gets the smaller share. How many cookies does Maya get?
+  option_a: 16 cookies
+  option_b: 35 cookies
+  option_c: 22 cookies
+  option_d: 8 cookies
+  correct_option: a
+- question_template_id: authored-g5_word_problems-d4-1507400
+  topic_id: g5_word_problems
+  skill_id: g5_wp_ratios_mixed
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - reversed_ratio_or_arithmetic_error
+  - no_clear_misconception_just_guessing_midpoint
+  - solved_for_wrong_person
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two friends are splitting a bag of 50 marbles in the ratio 2:3. The first friend gets the smaller
+    share. How many marbles does the first friend receive?
+  context_block: In a ratio like 2:3, the two numbers represent equal parts. The total number of parts
+    is found by adding them together. To find how much one person gets, multiply the total amount by the
+    fraction formed by that person's share over the total parts.
+  answer_expression: Eq(x, 50 * 2 / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - In the ratio 2:3, how many total equal parts are there when you add the two numbers?
+  - There are 5 equal parts total. The first friend gets 2 of them. What fraction of the 50 marbles is
+    that?
+  - Multiply 50 by the fraction 2/5 to find how many marbles the first friend receives.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: In a ratio 2:3, the numbers represent equal parts. Add them to find the total number
+        of parts.
+      expression: 2 + 3 = 5 parts total
+      common_mistake: null
+    - step_number: 2
+      explanation: The first friend gets 2 of the 5 equal parts. Write this as a fraction of the whole.
+      expression: First friend's share = 2/5 of the total marbles
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the total marbles by the fraction to find what the first friend receives.
+      expression: x = 50 × 2/5
+      common_mistake: null
+    - step_number: 4
+      explanation: Calculate the product.
+      expression: x = 100/5 = 20
+      common_mistake: null
+    final_answer: 20 marbles
+  random_seed: 1507400
+  rendered_question: 'In a ratio like 2:3, the two numbers represent equal parts. The total number of
+    parts is found by adding them together. To find how much one person gets, multiply the total amount
+    by the fraction formed by that person''s share over the total parts.
+
+
+    Two friends are splitting a bag of 50 marbles in the ratio 2:3. The first friend gets the smaller
+    share. How many marbles does the first friend receive?'
+  option_a: 20 marbles
+  option_b: 30 marbles
+  option_c: 15 marbles
+  option_d: 25 marbles
+  correct_option: a
 - question_template_id: authored-g5_word_problems-d4-987400
   topic_id: g5_word_problems
   skill_id: g5_wp_ratios_mixed
@@ -808,11 +1426,120 @@ templates:
   option_c: 21 baseball cards
   option_d: 24 baseball cards
   correct_option: d
+- question_template_id: authored-g5_word_problems-d5-1507500
+  topic_id: g5_word_problems
+  skill_id: g5_wp_ratios_mixed
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - only_summed_ratio_parts
+  - only_divided_by_denominator_part
+  - ignored_ratio_structure
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two classmates are organizing trading cards. They divide a stack of 72 cards between them in the
+    ratio 3:5. One classmate gets the smaller share and the other gets the larger share. How many trading
+    cards does the classmate with the larger share receive?
+  context_block: null
+  answer_expression: Eq(x, 72 * 5 / 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - A ratio of 3:5 means the total is split into how many equal parts?
+  - The total 72 is divided into 3 + 5 = 8 equal parts. The larger share takes 5 of those parts.
+  - Divide 72 by 8 to find the value of one part, then multiply by 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: In a ratio of 3:5, the total is split into 3 + 5 = 8 equal parts.
+      expression: 3 + 5 = 8
+      common_mistake: null
+    - step_number: 2
+      explanation: The larger share corresponds to 5 of these 8 parts. To find the value of one part,
+        divide the total by 8.
+      expression: 72 ÷ 8 = 9
+      common_mistake: null
+    - step_number: 3
+      explanation: The larger share is 5 parts, so multiply the value of one part by 5.
+      expression: 9 × 5 = 45
+      common_mistake: null
+    final_answer: 45 trading cards
+  random_seed: 1507500
+  rendered_question: Two classmates are organizing trading cards. They divide a stack of 72 cards between
+    them in the ratio 3:5. One classmate gets the smaller share and the other gets the larger share. How
+    many trading cards does the classmate with the larger share receive?
+  option_a: 60 trading cards
+  option_b: 45 trading cards
+  option_c: 36 trading cards
+  option_d: 27 trading cards
+  correct_option: b
+- question_template_id: authored-g5_word_problems-d5-1507501
+  topic_id: g5_word_problems
+  skill_id: g5_wp_ratios_mixed
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - interpreted_ratio_as_division_directly
+  - used_wrong_numerator_in_ratio
+  - skipped_finding_one_part_first
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Amara and Jade are dividing a collection of 63 stickers between them in the ratio 2:7. Amara gets
+    the smaller share. How many stickers does Amara get?
+  context_block: null
+  answer_expression: Eq(x, 63 * 2 / 9)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - In a ratio like 2:7, what do the numbers tell you about the total number of parts?
+  - The total of 63 is split into 2 + 7 = 9 equal parts. Amara's share is how many of those parts?
+  - Find the size of one part, then multiply by how many parts Amara gets.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: In the ratio 2:7, the total is divided into 2 + 7 = 9 equal parts.
+      expression: 2 + 7 = 9 parts total
+      common_mistake: null
+    - step_number: 2
+      explanation: Amara gets the smaller share, which corresponds to the first number in the ratio 2:7.
+      expression: Amara gets 2 parts
+      common_mistake: null
+    - step_number: 3
+      explanation: Find the value of one part by dividing the total stickers by the total number of parts.
+      expression: 63 ÷ 9 = 7 stickers per part
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply the number of parts Amara gets by the value of each part.
+      expression: 2 × 7 = 14 stickers
+      common_mistake: null
+    final_answer: 14 stickers
+  random_seed: 1507501
+  rendered_question: Amara and Jade are dividing a collection of 63 stickers between them in the ratio
+    2:7. Amara gets the smaller share. How many stickers does Amara get?
+  option_a: 36 stickers
+  option_b: 14 stickers
+  option_c: 18 stickers
+  option_d: 9 stickers
+  correct_option: b
 - question_template_id: authored-g5_word_problems-d5-987500
   topic_id: g5_word_problems
   skill_id: g5_wp_ratios_mixed
   grade_band: 4-5
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -865,7 +1592,7 @@ templates:
   topic_id: g5_word_problems
   skill_id: g5_wp_ratios_mixed
   grade_band: 4-5
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -918,7 +1645,7 @@ templates:
   topic_id: g5_word_problems
   skill_id: g5_wp_ratios_mixed
   grade_band: 4-5
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:

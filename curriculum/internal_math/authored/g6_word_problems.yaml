@@ -147,6 +147,62 @@ templates:
   option_c: 50 cookies
   option_d: 135 cookies
   correct_option: a
+- question_template_id: authored-g6_word_problems-d1-1505100
+  topic_id: g6_word_problems
+  skill_id: g6_wp_average
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - forgot_to_divide
+  - added_scores_without_dividing
+  - divided_by_wrong_count
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maya took three math tests and scored 78 points, 85 points, and 92 points. What was her average
+    score across all three tests?
+  context_block: Maya is preparing for a final exam and wants to track her performance. She has completed
+    three practice tests so far.
+  answer_expression: Eq(x, (78 + 85 + 92) / 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - An average is found by adding all the scores together, then dividing by how many tests there were.
+  - 'Add the three scores: 78 + 85 + 92. Then divide that total by the number of tests, which is 3.'
+  - The sum is 255. Now divide 255 by 3 to find the average.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find an average, add all the values in the set.
+      expression: 78 + 85 + 92 = 255
+      common_mistake: null
+    - step_number: 2
+      explanation: Count how many values are in the set.
+      expression: Number of tests = 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the sum by the count to get the average.
+      expression: 255 / 3 = 85
+      common_mistake: null
+    final_answer: 85 points
+  random_seed: 1505100
+  rendered_question: 'Maya is preparing for a final exam and wants to track her performance. She has completed
+    three practice tests so far.
+
+
+    Maya took three math tests and scored 78 points, 85 points, and 92 points. What was her average score
+    across all three tests?'
+  option_a: 90 points
+  option_b: 255 points
+  option_c: 85 points
+  option_d: 82 points
+  correct_option: c
 - question_template_id: authored-g6_word_problems-d1-95100
   topic_id: g6_word_problems
   skill_id: g6_wp_average
@@ -248,7 +304,7 @@ templates:
   topic_id: g6_word_problems
   skill_id: g6_wp_average
   grade_band: 6-7
-  difficulty_label: 2
+  difficulty_label: 1
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -295,7 +351,7 @@ templates:
   topic_id: g6_word_problems
   skill_id: g6_wp_average
   grade_band: 6-7
-  difficulty_label: 2
+  difficulty_label: 1
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -590,6 +646,104 @@ templates:
   option_c: 150 miles
   option_d: 100 miles
   correct_option: c
+- question_template_id: authored-g6_word_problems-d3-1126300
+  topic_id: g6_word_problems
+  skill_id: g6_wp_rate_speed
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_multiplied
+  - subtracted_instead_of_multiplied
+  - divided_instead_of_multiplied
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A boat travels at 25 miles per hour for 4 hours. How far does the boat travel?
+  context_block: null
+  answer_expression: Eq(x, 25 * 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what quantity you get when you combine speed and time.
+  - Distance equals speed multiplied by time.
+  - Write the equation distance = 25 × 4 and compute the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula that relates distance, speed, and time: distance = speed × time.'
+      expression: distance = speed × time
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Substitute the given values: speed is 25 miles per hour and time is 4 hours.'
+      expression: distance = 25 × 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 25 by 4 to find the distance.
+      expression: distance = 100
+      common_mistake: null
+    final_answer: 100 miles
+  random_seed: 1126300
+  rendered_question: A boat travels at 25 miles per hour for 4 hours. How far does the boat travel?
+  option_a: 100 miles
+  option_b: 6.25 miles
+  option_c: 29 miles
+  option_d: 21 miles
+  correct_option: a
+- question_template_id: authored-g6_word_problems-d3-1126302
+  topic_id: g6_word_problems
+  skill_id: g6_wp_rate_speed
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplied
+  - divided_instead_of_multiplied
+  - doubled_the_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bus travels at 35 miles per hour for 2 hours. How far does the bus travel?
+  context_block: null
+  answer_expression: Eq(x, 35 * 2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens when you travel at a steady speed for a certain amount of time.
+  - Distance is found by multiplying the speed by the time traveled.
+  - 'Set up the calculation: 35 miles per hour times 2 hours.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the given values: the bus travels at 35 miles per hour for 2 hours.'
+      expression: speed = 35, time = 2
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the distance formula: distance equals speed multiplied by time.'
+      expression: x = 35 * 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 35 by 2 to find the distance.
+      expression: x = 70
+      common_mistake: null
+    final_answer: 70 miles
+  random_seed: 1126302
+  rendered_question: A bus travels at 35 miles per hour for 2 hours. How far does the bus travel?
+  option_a: 140 miles
+  option_b: 17.5 miles
+  option_c: 70 miles
+  option_d: 37 miles
+  correct_option: c
 - question_template_id: authored-g6_word_problems-d4-1126400
   topic_id: g6_word_problems
   skill_id: g6_wp_rate_speed
@@ -732,17 +886,17 @@ templates:
   option_c: 720 miles per hour
   option_d: 45 miles per hour
   correct_option: d
-- question_template_id: authored-g6_word_problems-d3-1126300
+- question_template_id: authored-g6_word_problems-d4-1506401
   topic_id: g6_word_problems
   skill_id: g6_wp_rate_speed
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
-  estimated_time_seconds: 60
+  estimated_time_seconds: 45
   common_error_tags:
-  - added_instead_of_multiplied
-  - subtracted_instead_of_multiplied
-  - divided_instead_of_multiplied
+  - computational_error_in_division
+  - incorrect_formula_addition_instead
+  - misread_given_value
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
@@ -750,48 +904,51 @@ templates:
     judge: bedrock-question-judge
   review_priority: high
   version: 1
-  stem: A boat travels at 25 miles per hour for 4 hours. How far does the boat travel?
+  stem: A delivery truck travels 280 miles from a warehouse to a distribution center in 4 hours. What
+    is the truck's average speed in miles per hour?
   context_block: null
-  answer_expression: Eq(x, 25 * 4)
+  answer_expression: x = 280 / 4
   figure_spec: null
   figure_reading: null
   hint_ladder:
-  - Think about what quantity you get when you combine speed and time.
-  - Distance equals speed multiplied by time.
-  - Write the equation distance = 25 × 4 and compute the product.
+  - Average speed means the constant speed at which the truck would travel if it went the same distance
+    in the same time.
+  - To find average speed, you divide the total distance by the total time.
+  - 'Set up: average speed = 280 ÷ 4. Now perform the division.'
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: 'Identify the formula that relates distance, speed, and time: distance = speed × time.'
-      expression: distance = speed × time
+      explanation: Average speed is defined as total distance divided by total time.
+      expression: average speed = total distance / total time
       common_mistake: null
     - step_number: 2
-      explanation: 'Substitute the given values: speed is 25 miles per hour and time is 4 hours.'
-      expression: distance = 25 × 4
+      explanation: 'Substitute the given values: the truck travels 280 miles in 4 hours.'
+      expression: average speed = 280 / 4
       common_mistake: null
     - step_number: 3
-      explanation: Multiply 25 by 4 to find the distance.
-      expression: distance = 100
+      explanation: Divide 280 by 4.
+      expression: 280 / 4 = 70
       common_mistake: null
-    final_answer: 100 miles
-  random_seed: 1126300
-  rendered_question: A boat travels at 25 miles per hour for 4 hours. How far does the boat travel?
-  option_a: 100 miles
-  option_b: 6.25 miles
-  option_c: 29 miles
-  option_d: 21 miles
-  correct_option: a
-- question_template_id: authored-g6_word_problems-d3-1126302
+    final_answer: 70 miles per hour
+  random_seed: 1506401
+  rendered_question: A delivery truck travels 280 miles from a warehouse to a distribution center in 4
+    hours. What is the truck's average speed in miles per hour?
+  option_a: 112 miles per hour
+  option_b: 62 miles per hour
+  option_c: 68 miles per hour
+  option_d: 70 miles per hour
+  correct_option: d
+- question_template_id: authored-g6_word_problems-d3-1127300
   topic_id: g6_word_problems
-  skill_id: g6_wp_rate_speed
+  skill_id: g6_wp_ratio_proportion
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
-  - added_instead_of_multiplied
-  - divided_instead_of_multiplied
-  - doubled_the_product
+  - used_ratio_part_as_denominator_without_summing
+  - multiplied_by_wrong_ratio_part
+  - divided_total_by_one_ratio_part
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
@@ -799,36 +956,94 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A bus travels at 35 miles per hour for 2 hours. How far does the bus travel?
-  context_block: null
-  answer_expression: Eq(x, 35 * 2)
+  stem: Two friends collect 72 stickers and decide to split them in the ratio 5:4. How many stickers does
+    the first friend receive?
+  context_block: ''
+  answer_expression: x = 72 * 5 / (5 + 4)
   figure_spec: null
   figure_reading: null
   hint_ladder:
-  - Think about what happens when you travel at a steady speed for a certain amount of time.
-  - Distance is found by multiplying the speed by the time traveled.
-  - 'Set up the calculation: 35 miles per hour times 2 hours.'
+  - Add the two parts of the ratio to find the total number of parts.
+  - The first friend gets 5 parts out of the total, so multiply 72 by 5 and then divide by the total parts.
+  - Write the calculation as 72 times 5 divided by 9, then compute.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: 'Identify the given values: the bus travels at 35 miles per hour for 2 hours.'
-      expression: speed = 35, time = 2
+      explanation: Add the two parts of the ratio to find the total number of parts.
+      expression: 5 + 4 = 9
       common_mistake: null
     - step_number: 2
-      explanation: 'Use the distance formula: distance equals speed multiplied by time.'
-      expression: x = 35 * 2
+      explanation: The first friend receives 5 parts out of 9 total parts, so multiply the total stickers
+        by the first friend's share.
+      expression: 72 * 5 = 360
       common_mistake: null
     - step_number: 3
-      explanation: Multiply 35 by 2 to find the distance.
-      expression: x = 70
+      explanation: Divide by the total number of parts to find the number of stickers the first friend
+        gets.
+      expression: 360 / 9 = 40
       common_mistake: null
-    final_answer: 70 miles
-  random_seed: 1126302
-  rendered_question: A bus travels at 35 miles per hour for 2 hours. How far does the bus travel?
-  option_a: 140 miles
-  option_b: 17.5 miles
-  option_c: 70 miles
-  option_d: 37 miles
+    final_answer: 40 stickers
+  random_seed: 1127300
+  rendered_question: Two friends collect 72 stickers and decide to split them in the ratio 5:4. How many
+    stickers does the first friend receive?
+  option_a: 8 stickers
+  option_b: 36 stickers
+  option_c: 45 stickers
+  option_d: 40 stickers
+  correct_option: d
+- question_template_id: authored-g6_word_problems-d3-1127301
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - used_wrong_ratio_term
+  - divided_by_ratio_term_instead_of_sum
+  - multiplied_without_dividing_by_total_parts
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Two siblings split a collection of 90 marbles in the ratio 2:3. How many marbles does the first
+    sibling receive?
+  context_block: null
+  answer_expression: x = 90 * 2 / (2 + 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - A ratio of 2:3 means for every 2 marbles the first sibling gets, the second gets 3. How many total
+    parts is that?
+  - Add 2 and 3 to find that 5 equal parts make up the whole collection of 90 marbles. Each part is worth
+    90 divided by 5.
+  - The first sibling receives 2 parts. Multiply the value of one part by 2 to find the first sibling's
+    share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ratio 2:3 means the collection is divided into 2 + 3 = 5 equal parts.
+      expression: 2 + 3 = 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Each part is worth 90 marbles divided by 5 parts.
+      expression: 90 / 5 = 18
+      common_mistake: null
+    - step_number: 3
+      explanation: The first sibling receives 2 parts, so multiply the value of one part by 2.
+      expression: 18 * 2 = 36
+      common_mistake: null
+    final_answer: 36 marbles
+  random_seed: 1127301
+  rendered_question: Two siblings split a collection of 90 marbles in the ratio 2:3. How many marbles
+    does the first sibling receive?
+  option_a: 45 marbles
+  option_b: 180 marbles
+  option_c: 36 marbles
+  option_d: 60 marbles
   correct_option: c
 - question_template_id: authored-g6_word_problems-d4-1127400
   topic_id: g6_word_problems
@@ -937,6 +1152,65 @@ templates:
   option_c: 36 dollars
   option_d: 64 dollars
   correct_option: b
+- question_template_id: authored-g6_word_problems-d4-1507401
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - found_the_time_difference_instead
+  - inverted_the_proportion
+  - skipped_cross_multiplication
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A painter can paint 4 rooms in 6 hours at a steady rate. If she works for 9 hours at the same
+    pace, how many rooms will she paint?
+  context_block: null
+  answer_expression: x / 9 = 4 / 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The painter completes rooms at a steady rate. If 4 rooms take 6 hours, what is the ratio of rooms
+    to hours?
+  - 'The rate is 4 rooms per 6 hours. In 9 hours at that same rate, how many rooms would be painted? Set
+    up: rooms over 9 hours equals 4 rooms over 6 hours.'
+  - Write the proportion as x / 9 = 4 / 6. Now cross-multiply or simplify to find x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify what we know: the painter completes 4 rooms in 6 hours at a constant rate.
+        We want to find how many rooms she paints in 9 hours.'
+      expression: rate = 4 rooms per 6 hours
+      common_mistake: null
+    - step_number: 2
+      explanation: Set up a proportion. The number of rooms is proportional to the time. If x rooms are
+        painted in 9 hours, then x over 9 equals 4 over 6.
+      expression: x / 9 = 4 / 6
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Cross-multiply: 6 times x equals 4 times 9.'
+      expression: 6x = 36
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 6 to isolate x.
+      expression: x = 36 / 6 = 6
+      common_mistake: null
+    final_answer: 6 rooms
+  random_seed: 1507401
+  rendered_question: A painter can paint 4 rooms in 6 hours at a steady rate. If she works for 9 hours
+    at the same pace, how many rooms will she paint?
+  option_a: 10 rooms
+  option_b: 5 rooms
+  option_c: 6 rooms
+  option_d: 8 rooms
+  correct_option: c
 - question_template_id: authored-g6_word_problems-d4-97401
   topic_id: g6_word_problems
   skill_id: g6_wp_ratio_proportion
@@ -1100,6 +1374,65 @@ templates:
   option_c: 24 marbles
   option_d: 20 marbles
   correct_option: c
+- question_template_id: authored-g6_word_problems-d5-1507501
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_both_quantities_by_time_change
+  - confused_time_ratio_for_distance
+  - added_instead_of_proportional_reasoning
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A delivery truck travels at a constant speed. It covers 180 km in 3 hours. If the truck continues
+    at the same speed, how far will it travel in 5 hours?
+  context_block: A delivery truck travels at a constant speed. It covers 180 km in 3 hours. If the truck
+    continues at the same speed, how far will it travel in 5 hours?
+  answer_expression: x / 5 = 180 / 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - At a constant speed, the ratio of distance to time stays the same no matter which journey you look
+    at.
+  - 'If the truck travels 180 km in 3 hours, then it travels x km in 5 hours, and these ratios must be
+    equal: x/5 = 180/3.'
+  - Cross-multiply or simplify 180/3 first, then multiply by 5 to find x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Set up a proportion using the constant speed property: distance and time have the
+        same ratio in any equal-time interval.'
+      expression: x / 5 = 180 / 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Simplify the right side by dividing 180 by 3.
+      expression: x / 5 = 60
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply both sides by 5 to isolate x.
+      expression: x = 60 × 5 = 300
+      common_mistake: null
+    final_answer: 300 km
+  random_seed: 1507501
+  rendered_question: 'A delivery truck travels at a constant speed. It covers 180 km in 3 hours. If the
+    truck continues at the same speed, how far will it travel in 5 hours?
+
+
+    A delivery truck travels at a constant speed. It covers 180 km in 3 hours. If the truck continues
+    at the same speed, how far will it travel in 5 hours?'
+  option_a: 100 km
+  option_b: 300 km
+  option_c: 360 km
+  option_d: 240 km
+  correct_option: b
 - question_template_id: authored-g6_word_problems-d5-37501
   topic_id: g6_word_problems
   skill_id: g6_wp_ratio_proportion
@@ -1211,113 +1544,6 @@ templates:
   option_c: 27 trees
   option_d: 60 trees
   correct_option: a
-- question_template_id: authored-g6_word_problems-d3-1127300
-  topic_id: g6_word_problems
-  skill_id: g6_wp_ratio_proportion
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - used_ratio_part_as_denominator_without_summing
-  - multiplied_by_wrong_ratio_part
-  - divided_total_by_one_ratio_part
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Two friends collect 72 stickers and decide to split them in the ratio 5:4. How many stickers does
-    the first friend receive?
-  context_block: ''
-  answer_expression: x = 72 * 5 / (5 + 4)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Add the two parts of the ratio to find the total number of parts.
-  - The first friend gets 5 parts out of the total, so multiply 72 by 5 and then divide by the total parts.
-  - Write the calculation as 72 times 5 divided by 9, then compute.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Add the two parts of the ratio to find the total number of parts.
-      expression: 5 + 4 = 9
-      common_mistake: null
-    - step_number: 2
-      explanation: The first friend receives 5 parts out of 9 total parts, so multiply the total stickers
-        by the first friend's share.
-      expression: 72 * 5 = 360
-      common_mistake: null
-    - step_number: 3
-      explanation: Divide by the total number of parts to find the number of stickers the first friend
-        gets.
-      expression: 360 / 9 = 40
-      common_mistake: null
-    final_answer: 40 stickers
-  random_seed: 1127300
-  rendered_question: Two friends collect 72 stickers and decide to split them in the ratio 5:4. How many
-    stickers does the first friend receive?
-  option_a: 8 stickers
-  option_b: 36 stickers
-  option_c: 45 stickers
-  option_d: 40 stickers
-  correct_option: d
-- question_template_id: authored-g6_word_problems-d3-1127301
-  topic_id: g6_word_problems
-  skill_id: g6_wp_ratio_proportion
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 120
-  common_error_tags:
-  - used_wrong_ratio_term
-  - divided_by_ratio_term_instead_of_sum
-  - multiplied_without_dividing_by_total_parts
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: Two siblings split a collection of 90 marbles in the ratio 2:3. How many marbles does the first
-    sibling receive?
-  context_block: null
-  answer_expression: x = 90 * 2 / (2 + 3)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - A ratio of 2:3 means for every 2 marbles the first sibling gets, the second gets 3. How many total
-    parts is that?
-  - Add 2 and 3 to find that 5 equal parts make up the whole collection of 90 marbles. Each part is worth
-    90 divided by 5.
-  - The first sibling receives 2 parts. Multiply the value of one part by 2 to find the first sibling's
-    share.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The ratio 2:3 means the collection is divided into 2 + 3 = 5 equal parts.
-      expression: 2 + 3 = 5
-      common_mistake: null
-    - step_number: 2
-      explanation: Each part is worth 90 marbles divided by 5 parts.
-      expression: 90 / 5 = 18
-      common_mistake: null
-    - step_number: 3
-      explanation: The first sibling receives 2 parts, so multiply the value of one part by 2.
-      expression: 18 * 2 = 36
-      common_mistake: null
-    final_answer: 36 marbles
-  random_seed: 1127301
-  rendered_question: Two siblings split a collection of 90 marbles in the ratio 2:3. How many marbles
-    does the first sibling receive?
-  option_a: 45 marbles
-  option_b: 180 marbles
-  option_c: 36 marbles
-  option_d: 60 marbles
-  correct_option: c
 - question_template_id: authored-g6_word_problems-d3-1127302
   topic_id: g6_word_problems
   skill_id: g6_wp_ratio_proportion
@@ -1369,6 +1595,164 @@ templates:
   option_c: 48 cans
   option_d: 30 cans
   correct_option: d
+- question_template_id: authored-g6_word_problems-d4-1127401
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_second_ratio_part_instead_of_first
+  - divided_total_by_ratio_part_directly
+  - used_raw_ratio_number_as_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two scout troops share 63 cookies in the ratio 4:5. How many cookies does the first troop receive?
+  context_block: ''
+  answer_expression: Eq(x, 63 * 4 / (4 + 5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The ratio 4:5 means for every 4 cookies the first troop gets, the second troop gets 5 cookies.
+  - Add the ratio parts together to find how many total parts make up the 63 cookies.
+  - Divide 63 by the total number of parts, then multiply by 4 to find the first troop's share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Add the ratio parts to find the total number of parts: 4 + 5 = 9.'
+      expression: 4 + 5 = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Divide the total number of cookies by the total parts to find the value of one part:
+        63 ÷ 9 = 7.'
+      expression: 63 / 9 = 7
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply the value of one part by the first troop''s ratio to find their share: 7
+        × 4 = 28.'
+      expression: 7 * 4 = 28
+      common_mistake: null
+    final_answer: 28 cookies
+  random_seed: 1127401
+  rendered_question: Two scout troops share 63 cookies in the ratio 4:5. How many cookies does the first
+    troop receive?
+  option_a: 28 cookies
+  option_b: 15.75 cookies
+  option_c: 35 cookies
+  option_d: 4 cookies
+  correct_option: a
+- question_template_id: authored-g6_word_problems-d4-37401
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - inverted_proportion
+  - confused_which_terms_correspond
+  - added_terms_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A scale model of a museum uses a ratio where 4 inches on the model represents 10 feet in the real
+    building. A hallway measures 6 inches on the model. How long is the real hallway?
+  context_block: null
+  answer_expression: x/6 = 10/4
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write a proportion with inches on the model in one ratio and feet in reality in the other.
+  - Set up 4 inches over 10 feet equal to 6 inches over the unknown length in feet.
+  - Cross-multiply or scale up to find the real length, then simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set up a proportion where 4 inches on the model corresponds to 10 feet in reality,
+        and 6 inches on the model corresponds to x feet in reality.
+      expression: x/6 = 10/4
+      common_mistake: null
+    - step_number: 2
+      explanation: Cross-multiply to solve for x.
+      expression: 4x = 60
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 4 to isolate x.
+      expression: x = 15
+      common_mistake: null
+    final_answer: 15 feet
+  random_seed: 37401
+  rendered_question: A scale model of a museum uses a ratio where 4 inches on the model represents 10
+    feet in the real building. A hallway measures 6 inches on the model. How long is the real hallway?
+  option_a: 2.4 feet
+  option_b: 40 feet
+  option_c: 24 feet
+  option_d: 15 feet
+  correct_option: d
+- question_template_id: authored-g6_word_problems-d4-37402
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_by_wrong_scale_factor
+  - multiplied_without_dividing_in_proportion
+  - simplified_ratio_but_ignored_measurement
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A city map uses a scale where 3 centimetres represents 12 kilometres. Liam measures the distance
+    between the library and the park and finds it is 7 centimetres on the map. What is the actual distance
+    between the library and the park?
+  context_block: ''
+  answer_expression: Eq(x/7, 12/3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Set up a ratio comparing centimetres on the map to kilometres in reality.
+  - 'Write the proportion: 3 cm to 12 km is the same as 7 cm to x km.'
+  - Cross-multiply to solve for x, or simplify the scale ratio first.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The scale tells us that 3 centimetres on the map represents 12 kilometres in reality.
+        We write the ratio for the known scale and set it equal to the ratio for the unknown distance.
+      expression: 3/12 = 7/x
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Cross-multiply to eliminate the fractions: multiply 3 by x and 12 by 7.'
+      expression: 3x = 84
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 3 to isolate x.
+      expression: x = 28
+      common_mistake: null
+    final_answer: 28 kilometres
+  random_seed: 37402
+  rendered_question: A city map uses a scale where 3 centimetres represents 12 kilometres. Liam measures
+    the distance between the library and the park and finds it is 7 centimetres on the map. What is the
+    actual distance between the library and the park?
+  option_a: 21 kilometres
+  option_b: 28 kilometres
+  option_c: 84 kilometres
+  option_d: 4 kilometres
+  correct_option: b
 - question_template_id: authored-g6_word_problems-d5-1127502
   topic_id: g6_word_problems
   skill_id: g6_wp_ratio_proportion
@@ -1423,6 +1807,66 @@ templates:
   option_c: 32 pencils
   option_d: 24 pencils
   correct_option: d
+- question_template_id: authored-g6_word_problems-d5-1507500
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - ratio_confusion_multiplied_by_wrong_part
+  - used_the_known_share_as_one_part_instead_of_three_parts
+  - inverted_the_ratio_position
+  - added_the_ratio_numbers_instead_of_recognizing_equal_parts
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A library donates a large shipment of books to three schools in the ratio 2:3:4. The middle school
+    receives 24 books. How many books does the first school receive?
+  context_block: 'A library is donating books to three schools in the ratio 2:3:4 (first school : middle
+    school : third school). The middle school''s share comes to 24 books.'
+  answer_expression: x / 2 = 24 / 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - In a ratio like 2:3:4, each number represents a number of equal parts. What do the numbers 2, 3, and
+    4 represent?
+  - The middle school gets the part labeled 3, and that equals 24 books. What is the value of one part?
+  - If one part equals 8, and the first school gets 2 parts, multiply to find its share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ratio 2:3:4 means the books are split into 2 + 3 + 4 = 9 equal parts. The first
+        school gets 2 parts, the middle school gets 3 parts, and the third school gets 4 parts.
+      expression: The middle school receives 3 parts = 24 books
+      common_mistake: null
+    - step_number: 2
+      explanation: To find the value of one part, divide the middle school's share by the number of parts
+        it represents.
+      expression: 1 part = 24 ÷ 3 = 8 books
+      common_mistake: null
+    - step_number: 3
+      explanation: The first school gets 2 parts, so multiply the value of one part by 2.
+      expression: x = 2 × 8 = 16 books
+      common_mistake: null
+    final_answer: 16 books
+  random_seed: 1507500
+  rendered_question: 'A library is donating books to three schools in the ratio 2:3:4 (first school :
+    middle school : third school). The middle school''s share comes to 24 books.
+
+
+    A library donates a large shipment of books to three schools in the ratio 2:3:4. The middle school
+    receives 24 books. How many books does the first school receive?'
+  option_a: 32 books
+  option_b: 16 books
+  option_c: 18 books
+  option_d: 12 books
+  correct_option: b
 - question_template_id: authored-g6_word_problems-d5-97501
   topic_id: g6_word_problems
   skill_id: g6_wp_ratio_proportion
@@ -1472,161 +1916,3 @@ templates:
   option_c: 24 cakes
   option_d: 32 cakes
   correct_option: a
-- question_template_id: authored-g6_word_problems-d4-1127401
-  topic_id: g6_word_problems
-  skill_id: g6_wp_ratio_proportion
-  grade_band: 6-7
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - used_second_ratio_part_instead_of_first
-  - divided_total_by_ratio_part_directly
-  - used_raw_ratio_number_as_answer
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Two scout troops share 63 cookies in the ratio 4:5. How many cookies does the first troop receive?
-  context_block: ''
-  answer_expression: Eq(x, 63 * 4 / (4 + 5))
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - The ratio 4:5 means for every 4 cookies the first troop gets, the second troop gets 5 cookies.
-  - Add the ratio parts together to find how many total parts make up the 63 cookies.
-  - Divide 63 by the total number of parts, then multiply by 4 to find the first troop's share.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: 'Add the ratio parts to find the total number of parts: 4 + 5 = 9.'
-      expression: 4 + 5 = 9
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Divide the total number of cookies by the total parts to find the value of one part:
-        63 ÷ 9 = 7.'
-      expression: 63 / 9 = 7
-      common_mistake: null
-    - step_number: 3
-      explanation: 'Multiply the value of one part by the first troop''s ratio to find their share: 7
-        × 4 = 28.'
-      expression: 7 * 4 = 28
-      common_mistake: null
-    final_answer: 28 cookies
-  random_seed: 1127401
-  rendered_question: Two scout troops share 63 cookies in the ratio 4:5. How many cookies does the first
-    troop receive?
-  option_a: 28 cookies
-  option_b: 15.75 cookies
-  option_c: 35 cookies
-  option_d: 4 cookies
-  correct_option: a
-- question_template_id: authored-g6_word_problems-d4-37401
-  topic_id: g6_word_problems
-  skill_id: g6_wp_ratio_proportion
-  grade_band: 6-7
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 120
-  common_error_tags:
-  - inverted_proportion
-  - confused_which_terms_correspond
-  - added_terms_instead_of_multiplying
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A scale model of a museum uses a ratio where 4 inches on the model represents 10 feet in the real
-    building. A hallway measures 6 inches on the model. How long is the real hallway?
-  context_block: null
-  answer_expression: x/6 = 10/4
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Write a proportion with inches on the model in one ratio and feet in reality in the other.
-  - Set up 4 inches over 10 feet equal to 6 inches over the unknown length in feet.
-  - Cross-multiply or scale up to find the real length, then simplify.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Set up a proportion where 4 inches on the model corresponds to 10 feet in reality,
-        and 6 inches on the model corresponds to x feet in reality.
-      expression: x/6 = 10/4
-      common_mistake: null
-    - step_number: 2
-      explanation: Cross-multiply to solve for x.
-      expression: 4x = 60
-      common_mistake: null
-    - step_number: 3
-      explanation: Divide both sides by 4 to isolate x.
-      expression: x = 15
-      common_mistake: null
-    final_answer: 15 feet
-  random_seed: 37401
-  rendered_question: A scale model of a museum uses a ratio where 4 inches on the model represents 10
-    feet in the real building. A hallway measures 6 inches on the model. How long is the real hallway?
-  option_a: 2.4 feet
-  option_b: 40 feet
-  option_c: 24 feet
-  option_d: 15 feet
-  correct_option: d
-- question_template_id: authored-g6_word_problems-d4-37402
-  topic_id: g6_word_problems
-  skill_id: g6_wp_ratio_proportion
-  grade_band: 6-7
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 120
-  common_error_tags:
-  - multiplied_by_wrong_scale_factor
-  - multiplied_without_dividing_in_proportion
-  - simplified_ratio_but_ignored_measurement
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A city map uses a scale where 3 centimetres represents 12 kilometres. Liam measures the distance
-    between the library and the park and finds it is 7 centimetres on the map. What is the actual distance
-    between the library and the park?
-  context_block: ''
-  answer_expression: Eq(x/7, 12/3)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Set up a ratio comparing centimetres on the map to kilometres in reality.
-  - 'Write the proportion: 3 cm to 12 km is the same as 7 cm to x km.'
-  - Cross-multiply to solve for x, or simplify the scale ratio first.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The scale tells us that 3 centimetres on the map represents 12 kilometres in reality.
-        We write the ratio for the known scale and set it equal to the ratio for the unknown distance.
-      expression: 3/12 = 7/x
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Cross-multiply to eliminate the fractions: multiply 3 by x and 12 by 7.'
-      expression: 3x = 84
-      common_mistake: null
-    - step_number: 3
-      explanation: Divide both sides by 3 to isolate x.
-      expression: x = 28
-      common_mistake: null
-    final_answer: 28 kilometres
-  random_seed: 37402
-  rendered_question: A city map uses a scale where 3 centimetres represents 12 kilometres. Liam measures
-    the distance between the library and the park and finds it is 7 centimetres on the map. What is the
-    actual distance between the library and the park?
-  option_a: 21 kilometres
-  option_b: 28 kilometres
-  option_c: 84 kilometres
-  option_d: 4 kilometres
-  correct_option: b

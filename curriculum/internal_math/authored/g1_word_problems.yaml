@@ -1,6 +1,111 @@
 curriculum_version: '2026.1'
 topic_id: g1_word_problems
 templates:
+- question_template_id: authored-g1_word_problems-d3-5301
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - chose_ending_amount_as_answer
+  - chose_starting_amount_as_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam had 15 apples in his basket. He ate some apples during the day. Now he has 9 apples left.
+    How many apples did Liam eat?
+  context_block: ''
+  answer_expression: Eq(15 - x, 9)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Liam started with some apples and ended with fewer, so think about what operation shows taking away.
+  - If Liam ate x apples, his basket went from 15 apples down to 9 apples.
+  - Write an equation that says 15 minus the apples eaten equals 9, then find what number makes that true.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam started with 15 apples and now has 9 apples, so we need to find how many were
+        eaten.
+      expression: 15 - x = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: 'To find x, we can think: what number subtracted from 15 gives 9? Or we can subtract
+        9 from both sides: x = 15 - 9.'
+      expression: x = 15 - 9
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract to find the number of apples eaten.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 apples
+  random_seed: 5301
+  rendered_question: Liam had 15 apples in his basket. He ate some apples during the day. Now he has 9
+    apples left. How many apples did Liam eat?
+  option_a: 24 apples
+  option_b: 6 apples
+  option_c: 9 apples
+  option_d: 15 apples
+  correct_option: b
+- question_template_id: authored-g1_word_problems-d3-96300
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - used_starting_value_as_answer
+  - used_remaining_value_as_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Leo had 15 marbles in his pocket. He gave some marbles to his friend, and now Leo has 8 marbles
+    left. How many marbles did Leo give away?
+  context_block: null
+  answer_expression: Eq(15 - x, 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what Leo started with and what he has now.
+  - Write an equation showing that 15 minus some number equals 8.
+  - The number you are looking for is what you subtract from 15 to get 8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Leo started with 15 marbles and has 8 marbles left. The marbles he gave away are the
+        difference.
+      expression: 15 - x = 8
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, we can subtract 8 from 15.
+      expression: x = 15 - 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract to find the number of marbles given away.
+      expression: x = 7
+      common_mistake: null
+    final_answer: 7 marbles
+  random_seed: 96300
+  rendered_question: Leo had 15 marbles in his pocket. He gave some marbles to his friend, and now Leo
+    has 8 marbles left. How many marbles did Leo give away?
+  option_a: 15 marbles
+  option_b: 7 marbles
+  option_c: 23 marbles
+  option_d: 8 marbles
+  correct_option: b
 - question_template_id: authored-g1_word_problems-d5-5500
   topic_id: g1_word_problems
   skill_id: g1_wp_choose_operation
@@ -157,111 +262,6 @@ templates:
   option_c: 9 stickers
   option_d: 6 stickers
   correct_option: d
-- question_template_id: authored-g1_word_problems-d3-5301
-  topic_id: g1_word_problems
-  skill_id: g1_wp_choose_operation
-  grade_band: 1-2
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - added_instead_of_subtracted
-  - chose_ending_amount_as_answer
-  - chose_starting_amount_as_answer
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Liam had 15 apples in his basket. He ate some apples during the day. Now he has 9 apples left.
-    How many apples did Liam eat?
-  context_block: ''
-  answer_expression: Eq(15 - x, 9)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Liam started with some apples and ended with fewer, so think about what operation shows taking away.
-  - If Liam ate x apples, his basket went from 15 apples down to 9 apples.
-  - Write an equation that says 15 minus the apples eaten equals 9, then find what number makes that true.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Liam started with 15 apples and now has 9 apples, so we need to find how many were
-        eaten.
-      expression: 15 - x = 9
-      common_mistake: null
-    - step_number: 2
-      explanation: 'To find x, we can think: what number subtracted from 15 gives 9? Or we can subtract
-        9 from both sides: x = 15 - 9.'
-      expression: x = 15 - 9
-      common_mistake: null
-    - step_number: 3
-      explanation: Subtract to find the number of apples eaten.
-      expression: x = 6
-      common_mistake: null
-    final_answer: 6 apples
-  random_seed: 5301
-  rendered_question: Liam had 15 apples in his basket. He ate some apples during the day. Now he has 9
-    apples left. How many apples did Liam eat?
-  option_a: 24 apples
-  option_b: 6 apples
-  option_c: 9 apples
-  option_d: 15 apples
-  correct_option: b
-- question_template_id: authored-g1_word_problems-d3-96300
-  topic_id: g1_word_problems
-  skill_id: g1_wp_choose_operation
-  grade_band: 1-2
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - added_instead_of_subtracted
-  - used_starting_value_as_answer
-  - used_remaining_value_as_answer
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Leo had 15 marbles in his pocket. He gave some marbles to his friend, and now Leo has 8 marbles
-    left. How many marbles did Leo give away?
-  context_block: null
-  answer_expression: Eq(15 - x, 8)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Think about what Leo started with and what he has now.
-  - Write an equation showing that 15 minus some number equals 8.
-  - The number you are looking for is what you subtract from 15 to get 8.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Leo started with 15 marbles and has 8 marbles left. The marbles he gave away are the
-        difference.
-      expression: 15 - x = 8
-      common_mistake: null
-    - step_number: 2
-      explanation: To find x, we can subtract 8 from 15.
-      expression: x = 15 - 8
-      common_mistake: null
-    - step_number: 3
-      explanation: Subtract to find the number of marbles given away.
-      expression: x = 7
-      common_mistake: null
-    final_answer: 7 marbles
-  random_seed: 96300
-  rendered_question: Leo had 15 marbles in his pocket. He gave some marbles to his friend, and now Leo
-    has 8 marbles left. How many marbles did Leo give away?
-  option_a: 15 marbles
-  option_b: 7 marbles
-  option_c: 23 marbles
-  option_d: 8 marbles
-  correct_option: b
 - question_template_id: authored-g1_word_problems-d3-96301
   topic_id: g1_word_problems
   skill_id: g1_wp_choose_operation
@@ -530,7 +530,7 @@ templates:
   topic_id: g1_word_problems
   skill_id: g1_wp_choose_operation
   grade_band: 1-2
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -584,7 +584,7 @@ templates:
   topic_id: g1_word_problems
   skill_id: g1_wp_choose_operation
   grade_band: 1-2
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -637,7 +637,7 @@ templates:
   topic_id: g1_word_problems
   skill_id: g1_wp_choose_operation
   grade_band: 1-2
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -1002,7 +1002,7 @@ templates:
   topic_id: g1_word_problems
   skill_id: g1_wp_single_operation
   grade_band: 1-2
-  difficulty_label: 2
+  difficulty_label: 1
   difficulty_confidence: 0.5
   estimated_time_seconds: 45
   common_error_tags:
@@ -1052,7 +1052,7 @@ templates:
   topic_id: g1_word_problems
   skill_id: g1_wp_single_operation
   grade_band: 1-2
-  difficulty_label: 2
+  difficulty_label: 1
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -1102,7 +1102,7 @@ templates:
   topic_id: g1_word_problems
   skill_id: g1_wp_single_operation
   grade_band: 1-2
-  difficulty_label: 2
+  difficulty_label: 1
   difficulty_confidence: 0.5
   estimated_time_seconds: 45
   common_error_tags:
@@ -1153,7 +1153,7 @@ templates:
   topic_id: g1_word_problems
   skill_id: g1_wp_single_operation
   grade_band: 1-2
-  difficulty_label: 2
+  difficulty_label: 1
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -1204,7 +1204,7 @@ templates:
   topic_id: g1_word_problems
   skill_id: g1_wp_single_operation
   grade_band: 1-2
-  difficulty_label: 2
+  difficulty_label: 1
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:

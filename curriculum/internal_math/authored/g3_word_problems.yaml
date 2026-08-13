@@ -1,11 +1,60 @@
 curriculum_version: '2026.1'
 topic_id: g3_word_problems
 templates:
-- question_template_id: authored-g3_word_problems-d1-965100
+- question_template_id: authored-g3_word_problems-d1-97100
   topic_id: g3_word_problems
   skill_id: g3_wp_add_sub
   grade_band: 2-3
   difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - added_only_hundreds_place
+  - added_with_place_value_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library has 425 books on its shelves. A nearby school donates 318 more books. How many books
+    does the library have now?
+  context_block: null
+  answer_expression: x = 425 + 318
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Start by thinking about what you need to find: the total number of books after the donation.'
+  - You know the library started with 425 books and received 318 more. What operation combines those amounts?
+  - Write the equation that adds the starting books and the donated books together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The library starts with 425 books and receives 318 more books. To find the total, add
+        these two quantities.
+      expression: x = 425 + 318
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the hundreds: 400 + 300 = 700. Add the tens: 20 + 10 = 30. Add the ones: 5 + 8
+        = 13.'
+      expression: 700 + 30 + 13 = 743
+      common_mistake: null
+    final_answer: 743 books
+  random_seed: 97100
+  rendered_question: A library has 425 books on its shelves. A nearby school donates 318 more books. How
+    many books does the library have now?
+  option_a: 753 books
+  option_b: 643 books
+  option_c: 107 books
+  option_d: 743 books
+  correct_option: d
+- question_template_id: authored-g3_word_problems-d1-965100
+  topic_id: g3_word_problems
+  skill_id: g3_wp_add_sub
+  grade_band: 2-3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -61,7 +110,7 @@ templates:
   topic_id: g3_word_problems
   skill_id: g3_wp_add_sub
   grade_band: 2-3
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -111,60 +160,11 @@ templates:
   option_c: 1150 tickets
   option_d: 830 tickets
   correct_option: d
-- question_template_id: authored-g3_word_problems-d1-97100
-  topic_id: g3_word_problems
-  skill_id: g3_wp_add_sub
-  grade_band: 2-3
-  difficulty_label: 1
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 90
-  common_error_tags:
-  - subtracted_instead_of_adding
-  - added_only_hundreds_place
-  - added_with_place_value_error
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A library has 425 books on its shelves. A nearby school donates 318 more books. How many books
-    does the library have now?
-  context_block: null
-  answer_expression: x = 425 + 318
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - 'Start by thinking about what you need to find: the total number of books after the donation.'
-  - You know the library started with 425 books and received 318 more. What operation combines those amounts?
-  - Write the equation that adds the starting books and the donated books together.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The library starts with 425 books and receives 318 more books. To find the total, add
-        these two quantities.
-      expression: x = 425 + 318
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Add the hundreds: 400 + 300 = 700. Add the tens: 20 + 10 = 30. Add the ones: 5 + 8
-        = 13.'
-      expression: 700 + 30 + 13 = 743
-      common_mistake: null
-    final_answer: 743 books
-  random_seed: 97100
-  rendered_question: A library has 425 books on its shelves. A nearby school donates 318 more books. How
-    many books does the library have now?
-  option_a: 753 books
-  option_b: 643 books
-  option_c: 107 books
-  option_d: 743 books
-  correct_option: d
 - question_template_id: authored-g3_word_problems-d1-97101
   topic_id: g3_word_problems
   skill_id: g3_wp_add_sub
   grade_band: 2-3
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -420,17 +420,17 @@ templates:
   option_c: 196 books
   option_d: 241 books
   correct_option: a
-- question_template_id: authored-g3_word_problems-d4-966400
+- question_template_id: authored-g3_word_problems-d4-966402
   topic_id: g3_word_problems
   skill_id: g3_wp_mixed
   grade_band: 2-3
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
-  estimated_time_seconds: 90
+  estimated_time_seconds: 120
   common_error_tags:
-  - rounded_up_with_remainder
+  - reported_quotient_instead_of_remainder
   - stopped_after_first_operation
-  - division_by_wrong_number
+  - subtracted_instead_of_taking_modulus
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
@@ -438,44 +438,41 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A teacher has 5 boxes with 28 pencils in each box. She wants to bundle them into groups of 8 pencils
-    each. How many complete bundles can she make?
+  stem: A librarian wheels 6 carts into the reading room. Each cart holds 43 books. She fills shelves
+    that hold exactly 10 books each. How many books are on the last shelf that is not completely full?
   context_block: null
-  answer_expression: x = (5 * 28) // 8
+  answer_expression: x = (6 * 43) % 10
   figure_spec: null
   figure_reading: null
   hint_ladder:
-  - First find the total number of pencils the teacher has by multiplying the number of boxes by the number
-    of pencils in each box.
-  - Now you know the total number of pencils. Divide that total by 8 to find how many groups of 8 can
-    be made.
-  - When you divide, only count the complete bundles—any leftover pencils don't make a full bundle of
-    8.
+  - First find the total number of books on all 6 carts combined.
+  - Now divide that total by 10 to see how many complete shelves can be filled and how many are left over.
+  - The number left over after dividing by 10 is what goes on the last partial shelf.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Find the total number of pencils by multiplying the number of boxes by the pencils
-        in each box.
-      expression: 5 × 28 = 140
+      explanation: Multiply the number of carts by the number of books per cart to find the total number
+        of books.
+      expression: 6 * 43 = 258
       common_mistake: null
     - step_number: 2
-      explanation: Divide the total number of pencils by the bundle size to find how many complete bundles
-        can be made.
-      expression: 140 ÷ 8 = 17 remainder 4
+      explanation: Divide the total number of books by the number of books per shelf to find how many
+        full shelves can be filled and the remainder.
+      expression: 258 ÷ 10 = 25 remainder 8
       common_mistake: null
     - step_number: 3
-      explanation: Since we can only count complete bundles, the remainder is not counted. The answer
-        is the quotient.
-      expression: 17 complete bundles
+      explanation: The remainder is the number of books on the last shelf that is not completely full.
+      expression: '8'
       common_mistake: null
-    final_answer: 17 bundles
-  random_seed: 966400
-  rendered_question: A teacher has 5 boxes with 28 pencils in each box. She wants to bundle them into
-    groups of 8 pencils each. How many complete bundles can she make?
-  option_a: 18 bundles
-  option_b: 17 bundles
-  option_c: 140 bundles
-  option_d: 20 bundles
+    final_answer: 8 books
+  random_seed: 966402
+  rendered_question: A librarian wheels 6 carts into the reading room. Each cart holds 43 books. She fills
+    shelves that hold exactly 10 books each. How many books are on the last shelf that is not completely
+    full?
+  option_a: 258 books
+  option_b: 8 books
+  option_c: 25 books
+  option_d: 3 books
   correct_option: b
 - question_template_id: authored-g3_word_problems-d4-966401
   topic_id: g3_word_problems
@@ -531,17 +528,17 @@ templates:
   option_c: 22 boxes
   option_d: 24 boxes
   correct_option: a
-- question_template_id: authored-g3_word_problems-d4-966402
+- question_template_id: authored-g3_word_problems-d5-966502
   topic_id: g3_word_problems
   skill_id: g3_wp_mixed
   grade_band: 2-3
   difficulty_label: 4
   difficulty_confidence: 0.5
-  estimated_time_seconds: 120
+  estimated_time_seconds: 90
   common_error_tags:
-  - reported_quotient_instead_of_remainder
   - stopped_after_first_operation
-  - subtracted_instead_of_taking_modulus
+  - added_instead_of_subtracting
+  - subtracted_in_wrong_order
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
@@ -549,47 +546,100 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A librarian wheels 6 carts into the reading room. Each cart holds 43 books. She fills shelves
-    that hold exactly 10 books each. How many books are on the last shelf that is not completely full?
+  stem: A gardener plants 6 boxes with 42 flowers in each box, but 85 flowers don't bloom. How many flowers
+    bloom?
   context_block: null
-  answer_expression: x = (6 * 43) % 10
+  answer_expression: Eq(x, (6 * 42) - 85)
   figure_spec: null
   figure_reading: null
   hint_ladder:
-  - First find the total number of books on all 6 carts combined.
-  - Now divide that total by 10 to see how many complete shelves can be filled and how many are left over.
-  - The number left over after dividing by 10 is what goes on the last partial shelf.
+  - First find out how many flowers were planted in total by the gardener.
+  - Multiply the number of boxes by the flowers in each box, then subtract the ones that don't bloom.
+  - 'Write the equation: total flowers planted minus the flowers that don''t bloom equals the number that
+    bloom.'
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Multiply the number of carts by the number of books per cart to find the total number
-        of books.
-      expression: 6 * 43 = 258
+      explanation: Find the total number of flowers planted by multiplying the number of boxes by the
+        flowers in each box.
+      expression: 6 * 42 = 252
       common_mistake: null
     - step_number: 2
-      explanation: Divide the total number of books by the number of books per shelf to find how many
-        full shelves can be filled and the remainder.
-      expression: 258 ÷ 10 = 25 remainder 8
+      explanation: Subtract the flowers that don't bloom from the total number planted to find how many
+        bloom.
+      expression: 252 - 85 = 167
+      common_mistake: null
+    final_answer: 167 flowers
+  random_seed: 966502
+  rendered_question: A gardener plants 6 boxes with 42 flowers in each box, but 85 flowers don't bloom.
+    How many flowers bloom?
+  option_a: 167 flowers
+  option_b: 157 flowers
+  option_c: 337 flowers
+  option_d: 252 flowers
+  correct_option: a
+- question_template_id: authored-g3_word_problems-d4-966400
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mixed
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_up_with_remainder
+  - stopped_after_first_operation
+  - division_by_wrong_number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher has 5 boxes with 28 pencils in each box. She wants to bundle them into groups of 8 pencils
+    each. How many complete bundles can she make?
+  context_block: null
+  answer_expression: x = (5 * 28) // 8
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First find the total number of pencils the teacher has by multiplying the number of boxes by the number
+    of pencils in each box.
+  - Now you know the total number of pencils. Divide that total by 8 to find how many groups of 8 can
+    be made.
+  - When you divide, only count the complete bundles—any leftover pencils don't make a full bundle of
+    8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the total number of pencils by multiplying the number of boxes by the pencils
+        in each box.
+      expression: 5 × 28 = 140
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total number of pencils by the bundle size to find how many complete bundles
+        can be made.
+      expression: 140 ÷ 8 = 17 remainder 4
       common_mistake: null
     - step_number: 3
-      explanation: The remainder is the number of books on the last shelf that is not completely full.
-      expression: '8'
+      explanation: Since we can only count complete bundles, the remainder is not counted. The answer
+        is the quotient.
+      expression: 17 complete bundles
       common_mistake: null
-    final_answer: 8 books
-  random_seed: 966402
-  rendered_question: A librarian wheels 6 carts into the reading room. Each cart holds 43 books. She fills
-    shelves that hold exactly 10 books each. How many books are on the last shelf that is not completely
-    full?
-  option_a: 258 books
-  option_b: 8 books
-  option_c: 25 books
-  option_d: 3 books
+    final_answer: 17 bundles
+  random_seed: 966400
+  rendered_question: A teacher has 5 boxes with 28 pencils in each box. She wants to bundle them into
+    groups of 8 pencils each. How many complete bundles can she make?
+  option_a: 18 bundles
+  option_b: 17 bundles
+  option_c: 140 bundles
+  option_d: 20 bundles
   correct_option: b
 - question_template_id: authored-g3_word_problems-d4-98400
   topic_id: g3_word_problems
   skill_id: g3_wp_mixed
   grade_band: 2-3
-  difficulty_label: 4
+  difficulty_label: 5
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -643,7 +693,7 @@ templates:
   topic_id: g3_word_problems
   skill_id: g3_wp_mixed
   grade_band: 2-3
-  difficulty_label: 4
+  difficulty_label: 5
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -743,56 +793,6 @@ templates:
   option_c: 308 eggs
   option_d: 360 eggs
   correct_option: c
-- question_template_id: authored-g3_word_problems-d5-966502
-  topic_id: g3_word_problems
-  skill_id: g3_wp_mixed
-  grade_band: 2-3
-  difficulty_label: 5
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - stopped_after_first_operation
-  - added_instead_of_subtracting
-  - subtracted_in_wrong_order
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A gardener plants 6 boxes with 42 flowers in each box, but 85 flowers don't bloom. How many flowers
-    bloom?
-  context_block: null
-  answer_expression: Eq(x, (6 * 42) - 85)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - First find out how many flowers were planted in total by the gardener.
-  - Multiply the number of boxes by the flowers in each box, then subtract the ones that don't bloom.
-  - 'Write the equation: total flowers planted minus the flowers that don''t bloom equals the number that
-    bloom.'
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Find the total number of flowers planted by multiplying the number of boxes by the
-        flowers in each box.
-      expression: 6 * 42 = 252
-      common_mistake: null
-    - step_number: 2
-      explanation: Subtract the flowers that don't bloom from the total number planted to find how many
-        bloom.
-      expression: 252 - 85 = 167
-      common_mistake: null
-    final_answer: 167 flowers
-  random_seed: 966502
-  rendered_question: A gardener plants 6 boxes with 42 flowers in each box, but 85 flowers don't bloom.
-    How many flowers bloom?
-  option_a: 167 flowers
-  option_b: 157 flowers
-  option_c: 337 flowers
-  option_d: 252 flowers
-  correct_option: a
 - question_template_id: authored-g3_word_problems-d2-967200
   topic_id: g3_word_problems
   skill_id: g3_wp_mult_div
@@ -953,60 +953,11 @@ templates:
   option_c: 952 stickers
   option_d: 938 stickers
   correct_option: b
-- question_template_id: authored-g3_word_problems-d3-967300
-  topic_id: g3_word_problems
-  skill_id: g3_wp_mult_div
-  grade_band: 2-3
-  difficulty_label: 3
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 90
-  common_error_tags:
-  - subtracted_instead_of_divided
-  - added_instead_of_divided
-  - multiplied_instead_of_divided
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A school orders 648 pencils and shares them equally among 9 classrooms. How many pencils does
-    each classroom receive?
-  context_block: null
-  answer_expression: Eq(x, 648 / 9)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - If you share 648 pencils equally among 9 classrooms, what operation will tell you the size of each
-    share?
-  - Division splits a total into equal groups. Write 648 divided by 9.
-  - Set up 648 ÷ 9 and perform the division.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: We need to share 648 pencils equally among 9 classrooms, so we divide the total by
-        the number of groups.
-      expression: 648 ÷ 9
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Perform the division: 648 divided by 9 equals 72.'
-      expression: '72'
-      common_mistake: null
-    final_answer: 72 pencils
-  random_seed: 967300
-  rendered_question: A school orders 648 pencils and shares them equally among 9 classrooms. How many
-    pencils does each classroom receive?
-  option_a: 5832 pencils
-  option_b: 657 pencils
-  option_c: 639 pencils
-  option_d: 72 pencils
-  correct_option: d
 - question_template_id: authored-g3_word_problems-d3-967301
   topic_id: g3_word_problems
   skill_id: g3_wp_mult_div
   grade_band: 2-3
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1054,7 +1005,7 @@ templates:
   topic_id: g3_word_problems
   skill_id: g3_wp_mult_div
   grade_band: 2-3
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1110,7 +1061,7 @@ templates:
   topic_id: g3_word_problems
   skill_id: g3_wp_mult_div
   grade_band: 2-3
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1159,7 +1110,7 @@ templates:
   topic_id: g3_word_problems
   skill_id: g3_wp_mult_div
   grade_band: 2-3
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1204,11 +1155,60 @@ templates:
   option_c: 888 pencils
   option_d: 7168 pencils
   correct_option: b
+- question_template_id: authored-g3_word_problems-d3-967300
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_divided
+  - added_instead_of_divided
+  - multiplied_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school orders 648 pencils and shares them equally among 9 classrooms. How many pencils does
+    each classroom receive?
+  context_block: null
+  answer_expression: Eq(x, 648 / 9)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - If you share 648 pencils equally among 9 classrooms, what operation will tell you the size of each
+    share?
+  - Division splits a total into equal groups. Write 648 divided by 9.
+  - Set up 648 ÷ 9 and perform the division.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to share 648 pencils equally among 9 classrooms, so we divide the total by
+        the number of groups.
+      expression: 648 ÷ 9
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Perform the division: 648 divided by 9 equals 72.'
+      expression: '72'
+      common_mistake: null
+    final_answer: 72 pencils
+  random_seed: 967300
+  rendered_question: A school orders 648 pencils and shares them equally among 9 classrooms. How many
+    pencils does each classroom receive?
+  option_a: 5832 pencils
+  option_b: 657 pencils
+  option_c: 639 pencils
+  option_d: 72 pencils
+  correct_option: d
 - question_template_id: authored-g3_word_problems-d4-967400
   topic_id: g3_word_problems
   skill_id: g3_wp_mult_div
   grade_band: 2-3
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1253,64 +1253,11 @@ templates:
   option_c: 92 photographs
   option_d: 4508 photographs
   correct_option: c
-- question_template_id: authored-g3_word_problems-d4-99400
-  topic_id: g3_word_problems
-  skill_id: g3_wp_mult_div
-  grade_band: 2-3
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 180
-  common_error_tags:
-  - counted_remainder_as_extra_group
-  - stopped_before_final_division
-  - confused_remainder_with_group_size
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A bakery has 275 cookies and packs them into boxes. Each box holds exactly 6 cookies. After filling
-    as many boxes as possible, 5 cookies remain unpacked. How many full boxes did the bakery pack?
-  context_block: null
-  answer_expression: x * 6 + 5 = 275
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - If the bakery filled x full boxes and had 5 cookies left over, how many cookies were used in the boxes?
-  - The boxes contain 6x cookies, and together with the 5 left over, that equals 275 total cookies.
-  - Write the equation 6x + 5 = 275, then subtract 5 from both sides and divide by 6.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The bakery packs x full boxes with 6 cookies each, so the boxes contain 6x cookies.
-        With 5 cookies left over, the total is 6x + 5 = 275.
-      expression: 6*x + 5 = 275
-      common_mistake: null
-    - step_number: 2
-      explanation: Subtract 5 from both sides to isolate the term with x.
-      expression: 6*x = 270
-      common_mistake: null
-    - step_number: 3
-      explanation: Divide both sides by 6 to solve for x.
-      expression: x = 45
-      common_mistake: null
-    final_answer: 45 boxes
-  random_seed: 99400
-  rendered_question: A bakery has 275 cookies and packs them into boxes. Each box holds exactly 6 cookies.
-    After filling as many boxes as possible, 5 cookies remain unpacked. How many full boxes did the bakery
-    pack?
-  option_a: 46 boxes
-  option_b: 45 boxes
-  option_c: 50 boxes
-  option_d: 270 boxes
-  correct_option: b
 - question_template_id: authored-g3_word_problems-d4-99401
   topic_id: g3_word_problems
   skill_id: g3_wp_mult_div
   grade_band: 2-3
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -1359,3 +1306,56 @@ templates:
   option_c: 22 teams
   option_d: 20 teams
   correct_option: c
+- question_template_id: authored-g3_word_problems-d4-99400
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - counted_remainder_as_extra_group
+  - stopped_before_final_division
+  - confused_remainder_with_group_size
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery has 275 cookies and packs them into boxes. Each box holds exactly 6 cookies. After filling
+    as many boxes as possible, 5 cookies remain unpacked. How many full boxes did the bakery pack?
+  context_block: null
+  answer_expression: x * 6 + 5 = 275
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - If the bakery filled x full boxes and had 5 cookies left over, how many cookies were used in the boxes?
+  - The boxes contain 6x cookies, and together with the 5 left over, that equals 275 total cookies.
+  - Write the equation 6x + 5 = 275, then subtract 5 from both sides and divide by 6.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bakery packs x full boxes with 6 cookies each, so the boxes contain 6x cookies.
+        With 5 cookies left over, the total is 6x + 5 = 275.
+      expression: 6*x + 5 = 275
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 5 from both sides to isolate the term with x.
+      expression: 6*x = 270
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 6 to solve for x.
+      expression: x = 45
+      common_mistake: null
+    final_answer: 45 boxes
+  random_seed: 99400
+  rendered_question: A bakery has 275 cookies and packs them into boxes. Each box holds exactly 6 cookies.
+    After filling as many boxes as possible, 5 cookies remain unpacked. How many full boxes did the bakery
+    pack?
+  option_a: 46 boxes
+  option_b: 45 boxes
+  option_c: 50 boxes
+  option_d: 270 boxes
+  correct_option: b

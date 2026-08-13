@@ -14,7 +14,7 @@ unreachable (D-008).
 import asyncio
 import hashlib
 import random
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from typing import NoReturn
@@ -71,6 +71,7 @@ _TEST_RESERVED_SEED_OFFSET_4 = 994_000_000
 _TEST_RESERVED_SEED_OFFSET_5 = 995_000_000
 _TEST_RESERVED_SEED_OFFSET_6 = 996_000_000
 _TEST_RESERVED_SEED_OFFSET_7 = 997_000_000
+_TEST_RESERVED_SEED_OFFSET_8 = 998_000_000
 
 
 def _postgres_skip_reason() -> str | None:
@@ -1181,7 +1182,19 @@ def test_difficulty_agreement_accepts_disagreement_flags_and_wide_gaps_reject() 
     assert two_off.decision == "flagged"
     assert two_off.proposal_gap == 2
     assert two_off.reasons == []
-    assert two_off.effective_difficulty == 3, "a flag never moves the item"
+    # **This assertion was inverted in D-302, deliberately.** It read
+    # `effective_difficulty == 3, "a flag never moves the item"` - the item stayed at the
+    # tier the slot asked for. D-300 measured what that produced: 10 of 16 sampled bank items
+    # carried the slot's tier over a *recorded* judge disagreement, so re-judging them looked
+    # like an instrument that could not reproduce its own labels when it was being scored
+    # against a label it never assigned. Bank-wide, 327 of 759 serving items (D-301).
+    #
+    # The user's decision was to follow the judge and fill the question count instead of
+    # keeping the tier distribution even. So a flag now stores the judge's reading, and
+    # `EXAM_QUESTION_COUNT` - not two-at-every-tier - is what a topic must satisfy to open.
+    # Both halves are required together: this change alone moves 204 items down against 104
+    # up, which would have taken openable topics from 26 to 12.
+    assert two_off.effective_difficulty == 4, "a flag stores the judge's tier (D-302)"
 
     # The slot gap: the two models can agree with each other and still both be far from the
     # tier the slot asked for. Storing that item at the requested tier would offer it to
@@ -1218,7 +1231,9 @@ def test_difficulty_agreement_accepts_disagreement_flags_and_wide_gaps_reject() 
     assert evidence["judge_reviewed_difficulty"] == 4
     assert evidence["proposal_vs_review_difference"] == 2
     assert evidence["decision"] == "flagged"
-    assert evidence["stored_at_difficulty"] == 3
+    # D-302: the judge's tier, matching `effective_difficulty` above. The evidence and the
+    # branch are computed from the same fields precisely so they cannot disagree.
+    assert evidence["stored_at_difficulty"] == 4
     assert evidence["retiered_from"] is None
     assert wrong_slot.as_evidence()["retiered_from"] == 5
 
@@ -2420,6 +2435,153 @@ def test_every_failed_attempt_keeps_its_own_snapshot_and_attempt_number() -> Non
     asyncio.run(run())
 
 
+async def _rows_written_by(
+    session: AsyncSession, body: Callable[[], Awaitable[ai_pipeline.PipelineOutcome]]
+) -> tuple[ai_pipeline.PipelineOutcome, list[QuestionValidationRun]]:
+    """Run one slot and return it with only the validation rows *it* wrote.
+
+    Scoped by id difference rather than by count: the dev database carries every earlier
+    run's rows, so a bare `select` would measure the whole table (the same trap
+    `test_every_failed_attempt_keeps_its_own_snapshot_and_attempt_number` sidesteps by
+    filtering on its own template id).
+    """
+    ids = select(QuestionValidationRun.question_validation_run_id)
+    before = {r for (r,) in await session.execute(ids)}
+    outcome = await body()
+    rows = (await session.execute(select(QuestionValidationRun))).scalars().all()
+    return outcome, [r for r in rows if r.question_validation_run_id not in before]
+
+
+def test_a_slots_rows_account_for_every_cent_the_slot_reports() -> None:
+    """`sum(question_validation_runs.cost_cents) == what RunSummary was told` (D-294).
+
+    The two spend numbers this project keeps disagreed by 31%, and this is the invariant
+    that was false: the design call is made once per slot by `generate_authored_candidate`,
+    *before* the function that writes the rows, so its cost reached the run summary and no
+    row at all. Measured on real runs before the fix: a design attempt costs a median
+    1.26c against an accepted row's 2.67c, which is the 31%.
+
+    Asserted on both shapes, because the repair loop is where the obvious fix breaks: a
+    design cost recorded on every attempt's row would make a repaired slot report paying
+    for two designs.
+    """
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+
+        # 1. One attempt, accepted.
+        async with _rollback_session() as session:
+            outcome, rows = await _rows_written_by(
+                session,
+                lambda: generate_authored_candidate(
+                    session=session,
+                    gateway=_ScriptedAuthoredGateway(),
+                    curriculum=curriculum,
+                    topic_id="linear_equations",
+                    difficulty_label=2,
+                    seed=940001,
+                    session_spend_cents=0.0,
+                ),
+            )
+            assert outcome.status == "pending"
+            assert len(rows) == 1
+            design = rows[0].stage_results.get("equation_design") or {}
+            # Without this the test passes vacuously the day the design stage is turned
+            # off by default: zero design cost makes any accounting bug invisible.
+            assert design.get("cost_cents", 0) > 0, "the row must record what design cost"
+            assert rows[0].cost_cents == pytest.approx(outcome.cost_cents)
+
+        # 2. Two attempts, repaired to pending - the design is paid for once.
+        async with _rollback_session() as session:
+            gateway = _RepairAwareGateway(bad=_bad_equation_item())
+            outcome, rows = await _rows_written_by(
+                session,
+                lambda: generate_authored_candidate(
+                    session=session,
+                    gateway=gateway,  # type: ignore[arg-type]
+                    curriculum=curriculum,
+                    topic_id="linear_equations",
+                    difficulty_label=2,
+                    seed=940002,
+                    session_spend_cents=0.0,
+                    max_repair_attempts=1,
+                ),
+            )
+            assert outcome.status == "pending"
+            assert outcome.attempts == 2
+            assert len(rows) == 2, "one row per attempt, D-195"
+            designs = [
+                r.stage_results.get("equation_design", {}).get("cost_cents")
+                for r in rows
+                if "equation_design" in (r.stage_results or {})
+            ]
+            assert len(designs) == 1, "a slot designs once, so exactly one row records it"
+            assert sum(r.cost_cents for r in rows) == pytest.approx(outcome.cost_cents)
+
+        # 3. Rejected, no repair - the money still has to be accounted for.
+        async with _rollback_session() as session:
+            gateway = _RepairAwareGateway(bad=_bad_equation_item())
+            outcome, rows = await _rows_written_by(
+                session,
+                lambda: generate_authored_candidate(
+                    session=session,
+                    gateway=gateway,  # type: ignore[arg-type]
+                    curriculum=curriculum,
+                    topic_id="linear_equations",
+                    difficulty_label=2,
+                    seed=940003,
+                    session_spend_cents=0.0,
+                ),
+            )
+            assert outcome.status == "rejected"
+            assert len(rows) == 1
+            assert rows[0].cost_cents == pytest.approx(outcome.cost_cents)
+
+    asyncio.run(run())
+
+
+def test_every_row_a_run_writes_carries_the_same_run_id() -> None:
+    """One `run_plan` invocation, one `pipeline_run_id` on every row it wrote (D-295).
+
+    The invariant that makes per-run analysis possible at all. Without it the re-tier guard
+    - which is *run-scoped* by design (D-231: the judge's histogram is rebuilt per run, so
+    the opening candidates of every run can never be re-tiered) - could only be studied by
+    clustering `created_at`, which reproduced ~90% of the recorded decisions and left the
+    count of guard-caused rejections un-pin-downable.
+
+    Asserted as "one distinct non-null id shared by all of them" rather than "the id is
+    set": a per-candidate uuid would satisfy the weaker check and be useless.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            # `run_plan` loads the curriculum itself, unlike the slot-level helpers above.
+            plan = pipeline_cli.build_plan(
+                skill_ids=["linear_one_step"],
+                difficulties=[1],
+                candidates_per_slot=2,
+                seed_offset=_TEST_RESERVED_SEED_OFFSET_8,
+            )
+            ids = select(QuestionValidationRun.question_validation_run_id)
+            before = {r for (r,) in await session.execute(ids)}
+
+            summary = await pipeline_cli.run_plan(
+                session,
+                _ScriptedAuthoredGateway(),
+                plan,
+            )
+            assert summary.processed > 0, "a run that produced nothing proves nothing here"
+
+            rows = (await session.execute(select(QuestionValidationRun))).scalars().all()
+            mine = [r for r in rows if r.question_validation_run_id not in before]
+            assert mine, "the run wrote no audit rows"
+            run_ids = {r.pipeline_run_id for r in mine}
+            assert None not in run_ids, "every row a run writes must name its run"
+            assert len(run_ids) == 1, f"one run must mint one id, got {run_ids}"
+
+    asyncio.run(run())
+
+
 def test_a_repair_attempt_is_not_started_past_the_budget_ceiling() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
@@ -3238,3 +3400,88 @@ def test_review_priority_ranks_by_what_could_reach_a_student_not_by_any_flag() -
     for label, (judge, difficulty, expected) in graded.items():
         got = ai_pipeline.review_priority_for(judge=judge, difficulty=difficulty)
         assert got == expected, label
+
+
+# --------------------------------------------------------------------------------------
+# D-308: the canonical-form tie-break, verified through the pipeline rather than only at
+# the gate. The gate's own tests live in `test_canonical_form.py`; what is checked here is
+# the part no unit test can see - that the pipeline resolves the *skill's* declared form and
+# hands it to the gate, so an item the loader would accept is not rejected before it exists.
+# --------------------------------------------------------------------------------------
+
+
+def _lowest_terms_item() -> AuthoredGeneratedItemResponse:
+    """A `g6_fraction_reduce` candidate of the shape that had never once passed: the reduced
+    answer beside two unreduced equivalents of it."""
+    return _good_item(
+        stem="Reduce the fraction 12/18 to its lowest terms.",
+        option_a="12/18",
+        option_b="6/9",
+        option_c="2/3",
+        option_d="5/6",
+        correct_option="c",
+        equation="Eq(x, Rational(12, 18))",
+        proposed_difficulty=1,
+        hint_ladder=[
+            "Look for a number that divides both the top and the bottom.",
+            "Both 12 and 18 can be divided by 6.",
+            "Divide the top and the bottom by the same number.",
+        ],
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Divide the top and the bottom by their common factor.",
+                    expression="12/18 = 2/3",
+                    common_mistake=None,
+                )
+            ],
+            final_answer="2/3",
+        ),
+    )
+
+
+def test_the_pipeline_accepts_a_lowest_terms_item_for_the_skill_that_declares_the_form() -> None:
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(item=_lowest_terms_item()),
+                curriculum=curriculum,
+                topic_id="g6_fractions",
+                skill_id="g6_fraction_reduce",
+                difficulty_label=1,
+                seed=774411,
+                session_spend_cents=0.0,
+            )
+            assert outcome.status == "pending", outcome.reasons
+
+    asyncio.run(run())
+
+
+def test_the_same_candidate_is_rejected_for_a_skill_that_declares_no_form() -> None:
+    """The precision half, through the pipeline. `g6_fraction_mul_div` is a real skill in the
+    same topic whose question asks for a value, so the equal-valued options are a genuine
+    defect there and the rejection must survive."""
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(item=_lowest_terms_item()),
+                curriculum=curriculum,
+                topic_id="g6_fractions",
+                skill_id="g6_fraction_mul_div",
+                difficulty_label=2,
+                seed=774412,
+                session_spend_cents=0.0,
+            )
+            assert outcome.status == "rejected"
+            assert outcome.rejected_at == "validation", outcome.rejected_at
+            assert any(
+                "more than one option matches" in r for r in outcome.reasons
+            ), outcome.reasons
+
+    asyncio.run(run())

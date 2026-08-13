@@ -14,6 +14,7 @@ against the values already in hand, mirroring `validation.py`'s own scope split 
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -128,6 +129,35 @@ _META_COMMENTARY_RE = re.compile(
 # Heuristic readability ceiling (§5.8.5 "age-appropriate wording") - a rough proxy only;
 # real nuance is the LLM judge's job (plan §7 step 3), not this deterministic gate's.
 _MAX_WORDS_PER_SENTENCE = 30
+# D-303: what counts as one sentence, for the ceiling above.
+#
+# **The old form was `re.split(r"[.!?]", text)`, which splits on every period - including the
+# one inside a decimal.** So a long sentence became several short fragments and cleared the
+# ceiling: a 33-word sentence carrying six decimals passes, while the same sentence with the
+# decimals spelled out is rejected at 51 words. Demonstrated, not theorised.
+#
+# **Measured before changing it: 0 of 9,552 bank sentences actually exploit that**, so this is
+# a latent hole rather than a live defect, and 0 of 17,379 per-field sentences exceed the
+# ceiling under the corrected rule - the swap rejects nothing already shipped.
+#
+# A sentence ends at `.!?`, optionally followed by a closing quote or bracket, when what comes
+# next is whitespace or the end of the text. The two conditions each earn their place: without
+# the closing-quote clause, `3 say "Try Again." What is...` reads as one 48-word sentence;
+# without the whitespace lookahead, `2.5 cups` is two. Both were wrong in a draft of this
+# change and both are pinned by tests.
+_SENTENCE_END_RE = re.compile(r'[.!?]+["\')\]]*(?=\s|$)')
+
+
+def _sentences(text: str) -> list[str]:
+    """Split prose into sentences the way `_MAX_WORDS_PER_SENTENCE` means it (D-303)."""
+    parts: list[str] = []
+    last = 0
+    for match in _SENTENCE_END_RE.finditer(text):
+        parts.append(text[last : match.end()])
+        last = match.end()
+    if text[last:].strip():
+        parts.append(text[last:])
+    return [part for part in (candidate.strip() for candidate in parts) if part]
 MIN_DIFFICULTY = 1
 MAX_DIFFICULTY = 5
 
@@ -211,6 +241,79 @@ _MATH_TEXT_SUBSTITUTIONS = {
     # caret means the same thing an option with one does.
     "^": "**",
 }
+# D-297: the gate was demanding a notation it could not read. D-288's
+# `check_math_notation_is_readable` refuses `x**2` in any student-facing field and tells the
+# generator to write "powers with superscripts like x²"; the symbolic arm then handed that
+# text to `_parse_side`, which raised `ValueError: String "²" does not denote a Number`. The
+# generator complied with one check and was rejected by the next, and the rejection blamed
+# the answer key: "symbolic answer ... does not match declared correct option 'c' ('x² − 5x
+# + 4')" on an item whose two sides were the same polynomial.
+#
+# **Deliberately NOT in `_MATH_TEXT_SUBSTITUTIONS`**, unlike D-278's `^`. That table is
+# applied by `_sympify` on the *value* path too, where `'12 m²'` (square metres) currently
+# fails its direct parse and is rescued by the trailing-unit strip - rewritten to `'12 m**2'`
+# it would reach that strip carrying `**`, which the unit pattern does not match, and a value
+# option that parses today would stop parsing. Same reasoning the symbolic arm already uses
+# to keep `_parse_side`'s implicit multiplication away from value options.
+_SUPERSCRIPT_POWERS = {
+    "⁰": "**0", "¹": "**1", "²": "**2", "³": "**3", "⁴": "**4",
+    "⁵": "**5", "⁶": "**6", "⁷": "**7", "⁸": "**8", "⁹": "**9",
+}
+
+
+# D-298: the same defect on the *value* arm, found by reading D-296's shut-out skills.
+# `alg2_irrational` took 0 of 2 with `value answer (7*sqrt(2),) ... does not match declared
+# correct option 'd' ('7√2')`, so the whole skill was unauthorable and the rejection again
+# blamed a correct answer key.
+#
+# **And this one fails silently, which is worse than the superscript.** `_parse_side('x²')`
+# raises, so D-297's defect at least announced itself. `sympy.sympify('√2')` returns
+# `Symbol('√2')` - a *non-number* that compares unequal to every value and never raises. So
+# `7√2` was not "unparseable", it was quietly parsed as something else. My first attempt here
+# only inserted the missing `*` on the strength of `_sympify('√2')` printing `√2`, which is
+# SymPy pretty-printing a symbol whose name happens to be a radical; the negative control
+# caught it. Both parts are needed: `√<digits>` -> `sqrt(<digits>)`, then implicit
+# multiplication before it.
+_RADICAL_SURD = re.compile(r"√\s*(\d+(?:\.\d+)?)")
+_RADICAL_IMPLICIT_MUL = re.compile(r"(?<=[0-9])\s*(?=sqrt\()")
+
+
+def _student_notation(text: str) -> str:
+    """Read an option the way it was *written for a student*, not for SymPy.
+
+    One reading covering both notations D-288 asks the generator to use and the gate could
+    not parse: superscript powers (D-297) and a coefficient in front of a radical (D-298).
+    Consulted only from the D-281 seam - see the comment there for why that scoping is
+    load-bearing rather than cautious.
+
+    **A stated limitation rather than a silent one:** only a radical over *digits* is read.
+    `√x` and `√(x + 1)` still parse as symbols and still fail to match, because reading them
+    would need the implicit-multiplication transforms the value arm deliberately does not
+    have (see the symbolic arm's own note). No content in the bank needs them today; an item
+    that does will be rejected, not silently mis-derived.
+    """
+    text = _superscripts_to_powers(text)
+    text = _RADICAL_SURD.sub(r"sqrt(\1)", text)
+    return _RADICAL_IMPLICIT_MUL.sub("*", text)
+
+
+def _superscripts_to_powers(text: str) -> str:
+    """`x² − 5x + 4` -> `x**2 - 5x + 4`, for the symbolic arm's second reading only.
+
+    Measured before it was written, both directions (D-221), free because D-195 stores
+    rejected candidate content (`scripts/measure_superscript_reading.py`): of 38 stored
+    symbolic-mismatch rejections it recovers **8** whose declared option is the derived
+    answer, leaves 18 genuinely non-matching, and turns **6** into "more than one option
+    matches" - which is the correct verdict for them, because those items really do offer the
+    same expression twice (`3x² + 6 + 6x² + 10x` beside `9x² + 10x + 6`). Those 6 stay
+    rejected; what changes is that they are rejected for the defect they have instead of one
+    they do not. A wrong key still fails: `x² - 5x + 5` does not match.
+    """
+    for character, replacement in _SUPERSCRIPT_POWERS.items():
+        text = text.replace(character, replacement)
+    return text
+
+
 # "x = 7" as an option means the value 7 - a restated equation, not a different answer.
 _ASSIGNMENT_PREFIX_RE = re.compile(r"^\s*[A-Za-z]\w*\s*=\s*")
 
@@ -754,6 +857,24 @@ def _route_system(equation: str, normalized: str) -> tuple[DerivedAnswer | None,
         return None, (
             f"system {equation!r} has {len(solved)} solutions, expected exactly one"
         )
+    # D-299: fail closed, because `sympy.solve` answers a *different question* than
+    # "what is each unknown" when the system is underdetermined. Two equations in three
+    # unknowns returns `[{a: c - 2, b: 12 - c}]` - one dict, so the count check above
+    # passes, and `c` is simply absent because it is free. Indexing it raised `KeyError`
+    # and **killed a paid run at candidate 25 of 42**, discarding the remaining budget.
+    #
+    # Same defect class as the `TokenError` Phase R found escaping `derive_answer`, and the
+    # tuple `sympify` returns for `'4,700'` in D-274: a crash where a rejection belongs.
+    # `route_answer`'s contract is that an answer no verifier can claim is a *rejection*,
+    # never an exception - one unusable candidate must cost one candidate.
+    missing = [s for s in unknowns if s not in solved[0]]
+    if missing:
+        return None, (
+            f"system {equation!r} does not determine "
+            f"{', '.join(str(s) for s in missing)} - SymPy solved it with "
+            f"{len(unknowns) - len(missing)} of {len(unknowns)} unknowns fixed, so the "
+            f"question has more unknowns than it constrains"
+        )
     return DerivedAnswer("tuple", tuple(solved[0][s] for s in unknowns)), None
 
 
@@ -806,7 +927,9 @@ def _option_as_value_set(text: str) -> frozenset[sympy.Basic] | None:
     return frozenset(values)
 
 
-def _option_matches(derivation: DerivedAnswer, text: str) -> bool:
+def _option_matches(
+    derivation: DerivedAnswer, text: str, *, student_notation: bool = False
+) -> bool:
     """Does this option state the derived answer, read under its own model?
 
     Every arm returns False rather than raising on an unparseable option, so a distractor
@@ -815,7 +938,8 @@ def _option_matches(derivation: DerivedAnswer, text: str) -> bool:
     """
     if derivation.model == "value":
         (expected,) = derivation.payload  # type: ignore[misc]
-        parsed = _sympify(text)
+        # D-298: `7√2` needs the implicit multiplication spelled out before SymPy sees it.
+        parsed = _sympify(_student_notation(text) if student_notation else text)
         return parsed is not None and _values_equal(parsed, expected)
 
     if derivation.model == "multi_root":
@@ -856,8 +980,11 @@ def _option_matches(derivation: DerivedAnswer, text: str) -> bool:
         # parse and reaches the unit-stripping fallback, and with transforms on it would
         # succeed as a product of eight symbols and never get there.
         expression: sympy.Basic | None
+        normalized = _normalize_math_text(text)
+        if student_notation:
+            normalized = _student_notation(normalized)
         try:
-            expression = _parse_side(_normalize_math_text(text))
+            expression = _parse_side(normalized)
         except _PARSE_ERRORS:
             expression = _sympify(text)
         if expression is None:
@@ -1080,8 +1207,158 @@ def _second_readings(derivation: DerivedAnswer, equation: str) -> list[DerivedAn
     return []
 
 
+# A written fraction and a written radical. Deliberately **textual**, and that is the whole
+# idea rather than a shortcut: `sympify('4/6')` returns `2/3` and `sqrt(80)` returns
+# `4*sqrt(5)`, so by the time any value comparison happens the information these read has
+# already been normalised away. A canonical-form rule is about how an option is *written*.
+# The signs are not decoration. Written without them this read `-2/-3` as "no fraction here",
+# which returns None, which excludes it from the tie-break - so `-2/-3` beside `2/3` had one
+# canonical option and the gate **accepted** an item with two indistinguishable answers on
+# screen. Found by the precision test in `test_canonical_form.py`, which was written to check
+# something else; the case is exotic but the hole was real and pointed the wrong way.
+_WRITTEN_FRACTION = re.compile(r"(?<![\d.])(-?\d+)\s*/\s*(-?\d+)(?![\d.])")
+_WRITTEN_RADICAL = re.compile(r"(?:√|sqrt)\s*\(?\s*(\d+)\s*\)?")
+
+
+def _is_lowest_terms(text: str) -> bool | None:
+    """Every fraction written in this option is in lowest terms. None = no fraction here.
+
+    None rather than False is load-bearing: an option with no fraction at all (`2`, `0.75`)
+    is not evidence of a reduced form, so it must not win a tie-break. That keeps the
+    `1` / `4/4` and `2 batches` / `12/6 batches` pairs rejected, which is correct - the
+    reduced form of `4/4` really is `1` and this rule is not equipped to say so.
+    """
+    fractions = _WRITTEN_FRACTION.findall(text)
+    if not fractions:
+        return None
+    return all(math.gcd(abs(int(p)), abs(int(q))) == 1 for p, q in fractions)
+
+
+def _square_free(n: int) -> bool:
+    return all(n % (d * d) for d in range(2, math.isqrt(n) + 1))
+
+
+def _is_simplest_radical(text: str) -> bool | None:
+    """Every radicand written in this option is square-free. None = no radical here."""
+    radicands = _WRITTEN_RADICAL.findall(text)
+    if not radicands:
+        return None
+    return all(_square_free(int(r)) for r in radicands)
+
+
+# Keyed by `SkillDef.answer_form`. `"any"` is the default and deliberately absent: a skill that
+# does not declare a form gets no tie-break at all, so the relaxation cannot leak into the 96
+# skills that ask for a value.
+ANSWER_FORMS: dict[str, Callable[[str], bool | None]] = {
+    "lowest_terms": _is_lowest_terms,
+    "simplest_radical": _is_simplest_radical,
+}
+DEFAULT_ANSWER_FORM = "any"
+
+
+def canonical_option(answer_form: str, options: dict[str, str], matches: list[str]) -> str | None:
+    """Of several options equal in value, the one written in the form the question asks for.
+
+    Returns the single canonical label, or None when the form does not settle it - two
+    canonical options, none, or no declared form. **None means the rejection stands**, which
+    is the fail-closed half: a tie-break that cannot break the tie must not weaken it.
+    """
+    predicate = ANSWER_FORMS.get(answer_form)
+    if predicate is None:
+        return None
+    canonical = [label for label in matches if predicate(options[label]) is True]
+    return canonical[0] if len(canonical) == 1 else None
+
+
+def matching_options(
+    derivation: DerivedAnswer, options: dict[str, str], equation: str
+) -> tuple[list[str], DerivedAnswer]:
+    """Which options state the derived answer, under every reading the gate admits.
+
+    Returns the matching labels and the derivation they matched under, which is what the
+    caller needs to report a verdict.
+
+    **Extracted because the duplicate expired three times.** The gate applied this sequence
+    inline and `test_every_shipped_item_routes_and_matches_its_own_key` re-implemented it, so
+    every decision that admitted a new reading (D-281's boundary, D-282's prose interval,
+    D-291's positive root, D-297/D-298's student notation) left the census asserting the
+    *old* rule against a bank the gate had already moved on from. Its own docstring records
+    the premise moving twice; the third time was `authored-algebra_2-d1-1606100`, a correct
+    `6√2` item the gate accepts and the census called unmatched. One function, two callers,
+    no premise to expire.
+
+    The ordering rules are the substance and each one is load-bearing:
+
+    1. **The first reading wins outright.** If it matches anything, no other reading is
+       consulted - a second reading may turn a rejection into a pass, never one pass into a
+       different pass (D-281). This is what keeps the two `alg2_polynomial_factor` items,
+       whose partially-factored distractor equals their answer, out of the notation reading.
+    2. **Notation before mathematics.** `_student_notation` re-reads the *same* answer in the
+       notation D-288 requires of student-facing text (`x²`, `7√2`), so it is the most
+       faithful reading available and is tried first. It is adopted even when several options
+       match, because the verdict is a rejection either way and "more than one option
+       matches" is true and repairable where "does not match your declared option" is neither
+       (D-283).
+    3. **Alternative derivations must be unambiguous.** A closed boundary, a prose interval
+       or the one positive root is a genuinely different reading of the equation, so it has
+       to clear the same exactly-one bar the first reading clears.
+    """
+    matches = [label for label, text in options.items() if _option_matches(derivation, text)]
+    if matches:
+        return matches, derivation
+
+    readable = [
+        label
+        for label, text in options.items()
+        if _option_matches(derivation, text, student_notation=True)
+    ]
+    if readable:
+        return readable, derivation
+
+    for reading in [
+        *_second_readings(derivation, equation),
+        *_positive_root_reading(derivation, options),
+    ]:
+        second = [label for label, text in options.items() if _option_matches(reading, text)]
+        if len(second) == 1:
+            return second, reading
+
+    return [], derivation
+
+
+def resolved_matches(
+    derivation: DerivedAnswer,
+    options: dict[str, str],
+    equation: str,
+    answer_form: str = DEFAULT_ANSWER_FORM,
+) -> tuple[list[str], list[str], DerivedAnswer]:
+    """The options the gate holds against a declared key: `matching_options`, then the
+    canonical-form tie-break where the skill declares a form.
+
+    Returns `(resolved, raw, derivation)` - the narrowed set, the set before narrowing, and
+    the reading they matched under. Both are returned because the two rejections a caller can
+    report are different claims: `raw` answers "is your key the derived answer at all", and
+    `resolved` answers "is it the only one left".
+
+    **`matching_options` exists because that reading sequence expired three times as a
+    duplicate; this exists because it expired a fourth.** D-308 added the tie-break to the gate
+    and to two censuses, and `test_every_shipped_item_routes_and_matches_its_own_key` still
+    asserted `matching_options` returns exactly one option - true of every item shipped before
+    A4 and false of the ones it admits by design. One owner of the whole decision, three
+    callers, and nothing left in any of them to fall out of step.
+    """
+    raw, derivation = matching_options(derivation, options, equation)
+    if len(raw) > 1:
+        canonical = canonical_option(answer_form, options, raw)
+        if canonical is not None:
+            return [canonical], raw, derivation
+    return raw, raw, derivation
+
+
 def check_sympy_independent_solve(
-    item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
+    item: AuthoredGeneratedItemResponse,
+    result: AuthoredValidationResult,
+    answer_form: str = DEFAULT_ANSWER_FORM,
 ) -> None:
     """SPEC §5.8.5: derive the answer from the item's own equation and confirm it matches
     the declared correct option (and that no distractor also matches) - the same
@@ -1105,38 +1382,47 @@ def check_sympy_independent_solve(
         return
 
     options = _options(item)
-    matches = [label for label, text in options.items() if _option_matches(derivation, text)]
+    matches, raw, derivation = resolved_matches(
+        derivation, options, item.equation, answer_form
+    )
     derived = derivation.payload
 
-    # D-281. Only when the first reading matches *nothing* - never to break a tie the first
-    # reading already made, and never to add a second match to one it made. So this can
-    # turn a rejection into a pass, but it can never turn a rejection into a *different*
-    # pass, and an item the gate already accepted takes this path not at all.
-    if not matches:
-        readings = [
-            *_second_readings(derivation, item.equation),
-            *_positive_root_reading(derivation, options),
-        ]
-        for reading in readings:
-            second = [
-                label for label, text in options.items() if _option_matches(reading, text)
-            ]
-            # Exactly one, or the item is still ambiguous and stays rejected - the same
-            # bar the first reading has to clear.
-            if len(second) == 1:
-                matches, derivation, derived = second, reading, reading.payload
-                break
-
-    if item.correct_option not in matches:
+    if item.correct_option not in raw:
         result.fail(
             f"{derivation.model} answer {derived} derived from the equation does not match "
             f"declared correct option {item.correct_option!r} "
             f"({options[item.correct_option]!r})"
         )
-    elif len(matches) > 1:
+    elif matches != [item.correct_option]:
+        # **D-308: the value test is the wrong instrument for a skill that asks for a form.**
+        # "Reduce 12/18 to lowest terms" with `12/18, 6/9, 2/3, 4/6` has exactly one correct
+        # option to a student and four equal options to SymPy; the same holds for "Simplify
+        # √80" against `4√5` and `2√20`. Measured before this existed: 59 of 74 stored
+        # rejections of this class are that item, and `g6_fraction_reduce` had **0** items in
+        # the bank because every candidate it ever produced died here.
+        #
+        # Scoped by the skill's own `answer_form` declaration, never inferred from the stem.
+        # D-274 and D-304 are both this project installing a rule scoped to one answer model
+        # as universal, and this is the same hazard pointing the other way: a tie-break that
+        # applied everywhere would put two indistinguishable options in front of a student
+        # whenever one of them happened to be written in lowest terms.
+        #
+        # Two ways to land here with a form declared, and the message distinguishes them
+        # because they need different fixes: the form settled the tie on a *different* option
+        # (the item declared the unreduced one - rewrite the key), or it settled nothing
+        # (rewrite the options).
+        if answer_form not in ANSWER_FORMS:
+            form = ""
+        elif len(matches) == 1:
+            form = (
+                f" - the {answer_form} option is {options[matches[0]]!r}, "
+                f"not the declared {options[item.correct_option]!r}"
+            )
+        else:
+            form = f" (the skill asks for {answer_form}, and that does not settle it)"
         result.fail(
             f"more than one option matches the derived {derivation.model} answer "
-            f"{derived}: {matches}"
+            f"{derived}: {raw}{form}"
         )
 
 
@@ -1365,7 +1651,7 @@ def check_age_appropriate_wording(
     for text in _text_fields(item):
         for word in disallowed_wording_found(text):
             result.fail(f"disallowed wording found: {word!r}")
-        for sentence in re.split(r"[.!?]", text):
+        for sentence in _sentences(text):
             word_count = len(sentence.split())
             if word_count > _MAX_WORDS_PER_SENTENCE:
                 result.fail(
@@ -1524,6 +1810,7 @@ def validate_authored_item(
     *,
     figure: FigureSpec | None = None,
     figure_reading: str | None = None,
+    answer_form: str = DEFAULT_ANSWER_FORM,
 ) -> AuthoredValidationResult:
     """Runs every deterministic §5.8.5 check this module owns against one authored
     generator proposal, before any LLM solver/judge call (plan §7 step 2).
@@ -1532,6 +1819,11 @@ def validate_authored_item(
     items are authored deterministically rather than generated (D-279), so the generator's
     response schema is untouched and no structured-output contract had to change. The loader
     passes the figure from the bank file, so one gate covers both paths.
+
+    `answer_form` comes from `SkillDef.answer_form` and defaults to `"any"`, which applies no
+    canonical-form tie-break at all (D-308). The default is the fail-closed one on purpose:
+    every caller that does not know the skill - the measurement scripts, most tests - gets
+    today's behaviour, and only a skill that explicitly declares a form gets the relaxation.
     """
     result = AuthoredValidationResult()
     check_figure_agrees_with_the_question(figure, item, result)
@@ -1542,7 +1834,7 @@ def validate_authored_item(
     # checks are skipped for it - not weakened, exchanged. `check_reading_matches_the_figure`
     # above does the same job from the figure, including the "no other option matches" arm.
     if figure_reading is None:
-        check_sympy_independent_solve(item, result)
+        check_sympy_independent_solve(item, result, answer_form)
         check_exactly_one_correct_answer(item, result)
     check_no_answer_leakage(item, result)
     check_hint_ladder_monotonicity(item, result)

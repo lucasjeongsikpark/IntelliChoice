@@ -440,7 +440,7 @@ templates:
   topic_id: geometry_measures
   skill_id: geo_pythagorean
   grade_band: 6-7
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -499,7 +499,7 @@ templates:
   topic_id: geometry_measures
   skill_id: geo_pythagorean
   grade_band: 6-7
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -558,7 +558,7 @@ templates:
   topic_id: geometry_measures
   skill_id: geo_pythagorean
   grade_band: 6-7
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -828,7 +828,7 @@ templates:
   topic_id: geometry_measures
   skill_id: geo_ratios
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -882,7 +882,7 @@ templates:
   topic_id: geometry_measures
   skill_id: geo_ratios
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -935,7 +935,7 @@ templates:
   topic_id: geometry_measures
   skill_id: geo_ratios
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1044,67 +1044,11 @@ templates:
   option_c: 114 square inches
   option_d: 228 square inches
   correct_option: d
-- question_template_id: authored-geometry_measures-d5-99500
-  topic_id: geometry_measures
-  skill_id: geo_surface_area
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 180
-  common_error_tags:
-  - confused_surface_area_with_volume
-  - forgot_to_double_all_pairs_of_faces
-  - calculated_only_one_of_each_face_pair
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: A shipping company needs to wrap a rectangular crate that is 9 feet long, 6 feet wide, and 4 feet
-    tall. What is the total surface area of the crate?
-  context_block: ''
-  answer_expression: Eq(x, 2*(9*6) + 2*(9*4) + 2*(6*4))
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - 'A rectangular crate has six faces: top, bottom, front, back, left side, and right side.'
-  - 'Find the area of each pair of opposite faces: two faces are 9×6, two are 9×4, and two are 6×4.'
-  - 'Add the areas of all six faces by doubling each pair: 2(9×6) + 2(9×4) + 2(6×4).'
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Identify the three pairs of opposite faces on the rectangular crate. The top and bottom
-        are each 9 feet by 6 feet.
-      expression: 2*(9*6) = 2*54 = 108
-      common_mistake: null
-    - step_number: 2
-      explanation: The front and back faces are each 9 feet by 4 feet.
-      expression: 2*(9*4) = 2*36 = 72
-      common_mistake: null
-    - step_number: 3
-      explanation: The left and right side faces are each 6 feet by 4 feet.
-      expression: 2*(6*4) = 2*24 = 48
-      common_mistake: null
-    - step_number: 4
-      explanation: Add the areas of all six faces to find the total surface area.
-      expression: 108 + 72 + 48 = 228
-      common_mistake: null
-    final_answer: 228 square feet
-  random_seed: 99500
-  rendered_question: A shipping company needs to wrap a rectangular crate that is 9 feet long, 6 feet
-    wide, and 4 feet tall. What is the total surface area of the crate?
-  option_a: 180 square feet
-  option_b: 114 square feet
-  option_c: 228 square feet
-  option_d: 216 square feet
-  correct_option: c
 - question_template_id: authored-geometry_measures-d4-1208400
   topic_id: geometry_measures
   skill_id: geo_surface_area
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -1161,7 +1105,7 @@ templates:
   topic_id: geometry_measures
   skill_id: geo_surface_area
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -1224,7 +1168,7 @@ templates:
   topic_id: geometry_measures
   skill_id: geo_surface_area
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -1279,6 +1223,62 @@ templates:
   option_b: 210 square inches
   option_c: 242 square inches
   option_d: 182 square inches
+  correct_option: c
+- question_template_id: authored-geometry_measures-d5-99500
+  topic_id: geometry_measures
+  skill_id: geo_surface_area
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - confused_surface_area_with_volume
+  - forgot_to_double_all_pairs_of_faces
+  - calculated_only_one_of_each_face_pair
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A shipping company needs to wrap a rectangular crate that is 9 feet long, 6 feet wide, and 4 feet
+    tall. What is the total surface area of the crate?
+  context_block: ''
+  answer_expression: Eq(x, 2*(9*6) + 2*(9*4) + 2*(6*4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'A rectangular crate has six faces: top, bottom, front, back, left side, and right side.'
+  - 'Find the area of each pair of opposite faces: two faces are 9×6, two are 9×4, and two are 6×4.'
+  - 'Add the areas of all six faces by doubling each pair: 2(9×6) + 2(9×4) + 2(6×4).'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the three pairs of opposite faces on the rectangular crate. The top and bottom
+        are each 9 feet by 6 feet.
+      expression: 2*(9*6) = 2*54 = 108
+      common_mistake: null
+    - step_number: 2
+      explanation: The front and back faces are each 9 feet by 4 feet.
+      expression: 2*(9*4) = 2*36 = 72
+      common_mistake: null
+    - step_number: 3
+      explanation: The left and right side faces are each 6 feet by 4 feet.
+      expression: 2*(6*4) = 2*24 = 48
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the areas of all six faces to find the total surface area.
+      expression: 108 + 72 + 48 = 228
+      common_mistake: null
+    final_answer: 228 square feet
+  random_seed: 99500
+  rendered_question: A shipping company needs to wrap a rectangular crate that is 9 feet long, 6 feet
+    wide, and 4 feet tall. What is the total surface area of the crate?
+  option_a: 180 square feet
+  option_b: 114 square feet
+  option_c: 228 square feet
+  option_d: 216 square feet
   correct_option: c
 - question_template_id: authored-geometry_measures-d5-1208502
   topic_id: geometry_measures

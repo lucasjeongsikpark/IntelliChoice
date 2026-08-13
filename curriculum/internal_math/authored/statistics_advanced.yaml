@@ -5,7 +5,7 @@ templates:
   topic_id: statistics_advanced
   skill_id: adv_matrices
   grade_band: 11-12
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -61,7 +61,7 @@ templates:
   topic_id: statistics_advanced
   skill_id: adv_matrices
   grade_band: 11-12
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -127,7 +127,7 @@ templates:
   topic_id: statistics_advanced
   skill_id: adv_matrices
   grade_band: 11-12
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -354,53 +354,6 @@ templates:
   option_c: 86 points
   option_d: 87 points
   correct_option: a
-- question_template_id: authored-statistics_advanced-d1-1327101
-  topic_id: statistics_advanced
-  skill_id: stat_descriptive
-  grade_band: 11-12
-  difficulty_label: 1
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 60
-  common_error_tags:
-  - stopped_at_sum_without_dividing
-  - used_maximum_instead_of_mean
-  - used_median_instead_of_mean
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A factory worker logs 6, 7, 8, 9, and 10 hours over five consecutive days. What is the mean number
-    of hours worked per day?
-  context_block: ''
-  answer_expression: Eq(x, (6 + 7 + 8 + 9 + 10) / 5)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - To find the mean, add all five daily hours together first.
-  - Divide the total by the number of days to find the average per day.
-  - Write the sum as 6 + 7 + 8 + 9 + 10, then divide by 5.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Add all the daily hours together.
-      expression: 6 + 7 + 8 + 9 + 10 = 40
-      common_mistake: null
-    - step_number: 2
-      explanation: Divide the total by the number of days to find the mean.
-      expression: 40 / 5 = 8
-      common_mistake: null
-    final_answer: 8 hours
-  random_seed: 1327101
-  rendered_question: A factory worker logs 6, 7, 8, 9, and 10 hours over five consecutive days. What is
-    the mean number of hours worked per day?
-  option_a: 10 hours
-  option_b: 7 hours
-  option_c: 40 hours
-  option_d: 8 hours
-  correct_option: d
 - question_template_id: authored-statistics_advanced-d1-1327102
   topic_id: statistics_advanced
   skill_id: stat_descriptive
@@ -546,6 +499,242 @@ templates:
   option_c: 56.5 customers
   option_d: 285 customers
   correct_option: a
+- question_template_id: authored-statistics_advanced-d2-1327200
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - confused_mean_with_mode_or_maximum
+  - computed_sum_but_forgot_to_divide
+  - confused_mean_with_median_or_picked_middle_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A runner tracks her daily distances over five training days: 15 km, 18 km, 21 km, 24 km, and
+    27 km. What is the mean distance she ran per day?'
+  context_block: null
+  answer_expression: Eq(x, (15 + 18 + 21 + 24 + 27) / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean distance, first add up all five daily distances.
+  - Once you have the total distance, divide by the number of days to find the average.
+  - Write the sum 15 + 18 + 21 + 24 + 27, then divide that result by 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five daily distances together.
+      expression: 15 + 18 + 21 + 24 + 27 = 105
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total distance by the number of days to find the mean.
+      expression: 105 / 5 = 21
+      common_mistake: null
+    final_answer: 21 kilometers
+  random_seed: 1327200
+  rendered_question: 'A runner tracks her daily distances over five training days: 15 km, 18 km, 21 km,
+    24 km, and 27 km. What is the mean distance she ran per day?'
+  option_a: 21 kilometers
+  option_b: 24 kilometers
+  option_c: 27 kilometers
+  option_d: 105 kilometers
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d2-1327201
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Calculated the median instead of the mean
+  - Stopped at the sum without dividing by the count
+  - Added the values and divided by 6 instead of 5
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A barista tracks the number of coffee drinks sold over five consecutive days: 32, 38, 44, 50,
+    and 56 drinks. What is the mean number of drinks sold per day?'
+  context_block: null
+  answer_expression: Eq(x, (32 + 38 + 44 + 50 + 56) / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, you need to add all the daily sales together first.
+  - Once you have the total number of drinks sold, divide that total by the number of days.
+  - 'Set up the calculation: add 32, 38, 44, 50, and 56, then divide by 5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five daily sales together.
+      expression: 32 + 38 + 44 + 50 + 56 = 220
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the mean.
+      expression: 220 / 5 = 44
+      common_mistake: null
+    final_answer: 44 drinks
+  random_seed: 1327201
+  rendered_question: 'A barista tracks the number of coffee drinks sold over five consecutive days: 32,
+    38, 44, 50, and 56 drinks. What is the mean number of drinks sold per day?'
+  option_a: 44 drinks
+  option_b: 43 drinks
+  option_c: 220 drinks
+  option_d: 45 drinks
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d2-1327202
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - arithmetic_error_in_addition
+  - stopped_after_summing_without_dividing
+  - confused_mean_with_median
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A librarian tracks the number of books checked out over five consecutive days: 45, 52, 48, 55,
+    and 60 books. What is the mean number of books checked out per day?'
+  context_block: null
+  answer_expression: Eq(x, (45 + 52 + 48 + 55 + 60) / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, you need to add up all the daily totals first.
+  - Once you have the total number of books checked out across all five days, divide by the number of
+    days.
+  - 'Set up the calculation: add 45, 52, 48, 55, and 60, then divide that sum by 5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five daily totals together.
+      expression: 45 + 52 + 48 + 55 + 60 = 260
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the sum by the number of days to find the mean.
+      expression: 260 / 5 = 52
+      common_mistake: null
+    final_answer: 52 books
+  random_seed: 1327202
+  rendered_question: 'A librarian tracks the number of books checked out over five consecutive days: 45,
+    52, 48, 55, and 60 books. What is the mean number of books checked out per day?'
+  option_a: 53 books
+  option_b: 52 books
+  option_c: 55 books
+  option_d: 260 books
+  correct_option: b
+- question_template_id: authored-statistics_advanced-d2-1507200
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Found the median instead of the mean
+  - Stopped at the sum without dividing by the count
+  - Divided by the wrong count or made an arithmetic error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A delivery driver records the number of packages delivered each day over five days: 34, 38, 42,
+    46, and 50 packages. What is the mean number of packages delivered per day?'
+  context_block: null
+  answer_expression: x = (34 + 38 + 42 + 46 + 50) / 5
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, you need to add all five daily delivery counts together.
+  - Once you have the total number of packages for all five days, divide that sum by the number of days.
+  - The total is 34 + 38 + 42 + 46 + 50; divide that result by 5 to find the mean.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the five daily package counts together.
+      expression: 34 + 38 + 42 + 46 + 50 = 210
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the mean.
+      expression: 210 / 5 = 42
+      common_mistake: null
+    final_answer: 42 packages
+  random_seed: 1507200
+  rendered_question: 'A delivery driver records the number of packages delivered each day over five days:
+    34, 38, 42, 46, and 50 packages. What is the mean number of packages delivered per day?'
+  option_a: 44 packages
+  option_b: 210 packages
+  option_c: 41 packages
+  option_d: 42 packages
+  correct_option: d
+- question_template_id: authored-statistics_advanced-d2-1507201
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_at_sum_without_dividing
+  - divided_by_wrong_count
+  - reported_mode_instead_of_mean
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A basketball player scored 18, 22, 26, 30, and 34 points over five games. What is the mean number
+    of points scored per game?
+  context_block: null
+  answer_expression: x = (18 + 22 + 26 + 30 + 34) / 5
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, you need to add all five game scores together.
+  - Once you have the total, divide that sum by the number of games played.
+  - 'Set up the calculation: add 18, 22, 26, 30, and 34, then divide by 5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five game scores together.
+      expression: 18 + 22 + 26 + 30 + 34 = 130
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of games to find the mean.
+      expression: 130 / 5 = 26
+      common_mistake: null
+    final_answer: 26 points
+  random_seed: 1507201
+  rendered_question: A basketball player scored 18, 22, 26, 30, and 34 points over five games. What is
+    the mean number of points scored per game?
+  option_a: 130 points
+  option_b: 26 points
+  option_c: 34 points
+  option_d: 27 points
+  correct_option: b
 - question_template_id: authored-statistics_advanced-d3-1327300
   topic_id: statistics_advanced
   skill_id: stat_descriptive
@@ -642,206 +831,17 @@ templates:
   option_c: 22 cakes
   option_d: 110 cakes
   correct_option: c
-- question_template_id: authored-statistics_advanced-d2-1327200
+- question_template_id: authored-statistics_advanced-d1-1327101
   topic_id: statistics_advanced
   skill_id: stat_descriptive
   grade_band: 11-12
   difficulty_label: 2
   difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - confused_mean_with_mode_or_maximum
-  - computed_sum_but_forgot_to_divide
-  - confused_mean_with_median_or_picked_middle_value
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: 'A runner tracks her daily distances over five training days: 15 km, 18 km, 21 km, 24 km, and
-    27 km. What is the mean distance she ran per day?'
-  context_block: null
-  answer_expression: Eq(x, (15 + 18 + 21 + 24 + 27) / 5)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - To find the mean distance, first add up all five daily distances.
-  - Once you have the total distance, divide by the number of days to find the average.
-  - Write the sum 15 + 18 + 21 + 24 + 27, then divide that result by 5.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Add all five daily distances together.
-      expression: 15 + 18 + 21 + 24 + 27 = 105
-      common_mistake: null
-    - step_number: 2
-      explanation: Divide the total distance by the number of days to find the mean.
-      expression: 105 / 5 = 21
-      common_mistake: null
-    final_answer: 21 kilometers
-  random_seed: 1327200
-  rendered_question: 'A runner tracks her daily distances over five training days: 15 km, 18 km, 21 km,
-    24 km, and 27 km. What is the mean distance she ran per day?'
-  option_a: 21 kilometers
-  option_b: 24 kilometers
-  option_c: 27 kilometers
-  option_d: 105 kilometers
-  correct_option: a
-- question_template_id: authored-statistics_advanced-d2-1327201
-  topic_id: statistics_advanced
-  skill_id: stat_descriptive
-  grade_band: 11-12
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - Calculated the median instead of the mean
-  - Stopped at the sum without dividing by the count
-  - Added the values and divided by 6 instead of 5
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: 'A barista tracks the number of coffee drinks sold over five consecutive days: 32, 38, 44, 50,
-    and 56 drinks. What is the mean number of drinks sold per day?'
-  context_block: null
-  answer_expression: Eq(x, (32 + 38 + 44 + 50 + 56) / 5)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - To find the mean, you need to add all the daily sales together first.
-  - Once you have the total number of drinks sold, divide that total by the number of days.
-  - 'Set up the calculation: add 32, 38, 44, 50, and 56, then divide by 5.'
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Add all five daily sales together.
-      expression: 32 + 38 + 44 + 50 + 56 = 220
-      common_mistake: null
-    - step_number: 2
-      explanation: Divide the total by the number of days to find the mean.
-      expression: 220 / 5 = 44
-      common_mistake: null
-    final_answer: 44 drinks
-  random_seed: 1327201
-  rendered_question: 'A barista tracks the number of coffee drinks sold over five consecutive days: 32,
-    38, 44, 50, and 56 drinks. What is the mean number of drinks sold per day?'
-  option_a: 44 drinks
-  option_b: 43 drinks
-  option_c: 220 drinks
-  option_d: 45 drinks
-  correct_option: a
-- question_template_id: authored-statistics_advanced-d2-1327202
-  topic_id: statistics_advanced
-  skill_id: stat_descriptive
-  grade_band: 11-12
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - arithmetic_error_in_addition
-  - stopped_after_summing_without_dividing
-  - confused_mean_with_median
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: 'A librarian tracks the number of books checked out over five consecutive days: 45, 52, 48, 55,
-    and 60 books. What is the mean number of books checked out per day?'
-  context_block: null
-  answer_expression: Eq(x, (45 + 52 + 48 + 55 + 60) / 5)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - To find the mean, you need to add up all the daily totals first.
-  - Once you have the total number of books checked out across all five days, divide by the number of
-    days.
-  - 'Set up the calculation: add 45, 52, 48, 55, and 60, then divide that sum by 5.'
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Add all five daily totals together.
-      expression: 45 + 52 + 48 + 55 + 60 = 260
-      common_mistake: null
-    - step_number: 2
-      explanation: Divide the sum by the number of days to find the mean.
-      expression: 260 / 5 = 52
-      common_mistake: null
-    final_answer: 52 books
-  random_seed: 1327202
-  rendered_question: 'A librarian tracks the number of books checked out over five consecutive days: 45,
-    52, 48, 55, and 60 books. What is the mean number of books checked out per day?'
-  option_a: 53 books
-  option_b: 52 books
-  option_c: 55 books
-  option_d: 260 books
-  correct_option: b
-- question_template_id: authored-statistics_advanced-d2-1507200
-  topic_id: statistics_advanced
-  skill_id: stat_descriptive
-  grade_band: 11-12
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - Found the median instead of the mean
-  - Stopped at the sum without dividing by the count
-  - Divided by the wrong count or made an arithmetic error
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: 'A delivery driver records the number of packages delivered each day over five days: 34, 38, 42,
-    46, and 50 packages. What is the mean number of packages delivered per day?'
-  context_block: null
-  answer_expression: x = (34 + 38 + 42 + 46 + 50) / 5
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - To find the mean, you need to add all five daily delivery counts together.
-  - Once you have the total number of packages for all five days, divide that sum by the number of days.
-  - The total is 34 + 38 + 42 + 46 + 50; divide that result by 5 to find the mean.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Add the five daily package counts together.
-      expression: 34 + 38 + 42 + 46 + 50 = 210
-      common_mistake: null
-    - step_number: 2
-      explanation: Divide the total by the number of days to find the mean.
-      expression: 210 / 5 = 42
-      common_mistake: null
-    final_answer: 42 packages
-  random_seed: 1507200
-  rendered_question: 'A delivery driver records the number of packages delivered each day over five days:
-    34, 38, 42, 46, and 50 packages. What is the mean number of packages delivered per day?'
-  option_a: 44 packages
-  option_b: 210 packages
-  option_c: 41 packages
-  option_d: 42 packages
-  correct_option: d
-- question_template_id: authored-statistics_advanced-d2-1507201
-  topic_id: statistics_advanced
-  skill_id: stat_descriptive
-  grade_band: 11-12
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
+  estimated_time_seconds: 60
   common_error_tags:
   - stopped_at_sum_without_dividing
-  - divided_by_wrong_count
-  - reported_mode_instead_of_mean
+  - used_maximum_instead_of_mean
+  - used_median_instead_of_mean
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
@@ -849,40 +849,40 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A basketball player scored 18, 22, 26, 30, and 34 points over five games. What is the mean number
-    of points scored per game?
-  context_block: null
-  answer_expression: x = (18 + 22 + 26 + 30 + 34) / 5
+  stem: A factory worker logs 6, 7, 8, 9, and 10 hours over five consecutive days. What is the mean number
+    of hours worked per day?
+  context_block: ''
+  answer_expression: Eq(x, (6 + 7 + 8 + 9 + 10) / 5)
   figure_spec: null
   figure_reading: null
   hint_ladder:
-  - To find the mean, you need to add all five game scores together.
-  - Once you have the total, divide that sum by the number of games played.
-  - 'Set up the calculation: add 18, 22, 26, 30, and 34, then divide by 5.'
+  - To find the mean, add all five daily hours together first.
+  - Divide the total by the number of days to find the average per day.
+  - Write the sum as 6 + 7 + 8 + 9 + 10, then divide by 5.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Add all five game scores together.
-      expression: 18 + 22 + 26 + 30 + 34 = 130
+      explanation: Add all the daily hours together.
+      expression: 6 + 7 + 8 + 9 + 10 = 40
       common_mistake: null
     - step_number: 2
-      explanation: Divide the total by the number of games to find the mean.
-      expression: 130 / 5 = 26
+      explanation: Divide the total by the number of days to find the mean.
+      expression: 40 / 5 = 8
       common_mistake: null
-    final_answer: 26 points
-  random_seed: 1507201
-  rendered_question: A basketball player scored 18, 22, 26, 30, and 34 points over five games. What is
-    the mean number of points scored per game?
-  option_a: 130 points
-  option_b: 26 points
-  option_c: 34 points
-  option_d: 27 points
-  correct_option: b
+    final_answer: 8 hours
+  random_seed: 1327101
+  rendered_question: A factory worker logs 6, 7, 8, 9, and 10 hours over five consecutive days. What is
+    the mean number of hours worked per day?
+  option_a: 10 hours
+  option_b: 7 hours
+  option_c: 40 hours
+  option_d: 8 hours
+  correct_option: d
 - question_template_id: authored-statistics_advanced-d3-1327301
   topic_id: statistics_advanced
   skill_id: stat_descriptive
   grade_band: 11-12
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1603,7 +1603,7 @@ templates:
   topic_id: statistics_advanced
   skill_id: stat_probability
   grade_band: 11-12
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -1659,7 +1659,7 @@ templates:
   topic_id: statistics_advanced
   skill_id: stat_probability
   grade_band: 11-12
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -1720,7 +1720,7 @@ templates:
   topic_id: statistics_advanced
   skill_id: stat_probability
   grade_band: 11-12
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:

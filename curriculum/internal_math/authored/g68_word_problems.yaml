@@ -5,7 +5,7 @@ templates:
   topic_id: g68_word_problems
   skill_id: g68_wp_equations
   grade_band: 6-7
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -61,7 +61,7 @@ templates:
   topic_id: g68_word_problems
   skill_id: g68_wp_equations
   grade_band: 6-7
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -112,7 +112,7 @@ templates:
   topic_id: g68_word_problems
   skill_id: g68_wp_equations
   grade_band: 6-7
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -168,11 +168,138 @@ templates:
   option_c: 9 hours
   option_d: 6 hours
   correct_option: d
+- question_template_id: authored-g68_word_problems-d1-1505100
+  topic_id: g68_word_problems
+  skill_id: g68_wp_equations
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - ignored_starting_amount
+  - added_goal_to_starting_amount
+  - stopped_at_intermediate_step
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Alex is doing chores to save up for a new skateboard. He already has $10 saved and earns $5 for
+    each week of chores he completes. The skateboard costs $35. How many weeks will Alex need to work
+    before he has enough money?
+  context_block: null
+  answer_expression: 5*x + 10 = 35
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for how much money Alex will have after x weeks of work.
+  - After x weeks, Alex has 10 + 5x dollars total. That needs to equal 35.
+  - Subtract 10 from both sides first, then divide by 5 to find x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Alex starts with $10 and earns $5 per week. After x weeks, his total savings is the
+        starting amount plus the amount earned.
+      expression: Total = 10 + 5x
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the total equal to the cost of the skateboard ($35) to find when he has enough.
+      expression: 10 + 5x = 35
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 10 from both sides to isolate the term with x.
+      expression: 5x = 25
+      common_mistake: Adding 10 instead of subtracting it
+    - step_number: 4
+      explanation: Divide both sides by 5 to solve for x.
+      expression: x = 5
+      common_mistake: null
+    final_answer: 5 weeks
+  random_seed: 1505100
+  rendered_question: Alex is doing chores to save up for a new skateboard. He already has $10 saved and
+    earns $5 for each week of chores he completes. The skateboard costs $35. How many weeks will Alex
+    need to work before he has enough money?
+  option_a: 6 weeks
+  option_b: 30 weeks
+  option_c: 3 weeks
+  option_d: 5 weeks
+  correct_option: d
+- question_template_id: authored-g68_word_problems-d1-1505101
+  topic_id: g68_word_problems
+  skill_id: g68_wp_equations
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_at_intermediate_step
+  - reversed_operations
+  - ignored_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker has 8 cookies already made and bakes batches of 6 cookies each. She wants to have exactly
+    50 cookies for a catering order. How many batches does she need to bake?
+  context_block: A baker is preparing cookies for a catering order and needs to plan how much baking to
+    do.
+  answer_expression: 6*x + 8 - 50
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - After baking x batches, how many cookies will the baker have in total?
+  - She starts with 8 and adds 6 cookies per batch, so her total is 8 + 6x. She needs that to equal 50.
+  - Set up the equation 8 + 6x = 50, then subtract 8 from both sides to isolate the term with x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker starts with 8 cookies already made. Each batch adds 6 more cookies. After
+        x batches, the total number of cookies is the starting amount plus the batches.
+      expression: Total cookies = 8 + 6x
+      common_mistake: null
+    - step_number: 2
+      explanation: The baker needs exactly 50 cookies, so we set the total equal to 50.
+      expression: 8 + 6x = 50
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 8 from both sides to move the constant to the right.
+      expression: 6x = 50 - 8
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the right side.
+      expression: 6x = 42
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 6 to find the number of batches.
+      expression: x = 42 ÷ 6
+      common_mistake: null
+    - step_number: 6
+      explanation: Calculate the result.
+      expression: x = 7
+      common_mistake: null
+    final_answer: 7 batches
+  random_seed: 1505101
+  rendered_question: 'A baker is preparing cookies for a catering order and needs to plan how much baking
+    to do.
+
+
+    A baker has 8 cookies already made and bakes batches of 6 cookies each. She wants to have exactly
+    50 cookies for a catering order. How many batches does she need to bake?'
+  option_a: 42 batches
+  option_b: 6 batches
+  option_c: 7 batches
+  option_d: 8 batches
+  correct_option: c
 - question_template_id: authored-g68_word_problems-d1-95101
   topic_id: g68_word_problems
   skill_id: g68_wp_equations
   grade_band: 6-7
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -392,7 +519,7 @@ templates:
   topic_id: g68_word_problems
   skill_id: g68_wp_equations
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -448,7 +575,7 @@ templates:
   topic_id: g68_word_problems
   skill_id: g68_wp_equations
   grade_band: 6-7
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -725,6 +852,77 @@ templates:
   option_c: w >= 12
   option_d: w >= 7
   correct_option: b
+- question_template_id: authored-g68_word_problems-d5-1506501
+  topic_id: g68_word_problems
+  skill_id: g68_wp_inequalities
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - confused_inequality_with_equality
+  - reversed_inequality_direction
+  - computed_d_less_than_instead_of_at_least
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Jordan is organizing a food drive. She already has 24 cans in her collection and gathers 6 more
+    cans each day from neighbors. The goal is to donate at least 90 cans to the local food bank. For how
+    many days does she need to collect cans to reach her goal?
+  context_block: null
+  answer_expression: 24 + 6*d >= 90
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - After d days of collecting, how many cans will Jordan have in total? Write an expression using d.
+  - She starts with 24 and adds 6 per day, so after d days she has 24 + 6d cans. This amount needs to
+    be at least 90.
+  - Write the inequality 24 + 6d ≥ 90, then solve to find the boundary value for d.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for the total number of cans Jordan will have after d days of collecting.
+      expression: Total cans = 24 + 6d
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Set up the inequality to express the constraint: the total must be at least 90 cans.'
+      expression: 24 + 6d ≥ 90
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 24 from both sides to isolate the term with d.
+      expression: 6d ≥ 90 - 24
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the right side.
+      expression: 6d ≥ 66
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 6 to solve for d.
+      expression: d ≥ 66 ÷ 6
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Simplify: d must be at least 11 days.'
+      expression: d ≥ 11
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Check: After 11 days, Jordan has 24 + 6(11) = 24 + 66 = 90 cans, which meets the goal
+        exactly.'
+      expression: 24 + 6(11) = 90 ✓
+      common_mistake: null
+    final_answer: at least 11 days
+  random_seed: 1506501
+  rendered_question: Jordan is organizing a food drive. She already has 24 cans in her collection and
+    gathers 6 more cans each day from neighbors. The goal is to donate at least 90 cans to the local food
+    bank. For how many days does she need to collect cans to reach her goal?
+  option_a: at least 10 days
+  option_b: exactly 15 days
+  option_c: at least 14 days
+  option_d: at least 11 days
+  correct_option: d
 - question_template_id: authored-g68_word_problems-d2-1227200
   topic_id: g68_word_problems
   skill_id: g68_wp_proportion
@@ -900,6 +1098,123 @@ templates:
   option_c: 15 books
   option_d: 9 books
   correct_option: a
+- question_template_id: authored-g68_word_problems-d3-1227301
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - treated_inverse_proportion_as_direct
+  - arithmetic_guess_unrelated_to_relationship
+  - stopped_before_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Ten pumps working together can drain a swimming pool in 8 hours. How many hours will it take 16
+    pumps working at the same rate to drain the same pool?
+  context_block: null
+  answer_expression: Eq(x * 16, 10 * 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - In an inverse proportion, when the number of pumps increases, the time needed decreases. Look for
+    the relationship between pumps and time.
+  - 'The product of the number of pumps and the time stays constant: 10 pumps times 8 hours equals 16
+    pumps times the unknown time.'
+  - Write the equation 16 times x equals 10 times 8, then divide both sides by 16.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Because more pumps drain the pool faster, this is an inverse proportion. The product
+        of pumps and time remains constant.
+      expression: 10 * 8 = 16 * x
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the left side.
+      expression: 80 = 16 * x
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 16 to solve for x.
+      expression: x = 80 / 16
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the division.
+      expression: x = 5
+      common_mistake: null
+    final_answer: 5 hours
+  random_seed: 1227301
+  rendered_question: Ten pumps working together can drain a swimming pool in 8 hours. How many hours will
+    it take 16 pumps working at the same rate to drain the same pool?
+  option_a: 80 hours
+  option_b: 6 hours
+  option_c: 5 hours
+  option_d: 12.8 hours
+  correct_option: c
+- question_template_id: authored-g68_word_problems-d4-1507401
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - did_not_account_for_inverse_proportion
+  - ignored_the_9_hours
+  - added_instead_of_multiplied_to_find_work
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A painting crew can complete a job with 4 painters working for 9 hours. If the manager wants to
+    finish in 6 hours or less, how many painters must be assigned?
+  context_block: In painting jobs, the amount of work is fixed. More workers can reduce the time needed,
+    and fewer workers increase it. The relationship between the number of painters and hours of work forms
+    an inverse proportion.
+  answer_expression: Eq(4 * 9, x * 6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'The total amount of work stays the same: 4 painters × 9 hours = the amount of work in painter-hours.'
+  - 'Set up an equation: the total painter-hours must equal 36, which is 4 times 9.'
+  - Write 36 = x × 6 and solve for x by dividing both sides by 6.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the total amount of work measured in painter-hours using the original crew.
+      expression: 4 × 9 = 36 painter-hours
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Set up the inverse proportion: to finish the same work in 6 hours, the number of painters
+        times 6 must equal 36.'
+      expression: x × 6 = 36
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 6 to find the number of painters needed.
+      expression: x = 36 ÷ 6 = 6
+      common_mistake: null
+    final_answer: 6 painters
+  random_seed: 1507401
+  rendered_question: 'In painting jobs, the amount of work is fixed. More workers can reduce the time
+    needed, and fewer workers increase it. The relationship between the number of painters and hours of
+    work forms an inverse proportion.
+
+
+    A painting crew can complete a job with 4 painters working for 9 hours. If the manager wants to finish
+    in 6 hours or less, how many painters must be assigned?'
+  option_a: 7 painters
+  option_b: 13 painters
+  option_c: 6 painters
+  option_d: 5 painters
+  correct_option: c
 - question_template_id: authored-g68_word_problems-d4-37400
   topic_id: g68_word_problems
   skill_id: g68_wp_proportion
@@ -1187,64 +1502,6 @@ templates:
   option_c: 4 days
   option_d: 9 days
   correct_option: c
-- question_template_id: authored-g68_word_problems-d3-1227301
-  topic_id: g68_word_problems
-  skill_id: g68_wp_proportion
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - treated_inverse_proportion_as_direct
-  - arithmetic_guess_unrelated_to_relationship
-  - stopped_before_final_division
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Ten pumps working together can drain a swimming pool in 8 hours. How many hours will it take 16
-    pumps working at the same rate to drain the same pool?
-  context_block: null
-  answer_expression: Eq(x * 16, 10 * 8)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - In an inverse proportion, when the number of pumps increases, the time needed decreases. Look for
-    the relationship between pumps and time.
-  - 'The product of the number of pumps and the time stays constant: 10 pumps times 8 hours equals 16
-    pumps times the unknown time.'
-  - Write the equation 16 times x equals 10 times 8, then divide both sides by 16.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Because more pumps drain the pool faster, this is an inverse proportion. The product
-        of pumps and time remains constant.
-      expression: 10 * 8 = 16 * x
-      common_mistake: null
-    - step_number: 2
-      explanation: Calculate the left side.
-      expression: 80 = 16 * x
-      common_mistake: null
-    - step_number: 3
-      explanation: Divide both sides by 16 to solve for x.
-      expression: x = 80 / 16
-      common_mistake: null
-    - step_number: 4
-      explanation: Simplify the division.
-      expression: x = 5
-      common_mistake: null
-    final_answer: 5 hours
-  random_seed: 1227301
-  rendered_question: Ten pumps working together can drain a swimming pool in 8 hours. How many hours will
-    it take 16 pumps working at the same rate to drain the same pool?
-  option_a: 80 hours
-  option_b: 6 hours
-  option_c: 5 hours
-  option_d: 12.8 hours
-  correct_option: c
 - question_template_id: authored-g68_word_problems-d3-1227302
   topic_id: g68_word_problems
   skill_id: g68_wp_proportion
@@ -1306,7 +1563,7 @@ templates:
   topic_id: g68_word_problems
   skill_id: g68_wp_proportion
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:

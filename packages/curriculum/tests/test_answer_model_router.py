@@ -13,11 +13,11 @@ import pytest
 from intellichoice_curriculum.authored_validation import (
     DerivedAnswer,
     _option_matches,
-    _positive_root_reading,
-    _second_readings,
     derive_answer,
+    resolved_matches,
     route_answer,
 )
+from intellichoice_curriculum.content import load_curriculum
 
 
 def _route(equation: str) -> DerivedAnswer:
@@ -167,6 +167,7 @@ def test_every_shipped_item_routes_and_matches_its_own_key():
     import yaml
 
     root = pathlib.Path(__file__).resolve().parents[3]
+    curriculum = load_curriculum()
     models: Counter[str] = Counter()
     for path in sorted(glob.glob(str(root / "curriculum/internal_math/authored/*.yaml"))):
         for template in yaml.safe_load(open(path))["templates"]:
@@ -179,7 +180,18 @@ def test_every_shipped_item_routes_and_matches_its_own_key():
             derivation, error = route_answer(template["answer_expression"])
             assert derivation is not None, f"{template['question_template_id']}: {error}"
             options = {label: template[f"option_{label}"] for label in "abcd"}
-            matching = [k for k, v in options.items() if _option_matches(derivation, v)]
+            matching, _raw, derivation = resolved_matches(
+                derivation,
+                options,
+                template["answer_expression"],
+                curriculum.answer_form(template.get("skill_id")),
+            )
+            # **The premise moved three times, so the duplicate is gone (D-299).** This
+            # loop used to re-implement the gate's reading sequence, which meant every
+            # decision that admitted a new reading left the census asserting the old rule.
+            # `matching_options` is now the single owner of that sequence and both the gate
+            # and this census call it, so there is no premise here left to expire.
+            #
             # **The premise moved a second time, and for the same reason as the first.**
             # This used to require the *first* reading to match, which was true while every
             # shipped item's answer model matched what the student writes. D-281, D-282 and
@@ -190,18 +202,17 @@ def test_every_shipped_item_routes_and_matches_its_own_key():
             # reading here would re-impose, in a test, exactly the restriction those three
             # decisions measured and removed.
             #
-            # The census still catches what it was written for: the item must match
-            # **exactly one** option under the same readings the gate uses, so a silently
-            # reshaped answer or an ambiguous option set still fails.
-            if matching != [template["correct_option"]]:
-                for reading in [
-                    *_second_readings(derivation, template["answer_expression"]),
-                    *_positive_root_reading(derivation, options),
-                ]:
-                    second = [k for k, v in options.items() if _option_matches(reading, v)]
-                    if len(second) == 1:
-                        matching = second
-                        break
+            # **The premise moved a fourth time, and the duplicate is now gone one level
+            # up (D-308).** This called `matching_options` and required exactly one match,
+            # which was true of every item shipped before A4 and is false of the ones it
+            # admits on purpose: a "reduce to lowest terms" item has four options equal in
+            # value and is settled by which one is *written* reduced. `resolved_matches` owns
+            # the whole decision - readings, then the canonical-form tie-break - and the gate
+            # calls the same function, so this census cannot drift from it again.
+            #
+            # The census still catches what it was written for: the item must resolve to
+            # **exactly one** option under the same readings and the same tie-break the gate
+            # uses, so a silently reshaped answer or an ambiguous option set still fails.
             assert matching == [template["correct_option"]], template["question_template_id"]
             models[derivation.model] += 1
 
@@ -309,3 +320,45 @@ def test_a_strict_inequality_keeps_its_open_interval_with_a_unit():
     assert derivation is not None, error
     assert _option_matches(derivation, "x > 3 hours") is True
     assert _option_matches(derivation, "x >= 3 hours") is False
+
+
+# --------------------------------------------------------------------------------------
+# D-299: an underdetermined system is a rejection, not a KeyError
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "equation",
+    [
+        # Two equations, three unknowns. `sympy.solve` returns ONE dict - so the
+        # "exactly one solution" check passes - expressing two unknowns in terms of the
+        # third, which is simply absent: `[{a: c - 2, b: 12 - c}]`.
+        "Eq(a + b, 10); Eq(b + c, 12)",
+        # Three unknowns, two constraints, written the bare way the design stage does.
+        "a + b = 10; b + c = 12",
+    ],
+)
+def test_an_underdetermined_system_is_rejected_rather_than_raising(equation):
+    """**This crashed a paid run at candidate 25 of 42**, discarding the rest of its budget.
+
+    `route_answer` is documented fail-closed: an answer no verifier can claim is a
+    rejection, never an exception. `_route_system` indexed `solved[0][s]` for every unknown
+    and raised `KeyError` when the system left one free.
+
+    **Fourth occurrence of this class**, after Phase R's `TokenError` escaping
+    `derive_answer`, D-274's `sympify('4,700')` returning a tuple, and the `None`
+    `answer_expression` above. The pattern is always the same: SymPy answers a slightly
+    different question than the caller asked, and the caller indexes the result instead of
+    checking it.
+    """
+    derivation, error = route_answer(equation)
+    assert derivation is None, f"accepted an underdetermined system: {derivation}"
+    assert error and "does not determine" in error, error
+
+
+def test_a_determined_system_still_routes_to_tuple():
+    """The recall half - the fix must not refuse the systems this arm exists for."""
+    derivation, error = route_answer("Eq(x + y, 10); Eq(x - y, 2)")
+    assert derivation is not None, error
+    assert derivation.model == "tuple"
+    assert derivation.payload == (6, 4)

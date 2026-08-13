@@ -5,7 +5,7 @@ templates:
   topic_id: g2_word_problems
   skill_id: g2_wp_measurement_context
   grade_band: 2-3
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -56,7 +56,7 @@ templates:
   topic_id: g2_word_problems
   skill_id: g2_wp_measurement_context
   grade_band: 2-3
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -107,7 +107,7 @@ templates:
   topic_id: g2_word_problems
   skill_id: g2_wp_measurement_context
   grade_band: 2-3
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -158,7 +158,7 @@ templates:
   topic_id: g2_word_problems
   skill_id: g2_wp_measurement_context
   grade_band: 2-3
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -209,7 +209,7 @@ templates:
   topic_id: g2_word_problems
   skill_id: g2_wp_measurement_context
   grade_band: 2-3
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -251,6 +251,197 @@ templates:
   option_b: 77 meters
   option_c: 123 meters
   option_d: 63 meters
+  correct_option: a
+- question_template_id: authored-g2_word_problems-d4-1505400
+  topic_id: g2_word_problems
+  skill_id: g2_wp_measurement_context
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - subtracted_instead_of_added
+  - ignored_starting_amount
+  - used_only_the_difference
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maya has 24 stickers. Her friend has 8 more stickers than Maya. How many stickers does her friend
+    have?
+  context_block: null
+  answer_expression: x = 24 + 8
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Maya has 24 stickers to start with. Her friend has more than that.
+  - Her friend has 8 more stickers than Maya does. What does 'more' tell you to do?
+  - Write down 24, then add 8 to it. What number do you get?
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya has 24 stickers. Her friend has 8 more stickers than Maya.
+      expression: 24 + 8
+      common_mistake: null
+    - step_number: 2
+      explanation: Add 24 and 8 to find how many stickers her friend has.
+      expression: 24 + 8 = 32
+      common_mistake: null
+    final_answer: 32 stickers
+  random_seed: 1505400
+  rendered_question: Maya has 24 stickers. Her friend has 8 more stickers than Maya. How many stickers
+    does her friend have?
+  option_a: 24 stickers
+  option_b: 16 stickers
+  option_c: 30 stickers
+  option_d: 32 stickers
+  correct_option: d
+- question_template_id: authored-g2_word_problems-d4-1505401
+  topic_id: g2_word_problems
+  skill_id: g2_wp_measurement_context
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - subtracted_instead_of_added
+  - ignored_the_difference_amount
+  - arithmetic_error_in_summing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Jordan has 35 marbles. His sister has 12 more marbles than Jordan. How many marbles does his sister
+    have?
+  context_block: null
+  answer_expression: Eq(x, 35 + 12)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Jordan has 35 marbles. His sister has 12 more than that. Start by writing what you know about how
+    many she has.
+  - If Jordan has 35 and his sister has 12 more, what operation connects those two numbers?
+  - 'Set up the addition: Jordan''s amount plus the 12 more. Then add those numbers.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Jordan has 35 marbles. His sister has 12 MORE marbles than Jordan, so we need to add
+        12 to Jordan's amount.
+      expression: 35 + 12
+      common_mistake: null
+    - step_number: 2
+      explanation: Add 35 and 12 to find the total number of marbles his sister has.
+      expression: '47'
+      common_mistake: null
+    final_answer: 47 marbles
+  random_seed: 1505401
+  rendered_question: Jordan has 35 marbles. His sister has 12 more marbles than Jordan. How many marbles
+    does his sister have?
+  option_a: 35 marbles
+  option_b: 47 marbles
+  option_c: 60 marbles
+  option_d: 23 marbles
+  correct_option: b
+- question_template_id: authored-g2_word_problems-d5-1506500
+  topic_id: g2_word_problems
+  skill_id: g2_wp_multi_step
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_costs_instead_of_subtracting_both
+  - stopped_after_first_operation
+  - arithmetic_error_in_subtraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maya has 50 cents. She buys a candy bar for 15 cents, then a small toy for 12 cents. How many
+    cents does she have left?
+  context_block: null
+  answer_expression: Eq(x, (50 - 15) - 12)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - After Maya buys the candy bar, how much money is left? Subtract 15 from her starting amount.
+  - She then spends 12 cents more on the toy. You need to subtract again from what was left.
+  - Work out the first subtraction, then subtract the toy's cost from that result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya starts with 50 cents and spends 15 cents on a candy bar.
+      expression: 50 - 15 = 35
+      common_mistake: null
+    - step_number: 2
+      explanation: Now she has 35 cents left. She then spends 12 cents on a toy.
+      expression: 35 - 12 = 23
+      common_mistake: null
+    final_answer: 23 cents
+  random_seed: 1506500
+  rendered_question: Maya has 50 cents. She buys a candy bar for 15 cents, then a small toy for 12 cents.
+    How many cents does she have left?
+  option_a: 27 cents
+  option_b: 23 cents
+  option_c: 38 cents
+  option_d: 35 cents
+  correct_option: b
+- question_template_id: authored-g2_word_problems-d5-1506501
+  topic_id: g2_word_problems
+  skill_id: g2_wp_multi_step
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_all_numbers_instead_of_recognizing_subtraction
+  - stopped_at_intermediate_step
+  - applied_only_one_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A farmer has two baskets of apples. The first basket holds 28 apples and the second holds 22 apples.
+    At the farmers market, he sells 18 apples. How many apples does he have left?
+  context_block: null
+  answer_expression: x = (28 + 22) - 18
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many apples does the farmer have in total from both baskets before selling any?
+  - Combine the two baskets to find the total, then think about what happens when he sells some at the
+    market.
+  - Add the two baskets first to find the total amount, then subtract the 18 apples he sells.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Start by finding the total number of apples from both baskets before selling any.
+      expression: 28 + 22 = 50
+      common_mistake: null
+    - step_number: 2
+      explanation: The farmer sells 18 apples at the market, so subtract that from the total.
+      expression: 50 - 18 = 32
+      common_mistake: null
+    final_answer: 32 apples
+  random_seed: 1506501
+  rendered_question: A farmer has two baskets of apples. The first basket holds 28 apples and the second
+    holds 22 apples. At the farmers market, he sells 18 apples. How many apples does he have left?
+  option_a: 32 apples
+  option_b: 50 apples
+  option_c: 10 apples
+  option_d: 68 apples
   correct_option: a
 - question_template_id: authored-g2_word_problems-d5-6500
   topic_id: g2_word_problems
@@ -393,6 +584,65 @@ templates:
   option_c: 83 stickers
   option_d: 64 stickers
   correct_option: a
+- question_template_id: authored-g2_word_problems-d1-1507101
+  topic_id: g2_word_problems
+  skill_id: g2_wp_single_operation
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - off_by_one_in_addition
+  - reversed_addends_in_place_value
+  - dropped_tens_carry
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker had 35 cookies in the morning. During the day, she baked 28 more cookies. How many cookies
+    does the baker have altogether at the end of the day?
+  context_block: A baker starts the day with some cookies and bakes more during the day.
+  answer_expression: x = 35 + 28
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The baker begins with 35 cookies. Then she adds 28 more. What do you do when you put two groups together?
+  - 'You add: the total is 35 + 28. Write that addition down.'
+  - Now add those two numbers to find how many cookies there are altogether.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker starts with 35 cookies in the morning.
+      expression: Start = 35 cookies
+      common_mistake: null
+    - step_number: 2
+      explanation: She bakes 28 more cookies during the day.
+      expression: Baked = 28 cookies
+      common_mistake: null
+    - step_number: 3
+      explanation: To find the total, add the cookies she started with and the cookies she baked.
+      expression: Total = 35 + 28
+      common_mistake: null
+    - step_number: 4
+      explanation: Add 35 and 28. Five units plus 8 units is 13 units, so write 3 and carry 1 ten. Three
+        tens plus 2 tens is 5 tens, plus the 1 ten we carried is 6 tens. So the total is 63.
+      expression: 35 + 28 = 63
+      common_mistake: null
+    final_answer: 63 cookies
+  random_seed: 1507101
+  rendered_question: 'A baker starts the day with some cookies and bakes more during the day.
+
+
+    A baker had 35 cookies in the morning. During the day, she baked 28 more cookies. How many cookies
+    does the baker have altogether at the end of the day?'
+  option_a: 62 cookies
+  option_b: 63 cookies
+  option_c: 65 cookies
+  option_d: 56 cookies
+  correct_option: b
 - question_template_id: authored-g2_word_problems-d1-7100
   topic_id: g2_word_problems
   skill_id: g2_wp_single_operation
@@ -588,7 +838,7 @@ templates:
   topic_id: g2_word_problems
   skill_id: g2_wp_single_operation
   grade_band: 2-3
-  difficulty_label: 2
+  difficulty_label: 1
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -635,7 +885,7 @@ templates:
   topic_id: g2_word_problems
   skill_id: g2_wp_single_operation
   grade_band: 2-3
-  difficulty_label: 2
+  difficulty_label: 1
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -682,58 +932,11 @@ templates:
   option_c: 56 stickers
   option_d: 57 stickers
   correct_option: d
-- question_template_id: authored-g2_word_problems-d2-98200
-  topic_id: g2_word_problems
-  skill_id: g2_wp_single_operation
-  grade_band: 2-3
-  difficulty_label: 2
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 45
-  common_error_tags:
-  - added_instead_of_subtracting
-  - subtraction_error_with_borrowing_by_5
-  - subtraction_error_with_borrowing_by_10
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A baker made 75 cookies in the morning and sold 48 cookies during the day. How many cookies does
-    the baker have left?
-  context_block: ''
-  answer_expression: x = 75 - 48
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Think about what happens when you start with some cookies and sell some of them.
-  - You need to subtract the number sold from the number the baker started with.
-  - Write 75 minus 48 and find the difference.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The baker starts with 75 cookies and sells 48, so we subtract to find what remains.
-      expression: 75 - 48
-      common_mistake: null
-    - step_number: 2
-      explanation: Subtract 48 from 75 to get the number of cookies left.
-      expression: '27'
-      common_mistake: null
-    final_answer: 27 cookies
-  random_seed: 98200
-  rendered_question: A baker made 75 cookies in the morning and sold 48 cookies during the day. How many
-    cookies does the baker have left?
-  option_a: 123 cookies
-  option_b: 33 cookies
-  option_c: 27 cookies
-  option_d: 37 cookies
-  correct_option: c
 - question_template_id: authored-g2_word_problems-d2-98201
   topic_id: g2_word_problems
   skill_id: g2_wp_single_operation
   grade_band: 2-3
-  difficulty_label: 2
+  difficulty_label: 1
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -783,3 +986,50 @@ templates:
   option_c: 16 stickers
   option_d: 82 stickers
   correct_option: b
+- question_template_id: authored-g2_word_problems-d2-98200
+  topic_id: g2_word_problems
+  skill_id: g2_wp_single_operation
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - subtraction_error_with_borrowing_by_5
+  - subtraction_error_with_borrowing_by_10
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker made 75 cookies in the morning and sold 48 cookies during the day. How many cookies does
+    the baker have left?
+  context_block: ''
+  answer_expression: x = 75 - 48
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens when you start with some cookies and sell some of them.
+  - You need to subtract the number sold from the number the baker started with.
+  - Write 75 minus 48 and find the difference.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker starts with 75 cookies and sells 48, so we subtract to find what remains.
+      expression: 75 - 48
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 48 from 75 to get the number of cookies left.
+      expression: '27'
+      common_mistake: null
+    final_answer: 27 cookies
+  random_seed: 98200
+  rendered_question: A baker made 75 cookies in the morning and sold 48 cookies during the day. How many
+    cookies does the baker have left?
+  option_a: 123 cookies
+  option_b: 33 cookies
+  option_c: 27 cookies
+  option_d: 37 cookies
+  correct_option: c

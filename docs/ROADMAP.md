@@ -1926,6 +1926,59 @@ openable, and **12 of them are tier 5**. Depth against D-223's 5-per-tier target
 on the same question — whether the difficulty rubric or the five-tier requirement is what should
 change — which is the first item of the next session rather than more generation.
 
+> **⏸ Amended again 2026-08-13 (D-300 → D-306). The openability half of this phase is DONE;
+> the depth half is not, and the reason changed.**
+>
+> - **Serving floor: ✅ 33 of 33 topics openable.** The "14 items short" figure was an artefact of
+>   requiring two items at *every* tier. D-300 found the premise under it was false — a ±1 judge
+>   disagreement is `flagged` and keeps the **slot's** tier, so 327 of 759 serving items were
+>   labelled by the plan rather than the judge, and the judge agrees with *its own* first rating
+>   62%/88% against 19%/69% versus the stored tier. On that evidence the user decided: follow the
+>   judge, accept an uneven and biased tier distribution, fill the question count. Both halves had
+>   to move together (judge's tier alone: 26 → 12 openable; with `EXAM_QUESTION_COUNT`: 33 → 33).
+>   Verified in a browser — local e2e 70/70 including all four band walks — and every formerly
+>   closed topic builds a real 10-question exam. **Cost, stated because it is a product change:**
+>   `g2_word_problems` now draws 7 of 10 items at tier 1.
+> - **Depth against D-223's 5-per-occupied-tier target: ⛔ 82 of 152 cells (54%).** Comparable to
+>   the 83 of 165 at the last close — this session added 84 items but re-tiering redistributed the
+>   cells. **The remaining blocker is content-shaped, not spend-shaped**, and is now named: the
+>   equal-valued-distractor class (64 rejections) concentrated in the canonical-form skills.
+>   D-306 tested the repair path against it at two budgets and it does not converge —
+>   `g6_fraction_reduce` took 0 of 4 both times, oscillating rather than improving, because the
+>   model's conception of "reduce to lowest terms" *is* the ungradeable item. A canonical-form
+>   check (`gcd == 1`) is sized at 16 of 44 recoverable and is the open option.
+> - **Total spend within per-run caps: ✅** every run behind a green preflight and an explicit
+>   `--run-budget-cents`; **$4.50** across seven paid runs this session.
+
+> **⏸ Amended 2026-08-13 (D-307/D-308). The named blocker is now removed, and a Phase 1 criterion
+> that had been reported as met was not.**
+>
+> - **A4 is built and measured (D-308).** The equal-valued-distractor class is no longer a
+>   blocker: a canonical-form tie-break, scoped by a per-skill `answer_form` declaration, recovers
+>   **59 of 74** distinct stored rejections (80%) and **0 of 936** shipped items change verdict.
+>   The relaxation is negatively controlled — the same item under the default `"any"` is still
+>   refused — and the precision test found a real hole while doing it (`-2/-3` beside `2/3`).
+> - **A Phase 1 "done when" clause was wrong in the waves above: "every skill stocked ≥1" does
+>   not hold.** Measured, not asserted: **3 of 99** authorable skills hold zero items —
+>   `g6_fraction_reduce`, `alg1_functions`, `calc_differential_equations`. The per-wave tables
+>   above report 17 of 17 and 26 of 26 because each wave counted only its own skills; nothing had
+>   ever counted the taxonomy as a whole. `g6_fraction_reduce`'s cause was D-308's, and it is
+>   fixed; the other two are open and untried.
+> - **Depth is unchanged as a criterion but its blocker moved.** What stands between the bank and
+>   D-223's 5-per-tier target is now generation volume against a gate that admits these items,
+>   not a class of content the gate refuses.
+
+> **⏸ Amended 2026-08-12 by D-295 — the diagnosis above is incomplete, and the correction is
+> cheaper than either option it offered.** `judge_difficulty` *retiers* a `slot_gap >= 2` when
+> the run's histogram shows the judge discriminating and rejects only when it does not, so the
+> **87 retiered and 117 rejected candidates are the same disagreement at the same tiers**. And
+> `_MIN_JUDGE_OBSERVATIONS = 5` blocks **100% of positions 1-4 of every run** against 0.6% at
+> position 11+, so **the cost driver is the number of runs, not the tier mix** — this depth pass
+> ran many small per-topic batches and paid ~4 un-retierable candidates each time. Re-running it
+> as one large run is the first thing to try, and it needs no code change; the rubric question
+> (D-292) is still open but should be measured against runs that are not also paying a warm-up
+> toll. D-292's description of the ±1 policy is also backwards on both halves — see D-295.
+
 **Phase 4 — Video catalog across the taxonomy.**
 Runs after Phase 1's taxonomy lands (the classifier can only assign skills that exist). Choose
 K-12 math channels; verify YouTube API key + `packages/youtube` settings prerequisites; run
@@ -1970,9 +2023,17 @@ staging serves the seeded bank end to end.
   four explanations tested and killed (D-288); the other is `time-telemetry`.
 - **Math rendering for advanced content: ✅, and it was broken** — options rendered raw, so 64
   fields showed students SymPy. Fixed, with a gate check.
-- **Grade-1 reading level in tutor replies: ⏸ not measured.** The stems are gate-checked; the
-  replies are not, and no runtime readability check exists (the plug points are named in D-288's
-  exploration). This is the one clause of the criterion no work was done against.
+- **Grade-1 reading level: ⏸ half measured, half still open (D-303, 2026-08-13).** The
+  *deterministic* path — 912 items of stems, hint ladders and solution steps, which is what a
+  student reads when they ask for help — runs at a **median 7-9 words per sentence in every
+  band** (band 1-2: median 7, p90 14, max 21), nowhere near the 30-word ceiling; 26% of band-1-2
+  sentences pass a rough 10-word grade-1 guide, which is the honest residual. Measuring it found
+  the ceiling was **evadable**: it split on every period *including decimals*, so a 33-word
+  sentence carrying six decimals passed while the same sentence spelled out was rejected at 51
+  words. Fixed, with 0 of 9,552 bank sentences having exploited it. **Still open:** the
+  *generative* path (`generate_hint` / `generate_solution` / `generate_personalized_hint`) has no
+  readability check and `tutor_chat_messages` holds 0 rows, so measuring it needs paid generation
+  of a fresh sample rather than production behaviour.
 
 **Budget guardrails, session-wide:** every paid run behind a green preflight and an explicit
 `--run-budget-cents`; waves sized to ~100–150 review items so the human bottleneck is paced;

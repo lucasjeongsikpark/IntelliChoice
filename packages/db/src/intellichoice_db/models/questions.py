@@ -137,4 +137,17 @@ class QuestionValidationRun(Base):
     stage_results: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     reasons: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     cost_cents: Mapped[float] = mapped_column(nullable=False, default=0.0)
+    # D-295: which `run_plan` invocation produced this candidate. Nullable because every
+    # row written before the column existed has no honest value for it, and because
+    # `review_cli`'s edit-and-rerun legitimately produces a candidate outside any batch.
+    #
+    # **Why the table needed it.** The re-tier guard is *run-scoped* by design (D-231): the
+    # judge's histogram is built per run, so whether a candidate could be re-tiered rather
+    # than rejected depends on its position within its own run. Without this column that
+    # question was unanswerable from the data - D-295 had to infer run boundaries by
+    # clustering `created_at`, and the replay reproduced only ~90% of recorded decisions,
+    # which is exactly the margin that made "how many rejections did the guard cause"
+    # un-pin-downable. Per-run yield, per-run spend and per-run dispersion all have the
+    # same shape of problem.
+    pipeline_run_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

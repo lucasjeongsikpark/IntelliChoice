@@ -234,7 +234,7 @@ templates:
   topic_id: algebra_2
   skill_id: alg2_exponential_log
   grade_band: 10-11
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -288,7 +288,7 @@ templates:
   topic_id: algebra_2
   skill_id: alg2_exponential_log
   grade_band: 10-11
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -344,7 +344,7 @@ templates:
   topic_id: algebra_2
   skill_id: alg2_exponential_log
   grade_band: 10-11
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -395,7 +395,7 @@ templates:
   topic_id: algebra_2
   skill_id: alg2_exponential_log
   grade_band: 10-11
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -455,7 +455,7 @@ templates:
   topic_id: algebra_2
   skill_id: alg2_exponential_log
   grade_band: 10-11
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -516,7 +516,7 @@ templates:
   topic_id: algebra_2
   skill_id: alg2_exponential_log
   grade_band: 10-11
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 150
   common_error_tags:
@@ -574,6 +574,1052 @@ templates:
   option_c: 5 generations
   option_d: 6 generations
   correct_option: c
+- question_template_id: authored-algebra_2-d1-1614241
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - did_not_fully_factor_perfect_squares
+  - failed_to_split_the_radical
+  - left_unsimplified_perfect_square_under_radical
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A landscape designer is laying out a square garden plot. The diagonal distance across the plot
+    is √108 meters. She needs to write the simplified form of this measurement in her design plans. What
+    is the diagonal distance in simplified radical form?
+  context_block: A landscape designer is laying out a square garden plot. The diagonal distance across
+    the plot is √108 meters. She needs to write the simplified form of this measurement in her design
+    plans.
+  answer_expression: Eq(x, sqrt(108))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for perfect square factors of 108 - numbers like 4, 9, 16, 25, or 36 that divide evenly into
+    108.
+  - 'Since 108 = 36 × 3, you can split the square root: √108 = √(36 × 3) = √36 × √3.'
+  - Simplify √36 and write the result with the remaining √3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the largest perfect square that divides 108.
+      expression: 108 = 36 × 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Use the product property of square roots to split the radical.
+      expression: √108 = √(36 × 3) = √36 × √3
+      common_mistake: Forgetting to split the radicand before simplifying
+    - step_number: 3
+      explanation: Simplify √36 since 36 is a perfect square.
+      expression: √36 = 6
+      common_mistake: null
+    - step_number: 4
+      explanation: Write the final answer in simplified radical form.
+      expression: 6 × √3 = 6√3
+      common_mistake: null
+    final_answer: 6√3 meters
+  random_seed: 1614241
+  rendered_question: 'A landscape designer is laying out a square garden plot. The diagonal distance across
+    the plot is √108 meters. She needs to write the simplified form of this measurement in her design
+    plans.
+
+
+    A landscape designer is laying out a square garden plot. The diagonal distance across the plot is
+    √108 meters. She needs to write the simplified form of this measurement in her design plans. What
+    is the diagonal distance in simplified radical form?'
+  option_a: 6√3 meters
+  option_b: √27 meters
+  option_c: 3√12 meters
+  option_d: 2√27 meters
+  correct_option: a
+- question_template_id: authored-algebra_2-d1-1614243
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - extracted_perfect_square_but_didnt_simplify_it
+  - incorrect_factorization_of_72
+  - incomplete_simplification_left_perfect_square_under_radical
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A physics student measures the velocity of a toy car rolling down a ramp. The velocity formula
+    gives v = √72 meters per second. The student needs to simplify this to find the exact speed. What
+    is the simplified form of √72?
+  context_block: A student is working through a physics experiment where measurements must be expressed
+    in simplest radical form.
+  answer_expression: Eq(x, sqrt(72))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Break 72 down into its prime factors: what numbers multiply to make 72?'
+  - Look for perfect square factors of 72. One of them is 36. What does that tell you?
+  - If 72 = 36 × 2, then √72 = √36 × √2. Simplify √36 and leave √2 as is.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the prime factorization of 72 to identify perfect square factors.
+      expression: 72 = 8 × 9 = 2³ × 3²
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite 72 as a product of a perfect square and the remaining factor.
+      expression: 72 = 36 × 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Apply the product property of square roots to separate the radical.
+      expression: √72 = √(36 × 2) = √36 × √2
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate the perfect square root.
+      expression: √36 × √2 = 6 × √2
+      common_mistake: null
+    - step_number: 5
+      explanation: Write the result in simplest radical form.
+      expression: 6√2
+      common_mistake: null
+    final_answer: 6√2 meters per second
+  random_seed: 1614243
+  rendered_question: 'A student is working through a physics experiment where measurements must be expressed
+    in simplest radical form.
+
+
+    A physics student measures the velocity of a toy car rolling down a ramp. The velocity formula gives
+    v = √72 meters per second. The student needs to simplify this to find the exact speed. What is the
+    simplified form of √72?'
+  option_a: 6√2 meters per second
+  option_b: 36√2 meters per second
+  option_c: 2√18 meters per second
+  option_d: 12√6 meters per second
+  correct_option: a
+- question_template_id: authored-algebra_2-d2-1606202
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - factored_wrong_perfect_square
+  - did_not_extract_perfect_square
+  - stopped_at_perfect_square_root
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A painter is designing a diagonal stripe across a square mural. The diagonal stripe measures √147
+    feet. She needs to write down the simplified form of this distance so her assistant can mark it on
+    the wall. What is √147 simplified?
+  context_block: The painter has calculated that the diagonal is √147 feet long. Rather than working with
+    the square root of 147, she wants to express it in simplest radical form to make it easier for her
+    assistant to understand and use.
+  answer_expression: Eq(x, sqrt(147))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find factors of 147. Look for at least one that is a perfect square like 4, 9, 16, 25, 36, 49, etc.
+  - 'Since 147 = 49 × 3 and 49 is a perfect square (7²), you can split the square root: √147 = √(49 ×
+    3).'
+  - Use the property √(a × b) = √a × √b to separate the perfect square from what remains inside the radical.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To simplify √147, I need to factor 147 and find perfect square factors.
+      expression: 147 = 49 × 3
+      common_mistake: null
+    - step_number: 2
+      explanation: I recognize that 49 is a perfect square because 49 = 7².
+      expression: 49 = 7²
+      common_mistake: null
+    - step_number: 3
+      explanation: I rewrite 147 as a product of perfect squares and other factors.
+      expression: √147 = √(7² × 3)
+      common_mistake: null
+    - step_number: 4
+      explanation: Using the property √(ab) = √a × √b, I separate the perfect square root from the rest.
+      expression: √(7² × 3) = √(7²) × √3
+      common_mistake: null
+    - step_number: 5
+      explanation: The square root of 7² is simply 7.
+      expression: √(7²) = 7
+      common_mistake: null
+    - step_number: 6
+      explanation: So the simplified form is 7 times the square root of 3.
+      expression: √147 = 7√3
+      common_mistake: null
+    final_answer: 7√3 feet
+  random_seed: 1606202
+  rendered_question: 'The painter has calculated that the diagonal is √147 feet long. Rather than working
+    with the square root of 147, she wants to express it in simplest radical form to make it easier for
+    her assistant to understand and use.
+
+
+    A painter is designing a diagonal stripe across a square mural. The diagonal stripe measures √147
+    feet. She needs to write down the simplified form of this distance so her assistant can mark it on
+    the wall. What is √147 simplified?'
+  option_a: 21√7 feet
+  option_b: 7√3 feet
+  option_c: √49 feet
+  option_d: 3√7 feet
+  correct_option: b
+- question_template_id: authored-algebra_2-d2-1614341
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_only_one_factor
+  - didn't_simplify_the_radical
+  - stopped_before_combining
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An architect is designing a square floor tile with a diagonal of √147 centimetres. To order trim
+    that fits the diagonal edge, the supplier needs the simplified form of this measurement. What is the
+    simplified form of √147?
+  context_block: An architect is designing a square floor tile with a diagonal of √147 centimetres. To
+    order trim that fits the diagonal edge, the supplier needs the simplified form of this measurement.
+  answer_expression: Eq(x, sqrt(147))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What is the prime factorization of 147? Look for perfect square factors.
+  - 147 = 49 × 3, and 49 is a perfect square. Rewrite the square root using this factorization.
+  - Since √(49 × 3) = √49 × √3, and √49 simplifies, evaluate that product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To simplify √147, I need to find the prime factorization and identify perfect square
+        factors.
+      expression: 147 = 3 × 49 = 3 × 7²
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite the radicand as a product of the perfect square and the remaining factor.
+      expression: √147 = √(49 × 3)
+      common_mistake: null
+    - step_number: 3
+      explanation: Use the product rule for radicals to split the square root.
+      expression: √(49 × 3) = √49 × √3
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify √49, which equals 7.
+      expression: √49 × √3 = 7 × √3
+      common_mistake: null
+    - step_number: 5
+      explanation: Write the answer in simplified radical form.
+      expression: 7√3
+      common_mistake: null
+    final_answer: 7√3 centimetres
+  random_seed: 1614341
+  rendered_question: 'An architect is designing a square floor tile with a diagonal of √147 centimetres.
+    To order trim that fits the diagonal edge, the supplier needs the simplified form of this measurement.
+
+
+    An architect is designing a square floor tile with a diagonal of √147 centimetres. To order trim that
+    fits the diagonal edge, the supplier needs the simplified form of this measurement. What is the simplified
+    form of √147?'
+  option_a: 7√3 centimetres
+  option_b: 49√3 centimetres
+  option_c: √49 centimetres
+  option_d: 3√7 centimetres
+  correct_option: a
+- question_template_id: authored-algebra_2-d2-1614343
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - extracted_wrong_perfect_square
+  - incomplete_simplification
+  - stopped_early
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A landscape designer is measuring the diagonal of a square garden plot. Using the Pythagorean
+    theorem, she calculates the diagonal as √192 meters. To order the correct fencing material, she needs
+    the length in simplified radical form. What is the diagonal length simplified?
+  context_block: A landscape designer needs to simplify the diagonal length of a square garden plot that
+    measures √192 meters.
+  answer_expression: Eq(x, sqrt(192))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find all the factor pairs of 192 and identify which ones contain perfect squares like 4, 9, 16, 25,
+    36, 49, or 64.
+  - '192 = 64 × 3. Since 64 is a perfect square (8²), you can split the radical: √192 = √(64 × 3).'
+  - 'Use the product rule for radicals: √(64 × 3) = √64 × √3. Simplify √64, then write what remains under
+    the radical.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify perfect square factors of 192. We look for the largest perfect square that
+        divides 192.
+      expression: 192 = 64 × 3, where 64 = 8²
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite the radical as a product using the factorization found.
+      expression: √192 = √(64 × 3)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Apply the product rule for radicals: √(a × b) = √a × √b.'
+      expression: √(64 × 3) = √64 × √3
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the perfect square radical.
+      expression: √64 = 8, so √64 × √3 = 8√3
+      common_mistake: null
+    - step_number: 5
+      explanation: Verify that 3 is square-free (has no perfect square factors other than 1). Since 3
+        is prime, it is square-free.
+      expression: The simplified form is 8√3
+      common_mistake: null
+    final_answer: 8√3 meters
+  random_seed: 1614343
+  rendered_question: 'A landscape designer needs to simplify the diagonal length of a square garden plot
+    that measures √192 meters.
+
+
+    A landscape designer is measuring the diagonal of a square garden plot. Using the Pythagorean theorem,
+    she calculates the diagonal as √192 meters. To order the correct fencing material, she needs the length
+    in simplified radical form. What is the diagonal length simplified?'
+  option_a: √96 meters
+  option_b: 8√3 meters
+  option_c: 4√12 meters
+  option_d: 6√2 meters
+  correct_option: b
+- question_template_id: authored-algebra_2-d1-1606100
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_by_root_of_radicand_instead_of_factoring
+  - forgot_to_simplify_perfect_square_factor
+  - used_addition_instead_of_product_rule
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Sarah is planting a wildflower garden in a rectangular plot. She measures the diagonal of the
+    plot and finds it is √72 meters long. To help her design raised beds, she wants to simplify this measurement.
+    What is √72 written in simplest radical form?
+  context_block: When a radical expression has a perfect square as a factor, you can simplify it by writing
+    the perfect square separately and taking its square root.
+  answer_expression: Eq(x, sqrt(72))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for perfect square factors of 72. What perfect squares divide evenly into 72?
+  - '72 = 36 × 2, and 36 is a perfect square. You can split the radical: √72 = √(36 × 2).'
+  - Use the property √(a × b) = √a × √b to separate the perfect square from the rest, then simplify √36.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the prime factorization of 72 and group factors into perfect squares.
+      expression: 72 = 8 × 9 = 8 × 9; but 9 is a perfect square. Also, 72 = 4 × 18 = 4 × 18; but we can
+        do better. 72 = 36 × 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite the radical as a product of two factors, one of which is a perfect square.
+      expression: √72 = √(36 × 2)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Apply the product rule for radicals: √(a × b) = √a × √b.'
+      expression: √(36 × 2) = √36 × √2
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify √36 by taking its square root.
+      expression: √36 × √2 = 6 × √2 = 6√2
+      common_mistake: null
+    final_answer: 6√2
+  random_seed: 1606100
+  rendered_question: 'When a radical expression has a perfect square as a factor, you can simplify it
+    by writing the perfect square separately and taking its square root.
+
+
+    Sarah is planting a wildflower garden in a rectangular plot. She measures the diagonal of the plot
+    and finds it is √72 meters long. To help her design raised beds, she wants to simplify this measurement.
+    What is √72 written in simplest radical form?'
+  option_a: 36√2
+  option_b: 12√2
+  option_c: 6√2
+  option_d: √36 + √2
+  correct_option: c
+- question_template_id: authored-algebra_2-d1-1614240
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_at_single_perfect_square_factor
+  - incorrect_decimal_approximation
+  - did_not_simplify_radical
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A landscape designer is planning a garden with a square flower bed. The bed has an area of 98
+    square metres. The designer needs to fence the perimeter, which will be 4 times the side length. What
+    is the simplified form of the side length, in metres?
+  context_block: The designer must work with the exact side length, not a decimal approximation, to calculate
+    the fencing precisely.
+  answer_expression: Eq(x, sqrt(98))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The area of a square is side length squared, so if the area is 98 m², what equation gives you the
+    side?
+  - 'You need to find the square root of 98. Break 98 into factors: 98 = 49 × 2.'
+  - Since 49 is a perfect square (7²) and 2 is not, √98 = √(49 × 2) = √49 × √2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The side length of a square with area 98 m² is the square root of 98.
+      expression: side = √98
+      common_mistake: null
+    - step_number: 2
+      explanation: Factor 98 into a product of a perfect square and a smaller integer.
+      expression: 98 = 49 × 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Use the property √(a × b) = √a × √b to split the radical.
+      expression: √98 = √(49 × 2) = √49 × √2
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify √49, which is a perfect square.
+      expression: √49 = 7
+      common_mistake: null
+    - step_number: 5
+      explanation: The radicand 2 has no perfect square factors, so it stays under the radical.
+      expression: √98 = 7√2
+      common_mistake: null
+    final_answer: 7√2 metres
+  random_seed: 1614240
+  rendered_question: 'The designer must work with the exact side length, not a decimal approximation,
+    to calculate the fencing precisely.
+
+
+    A landscape designer is planning a garden with a square flower bed. The bed has an area of 98 square
+    metres. The designer needs to fence the perimeter, which will be 4 times the side length. What is
+    the simplified form of the side length, in metres?'
+  option_a: 49 metres
+  option_b: 14 metres
+  option_c: 7√2 metres
+  option_d: √98 metres
+  correct_option: c
+- question_template_id: authored-algebra_2-d1-1614242
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incorrect_perfect_square_selection
+  - unsimplified_radical
+  - misapplied_product_rule
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An engineer is installing diagonal support beams in a warehouse frame. The length of one beam
+    must equal √50 meters to reach from a corner on the ground to a point on the wall. Simplify this length
+    into the form a√b meters, where b has no perfect square factors other than 1.
+  context_block: An engineer needs to express the beam length in simplest radical form so the measurements
+    can be clearly marked on construction blueprints.
+  answer_expression: Eq(x, sqrt(50))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the factors of 50 and look for perfect squares like 4, 9, 16, or 25.
+  - Since 50 = 25 × 2 and 25 is a perfect square (5²), you can split the radical.
+  - Write √50 as √(25 × 2), then separate it into √25 × √2 and simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Look for the largest perfect square that divides 50.
+      expression: 50 = 25 × 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite the square root as a product of two radicals, separating the perfect square.
+      expression: √50 = √(25 × 2) = √25 × √2
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify √25 to 5.
+      expression: √25 × √2 = 5 × √2 = 5√2
+      common_mistake: null
+    - step_number: 4
+      explanation: Check that 2 has no perfect square factors other than 1, so 5√2 is fully simplified.
+      expression: x = 5√2
+      common_mistake: null
+    final_answer: 5√2 meters
+  random_seed: 1614242
+  rendered_question: 'An engineer needs to express the beam length in simplest radical form so the measurements
+    can be clearly marked on construction blueprints.
+
+
+    An engineer is installing diagonal support beams in a warehouse frame. The length of one beam must
+    equal √50 meters to reach from a corner on the ground to a point on the wall. Simplify this length
+    into the form a√b meters, where b has no perfect square factors other than 1.'
+  option_a: √50 meters
+  option_b: 2√5 meters
+  option_c: 5√2 meters
+  option_d: 10√5 meters
+  correct_option: c
+- question_template_id: authored-algebra_2-d1-1806101
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - doubled_the_coefficient
+  - extracted_only_the_perfect_square_part
+  - did_not_simplify_the_radical
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A carpenter is cutting square tiles for a kitchen backsplash. Each tile has a side length of √72
+    inches. To order the right frame, she needs to know the simplified radical form of this measurement.
+    What is √72 simplified?
+  context_block: A carpenter is cutting square tiles for a kitchen backsplash. Each tile has a side length
+    of √72 inches.
+  answer_expression: Eq(x, sqrt(72))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the prime factorization of 72. What perfect square divides evenly into 72?
+  - 72 = 36 × 2. Since 36 is a perfect square, you can split √72 into √36 × √2.
+  - Simplify √36 first, then multiply the result by √2 to get your final answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the prime factorization of 72 and identify the largest perfect square factor.
+      expression: 72 = 36 × 2, where 36 = 6²
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite √72 as a product of the square root of the perfect square and the square root
+        of the remaining factor.
+      expression: √72 = √(36 × 2) = √36 × √2
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify √36 to 6.
+      expression: √36 = 6
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 6 by √2 to get the simplified form.
+      expression: 6 × √2 = 6√2
+      common_mistake: null
+    final_answer: 6√2 inches
+  random_seed: 1806101
+  rendered_question: 'A carpenter is cutting square tiles for a kitchen backsplash. Each tile has a side
+    length of √72 inches.
+
+
+    A carpenter is cutting square tiles for a kitchen backsplash. Each tile has a side length of √72 inches.
+    To order the right frame, she needs to know the simplified radical form of this measurement. What
+    is √72 simplified?'
+  option_a: √36 inches
+  option_b: 6√2 inches
+  option_c: 12√2 inches
+  option_d: 36√2 inches
+  correct_option: b
+- question_template_id: authored-algebra_2-d1-1906100
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - mistook_root_for_square
+  - incomplete_factorization
+  - wrong_factor_pair
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A designer is creating a square tile pattern for a gallery floor. One tile has an area of 72 square
+    centimetres. To find the exact side length, the designer measures and calculates √72 centimetres.
+    Simplify this radical expression to help the designer record the precise measurement.
+  context_block: null
+  answer_expression: Eq(x, sqrt(72))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for perfect square factors of 72. What perfect squares divide evenly into 72?
+  - 72 = 36 × 2. Since 36 is a perfect square, you can write √72 = √(36 × 2).
+  - Use the property √(a × b) = √a × √b to separate the perfect square from what remains under the radical.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the prime factorization of 72 to identify perfect square factors.
+      expression: 72 = 8 × 9 = 2³ × 3² = 36 × 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Recognize that 36 is a perfect square since 6² = 36.
+      expression: 72 = 36 × 2 = 6² × 2
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Rewrite √72 using the product property of radicals: √(a × b) = √a × √b.'
+      expression: √72 = √(36 × 2) = √36 × √2
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify √36 to 6 since 6 × 6 = 36.
+      expression: √36 × √2 = 6√2
+      common_mistake: null
+    final_answer: 6√2 cm
+  random_seed: 1906100
+  rendered_question: A designer is creating a square tile pattern for a gallery floor. One tile has an
+    area of 72 square centimetres. To find the exact side length, the designer measures and calculates
+    √72 centimetres. Simplify this radical expression to help the designer record the precise measurement.
+  option_a: 36 cm
+  option_b: √6 cm
+  option_c: 12√2 cm
+  option_d: 6√2 cm
+  correct_option: d
+- question_template_id: authored-algebra_2-d1-1906101
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - failed_to_extract_perfect_square
+  - extracted_only_the_radicand
+  - incorrectly_multiplied_coefficients
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A carpenter is building a wooden frame for a garden bed. To reinforce one corner, she measures
+    the diagonal across a rectangular panel and finds it measures √98 inches. She wants to express this
+    diagonal length in simplified radical form to order the correct bracing material. What is the simplified
+    form of √98?
+  context_block: A carpenter measuring materials needs to simplify radical expressions to order supplies
+    accurately.
+  answer_expression: Eq(x, sqrt(98))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by finding the prime factorization of 98. What are the factors?
+  - Since 98 = 2 × 49, and 49 is a perfect square (7²), you can write √98 = √(49 × 2).
+  - Use the property that √(a × b) = √a × √b to split the radical, then simplify √49.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the prime factorization of 98 by dividing by small primes.
+      expression: 98 = 2 × 49 = 2 × 7²
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite √98 using the factorization, grouping the perfect square.
+      expression: √98 = √(49 × 2) = √(7² × 2)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Apply the product rule for radicals: √(a × b) = √a × √b.'
+      expression: √(7² × 2) = √(7²) × √2
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify √(7²) by recognizing that the square root of a perfect square is the base.
+      expression: √(7²) = 7
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine to write the final simplified radical form.
+      expression: 7 × √2 = 7√2
+      common_mistake: null
+    final_answer: 7√2
+  random_seed: 1906101
+  rendered_question: 'A carpenter measuring materials needs to simplify radical expressions to order supplies
+    accurately.
+
+
+    A carpenter is building a wooden frame for a garden bed. To reinforce one corner, she measures the
+    diagonal across a rectangular panel and finds it measures √98 inches. She wants to express this diagonal
+    length in simplified radical form to order the correct bracing material. What is the simplified form
+    of √98?'
+  option_a: √2
+  option_b: 14√2
+  option_c: 49√2
+  option_d: 7√2
+  correct_option: d
+- question_template_id: authored-algebra_2-d2-1606201
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - extracted_only_perfect_square_under_radical
+  - left_radical_unsimplified_without_extracting_perfect_square
+  - confused_product_property_and_extracted_wrong_factor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A basketball coach is redesigning her rectangular court. The court is 8 meters wide and 12 meters
+    long. She needs to run a sprint diagonally from one corner to the opposite corner. By the Pythagorean
+    theorem, the diagonal distance is √208 meters. Simplify this radical expression to find the actual
+    diagonal length in simplified form.
+  context_block: A rectangular court with dimensions 8 m by 12 m. The coach needs the simplified form
+    of the diagonal distance √(8² + 12²) = √208 meters.
+  answer_expression: Eq(x, sqrt(208))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the prime factorization of 208. Look for perfect square factors that divide it evenly.
+  - 208 = 16 × 13. Since 16 = 4², you can extract 4 from under the radical.
+  - Write √208 = √(16 × 13) = √16 × √13, then simplify the perfect square part.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the prime factorization of 208 by looking for perfect square factors.
+      expression: 208 = 16 × 13
+      common_mistake: null
+    - step_number: 2
+      explanation: Recognize that 16 is a perfect square (4²), so it can be extracted from the radical.
+      expression: √208 = √(16 × 13)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Apply the product property of radicals: √(a × b) = √a × √b.'
+      expression: √(16 × 13) = √16 × √13
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify √16 to 4.
+      expression: √16 × √13 = 4√13
+      common_mistake: null
+    final_answer: 4√13 meters
+  random_seed: 1606201
+  rendered_question: 'A rectangular court with dimensions 8 m by 12 m. The coach needs the simplified
+    form of the diagonal distance √(8² + 12²) = √208 meters.
+
+
+    A basketball coach is redesigning her rectangular court. The court is 8 meters wide and 12 meters
+    long. She needs to run a sprint diagonally from one corner to the opposite corner. By the Pythagorean
+    theorem, the diagonal distance is √208 meters. Simplify this radical expression to find the actual
+    diagonal length in simplified form.'
+  option_a: √52 meters
+  option_b: 52√2 meters
+  option_c: 14√2 meters
+  option_d: 4√13 meters
+  correct_option: d
+- question_template_id: authored-algebra_2-d2-1614340
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - incompletely_factored_radical_left_9_under_root
+  - incompletely_factored_radical_left_4_under_root
+  - partial_extraction_not_fully_simplified
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A carpenter is building a rectangular wooden frame. The diagonal brace must be √180 inches long
+    to properly support the frame. She needs to write the brace length in simplified radical form to order
+    the correct material. What is the simplified form of √180?
+  context_block: A carpenter working on a frame needs to express √180 inches in simplified radical form
+    so she can accurately identify the brace size.
+  answer_expression: Eq(x, sqrt(180))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for perfect square factors of 180 — numbers like 4, 9, 16, 25, 36 that divide evenly into 180.
+  - '180 = 36 × 5. Since 36 is a perfect square (6²), you can separate the square root: √180 = √36 × √5.'
+  - 'Simplify √36 to 6, giving you 6√5. Check: does 5 have any perfect square factors left? If not, you
+    are done.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify perfect square factors of 180. Test whether 180 is divisible by 4, 9, 16,
+        25, 36, etc.
+      expression: 180 = 36 × 5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Since 36 is a perfect square (6²), apply the product rule for radicals: √(a × b) =
+        √a × √b.'
+      expression: √180 = √(36 × 5) = √36 × √5
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify √36 to 6, because 6² = 36.
+      expression: √36 × √5 = 6√5
+      common_mistake: null
+    - step_number: 4
+      explanation: Check that 5 has no perfect square factors other than 1. Since 5 is prime, the radical
+        is fully simplified.
+      expression: 6√5 is fully simplified
+      common_mistake: null
+    final_answer: 6√5 inches
+  random_seed: 1614340
+  rendered_question: 'A carpenter working on a frame needs to express √180 inches in simplified radical
+    form so she can accurately identify the brace size.
+
+
+    A carpenter is building a rectangular wooden frame. The diagonal brace must be √180 inches long to
+    properly support the frame. She needs to write the brace length in simplified radical form to order
+    the correct material. What is the simplified form of √180?'
+  option_a: 3√20 inches
+  option_b: 2√90 inches
+  option_c: 6√5 inches
+  option_d: 4√45 inches
+  correct_option: c
+- question_template_id: authored-algebra_2-d2-1614342
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incomplete_simplification
+  - stopped_early_with_smaller_factor
+  - confused_radical_with_whole_number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A surveyor is measuring the diagonal distance across a rectangular property lot. Using the Pythagorean
+    theorem with the lot's dimensions, she calculates the diagonal is √288 meters. She needs to report
+    this distance in simplified radical form for her official record. What is the simplified form of this
+    distance?
+  context_block: A surveyor uses measurements to find exact distances. When a calculation produces a radical,
+    it should be simplified by extracting perfect square factors from under the radical sign.
+  answer_expression: Eq(x, sqrt(288))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for perfect square factors of the number under the radical sign. What perfect squares divide
+    into 288?
+  - 288 = 144 × 2. Since 144 is a perfect square (it equals 12²), you can separate the radical into a
+    product of two radicals.
+  - Apply the property √(a × b) = √a × √b to write √288 = √144 × √2, then simplify √144 to get a number
+    times √2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the largest perfect square that divides 288.
+      expression: 288 = 144 × 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Recognize that 144 is a perfect square because 144 = 12².
+      expression: 144 = 12²
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Use the product rule for radicals: √(a × b) = √a × √b.'
+      expression: √288 = √(144 × 2) = √144 × √2
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify √144 to 12.
+      expression: √144 = 12
+      common_mistake: null
+    - step_number: 5
+      explanation: Write the final simplified form.
+      expression: √288 = 12√2
+      common_mistake: null
+    final_answer: 12√2 meters
+  random_seed: 1614342
+  rendered_question: 'A surveyor uses measurements to find exact distances. When a calculation produces
+    a radical, it should be simplified by extracting perfect square factors from under the radical sign.
+
+
+    A surveyor is measuring the diagonal distance across a rectangular property lot. Using the Pythagorean
+    theorem with the lot''s dimensions, she calculates the diagonal is √288 meters. She needs to report
+    this distance in simplified radical form for her official record. What is the simplified form of this
+    distance?'
+  option_a: 12√2 meters
+  option_b: 24 meters
+  option_c: 4√18 meters
+  option_d: 6√8 meters
+  correct_option: a
+- question_template_id: authored-algebra_2-d2-1806201
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - did_not_extract_all_perfect_squares
+  - left_composite_radicand_unsimplified
+  - treated_sum_as_perfect_square
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An electrician measures the impedance of an AC circuit and finds it to be √200 ohms. To match
+    the specifications on the equipment's label, the impedance must be expressed in simplified radical
+    form. What is the simplified form of the impedance?
+  context_block: null
+  answer_expression: Eq(x, sqrt(200))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for perfect square factors of the number under the radical. What pairs of identical factors does
+    200 have?
+  - 200 = 100 × 2. Since 100 is a perfect square, you can separate √200 into a product of two square roots.
+  - Write √200 = √100 × √2, then simplify √100 to finish.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To simplify √200, find the largest perfect square that divides 200.
+      expression: 200 = 4 × 50 = 4 × 25 × 2 = 100 × 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite √200 as the product of √100 and √2, using the property √(a·b) = √a·√b.
+      expression: √200 = √(100 × 2) = √100 × √2
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate √100 and leave √2 in the radical because 2 is not a perfect square.
+      expression: √100 × √2 = 10 × √2 = 10√2
+      common_mistake: null
+    final_answer: 10√2 ohms
+  random_seed: 1806201
+  rendered_question: An electrician measures the impedance of an AC circuit and finds it to be √200 ohms.
+    To match the specifications on the equipment's label, the impedance must be expressed in simplified
+    radical form. What is the simplified form of the impedance?
+  option_a: 10√2 ohms
+  option_b: 2√100 ohms
+  option_c: 4√50 ohms
+  option_d: 14 ohms
+  correct_option: a
+- question_template_id: authored-algebra_2-d2-1906201
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - miscalculated_sum_under_radical
+  - ignored_radical
+  - added_instead_of_pythagorean
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A landscape designer is creating a diagonal path across a rectangular garden plot. The plot is
+    12 meters long and 6 meters wide. The path cuts diagonally from one corner to the opposite corner.
+    To order the correct amount of fencing material, the designer needs to express the path's length in
+    simplified radical form. What is the simplified form of the diagonal path's length?
+  context_block: The designer uses the Pythagorean theorem to find the diagonal and works with exact measurements,
+    not decimals, to ensure precision.
+  answer_expression: Eq(x, sqrt(12**2 + 6**2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Use the Pythagorean theorem: the diagonal squared equals 12² plus 6² under the radical.'
+  - Calculate 12² + 6² to find what is under the square root, then look for perfect square factors of
+    that sum.
+  - Factor 180 as 36 times 5, so √180 = √36 × √5 = 6√5. Stop there without simplifying further.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Use the Pythagorean theorem to find the diagonal: the path length squared equals the
+        sum of the square of the length and the square of the width.'
+      expression: x² = 12² + 6²
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Calculate the squares: 12² = 144 and 6² = 36.'
+      expression: x² = 144 + 36
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the results to find what is under the radical.
+      expression: x² = 180, so x = √180
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Factor 180 into its prime factors: 180 = 36 × 5, where 36 is a perfect square.'
+      expression: √180 = √(36 × 5)
+      common_mistake: null
+    - step_number: 5
+      explanation: Use the property √(a × b) = √a × √b to separate the perfect square.
+      expression: √180 = √36 × √5 = 6√5
+      common_mistake: null
+    final_answer: 6√5 meters
+  random_seed: 1906201
+  rendered_question: 'The designer uses the Pythagorean theorem to find the diagonal and works with exact
+    measurements, not decimals, to ensure precision.
+
+
+    A landscape designer is creating a diagonal path across a rectangular garden plot. The plot is 12
+    meters long and 6 meters wide. The path cuts diagonally from one corner to the opposite corner. To
+    order the correct amount of fencing material, the designer needs to express the path''s length in
+    simplified radical form. What is the simplified form of the diagonal path''s length?'
+  option_a: 12 meters
+  option_b: 6√5 meters
+  option_c: 18 meters
+  option_d: 6√3 meters
+  correct_option: b
 - question_template_id: authored-algebra_2-d3-1267301
   topic_id: algebra_2
   skill_id: alg2_polynomial_factor
@@ -629,6 +1675,438 @@ templates:
   option_c: x(x + 1)(x + 3)
   option_d: 3x(x + 2)(x + 2)
   correct_option: b
+- question_template_id: authored-algebra_2-d3-1607301
+  topic_id: algebra_2
+  skill_id: alg2_polynomial_factor
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 240
+  common_error_tags:
+  - missed_common_monomial_factor
+  - wrong_quadratic_factor_pair
+  - partial_factorisation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A storage container is shaped like a rectangular prism. Its height is x metres, its width is (x
+    + 2) metres, and its length is (x + 3) metres. The volume is x³ + 5x² + 6x cubic metres. Factor this
+    volume expression completely to find the three dimensions in factored form.
+  context_block: When you multiply a height, width, and length together, you get volume. Factoring the
+    volume expression means breaking it into the three factors that multiply to give that volume.
+  answer_expression: x**3 + 5*x**2 + 6*x
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The volume is the product of height × width × length. Look for a common factor in all three terms
+    of the polynomial.
+  - 'Every term contains x as a factor. Pull out x first: x(x² + 5x + 6). Now you need to factor the quadratic
+    inside the bracket.'
+  - For x² + 5x + 6, find two numbers that multiply to 6 and add to 5. Those numbers give you the two
+    binomial factors.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Look at the three terms: x³, 5x², and 6x. Each term has x as a common factor.'
+      expression: x³ + 5x² + 6x = x(x² + 5x + 6)
+      common_mistake: null
+    - step_number: 2
+      explanation: Now factor the quadratic x² + 5x + 6. Find two numbers that multiply to 6 and add to
+        5.
+      expression: The numbers are 2 and 3 (since 2 × 3 = 6 and 2 + 3 = 5)
+      common_mistake: null
+    - step_number: 3
+      explanation: Write the quadratic as a product of two binomials using these numbers.
+      expression: x² + 5x + 6 = (x + 2)(x + 3)
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine all factors to get the complete factorization of the original polynomial.
+      expression: x³ + 5x² + 6x = x(x + 2)(x + 3)
+      common_mistake: null
+    final_answer: x(x + 2)(x + 3)
+  random_seed: 1607301
+  rendered_question: 'When you multiply a height, width, and length together, you get volume. Factoring
+    the volume expression means breaking it into the three factors that multiply to give that volume.
+
+
+    A storage container is shaped like a rectangular prism. Its height is x metres, its width is (x +
+    2) metres, and its length is (x + 3) metres. The volume is x³ + 5x² + 6x cubic metres. Factor this
+    volume expression completely to find the three dimensions in factored form.'
+  option_a: x(x + 1)(x + 6)
+  option_b: (x + 2)(x + 3)
+  option_c: x²(x + 5) + 6x
+  option_d: x(x + 2)(x + 3)
+  correct_option: d
+- question_template_id: authored-algebra_2-d3-1807300
+  topic_id: algebra_2
+  skill_id: alg2_polynomial_factor
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incorrect_sign_in_second_group_factor
+  - incorrect_remaining_factor_after_extraction
+  - incomplete_factorization_with_trailing_constant
+  - wrong_common_factor_chosen
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A factory manufactures decorative panels with a repeating geometric pattern. The area of one panel
+    can be expressed by the polynomial x³ + 2x² − 3x − 6 square metres, where x represents a scaling factor.
+    The factory needs to express this area as a product of simpler factors so they can calculate dimensions
+    for different orders. Write the fully factored form of the polynomial.
+  context_block: The factory designs panels with modular components. Understanding the factored form helps
+    them scale production and calculate how many panels fit into custom orders of different sizes.
+  answer_expression: x**3 + 2*x**2 - 3*x - 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Try grouping the four terms into two pairs: the first two terms together, and the last two terms
+    together.'
+  - From x³ + 2x² you can factor out x², and from −3x − 6 you can factor out −3. What common expression
+    appears in both results?
+  - Once you have the common factor (x + 2) removed from both groups, the remaining factor is what is
+    left from each group after dividing.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Group the first two terms and the last two terms separately to look for common factors
+        within each group.
+      expression: (x³ + 2x²) + (−3x − 6)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Factor out the greatest common factor from the first group: x² is the GCF of x³ and
+        2x².'
+      expression: x²(x + 2) + (−3x − 6)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Factor out the greatest common factor from the second group: −3 is the GCF of −3x
+        and −6.'
+      expression: x²(x + 2) − 3(x + 2)
+      common_mistake: null
+    - step_number: 4
+      explanation: Notice that (x + 2) appears as a factor in both terms. Factor it out using the distributive
+        property.
+      expression: (x + 2)(x² − 3)
+      common_mistake: null
+    - step_number: 5
+      explanation: The factorization is complete. The polynomial factors into a binomial and a difference
+        of squares (which cannot be factored further over the integers without introducing irrational
+        terms).
+      expression: (x + 2)(x² − 3)
+      common_mistake: null
+    final_answer: (x + 2)(x² - 3)
+  random_seed: 1807300
+  rendered_question: 'The factory designs panels with modular components. Understanding the factored form
+    helps them scale production and calculate how many panels fit into custom orders of different sizes.
+
+
+    A factory manufactures decorative panels with a repeating geometric pattern. The area of one panel
+    can be expressed by the polynomial x³ + 2x² − 3x − 6 square metres, where x represents a scaling factor.
+    The factory needs to express this area as a product of simpler factors so they can calculate dimensions
+    for different orders. Write the fully factored form of the polynomial.'
+  option_a: x(x + 2)(x - 3) + 6
+  option_b: (x - 2)(x² + 3)
+  option_c: (x + 2)(x² - 3)
+  option_d: (x + 1)(x² + x - 6)
+  correct_option: c
+- question_template_id: authored-algebra_2-d4-1507400
+  topic_id: algebra_2
+  skill_id: alg2_polynomial_factor
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - tested_wrong_factors_or_signs
+  - arithmetic_error_in_polynomial_division
+  - incorrect_quadratic_factorization
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A storage company uses cubic crates to hold items. The volume of one crate model is given by the
+    expression x³ − 2x² − 5x + 6 cubic metres, where x is a scaling factor. The company wants to express
+    the volume as a product of three separate linear factors to understand the crate's dimensions. Write
+    the complete factorisation of x³ − 2x² − 5x + 6.
+  context_block: 'A cubic polynomial can be factored into linear factors by using the factor theorem:
+    if a value r makes the polynomial equal zero, then (x − r) is a factor. Once one linear factor is
+    found, polynomial division can reduce the cubic to a quadratic, which can be factored further.'
+  answer_expression: x**3 - 2*x**2 - 5*x + 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Test small integer values—try x = 1, x = −1, x = 2, x = −2—to find a value that makes the polynomial
+    equal zero. That value r tells you (x − r) is a factor.
+  - When you find that x = 1 makes the polynomial zero, you know (x − 1) is a factor. Divide the cubic
+    by (x − 1) to get a quadratic.
+  - The quadratic you get is x² − x − 6. Factor this by finding two numbers that multiply to −6 and add
+    to −1.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Use the factor theorem: test small integer values to find a root. Testing x = 1: 1
+        − 2 − 5 + 6 = 0. So (x − 1) is a factor.'
+      expression: Substitute x = 1 into x³ - 2x² - 5x + 6 gives 1 - 2 - 5 + 6 = 0
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the polynomial by (x − 1) using polynomial long division or synthetic division.
+      expression: (x³ - 2x² - 5x + 6) ÷ (x - 1) = x² - x - 6
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Factor the quadratic x² − x − 6. Find two numbers that multiply to −6 and add to −1:
+        these are −3 and 2.'
+      expression: x² - x - 6 = (x - 3)(x + 2)
+      common_mistake: null
+    - step_number: 4
+      explanation: Write the complete factorisation by combining all three linear factors.
+      expression: x³ - 2x² - 5x + 6 = (x - 1)(x - 3)(x + 2)
+      common_mistake: null
+    final_answer: (x - 1)(x - 3)(x + 2)
+  random_seed: 1507400
+  rendered_question: 'A cubic polynomial can be factored into linear factors by using the factor theorem:
+    if a value r makes the polynomial equal zero, then (x − r) is a factor. Once one linear factor is
+    found, polynomial division can reduce the cubic to a quadratic, which can be factored further.
+
+
+    A storage company uses cubic crates to hold items. The volume of one crate model is given by the expression
+    x³ − 2x² − 5x + 6 cubic metres, where x is a scaling factor. The company wants to express the volume
+    as a product of three separate linear factors to understand the crate''s dimensions. Write the complete
+    factorisation of x³ − 2x² − 5x + 6.'
+  option_a: (x − 1)(x − 3)(x + 2)
+  option_b: (x − 2)(x − 3)(x + 1)
+  option_c: (x + 1)(x + 3)(x − 2)
+  option_d: (x − 1)(x + 1)(x − 6)
+  correct_option: a
+- question_template_id: authored-algebra_2-d4-1507401
+  topic_id: algebra_2
+  skill_id: alg2_polynomial_factor
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - sign_error_in_root_test
+  - incorrect_quotient_after_division
+  - error_in_quadratic_factorization
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A manufacturing engineer is designing rectangular storage containers. The volume of one container,
+    in cubic centimeters, is given by the polynomial x³ − 5x² + 2x + 8, where x is a design parameter
+    in centimeters. To optimize production, the engineer needs to express this volume as a product of
+    three linear factors. What is the complete factorization of x³ − 5x² + 2x + 8?
+  context_block: A manufacturing engineer is designing rectangular storage containers. The volume of one
+    container, in cubic centimeters, is given by the polynomial x³ − 5x² + 2x + 8, where x is a design
+    parameter in centimeters.
+  answer_expression: x**3 - 5*x**2 + 2*x + 8
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Test small integer values to find one root. Try x = -1, x = 1, x = 2, and x = -2 to see which makes
+    the polynomial equal zero.
+  - When you find a root r, you know (x - r) is a factor. Once you have one linear factor, use polynomial
+    division or synthetic division to find the remaining quadratic.
+  - After dividing out the first factor, you'll have a quadratic of the form x² + bx + c. Factor this
+    quadratic by finding two numbers that multiply to c and add to b.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'To factor a cubic, we first find one root by testing integer values. Testing x = −1:
+        (−1)³ − 5(−1)² + 2(−1) + 8 = −1 − 5 − 2 + 8 = 0. Since the polynomial equals zero at x = −1, (x
+        + 1) is a factor.'
+      expression: (-1)^3 - 5(-1)^2 + 2(-1) + 8 = -1 - 5 - 2 + 8 = 0
+      common_mistake: null
+    - step_number: 2
+      explanation: We now divide the polynomial by (x + 1) using synthetic division or long division.
+        Dividing x³ − 5x² + 2x + 8 by (x + 1) gives x² − 6x + 8.
+      expression: (x^3 - 5x^2 + 2x + 8) ÷ (x + 1) = x^2 - 6x + 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Now we factor the quadratic x² − 6x + 8. We need two numbers that multiply to 8 and
+        add to −6. These numbers are −2 and −4, because (−2)(−4) = 8 and (−2) + (−4) = −6.
+      expression: x^2 - 6x + 8 = (x - 2)(x - 4)
+      common_mistake: null
+    - step_number: 4
+      explanation: Combining the factors from steps 1 and 3, the complete factorization is (x + 1)(x −
+        2)(x − 4).
+      expression: x^3 - 5x^2 + 2x + 8 = (x + 1)(x - 2)(x - 4)
+      common_mistake: null
+    final_answer: (x + 1)(x - 2)(x - 4)
+  random_seed: 1507401
+  rendered_question: 'A manufacturing engineer is designing rectangular storage containers. The volume
+    of one container, in cubic centimeters, is given by the polynomial x³ − 5x² + 2x + 8, where x is a
+    design parameter in centimeters.
+
+
+    A manufacturing engineer is designing rectangular storage containers. The volume of one container,
+    in cubic centimeters, is given by the polynomial x³ − 5x² + 2x + 8, where x is a design parameter
+    in centimeters. To optimize production, the engineer needs to express this volume as a product of
+    three linear factors. What is the complete factorization of x³ − 5x² + 2x + 8?'
+  option_a: (x - 1)(x - 2)(x - 4)
+  option_b: (x + 1)(x + 2)(x - 4)
+  option_c: (x + 1)(x - 2)(x - 4)
+  option_d: (x + 1)(x + 2)(x + 4)
+  correct_option: c
+- question_template_id: authored-algebra_2-d4-1807400
+  topic_id: algebra_2
+  skill_id: alg2_polynomial_factor
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - repeated_factor_instead_of_opposite_sign
+  - repeated_factor_and_sign_error
+  - factoring_by_grouping_sign_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A landscape architect is designing a modular garden bed from a rectangular plot. The plot's area
+    in square metres can be modelled by the polynomial x³ - 3x² - 4x + 12. To build the bed with three
+    adjustable rectangular panels, the architect must express this area as a product of three linear factors.
+    What is the complete factorisation of x³ - 3x² - 4x + 12?
+  context_block: A landscape architect is designing a modular garden bed. The plot's total growing area
+    is given by a cubic polynomial. To build the bed, the architect needs to factor the polynomial into
+    three linear factors, each representing one adjustable dimension of the bed.
+  answer_expression: x**3 - 3*x**2 - 4*x + 12
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Test whether small integer values, like x = 2, x = -2, x = 3, make the polynomial equal zero.
+  - When the polynomial equals zero at x = 2, then (x - 2) is a factor. Divide the original by (x - 2)
+    to find what remains.
+  - After dividing, you get a quadratic. Factor that quadratic by finding two numbers that multiply to
+    give the constant term and add to give the middle coefficient.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Test whether x = 2 is a root by substituting into the polynomial.
+      expression: 2³ - 3(2)² - 4(2) + 12 = 8 - 12 - 8 + 12 = 0
+      common_mistake: null
+    - step_number: 2
+      explanation: Since the polynomial equals zero at x = 2, (x - 2) is a factor. Divide the polynomial
+        by (x - 2) using polynomial long division or synthetic division.
+      expression: (x³ - 3x² - 4x + 12) ÷ (x - 2) = x² - x - 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Factor the quadratic x² - x - 6. Find two numbers that multiply to -6 and add to -1.
+      expression: x² - x - 6 = (x - 3)(x + 2)
+      common_mistake: forgetting that -3 and +2 multiply to -6 and add to -1, not +1
+    - step_number: 4
+      explanation: Combine all three linear factors to get the complete factorisation.
+      expression: x³ - 3x² - 4x + 12 = (x - 2)(x - 3)(x + 2)
+      common_mistake: null
+    final_answer: (x - 2)(x + 2)(x - 3)
+  random_seed: 1807400
+  rendered_question: 'A landscape architect is designing a modular garden bed. The plot''s total growing
+    area is given by a cubic polynomial. To build the bed, the architect needs to factor the polynomial
+    into three linear factors, each representing one adjustable dimension of the bed.
+
+
+    A landscape architect is designing a modular garden bed from a rectangular plot. The plot''s area
+    in square metres can be modelled by the polynomial x³ - 3x² - 4x + 12. To build the bed with three
+    adjustable rectangular panels, the architect must express this area as a product of three linear factors.
+    What is the complete factorisation of x³ - 3x² - 4x + 12?'
+  option_a: (x - 2)(x - 2)(x - 3)
+  option_b: (x - 2)(x + 2)(x - 3)
+  option_c: (x + 2)(x + 2)(x - 3)
+  option_d: (x - 2)(x + 3)(x - 2)
+  correct_option: b
+- question_template_id: authored-algebra_2-d4-1807401
+  topic_id: algebra_2
+  skill_id: alg2_polynomial_factor
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - sign_error_on_first_factor
+  - sign_error_on_second_factor
+  - sign_error_on_third_factor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A shipping company models the volume of a cargo box using the polynomial x³ + 6x² − x − 30 cubic
+    metres, where x is a scaling parameter. To build the container, engineers need to rewrite this as
+    a product of linear factors. Factor the polynomial completely.
+  context_block: 'The factor theorem states that if p(a) = 0 for a polynomial p(x), then (x − a) is a
+    factor. To find integer-valued roots, test the rational root theorem: any candidate root divides the
+    constant term.'
+  answer_expression: x**3 + 6*x**2 - x - 30
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Test small integer values—both positive and negative—to find where the polynomial equals zero. Start
+    by checking x = 2, x = −3, and x = −5.
+  - If the polynomial is zero when x = 2, then (x − 2) is a factor. If it is zero at x = −3, then (x +
+    3) is a factor. Check all three.
+  - Once you confirm that x = 2, x = −3, and x = −5 each make the polynomial zero, you can write the complete
+    factorization.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Apply the factor theorem by testing integer values. We seek roots of p(x) = x³ + 6x²
+        − x − 30. The rational root theorem tells us any integer root divides 30.
+      expression: 'Test x = 2: 2³ + 6(2)² − 2 − 30 = 8 + 24 − 2 − 30 = 0'
+      common_mistake: null
+    - step_number: 2
+      explanation: Since p(2) = 0, (x − 2) is a factor. Now test x = −3 in the original polynomial.
+      expression: 'Test x = −3: (−3)³ + 6(−3)² − (−3) − 30 = −27 + 54 + 3 − 30 = 0'
+      common_mistake: null
+    - step_number: 3
+      explanation: Since p(−3) = 0, (x + 3) is a factor. Now test x = −5 in the original polynomial.
+      expression: 'Test x = −5: (−5)³ + 6(−5)² − (−5) − 30 = −125 + 150 + 5 − 30 = 0'
+      common_mistake: null
+    - step_number: 4
+      explanation: Since p(−5) = 0, (x + 5) is a factor. We have found three linear factors for a cubic
+        polynomial, which is the complete factorization.
+      expression: x³ + 6x² − x − 30 = (x − 2)(x + 3)(x + 5)
+      common_mistake: 'Confusing the sign: if x = 2 is a root, the factor is (x − 2), not (x + 2).'
+    - step_number: 5
+      explanation: 'Verify by expanding: (x − 2)(x + 3) = x² + x − 6. Then (x² + x − 6)(x + 5) = x³ +
+        5x² + x² + 5x − 6x − 30 = x³ + 6x² − x − 30. ✓'
+      expression: (x − 2)(x + 3)(x + 5) = x³ + 6x² − x − 30
+      common_mistake: null
+    final_answer: (x - 2)(x + 3)(x + 5)
+  random_seed: 1807401
+  rendered_question: 'The factor theorem states that if p(a) = 0 for a polynomial p(x), then (x − a) is
+    a factor. To find integer-valued roots, test the rational root theorem: any candidate root divides
+    the constant term.
+
+
+    A shipping company models the volume of a cargo box using the polynomial x³ + 6x² − x − 30 cubic metres,
+    where x is a scaling parameter. To build the container, engineers need to rewrite this as a product
+    of linear factors. Factor the polynomial completely.'
+  option_a: (x - 2)(x + 3)(x + 5)
+  option_b: (x + 2)(x + 3)(x + 5)
+  option_c: (x - 2)(x + 3)(x - 5)
+  option_d: (x - 2)(x - 3)(x - 5)
+  correct_option: a
 - question_template_id: authored-algebra_2-d4-98401
   topic_id: algebra_2
   skill_id: alg2_polynomial_factor
@@ -692,7 +2170,7 @@ templates:
   topic_id: algebra_2
   skill_id: alg2_quadratic_functions
   grade_band: 10-11
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -753,7 +2231,7 @@ templates:
   topic_id: algebra_2
   skill_id: alg2_quadratic_functions
   grade_band: 10-11
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -811,6 +2289,142 @@ templates:
   option_c: 6 seconds
   option_d: 12 seconds
   correct_option: b
+- question_template_id: authored-algebra_2-d4-1508400
+  topic_id: algebra_2
+  skill_id: alg2_quadratic_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 300
+  common_error_tags:
+  - forgot_to_distribute
+  - set_one_factor_to_zero_incorrectly
+  - accepted_negative_solution
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A zoo is designing a rectangular enclosure for red pandas. The length is 3 metres longer than
+    the width. The area of the enclosure must be 54 square metres. What is the width of the enclosure?
+  context_block: The enclosure is rectangular. Let w represent the width in metres. Then the length is
+    (w + 3) metres. The area formula is length × width.
+  answer_expression: w*(w + 3) - 54 = 0
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The area of a rectangle is length times width. Here, length = w + 3 and width = w.
+  - 'Set up the equation: (w + 3) × w = 54.'
+  - Expand the left side into standard form, then solve the quadratic equation.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the area formula using width w and length (w + 3).
+      expression: w(w + 3) = 54
+      common_mistake: null
+    - step_number: 2
+      explanation: Expand the left side by distributing w.
+      expression: w^2 + 3w = 54
+      common_mistake: null
+    - step_number: 3
+      explanation: Move all terms to one side to set the equation equal to zero.
+      expression: w^2 + 3w - 54 = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: Factor the quadratic. We need two numbers that multiply to -54 and add to 3.
+      expression: (w + 9)(w - 6) = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Use the zero product property: w + 9 = 0 or w - 6 = 0.'
+      expression: w = -9 or w = 6
+      common_mistake: null
+    - step_number: 6
+      explanation: Since width cannot be negative, reject w = -9.
+      expression: w = 6
+      common_mistake: null
+    final_answer: 6 metres
+  random_seed: 1508400
+  rendered_question: 'The enclosure is rectangular. Let w represent the width in metres. Then the length
+    is (w + 3) metres. The area formula is length × width.
+
+
+    A zoo is designing a rectangular enclosure for red pandas. The length is 3 metres longer than the
+    width. The area of the enclosure must be 54 square metres. What is the width of the enclosure?'
+  option_a: 54 metres
+  option_b: 9 metres
+  option_c: 6 metres
+  option_d: 27 metres
+  correct_option: c
+- question_template_id: authored-algebra_2-d4-1609400
+  topic_id: algebra_2
+  skill_id: alg2_rational_radical
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - incorrect_polynomial_division
+  - sign_error_in_division
+  - failed_to_cancel_common_factor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student is analyzing the growth of a bacterial culture. The number of bacteria after t hours
+    follows the expression (t³ - 2t² - 5t + 6)/(t - 1). Simplify this expression to find the formula for
+    the bacterial count, given that t ≠ 1.
+  context_block: A biology lab measures bacterial growth by recording the population size at different
+    times. To predict future counts, the technician needs a simplified formula that avoids undefined values.
+  answer_expression: (x**3 - 2*x**2 - 5*x + 6)/(x - 1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To simplify a rational expression, look for common factors in the numerator and denominator that can
+    be canceled.
+  - Test whether (x - 1) is a factor of the numerator x³ - 2x² - 5x + 6 by checking if the numerator equals
+    zero when x = 1.
+  - Once you confirm (x - 1) divides the numerator, use polynomial division to factor the numerator as
+    a product, then cancel the common factor.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Apply the factor theorem: if (x - 1) is a factor of the numerator, then the numerator
+        must equal zero when x = 1. Substitute t = 1 into the numerator.'
+      expression: 1³ - 2(1)² - 5(1) + 6 = 1 - 2 - 5 + 6 = 0
+      common_mistake: null
+    - step_number: 2
+      explanation: Since the numerator equals zero at x = 1, (x - 1) is a factor. Use polynomial division
+        to divide x³ - 2x² - 5x + 6 by (x - 1).
+      expression: x³ - 2x² - 5x + 6 = (x - 1)(x² - x - 6)
+      common_mistake: null
+    - step_number: 3
+      explanation: Rewrite the original rational expression with the factored numerator.
+      expression: (x³ - 2x² - 5x + 6)/(x - 1) = [(x - 1)(x² - x - 6)]/(x - 1)
+      common_mistake: null
+    - step_number: 4
+      explanation: Cancel the common factor (x - 1) from the numerator and denominator, valid for x ≠
+        1.
+      expression: = x² - x - 6
+      common_mistake: null
+    final_answer: x² - x - 6
+  random_seed: 1609400
+  rendered_question: 'A biology lab measures bacterial growth by recording the population size at different
+    times. To predict future counts, the technician needs a simplified formula that avoids undefined values.
+
+
+    A student is analyzing the growth of a bacterial culture. The number of bacteria after t hours follows
+    the expression (t³ - 2t² - 5t + 6)/(t - 1). Simplify this expression to find the formula for the bacterial
+    count, given that t ≠ 1.'
+  option_a: x² - x - 6
+  option_b: x³ - x² - 4
+  option_c: x² + x + 6
+  option_d: x² - 3x + 1
+  correct_option: a
 - question_template_id: authored-algebra_2-d5-1269500
   topic_id: algebra_2
   skill_id: alg2_rational_radical
@@ -1116,6 +2730,273 @@ templates:
   option_c: '6'
   option_d: '22'
   correct_option: c
+- question_template_id: authored-algebra_2-d4-1510400
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 240
+  common_error_tags:
+  - arithmetic_in_combining_constants
+  - early_stopping_or_wrong_product
+  - sign_error_in_isolation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A jewelry maker is designing a bead pattern. The number of beads used can be described by the
+    polynomial p(x) = x³ - 5x² + cx + 6, where x represents the pattern number. When the pattern number
+    is 2, the design uses exactly zero excess beads—meaning the polynomial evaluates to zero at that point.
+    Find the value of c.
+  context_block: When a polynomial p(x) evaluates to zero at a specific value of x, that means (x - value)
+    is a factor of the polynomial. This is the Factor Theorem.
+  answer_expression: Eq(2**3 - 5*2**2 + c*2 + 6, 0)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - By the Factor Theorem, if (x - 2) is a factor, then p(2) must equal zero. Substitute x = 2 into the
+    polynomial.
+  - Start with 2³, then compute -5(2²), then add 2c, then add 6. Set the entire expression equal to 0.
+  - You should have 8 - 20 + 2c + 6 = 0. Combine the constant numbers, then solve for c.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the Factor Theorem, if (x - 2) is a factor of p(x), then p(2) = 0. We substitute
+        x = 2 into the polynomial p(x) = x³ - 5x² + cx + 6.
+      expression: p(2) = 2³ - 5(2²) + c(2) + 6
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Calculate each term: 2³ = 8, then 5(2²) = 5(4) = 20.'
+      expression: 8 - 20 + 2c + 6 = 0
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Combine the constant terms: 8 - 20 + 6 = -6.'
+      expression: -6 + 2c = 0
+      common_mistake: Forgetting to include the +6 term when combining constants.
+    - step_number: 4
+      explanation: Isolate 2c by adding 6 to both sides.
+      expression: 2c = 6
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 2 to solve for c.
+      expression: c = 3
+      common_mistake: null
+    final_answer: '3'
+  random_seed: 1510400
+  rendered_question: 'When a polynomial p(x) evaluates to zero at a specific value of x, that means (x
+    - value) is a factor of the polynomial. This is the Factor Theorem.
+
+
+    A jewelry maker is designing a bead pattern. The number of beads used can be described by the polynomial
+    p(x) = x³ - 5x² + cx + 6, where x represents the pattern number. When the pattern number is 2, the
+    design uses exactly zero excess beads—meaning the polynomial evaluates to zero at that point. Find
+    the value of c.'
+  option_a: '3'
+  option_b: '-3'
+  option_c: '5'
+  option_d: '1'
+  correct_option: a
+- question_template_id: authored-algebra_2-d4-1510401
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - miscombined_constants_to_positive
+  - misread_cubic_value
+  - failed_to_isolate_coefficient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A tech company's quarterly profit is modeled by p(x) = x³ + 4x² + cx − 12, where x represents
+    the quarter number. The company knows that in quarter 1, the profit was zero (breaking even). Using
+    this fact, find the unknown coefficient c so the model is accurate.
+  context_block: When a polynomial p(x) has a root at x = a, we know that (x − a) is a factor of p(x).
+    This is the factor theorem. If we know a specific input makes the polynomial equal zero, we can use
+    that information to find unknown coefficients.
+  answer_expression: Eq(1**3 + 4*1**2 + c*1 - 12, 0)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Since the profit was zero at quarter 1, substitute x = 1 into the polynomial p(x) = x³ + 4x² + cx
+    − 12 and set it equal to zero.
+  - 'When x = 1: (1)³ + 4(1)² + c(1) − 12 = 0. Evaluate each term where the exponent is known.'
+  - You now have 1 + 4 + c − 12 = 0. Combine the numbers and solve for c.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the factor theorem, if (x − 1) is a factor of p(x), then p(1) = 0. We substitute
+        x = 1 into the polynomial.
+      expression: p(1) = (1)³ + 4(1)² + c(1) − 12 = 0
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the powers: 1³ = 1 and 1² = 1, and c(1) = c.'
+      expression: 1 + 4 + c − 12 = 0
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Combine the constant terms: 1 + 4 − 12 = −7.'
+      expression: c − 7 = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: Add 7 to both sides to isolate c.
+      expression: c = 7
+      common_mistake: null
+    final_answer: '7'
+  random_seed: 1510401
+  rendered_question: 'When a polynomial p(x) has a root at x = a, we know that (x − a) is a factor of
+    p(x). This is the factor theorem. If we know a specific input makes the polynomial equal zero, we
+    can use that information to find unknown coefficients.
+
+
+    A tech company''s quarterly profit is modeled by p(x) = x³ + 4x² + cx − 12, where x represents the
+    quarter number. The company knows that in quarter 1, the profit was zero (breaking even). Using this
+    fact, find the unknown coefficient c so the model is accurate.'
+  option_a: '5'
+  option_b: '8'
+  option_c: '7'
+  option_d: '12'
+  correct_option: c
+- question_template_id: authored-algebra_2-d4-1610400
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 240
+  common_error_tags:
+  - failed_to_apply_remainder_theorem
+  - arithmetic_combining_constants
+  - ignored_parameter_in_substitution
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A machine shop creates cutting tools by running metal blocks through a special lathe. The height
+    of the metal block, in millimetres, after t seconds of lathing is described by the polynomial P(t)
+    = t³ + bt² - 2t + 5. When the lathe finishes at t = 1 second, the block's height is 8 mm. Find the
+    value of b.
+  context_block: 'The Remainder Theorem states: when a polynomial P(x) is divided by (x - a), the remainder
+    equals P(a).'
+  answer_expression: Eq(1**3 + b*1**2 - 2*1 + 5, 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The Remainder Theorem tells you that P(1) equals the remainder when P(t) is divided by (t - 1). You
+    know P(1) must equal 8.
+  - 'Substitute t = 1 into the polynomial: 1³ + b(1)² - 2(1) + 5. That expression must equal 8.'
+  - 'Simplify the numbers first: 1 + b - 2 + 5 equals 8. Combine the constants and solve for b.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the Remainder Theorem, when P(t) is divided by (t - 1), the remainder equals P(1).
+        Since the problem states the remainder is 8, we have P(1) = 8.
+      expression: P(1) = 8
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute t = 1 into the polynomial P(t) = t³ + bt² - 2t + 5.
+      expression: 1³ + b(1)² - 2(1) + 5 = 8
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Evaluate the constant terms: 1 + b - 2 + 5 simplifies to b + 4.'
+      expression: b + 4 = 8
+      common_mistake: Forgetting to combine 1 - 2 + 5 before isolating b
+    - step_number: 4
+      explanation: Subtract 4 from both sides to isolate b.
+      expression: b = 8 - 4 = 4
+      common_mistake: null
+    final_answer: '4'
+  random_seed: 1610400
+  rendered_question: 'The Remainder Theorem states: when a polynomial P(x) is divided by (x - a), the
+    remainder equals P(a).
+
+
+    A machine shop creates cutting tools by running metal blocks through a special lathe. The height of
+    the metal block, in millimetres, after t seconds of lathing is described by the polynomial P(t) =
+    t³ + bt² - 2t + 5. When the lathe finishes at t = 1 second, the block''s height is 8 mm. Find the
+    value of b.'
+  option_a: '8'
+  option_b: '6'
+  option_c: '4'
+  option_d: '2'
+  correct_option: c
+- question_template_id: authored-algebra_2-d4-1610401
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incorrect_constant_combination
+  - misapplied_remainder_theorem
+  - arithmetic_error_in_exponents
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A polynomial P(x) = x³ + ax² + 3x − 7 leaves a remainder of 15 when divided by (x − 2). Find the
+    value of the coefficient a.
+  context_block: The Remainder Theorem states that when a polynomial P(x) is divided by (x − c), the remainder
+    is P(c).
+  answer_expression: 8 + 4*a + 6 - 7 = 15
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - By the Remainder Theorem, when P(x) is divided by (x − 2), the remainder equals P(2). Substitute x
+    = 2 into the polynomial.
+  - Compute 2³, then 2², and combine those results with the remaining terms.
+  - You should have 8 + 4a + 6 − 7 = 15. Simplify the left side before solving for a.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the Remainder Theorem, the remainder when P(x) is divided by (x − 2) equals P(2).
+      expression: P(2) = 2³ + a(2²) + 3(2) − 7 = 15
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Calculate the powers: 2³ = 8 and 2² = 4.'
+      expression: 8 + 4a + 6 − 7 = 15
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Combine the constant terms: 8 + 6 − 7 = 7.'
+      expression: 7 + 4a = 15
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 7 from both sides to isolate the term with a.
+      expression: 4a = 8
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 4 to solve for a.
+      expression: a = 2
+      common_mistake: null
+    final_answer: '2'
+  random_seed: 1610401
+  rendered_question: 'The Remainder Theorem states that when a polynomial P(x) is divided by (x − c),
+    the remainder is P(c).
+
+
+    A polynomial P(x) = x³ + ax² + 3x − 7 leaves a remainder of 15 when divided by (x − 2). Find the value
+    of the coefficient a.'
+  option_a: '3'
+  option_b: '4'
+  option_c: '1'
+  option_d: '2'
+  correct_option: d
 - question_template_id: authored-algebra_2-d4-40401
   topic_id: algebra_2
   skill_id: alg2_remainder_factor_theorem
@@ -1252,7 +3133,7 @@ templates:
   topic_id: algebra_2
   skill_id: alg2_remainder_factor_theorem
   grade_band: 10-11
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -1316,7 +3197,7 @@ templates:
   topic_id: algebra_2
   skill_id: alg2_remainder_factor_theorem
   grade_band: 10-11
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -1378,11 +3259,296 @@ templates:
   option_c: '18'
   option_d: '182'
   correct_option: a
+- question_template_id: authored-algebra_2-d5-1510500
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - arithmetic_error_with_constants
+  - incorrect_exponent_evaluation
+  - misapplied_factor_theorem
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A pharmaceutical company models drug concentration over time using a polynomial function p(x)
+    = 2x³ + 3x² + dx - 30, where x is time in hours. The chemist knows that at x = 2 hours, the drug reaches
+    a critical dissolution point where the concentration is exactly zero. This means (x - 2) is a factor
+    of the polynomial. What is the value of d?
+  context_block: null
+  answer_expression: Eq(2*2**3 + 3*2**2 + d*2 - 30, 0)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - By the factor theorem, if (x - 2) is a factor of p(x), what must be true about p(2)?
+  - 'Substitute x = 2 into the polynomial and set it equal to zero: 2(2)³ + 3(2)² + d(2) - 30 = 0.'
+  - 'Simplify the known terms: 16 + 12 + 2d - 30 = 0, then solve for d.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the factor theorem, if (x - 2) is a factor of p(x), then p(2) = 0. We substitute
+        x = 2 into the polynomial.
+      expression: p(2) = 2(2)³ + 3(2)² + d(2) - 30 = 0
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the powers: 2³ = 8 and 2² = 4.'
+      expression: 2(8) + 3(4) + 2d - 30 = 0
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply: 2 × 8 = 16 and 3 × 4 = 12.'
+      expression: 16 + 12 + 2d - 30 = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine like terms on the left: 16 + 12 - 30 = -2.'
+      expression: -2 + 2d = 0
+      common_mistake: Forgetting to combine all constant terms before isolating the term with d
+    - step_number: 5
+      explanation: Add 2 to both sides to isolate the term containing d.
+      expression: 2d = 2
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 2 to solve for d.
+      expression: d = 1
+      common_mistake: null
+    final_answer: '1'
+  random_seed: 1510500
+  rendered_question: A pharmaceutical company models drug concentration over time using a polynomial function
+    p(x) = 2x³ + 3x² + dx - 30, where x is time in hours. The chemist knows that at x = 2 hours, the drug
+    reaches a critical dissolution point where the concentration is exactly zero. This means (x - 2) is
+    a factor of the polynomial. What is the value of d?
+  option_a: '3'
+  option_b: '-4'
+  option_c: '1'
+  option_d: '5'
+  correct_option: c
+- question_template_id: authored-algebra_2-d5-1510501
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - sign_error_in_solving
+  - stopped_before_final_division
+  - confused_equation_with_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An engineer models the structural stress on a bridge support with the polynomial p(x) = x³ + bx²
+    - 5x - 6, where x represents a stress factor. The engineer knows that (x - 2) is a factor of this
+    polynomial, meaning the stress has a critical point at x = 2. Find the value of b.
+  context_block: By the factor theorem, if (x - c) is a factor of a polynomial p(x), then p(c) = 0.
+  answer_expression: Eq(2**3 + b*2**2 - 5*2 - 6, 0)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - By the factor theorem, since (x - 2) is a factor, what must be true about p(2)?
+  - You need p(2) = 0. Substitute x = 2 into the polynomial and set it equal to zero.
+  - 'After substituting: 2³ + b(2)² - 5(2) - 6 = 0. Now simplify and solve for b.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the factor theorem, if (x - 2) is a factor of p(x), then p(2) must equal 0.
+      expression: p(2) = 0
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute x = 2 into p(x) = x³ + bx² - 5x - 6.
+      expression: 2**3 + b*2**2 - 5*2 - 6 = 0
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the powers and products.
+      expression: 8 + 4*b - 10 - 6 = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the constant terms on the left side.
+      expression: 4*b - 8 = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 8 to both sides to isolate the term with b.
+      expression: 4*b = 8
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 4 to solve for b.
+      expression: b = 2
+      common_mistake: null
+    final_answer: '2'
+  random_seed: 1510501
+  rendered_question: 'By the factor theorem, if (x - c) is a factor of a polynomial p(x), then p(c) =
+    0.
+
+
+    An engineer models the structural stress on a bridge support with the polynomial p(x) = x³ + bx² -
+    5x - 6, where x represents a stress factor. The engineer knows that (x - 2) is a factor of this polynomial,
+    meaning the stress has a critical point at x = 2. Find the value of b.'
+  option_a: '2'
+  option_b: '4'
+  option_c: '-2'
+  option_d: '8'
+  correct_option: a
+- question_template_id: authored-algebra_2-d5-1610500
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - evaluated_only_partial_terms
+  - forgot_remainder_theorem
+  - arithmetic_error_in_simplification
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A polynomial P(x) = 3x³ + mx² − 2x + 4 leaves a remainder of 40 when divided by (x − 2). Find
+    the value of m.
+  context_block: When a polynomial P(x) is divided by a linear divisor (x − a), the Remainder Theorem
+    tells us that the remainder is P(a). This theorem is useful for finding unknown coefficients when
+    we know what the remainder should be.
+  answer_expression: Eq(3*2**3 + m*2**2 - 2*2 + 4, 40)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - By the Remainder Theorem, the remainder when P(x) is divided by (x − 2) equals P(2). What do you get
+    when you substitute x = 2 into P(x)?
+  - 'Calculate: P(2) = 3(2)³ + m(2)² − 2(2) + 4. Simplify the numbers you know: 3(8) + m(4) − 4 + 4.'
+  - You should have 24 + 4m = 40. Solve this equation for m.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the Remainder Theorem, when P(x) is divided by (x − 2), the remainder equals P(2).
+        We are told this remainder is 40.
+      expression: P(2) = 40
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute x = 2 into the polynomial P(x) = 3x³ + mx² − 2x + 4.
+      expression: 3(2)³ + m(2)² − 2(2) + 4 = 40
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Evaluate the powers: 2³ = 8 and 2² = 4.'
+      expression: 3(8) + m(4) − 2(2) + 4 = 40
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Multiply out the known terms: 3 × 8 = 24 and 2 × 2 = 4.'
+      expression: 24 + 4m − 4 + 4 = 40
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the constant terms: −4 + 4 = 0, so 24 + 0 = 24.'
+      expression: 24 + 4m = 40
+      common_mistake: null
+    - step_number: 6
+      explanation: Subtract 24 from both sides to isolate the term with m.
+      expression: 4m = 16
+      common_mistake: null
+    - step_number: 7
+      explanation: Divide both sides by 4 to solve for m.
+      expression: m = 4
+      common_mistake: null
+    final_answer: '4'
+  random_seed: 1610500
+  rendered_question: 'When a polynomial P(x) is divided by a linear divisor (x − a), the Remainder Theorem
+    tells us that the remainder is P(a). This theorem is useful for finding unknown coefficients when
+    we know what the remainder should be.
+
+
+    A polynomial P(x) = 3x³ + mx² − 2x + 4 leaves a remainder of 40 when divided by (x − 2). Find the
+    value of m.'
+  option_a: '4'
+  option_b: '6'
+  option_c: '8'
+  option_d: '2'
+  correct_option: a
+- question_template_id: authored-algebra_2-d5-1610502
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - failed_to_apply_remainder_theorem
+  - arithmetic_error_in_constant_combination
+  - forgot_to_subtract_final_constant
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A polynomial P(x) = 4x³ + nx² − 5x + 2 leaves a remainder of 24 when divided by (x − 1). Find
+    the value of the coefficient n.
+  context_block: By the Remainder Theorem, when a polynomial P(x) is divided by a linear divisor (x −
+    a), the remainder equals P(a).
+  answer_expression: Eq(4*1**3 + n*1**2 - 5*1 + 2, 24)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The Remainder Theorem tells us that P(1) equals the remainder when P(x) is divided by (x − 1).
+  - Substitute x = 1 into P(x) = 4x³ + nx² − 5x + 2 and set it equal to 24.
+  - After substituting, you will have 4 + n − 5 + 2 = 24. Simplify the constants and solve for n.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the Remainder Theorem, when P(x) is divided by (x − 1), the remainder equals P(1).
+      expression: P(1) = remainder = 24
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute x = 1 into P(x) = 4x³ + nx² − 5x + 2.
+      expression: P(1) = 4(1)³ + n(1)² − 5(1) + 2
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Evaluate the powers: 1³ = 1 and 1² = 1.'
+      expression: P(1) = 4(1) + n(1) − 5(1) + 2
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Multiply: 4 · 1 = 4, n · 1 = n, and 5 · 1 = 5.'
+      expression: P(1) = 4 + n − 5 + 2
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the constant terms: 4 − 5 + 2 = 1.'
+      expression: P(1) = n + 1
+      common_mistake: null
+    - step_number: 6
+      explanation: Set P(1) equal to 24, as given by the Remainder Theorem.
+      expression: n + 1 = 24
+      common_mistake: null
+    - step_number: 7
+      explanation: Subtract 1 from both sides to solve for n.
+      expression: n = 24 − 1 = 23
+      common_mistake: null
+    final_answer: '23'
+  random_seed: 1610502
+  rendered_question: 'By the Remainder Theorem, when a polynomial P(x) is divided by a linear divisor
+    (x − a), the remainder equals P(a).
+
+
+    A polynomial P(x) = 4x³ + nx² − 5x + 2 leaves a remainder of 24 when divided by (x − 1). Find the
+    value of the coefficient n.'
+  option_a: '3'
+  option_b: '27'
+  option_c: '19'
+  option_d: '23'
+  correct_option: d
 - question_template_id: authored-algebra_2-d5-40500
   topic_id: algebra_2
   skill_id: alg2_remainder_factor_theorem
   grade_band: 10-11
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 240
   common_error_tags:
@@ -1448,7 +3614,7 @@ templates:
   topic_id: algebra_2
   skill_id: alg2_remainder_factor_theorem
   grade_band: 10-11
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 240
   common_error_tags:
@@ -1506,6 +3672,78 @@ templates:
   option_b: '4'
   option_c: '24'
   option_d: '80'
+  correct_option: b
+- question_template_id: authored-algebra_2-d5-1610501
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - substituted_divisor_incorrectly
+  - miscalculated_polynomial_value
+  - inverted_equation_direction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A polynomial P(x) = 2x³ + 5x² − 3x + k is divided by (x − 3). When the division is performed,
+    the remainder is 102. What is the value of k?
+  context_block: By the Remainder Theorem, when a polynomial P(x) is divided by a linear divisor (x −
+    a), the remainder equals P(a). This powerful shortcut lets us find remainders without performing long
+    division.
+  answer_expression: Eq(2*3**3 + 5*3**2 - 3*3 + k, 102)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'The Remainder Theorem says: if P(x) is divided by (x − 3), the remainder is P(3). Use this to write
+    an equation for k.'
+  - Substitute x = 3 into P(x) = 2x³ + 5x² − 3x + k and set the result equal to 102.
+  - Calculate 2(3)³ + 5(3)² − 3(3) + k = 102, then solve for k by combining the known values.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the Remainder Theorem, when P(x) is divided by (x − 3), the remainder equals P(3).
+        We are told this remainder is 102.
+      expression: P(3) = 102
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute x = 3 into P(x) = 2x³ + 5x² − 3x + k.
+      expression: 2(3)³ + 5(3)² − 3(3) + k = 102
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate 3³ = 27 and 3² = 9.
+      expression: 2(27) + 5(9) − 3(3) + k = 102
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Multiply: 2 × 27 = 54, 5 × 9 = 45, and 3 × 3 = 9.'
+      expression: 54 + 45 − 9 + k = 102
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the constant terms on the left: 54 + 45 − 9 = 90.'
+      expression: 90 + k = 102
+      common_mistake: null
+    - step_number: 6
+      explanation: Subtract 90 from both sides to isolate k.
+      expression: k = 102 − 90 = 12
+      common_mistake: null
+    final_answer: '12'
+  random_seed: 1610501
+  rendered_question: 'By the Remainder Theorem, when a polynomial P(x) is divided by a linear divisor
+    (x − a), the remainder equals P(a). This powerful shortcut lets us find remainders without performing
+    long division.
+
+
+    A polynomial P(x) = 2x³ + 5x² − 3x + k is divided by (x − 3). When the division is performed, the
+    remainder is 102. What is the value of k?'
+  option_a: '18'
+  option_b: '12'
+  option_c: '15'
+  option_d: '10'
   correct_option: b
 - question_template_id: authored-algebra_2-d2-1271202
   topic_id: algebra_2
@@ -1570,6 +3808,67 @@ templates:
   option_c: 39 problems
   option_d: 36 problems
   correct_option: c
+- question_template_id: authored-algebra_2-d3-1271302
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_term_number_instead_of_step_count
+  - confused_term_position_with_second_term
+  - multiplied_starting_value_by_term_number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A runner trains by running 18 minutes on the first day and adds 7 minutes to her time each day.
+    How many minutes does she run on the 7th day?
+  context_block: ''
+  answer_expression: Eq(x, 18 + 7*6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write down how much the runner increases her time from day 1 to day 7.
+  - She starts at 18 minutes and adds 7 minutes for each of the six increases from day 1 to day 7.
+  - Calculate 18 plus 7 times the number of days she has increased.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the starting time on day 1 and the daily increase. The runner runs 18 minutes
+        on day 1 and adds 7 minutes each day.
+      expression: first_day = 18, increase = 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Count the number of increases from day 1 to day 7. From day 1 to day 7 is 6 increases
+        (day 2, 3, 4, 5, 6, 7).
+      expression: number_of_increases = 7 - 1 = 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the daily increase by the number of increases, then add the starting time.
+      expression: x = 18 + 7*6
+      common_mistake: null
+    - step_number: 4
+      explanation: Compute 7 times 6, which is 42.
+      expression: 7*6 = 42
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 18 and 42 to find the total time on day 7.
+      expression: x = 18 + 42 = 60
+      common_mistake: null
+    final_answer: 60 minutes
+  random_seed: 1271302
+  rendered_question: A runner trains by running 18 minutes on the first day and adds 7 minutes to her
+    time each day. How many minutes does she run on the 7th day?
+  option_a: 126 minutes
+  option_b: 60 minutes
+  option_c: 25 minutes
+  option_d: 67 minutes
+  correct_option: b
 - question_template_id: authored-algebra_2-d4-1271400
   topic_id: algebra_2
   skill_id: alg2_sequences
@@ -2103,67 +4402,80 @@ templates:
   option_c: 73 bulbs
   option_d: 55 bulbs
   correct_option: a
-- question_template_id: authored-algebra_2-d3-1271302
+- question_template_id: authored-algebra_2-d4-1511400
   topic_id: algebra_2
   skill_id: alg2_sequences
   grade_band: 10-11
   difficulty_label: 3
   difficulty_confidence: 0.5
-  estimated_time_seconds: 90
+  estimated_time_seconds: 180
   common_error_tags:
-  - used_term_number_instead_of_step_count
-  - confused_term_position_with_second_term
-  - multiplied_starting_value_by_term_number
+  - used_arithmetic_series_formula
+  - wrong_common_ratio
+  - incorrect_exponent_calculation
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
     solver_b: bedrock-question-review
     judge: bedrock-question-judge
-  review_priority: high
+  review_priority: normal
   version: 1
-  stem: A runner trains by running 18 minutes on the first day and adds 7 minutes to her time each day.
-    How many minutes does she run on the 7th day?
-  context_block: ''
-  answer_expression: Eq(x, 18 + 7*6)
+  stem: A video game reward system distributes coins in a special pattern. When you defeat a level, you
+    earn coins that double in value each time you beat the next level. Starting with 2 coins after level
+    1, your earnings are 2 coins, 6 coins, 18 coins, and so on. If you beat 5 levels in the special challenge,
+    how many coins do you have in total from all levels?
+  context_block: null
+  answer_expression: x = 2 * (3**5 - 1) / (3 - 1)
   figure_spec: null
   figure_reading: null
   hint_ladder:
-  - Write down how much the runner increases her time from day 1 to day 7.
-  - She starts at 18 minutes and adds 7 minutes for each of the six increases from day 1 to day 7.
-  - Calculate 18 plus 7 times the number of days she has increased.
+  - 'Notice the pattern of earnings from level to level: each reward is 3 times the previous reward. This
+    is a geometric sequence.'
+  - The sum of a geometric series with first term a, common ratio r, and n terms is a(r^n - 1)/(r - 1).
+    Here a = 2, r = 3, and n = 5.
+  - 'Substitute into the formula: 2(3^5 - 1)/(3 - 1). Now compute 3^5, subtract 1, divide by 2, and multiply
+    by 2.'
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Identify the starting time on day 1 and the daily increase. The runner runs 18 minutes
-        on day 1 and adds 7 minutes each day.
-      expression: first_day = 18, increase = 7
+      explanation: 'Identify the geometric sequence: 2, 6, 18, 54, 162 (each term is 3 times the previous).'
+      expression: 'First five rewards: 2, 2·3, 2·3², 2·3³, 2·3⁴'
       common_mistake: null
     - step_number: 2
-      explanation: Count the number of increases from day 1 to day 7. From day 1 to day 7 is 6 increases
-        (day 2, 3, 4, 5, 6, 7).
-      expression: number_of_increases = 7 - 1 = 6
+      explanation: Recognize that a = 2 (first term), r = 3 (common ratio), and n = 5 (number of levels).
+      expression: 'Geometric series parameters: a = 2, r = 3, n = 5'
       common_mistake: null
     - step_number: 3
-      explanation: Multiply the daily increase by the number of increases, then add the starting time.
-      expression: x = 18 + 7*6
+      explanation: 'Apply the geometric series sum formula: S = a(r^n - 1)/(r - 1).'
+      expression: S = 2(3^5 - 1)/(3 - 1)
       common_mistake: null
     - step_number: 4
-      explanation: Compute 7 times 6, which is 42.
-      expression: 7*6 = 42
+      explanation: Calculate 3^5 = 243.
+      expression: S = 2(243 - 1)/(3 - 1)
       common_mistake: null
     - step_number: 5
-      explanation: Add 18 and 42 to find the total time on day 7.
-      expression: x = 18 + 42 = 60
+      explanation: 'Subtract: 243 - 1 = 242.'
+      expression: S = 2(242)/(3 - 1)
       common_mistake: null
-    final_answer: 60 minutes
-  random_seed: 1271302
-  rendered_question: A runner trains by running 18 minutes on the first day and adds 7 minutes to her
-    time each day. How many minutes does she run on the 7th day?
-  option_a: 126 minutes
-  option_b: 60 minutes
-  option_c: 25 minutes
-  option_d: 67 minutes
-  correct_option: b
+    - step_number: 6
+      explanation: 'Divide the denominator: 3 - 1 = 2.'
+      expression: S = 2(242)/2
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Simplify: 2(242)/2 = 242.'
+      expression: S = 242
+      common_mistake: null
+    final_answer: 242 coins
+  random_seed: 1511400
+  rendered_question: A video game reward system distributes coins in a special pattern. When you defeat
+    a level, you earn coins that double in value each time you beat the next level. Starting with 2 coins
+    after level 1, your earnings are 2 coins, 6 coins, 18 coins, and so on. If you beat 5 levels in the
+    special challenge, how many coins do you have in total from all levels?
+  option_a: 182 coins
+  option_b: 486 coins
+  option_c: 242 coins
+  option_d: 80 coins
+  correct_option: c
 - question_template_id: authored-algebra_2-d5-102500
   topic_id: algebra_2
   skill_id: alg2_sequences
@@ -2298,6 +4610,91 @@ templates:
   option_c: 192 players
   option_d: 180 players
   correct_option: a
+- question_template_id: authored-algebra_2-d5-1511500
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - summed_only_final_day
+  - arithmetic_series_confusion
+  - forgot_to_divide_by_ratio_difference
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A viral video starts trending on social media. On day 1, it gets 5 views. Each day after, the
+    video triples in views compared to the previous day. How many total views will the video have received
+    after 4 days?
+  context_block: 'Day 1: 5 views; Day 2: 5 × 3 = 15 views; Day 3: 15 × 3 = 45 views; Day 4: 45 × 3 = 135
+    views'
+  answer_expression: x = 5 * (3**4 - 1) / (3 - 1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - List how many views arrive on each of the 4 days. What is the pattern—does it grow by addition or
+    multiplication?
+  - Day 1 is 5, Day 2 is 5 · 3, Day 3 is 5 · 3², and Day 4 is 5 · 3³. You need to add all four of these
+    together.
+  - This is a geometric series with first term 5 and common ratio 3. Use the formula S = a(r^n - 1)/(r
+    - 1) where a = 5, r = 3, and n = 4.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: On each day, the video collects views. Day 1 has 5 views. Each day after, the count
+        triples.
+      expression: 'Day 1: 5 views
+
+        Day 2: 5 · 3 = 15 views
+
+        Day 3: 5 · 3² = 45 views
+
+        Day 4: 5 · 3³ = 135 views'
+      common_mistake: null
+    - step_number: 2
+      explanation: This is a geometric series with first term a = 5, common ratio r = 3, and n = 4 terms.
+        We use the sum formula for a finite geometric series.
+      expression: S = a(r^n - 1)/(r - 1)
+      common_mistake: null
+    - step_number: 3
+      explanation: Substitute a = 5, r = 3, and n = 4 into the formula.
+      expression: S = 5(3^4 - 1)/(3 - 1)
+      common_mistake: null
+    - step_number: 4
+      explanation: Calculate 3^4 = 81.
+      expression: S = 5(81 - 1)/(3 - 1)
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Simplify the numerator: 81 - 1 = 80.'
+      expression: S = 5 · 80 / 2
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Multiply: 5 · 80 = 400.'
+      expression: S = 400 / 2
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Divide: 400 ÷ 2 = 200.'
+      expression: S = 200
+      common_mistake: null
+    final_answer: 200 views
+  random_seed: 1511500
+  rendered_question: 'Day 1: 5 views; Day 2: 5 × 3 = 15 views; Day 3: 15 × 3 = 45 views; Day 4: 45 × 3
+    = 135 views
+
+
+    A viral video starts trending on social media. On day 1, it gets 5 views. Each day after, the video
+    triples in views compared to the previous day. How many total views will the video have received after
+    4 days?'
+  option_a: 405 views
+  option_b: 125 views
+  option_c: 215 views
+  option_d: 200 views
+  correct_option: d
 - question_template_id: authored-algebra_2-d4-102401
   topic_id: algebra_2
   skill_id: alg2_sequences

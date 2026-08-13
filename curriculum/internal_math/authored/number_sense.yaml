@@ -1,6 +1,57 @@
 curriculum_version: '2026.1'
 topic_id: number_sense
 templates:
+- question_template_id: authored-number_sense-d2-945201
+  topic_id: number_sense
+  skill_id: number_large_compare
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - compared_ones_place_only
+  - confused_order_relation
+  - misread_middle_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Three schools held book drives. School A collected 38,472 books, School B collected 52,839 books,
+    and School C collected 41,265 books. Which school collected the most books?
+  context_block: null
+  answer_expression: Eq(x, Max(38472, 52839, 41265))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look at the leftmost digit in each number to find which is greatest.
+  - 'Compare the ten-thousands place first: 5 is greater than 4 or 3.'
+  - The number with the greatest ten-thousands digit is the largest number.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write down the three numbers: 38,472, 52,839, and 41,265.'
+      expression: 38472, 52839, 41265
+      common_mistake: null
+    - step_number: 2
+      explanation: Compare the ten-thousands place in each number. The digits are 3, 5, and 4.
+      expression: 5 > 4 > 3
+      common_mistake: null
+    - step_number: 3
+      explanation: The number with the greatest ten-thousands digit is 52,839.
+      expression: '52839'
+      common_mistake: null
+    final_answer: 52839 books
+  random_seed: 945201
+  rendered_question: Three schools held book drives. School A collected 38,472 books, School B collected
+    52,839 books, and School C collected 41,265 books. Which school collected the most books?
+  option_a: 41265 books
+  option_b: 52839 books
+  option_c: 38472 books
+  option_d: 38473 books
+  correct_option: b
 - question_template_id: authored-number_sense-d3-945302
   topic_id: number_sense
   skill_id: number_large_compare
@@ -113,57 +164,6 @@ templates:
   option_c: 67149 people
   option_d: 52106 people
   correct_option: a
-- question_template_id: authored-number_sense-d2-945201
-  topic_id: number_sense
-  skill_id: number_large_compare
-  grade_band: 4-5
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 60
-  common_error_tags:
-  - compared_ones_place_only
-  - confused_order_relation
-  - misread_middle_value
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Three schools held book drives. School A collected 38,472 books, School B collected 52,839 books,
-    and School C collected 41,265 books. Which school collected the most books?
-  context_block: null
-  answer_expression: Eq(x, Max(38472, 52839, 41265))
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Look at the leftmost digit in each number to find which is greatest.
-  - 'Compare the ten-thousands place first: 5 is greater than 4 or 3.'
-  - The number with the greatest ten-thousands digit is the largest number.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: 'Write down the three numbers: 38,472, 52,839, and 41,265.'
-      expression: 38472, 52839, 41265
-      common_mistake: null
-    - step_number: 2
-      explanation: Compare the ten-thousands place in each number. The digits are 3, 5, and 4.
-      expression: 5 > 4 > 3
-      common_mistake: null
-    - step_number: 3
-      explanation: The number with the greatest ten-thousands digit is 52,839.
-      expression: '52839'
-      common_mistake: null
-    final_answer: 52839 books
-  random_seed: 945201
-  rendered_question: Three schools held book drives. School A collected 38,472 books, School B collected
-    52,839 books, and School C collected 41,265 books. Which school collected the most books?
-  option_a: 41265 books
-  option_b: 52839 books
-  option_c: 38472 books
-  option_d: 38473 books
-  correct_option: b
 - question_template_id: authored-number_sense-d2-95200
   topic_id: number_sense
   skill_id: number_large_compare
@@ -663,63 +663,11 @@ templates:
   option_c: 1 box
   option_d: 617 boxes
   correct_option: c
-- question_template_id: authored-number_sense-d3-947300
-  topic_id: number_sense
-  skill_id: number_rounding
-  grade_band: 4-5
-  difficulty_label: 3
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 90
-  common_error_tags:
-  - rounded_up_below_halfway
-  - rounded_to_wrong_place_value_ten
-  - rounded_to_wrong_place_value_thousand
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A school collected 3847 cans for a food drive. The principal wants to report the total rounded
-    to the nearest hundred for the poster. How many cans should she write?
-  context_block: ''
-  answer_expression: Eq(x, 100 * round(3847 / 100))
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Identify which place value you are rounding to and find the digit immediately to its right.
-  - The tens digit is 4. Since 4 is less than 5, you round down.
-  - Write the hundreds digit as it is and replace all digits to the right with zeros.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: To round 3847 to the nearest hundred, first identify the hundreds place. The digit
-        in the hundreds place is 8.
-      expression: '3847'
-      common_mistake: null
-    - step_number: 2
-      explanation: Look at the digit in the tens place, which is 4. Since 4 is less than 5, we round down.
-      expression: 4 < 5
-      common_mistake: null
-    - step_number: 3
-      explanation: Keep the hundreds digit as 8 and replace all digits to the right with zeros.
-      expression: '3800'
-      common_mistake: null
-    final_answer: 3800 cans
-  random_seed: 947300
-  rendered_question: A school collected 3847 cans for a food drive. The principal wants to report the
-    total rounded to the nearest hundred for the poster. How many cans should she write?
-  option_a: 4000 cans
-  option_b: 3850 cans
-  option_c: 3800 cans
-  option_d: 3900 cans
-  correct_option: c
 - question_template_id: authored-number_sense-d3-947301
   topic_id: number_sense
   skill_id: number_rounding
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -774,17 +722,17 @@ templates:
   option_c: 5300 books
   option_d: 6000 books
   correct_option: c
-- question_template_id: authored-number_sense-d3-947302
+- question_template_id: authored-number_sense-d3-947300
   topic_id: number_sense
   skill_id: number_rounding
   grade_band: 4-5
   difficulty_label: 3
-  difficulty_confidence: 0.5
+  difficulty_confidence: 1.0
   estimated_time_seconds: 90
   common_error_tags:
-  - rounded_down_when_digit_is_five
-  - rounded_to_wrong_place_value_tens
-  - rounded_to_wrong_place_value_thousands
+  - rounded_up_below_halfway
+  - rounded_to_wrong_place_value_ten
+  - rounded_to_wrong_place_value_thousand
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
@@ -792,46 +740,101 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A stadium counted 4256 visitors at a concert. The marketing team needs to round this number to
-    the nearest hundred for the press release. What attendance should they report?
-  context_block: null
-  answer_expression: Eq(x, 100 * round(4256 / 100))
+  stem: A school collected 3847 cans for a food drive. The principal wants to report the total rounded
+    to the nearest hundred for the poster. How many cans should she write?
+  context_block: ''
+  answer_expression: Eq(x, 100 * round(3847 / 100))
   figure_spec: null
   figure_reading: null
   hint_ladder:
-  - Look at the digit in the tens place to decide whether to round the hundreds digit up or keep it the
-    same.
-  - The hundreds digit is 2, and the digit to its right is 5. When the digit to the right is 5 or greater,
-    round up.
-  - Since 5 is in the tens place, increase the 2 in the hundreds place to 3, then replace all digits to
-    the right with zeros.
+  - Identify which place value you are rounding to and find the digit immediately to its right.
+  - The tens digit is 4. Since 4 is less than 5, you round down.
+  - Write the hundreds digit as it is and replace all digits to the right with zeros.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Identify the hundreds place in 4256. The digit 2 is in the hundreds place.
-      expression: 4256 = 4000 + 200 + 50 + 6
+      explanation: To round 3847 to the nearest hundred, first identify the hundreds place. The digit
+        in the hundreds place is 8.
+      expression: '3847'
       common_mistake: null
     - step_number: 2
-      explanation: Look at the digit to the right of the hundreds place. The tens digit is 5.
-      expression: tens digit = 5
+      explanation: Look at the digit in the tens place, which is 4. Since 4 is less than 5, we round down.
+      expression: 4 < 5
       common_mistake: null
     - step_number: 3
-      explanation: Since 5 is greater than or equal to 5, round the hundreds digit up from 2 to 3.
-      expression: 200 → 300
+      explanation: Keep the hundreds digit as 8 and replace all digits to the right with zeros.
+      expression: '3800'
+      common_mistake: null
+    final_answer: 3800 cans
+  random_seed: 947300
+  rendered_question: A school collected 3847 cans for a food drive. The principal wants to report the
+    total rounded to the nearest hundred for the poster. How many cans should she write?
+  option_a: 4000 cans
+  option_b: 3850 cans
+  option_c: 3800 cans
+  option_d: 3900 cans
+  correct_option: c
+- question_template_id: authored-number_sense-d4-947402
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_in_wrong_direction
+  - rounded_to_wrong_place_value_hundredths
+  - rounded_to_wrong_place_value_ones
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A digital thermometer displays 15.428 degrees Celsius. The weather report requires the temperature
+    rounded to the nearest tenth of a degree. What temperature should be reported?
+  context_block: ''
+  answer_expression: Eq(x, Rational(1,10) * round(15.428 * 10))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Identify which place value the thermometer reading must be rounded to.
+  - Look at the digit in the hundredths place to decide whether the tenths digit stays the same or increases
+    by one.
+  - Multiply the original number by 10, round that result to the nearest whole number, then divide by
+    10.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The thermometer shows 15.428 degrees Celsius and we need to round to the nearest tenth,
+        which is the first digit after the decimal point.
+      expression: '15.428'
+      common_mistake: null
+    - step_number: 2
+      explanation: To round to the nearest tenth, examine the digit in the hundredths place. In 15.428,
+        the hundredths digit is 2.
+      expression: hundredths digit = 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Since 2 is less than 5, the tenths digit (4) remains unchanged, and all digits to the
+        right are dropped.
+      expression: '15.4'
       common_mistake: null
     - step_number: 4
-      explanation: Replace all digits to the right of the hundreds place with zeros.
-      expression: 4256 → 4300
+      explanation: 'Verify using the equation: multiply 15.428 by 10 to get 154.28, round to 154, then
+        divide by 10 to get 15.4.'
+      expression: 154.28 → 154 → 15.4
       common_mistake: null
-    final_answer: 4300 visitors
-  random_seed: 947302
-  rendered_question: A stadium counted 4256 visitors at a concert. The marketing team needs to round this
-    number to the nearest hundred for the press release. What attendance should they report?
-  option_a: 4200 visitors
-  option_b: 4260 visitors
-  option_c: 4000 visitors
-  option_d: 4300 visitors
-  correct_option: d
+    final_answer: 15.4 degrees Celsius
+  random_seed: 947402
+  rendered_question: A digital thermometer displays 15.428 degrees Celsius. The weather report requires
+    the temperature rounded to the nearest tenth of a degree. What temperature should be reported?
+  option_a: 15.43 degrees Celsius
+  option_b: 15 degrees Celsius
+  option_c: 15.4 degrees Celsius
+  option_d: 15.5 degrees Celsius
+  correct_option: c
 - question_template_id: authored-number_sense-d5-947501
   topic_id: number_sense
   skill_id: number_rounding
@@ -889,6 +892,64 @@ templates:
   option_c: 4.8 inches
   option_d: 4.87 inches
   correct_option: a
+- question_template_id: authored-number_sense-d3-947302
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_down_when_digit_is_five
+  - rounded_to_wrong_place_value_tens
+  - rounded_to_wrong_place_value_thousands
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A stadium counted 4256 visitors at a concert. The marketing team needs to round this number to
+    the nearest hundred for the press release. What attendance should they report?
+  context_block: null
+  answer_expression: Eq(x, 100 * round(4256 / 100))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look at the digit in the tens place to decide whether to round the hundreds digit up or keep it the
+    same.
+  - The hundreds digit is 2, and the digit to its right is 5. When the digit to the right is 5 or greater,
+    round up.
+  - Since 5 is in the tens place, increase the 2 in the hundreds place to 3, then replace all digits to
+    the right with zeros.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the hundreds place in 4256. The digit 2 is in the hundreds place.
+      expression: 4256 = 4000 + 200 + 50 + 6
+      common_mistake: null
+    - step_number: 2
+      explanation: Look at the digit to the right of the hundreds place. The tens digit is 5.
+      expression: tens digit = 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Since 5 is greater than or equal to 5, round the hundreds digit up from 2 to 3.
+      expression: 200 → 300
+      common_mistake: null
+    - step_number: 4
+      explanation: Replace all digits to the right of the hundreds place with zeros.
+      expression: 4256 → 4300
+      common_mistake: null
+    final_answer: 4300 visitors
+  random_seed: 947302
+  rendered_question: A stadium counted 4256 visitors at a concert. The marketing team needs to round this
+    number to the nearest hundred for the press release. What attendance should they report?
+  option_a: 4200 visitors
+  option_b: 4260 visitors
+  option_c: 4000 visitors
+  option_d: 4300 visitors
+  correct_option: d
 - question_template_id: authored-number_sense-d4-947400
   topic_id: number_sense
   skill_id: number_rounding
@@ -997,67 +1058,6 @@ templates:
   option_c: 12.68 seconds
   option_d: 12.6 seconds
   correct_option: a
-- question_template_id: authored-number_sense-d4-947402
-  topic_id: number_sense
-  skill_id: number_rounding
-  grade_band: 4-5
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - rounded_in_wrong_direction
-  - rounded_to_wrong_place_value_hundredths
-  - rounded_to_wrong_place_value_ones
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A digital thermometer displays 15.428 degrees Celsius. The weather report requires the temperature
-    rounded to the nearest tenth of a degree. What temperature should be reported?
-  context_block: ''
-  answer_expression: Eq(x, Rational(1,10) * round(15.428 * 10))
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Identify which place value the thermometer reading must be rounded to.
-  - Look at the digit in the hundredths place to decide whether the tenths digit stays the same or increases
-    by one.
-  - Multiply the original number by 10, round that result to the nearest whole number, then divide by
-    10.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The thermometer shows 15.428 degrees Celsius and we need to round to the nearest tenth,
-        which is the first digit after the decimal point.
-      expression: '15.428'
-      common_mistake: null
-    - step_number: 2
-      explanation: To round to the nearest tenth, examine the digit in the hundredths place. In 15.428,
-        the hundredths digit is 2.
-      expression: hundredths digit = 2
-      common_mistake: null
-    - step_number: 3
-      explanation: Since 2 is less than 5, the tenths digit (4) remains unchanged, and all digits to the
-        right are dropped.
-      expression: '15.4'
-      common_mistake: null
-    - step_number: 4
-      explanation: 'Verify using the equation: multiply 15.428 by 10 to get 154.28, round to 154, then
-        divide by 10 to get 15.4.'
-      expression: 154.28 → 154 → 15.4
-      common_mistake: null
-    final_answer: 15.4 degrees Celsius
-  random_seed: 947402
-  rendered_question: A digital thermometer displays 15.428 degrees Celsius. The weather report requires
-    the temperature rounded to the nearest tenth of a degree. What temperature should be reported?
-  option_a: 15.43 degrees Celsius
-  option_b: 15 degrees Celsius
-  option_c: 15.4 degrees Celsius
-  option_d: 15.5 degrees Celsius
-  correct_option: c
 - question_template_id: authored-number_sense-d4-97401
   topic_id: number_sense
   skill_id: number_rounding
@@ -1111,6 +1111,65 @@ templates:
   option_c: 12.4 seconds
   option_d: 12.3 seconds
   correct_option: c
+- question_template_id: authored-number_sense-d5-947502
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - rounded_down_instead_of_up
+  - rounded_up_without_carrying
+  - did_not_round
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker weighs a cake at 7.996 kilograms and needs to round the weight to the nearest tenth of
+    a kilogram for the packaging label. What weight should appear on the label?
+  context_block: null
+  answer_expression: Eq(x, Rational(1,10) * round(7.996 * 10))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Identify the digit in the tenths place and the digit immediately to its right.
+  - The hundredths digit tells you whether to round the tenths digit up or keep it the same.
+  - If rounding up the 9 in the tenths place causes it to become 10, you must carry to the ones place.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'The weight is 7.996 kilograms. To round to the nearest tenth, locate the tenths place:
+        it is 9.'
+      expression: '7.996'
+      common_mistake: null
+    - step_number: 2
+      explanation: Look at the hundredths digit to decide whether to round up or stay. The hundredths
+        digit is 9, which is 5 or greater, so we round the tenths place up.
+      expression: 9 >= 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Rounding 9 in the tenths place up by 1 gives 10 tenths, which is the same as 1 whole.
+        This causes a carry into the ones place.
+      expression: 9 + 1 = 10
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add 1 to the ones place: 7 becomes 8. The tenths place becomes 0 after the carry.
+        All digits to the right become 0.'
+      expression: '8.0'
+      common_mistake: null
+    final_answer: 8.0 kilograms
+  random_seed: 947502
+  rendered_question: A baker weighs a cake at 7.996 kilograms and needs to round the weight to the nearest
+    tenth of a kilogram for the packaging label. What weight should appear on the label?
+  option_a: 8.0 kilograms
+  option_b: 7.9 kilograms
+  option_c: 7.996 kilograms
+  option_d: 8.1 kilograms
+  correct_option: a
 - question_template_id: authored-number_sense-d5-947500
   topic_id: number_sense
   skill_id: number_rounding
@@ -1170,62 +1229,3 @@ templates:
   option_c: 9970 dollars
   option_d: 10000 dollars
   correct_option: d
-- question_template_id: authored-number_sense-d5-947502
-  topic_id: number_sense
-  skill_id: number_rounding
-  grade_band: 4-5
-  difficulty_label: 5
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 120
-  common_error_tags:
-  - rounded_down_instead_of_up
-  - rounded_up_without_carrying
-  - did_not_round
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A baker weighs a cake at 7.996 kilograms and needs to round the weight to the nearest tenth of
-    a kilogram for the packaging label. What weight should appear on the label?
-  context_block: null
-  answer_expression: Eq(x, Rational(1,10) * round(7.996 * 10))
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Identify the digit in the tenths place and the digit immediately to its right.
-  - The hundredths digit tells you whether to round the tenths digit up or keep it the same.
-  - If rounding up the 9 in the tenths place causes it to become 10, you must carry to the ones place.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: 'The weight is 7.996 kilograms. To round to the nearest tenth, locate the tenths place:
-        it is 9.'
-      expression: '7.996'
-      common_mistake: null
-    - step_number: 2
-      explanation: Look at the hundredths digit to decide whether to round up or stay. The hundredths
-        digit is 9, which is 5 or greater, so we round the tenths place up.
-      expression: 9 >= 5
-      common_mistake: null
-    - step_number: 3
-      explanation: Rounding 9 in the tenths place up by 1 gives 10 tenths, which is the same as 1 whole.
-        This causes a carry into the ones place.
-      expression: 9 + 1 = 10
-      common_mistake: null
-    - step_number: 4
-      explanation: 'Add 1 to the ones place: 7 becomes 8. The tenths place becomes 0 after the carry.
-        All digits to the right become 0.'
-      expression: '8.0'
-      common_mistake: null
-    final_answer: 8.0 kilograms
-  random_seed: 947502
-  rendered_question: A baker weighs a cake at 7.996 kilograms and needs to round the weight to the nearest
-    tenth of a kilogram for the packaging label. What weight should appear on the label?
-  option_a: 8.0 kilograms
-  option_b: 7.9 kilograms
-  option_c: 7.996 kilograms
-  option_d: 8.1 kilograms
-  correct_option: a

@@ -24,7 +24,12 @@ Free: pure SymPy, no model call, no database.
 """
 
 import pytest
-from intellichoice_curriculum.authored_validation import validate_authored_item
+import sympy
+from intellichoice_curriculum import authored_validation as av
+from intellichoice_curriculum.authored_validation import (
+    _student_notation,
+    validate_authored_item,
+)
 from intellichoice_shared.bedrock import (
     AuthoredGeneratedItemResponse,
     SolutionResponse,
@@ -246,3 +251,308 @@ def test_an_ambiguous_item_matching_two_options_is_still_rejected():
     one - the second reading has to clear the same uniqueness bar as the first."""
     failures = _failures(_item(option_b="7 months"))
     assert failures
+
+
+# --------------------------------------------------------------------------------------
+# 5. D-297: the gate demanded a notation it could not read
+# --------------------------------------------------------------------------------------
+
+
+def _symbolic_item(**overrides) -> AuthoredGeneratedItemResponse:
+    """A factoring item whose options carry powers as superscripts, which is what D-288's
+    readability check requires of every student-facing field."""
+    base = dict(
+        stem=(
+            "A designer models a panel's area with the expression x cubed plus two x "
+            "squared plus three x plus six. Which factored form is equivalent?"
+        ),
+        option_a="(x² + 2)(x + 3)",
+        option_b="(x + 1)(x² + 6)",
+        option_c="(x + 2)(x² + 3)",
+        option_d="(x + 6)(x² + 1)",
+        correct_option="c",
+        hint_ladder=[
+            "Group the first two terms and the last two terms.",
+            "Take the common factor out of each group.",
+            "The two groups should leave the same bracket behind.",
+        ],
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Group the terms in pairs, then factor each pair.",
+                    expression="x**3 + 2*x**2 + 3*x + 6",
+                    common_mistake=None,
+                )
+            ],
+            final_answer="(x + 2)(x² + 3)",
+        ),
+        estimated_time_seconds=90,
+        misconception_tags=["mismatched_grouping"],
+        proposed_difficulty=3,
+        difficulty_rationale="grouping and a common factor",
+        required_prerequisites=["factoring by grouping"],
+        equation="x**3 + 2*x**2 + 3*x + 6",
+    )
+    return AuthoredGeneratedItemResponse(**{**base, **overrides})
+
+
+def test_a_superscript_power_in_a_symbolic_option_is_read_as_a_power():
+    """D-288 tells the generator to write `x²` and refuses `x**2`; the symbolic arm then
+    could not parse `x²` at all, so it rejected the item and blamed the answer key. Measured
+    over stored rejections: 8 of 38 recovered, and the ambiguous ones stayed rejected.
+    """
+    assert validate_authored_item(3, _symbolic_item()).passed, _failures(_symbolic_item())
+
+
+def test_a_wrong_symbolic_key_written_with_superscripts_is_still_rejected():
+    """The precision half. Reading the notation must not make a wrong key acceptable."""
+    failures = _failures(_symbolic_item(correct_option="b"))
+    assert failures
+    assert any("does not match" in f for f in failures), failures
+
+
+def test_two_options_equal_under_the_superscript_reading_are_still_ambiguous():
+    """The six items this reading turns from "the key is wrong" into "two options match"
+    must stay rejected - what improves is the reason, not the verdict. `x(x² + 2x + 3) + 6`
+    is the same polynomial as `(x + 2)(x² + 3)`, so an item offering both is ambiguous.
+    """
+    failures = _failures(_symbolic_item(option_a="x(x² + 2x + 3) + 6"))
+    assert failures
+    assert any("more than one option" in f for f in failures), failures
+
+
+def test_a_partially_factored_distractor_does_not_make_a_shipped_item_ambiguous():
+    """The regression the first version of D-297 caused, pinned so it cannot come back.
+
+    `alg2_polynomial_factor` asks for a *complete* factorisation, so its best distractor is
+    an incomplete one - and `3x(x² + 4x + 3)` is algebraically **equal** to
+    `3x(x + 1)(x + 3)`. The stem's word "completely" is what separates them and no
+    equivalence check can see a word. Applying the superscript reading unconditionally gave
+    two shipped, correct items a second matching option and the bank's own loader began
+    refusing them; scoping it to the D-281 seam (consulted only when the first reading
+    matched nothing) leaves them alone, because their first reading already matches exactly
+    one option.
+    """
+    item = _symbolic_item(
+        equation="3*x**3 + 12*x**2 + 9*x",
+        option_a="3x(x² + 4x + 3)",
+        option_b="3x(x + 1)(x + 3)",
+        option_c="x(x + 1)(x + 3)",
+        option_d="3x(x + 2)(x + 2)",
+        correct_option="b",
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Take out the common factor, then factor what is left.",
+                    expression="3*x**3 + 12*x**2 + 9*x",
+                    common_mistake=None,
+                )
+            ],
+            final_answer="3x(x + 1)(x + 3)",
+        ),
+    )
+    assert validate_authored_item(3, item).passed, _failures(item)
+
+
+# --------------------------------------------------------------------------------------
+# 6. D-298: the same contradiction on the value arm, and this one failed silently
+# --------------------------------------------------------------------------------------
+
+
+def _surd_item(**overrides) -> AuthoredGeneratedItemResponse:
+    base = dict(
+        stem=(
+            "A square patio covers 98 square feet. Written in simplest radical form, how "
+            "long is each side in feet?"
+        ),
+        option_a="49√2",
+        option_b="7√2",
+        option_c="14√2",
+        option_d="9 feet",
+        correct_option="b",
+        hint_ladder=[
+            "The side length is the square root of the area.",
+            "Look for a perfect square that divides 98.",
+            "98 is 49 times 2, and 49 is a perfect square.",
+        ],
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Split the area into a perfect square times what is left.",
+                    expression="x = sqrt(98)",
+                    common_mistake=None,
+                )
+            ],
+            final_answer="7√2",
+        ),
+        estimated_time_seconds=70,
+        misconception_tags=["kept_the_perfect_square_inside"],
+        proposed_difficulty=3,
+        difficulty_rationale="simplifying a surd into a coefficient and a radical",
+        required_prerequisites=["perfect squares"],
+        equation="Eq(x, sqrt(98))",
+    )
+    return AuthoredGeneratedItemResponse(**{**base, **overrides})
+
+
+def test_a_coefficient_in_front_of_a_radical_is_read_as_multiplication():
+    """`7√2` is how anyone writes a surd, and D-288's readability check asks for exactly
+    that. `sympy.sympify` cannot do the implicit multiplication, so `alg2_irrational` took
+    0 of 2 and the rejection blamed an answer key that was right.
+    """
+    assert validate_authored_item(3, _surd_item()).passed, _failures(_surd_item())
+
+
+def test_a_radical_option_parses_as_a_number_and_not_as_a_symbol():
+    """The reason D-298 was worse than D-297: it failed *silently*.
+
+    `sympy.sympify('√2')` returns `Symbol('√2')` - not a number, never equal to one, and it
+    raises nothing. A first attempt at this fix only inserted the missing `*`, on the
+    strength of `_sympify('√2')` printing `√2`, which is SymPy pretty-printing that symbol.
+    So the transform has to produce `sqrt(...)`, and this pins it.
+    """
+    parsed = sympy.sympify(_student_notation("7√2"))
+    assert parsed.is_number, f"{parsed!r} is not a number"
+    assert parsed == 7 * sympy.sqrt(2)
+
+
+def test_an_unsimplified_radical_equal_to_the_answer_is_ambiguous_not_wrong():
+    """`4√8` and `8√2` are the same number, so an item offering both cannot be graded - the
+    stem's "simplest radical form" is what separates them and no value check sees a phrase.
+    The third skill with this shape, after `alg2_polynomial_factor` (D-297) and
+    `g6_fractions` (lowest terms). It stays rejected; the reason becomes true.
+    """
+    item = _surd_item(
+        equation="Eq(x, sqrt(128))",
+        option_a="64√2",
+        option_b="8√2",
+        option_c="16√2",
+        option_d="4√8",
+        correct_option="b",
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Split the area into a perfect square times what is left.",
+                    expression="x = sqrt(128)",
+                    common_mistake=None,
+                )
+            ],
+            final_answer="8√2",
+        ),
+    )
+    failures = _failures(item)
+    assert failures
+    assert any("more than one option" in f for f in failures), failures
+
+
+def test_a_wrong_surd_is_still_rejected():
+    """The precision half: reading the notation must not make a wrong key acceptable."""
+    failures = _failures(_surd_item(correct_option="c"))
+    assert failures
+    assert any("does not match" in f for f in failures), failures
+
+
+def test_two_options_stating_the_answer_under_the_FIRST_reading_are_rejected():
+    """The exactly-one bar on the *first* reading, which had no test at all (found D-299).
+
+    Every existing ambiguity test here reaches `len(matches) > 1` through a *second* reading
+    - the boundary, the prose interval, the student notation. So a change that truncated the
+    first reading's match list to one entry passed the entire suite while letting a genuinely
+    ungradeable item through. Discovered by deliberately breaking `matching_options` after
+    extracting it, which is the only reason it is covered now.
+    """
+    item = _item(
+        stem=(
+            "A shop sells notebooks in packs of 6. A teacher buys 7 packs for her class. "
+            "How many notebooks does she have in total?"
+        ),
+        equation="Eq(x, 6 * 7)",
+        option_a="42 notebooks",
+        option_b="42.0 notebooks",
+        option_c="13 notebooks",
+        option_d="36 notebooks",
+        correct_option="a",
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Multiply the number of packs by the pack size.",
+                    expression="x = 6 * 7",
+                    common_mistake=None,
+                )
+            ],
+            final_answer="42 notebooks",
+        ),
+    )
+    failures = _failures(item)
+    assert failures, "two options stating 42 must not be gradeable"
+    assert any("more than one option" in f for f in failures), failures
+
+
+# --------------------------------------------------------------------------------------
+# 7. D-303: what counts as one sentence, for the readability ceiling
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "expected", "why"),
+    [
+        ("A cat sat. A dog ran.", 2, "the ordinary case"),
+        ("The recipe needs 2.5 cups of flour today.", 1, "a decimal is not a sentence end"),
+        ("She paid $3.50 for 1.5 kg of apples.", 1, "two decimals, still one sentence"),
+        ('3 say "Try Again." What is the probability?', 2, "the period sits inside the quote"),
+        ("then p(c) = 0.\n\nAn engineer models it.", 2, "a sentence may end in a digit"),
+        ("Divide 756 by 6. The answer is 126.", 2, "so may both of them"),
+        ("Is it 4? Yes! Done.", 3, "? and ! end sentences too"),
+    ],
+)
+def test_the_readability_ceiling_agrees_about_what_a_sentence_is(text, expected, why):
+    """Every one of these was wrong in some draft of `_sentences`, which is why they are here.
+
+    The shipped version before D-303 was `re.split(r"[.!?]", text)` and split decimals, so a
+    long sentence became short fragments and cleared the 30-word ceiling. My first replacement
+    required whitespace after the period and so read `say "Try Again." What is...` as one
+    48-word sentence; my second added a no-digit-before rule and so refused to end a sentence
+    at `= 0.`, which is how half of a mathematics explanation ends.
+    """
+    assert len(av._sentences(text)) == expected, why
+
+
+def test_a_long_sentence_full_of_decimals_no_longer_clears_the_ceiling():
+    """The hole D-303 closed, as the sentence that demonstrated it.
+
+    33 words carrying six decimals. The old splitter saw seven fragments of 4-6 words and
+    passed it; spelled out without decimals the same sentence was rejected at 51 words, which
+    is the inconsistency that made this a defect rather than a preference.
+
+    Measured before fixing: **0 of 9,552** bank sentences actually exploited it, so this
+    protects future content rather than repairing existing content.
+    """
+    padded = (
+        "The recipe needs 2.5 cups of flour and 3.5 cups of sugar and 1.5 spoons of salt "
+        "and 4.5 grams of yeast and 6.5 millilitres of water and 7.5 pinches of pepper today"
+    )
+    assert len(padded.split()) > 30
+    assert len(av._sentences(padded)) == 1, "one sentence, however many decimals it carries"
+
+
+def test_the_gate_itself_applies_the_corrected_sentence_rule():
+    """The wiring, not just the helper - and the reason this test exists is a near miss.
+
+    The parametrised cases above call `_sentences` directly, so they pass whether or not
+    `check_age_appropriate_wording` actually uses it: reverting the call site to
+    `re.split(r"[.!?]", text)` left all of them green. A rule nothing routes through is not
+    enforced, which is the same lesson `matching_options` taught in D-299.
+    """
+    long_decimal_sentence = (
+        "A baker measures 2.5 cups of flour and 3.5 cups of sugar and 1.5 spoons of salt "
+        "and 4.5 grams of yeast and 6.5 millilitres of water and 7.5 pinches of pepper, "
+        "so how many months of savings are needed?"
+    )
+    assert len(long_decimal_sentence.split()) > 30
+    failures = _failures(_item(stem=long_decimal_sentence))
+    assert any("readability ceiling" in f for f in failures), failures

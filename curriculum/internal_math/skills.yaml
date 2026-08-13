@@ -474,11 +474,19 @@ skills:
     # beside 3/4, 4/6 beside 2/3). The gate is right on its own terms: two options a student
     # cannot tell apart must never both be on screen. What it costs is this skill's best
     # distractor, so the constraint is stated to the author instead.
+    # D-308 removes the distractor prohibition above, because the gate can now read the
+    # difference the prohibition existed to avoid. Measured before changing it: this skill had
+    # **0 items in the bank** - every candidate it ever produced died on the equal-value rule,
+    # 29 of them - and D-306 measured the repair path against it at 0 of 4 twice, because
+    # "several equivalent fractions, pick the reduced one" *is* the model's conception of the
+    # item. It was right and the gate could not see it.
     structure: "one fraction written as a division that reduces, e.g. Eq(x, Rational(24, 36))
-      - the answer is the reduced fraction, so it must not be a whole number. No distractor
-      may be an unreduced form of the answer (never 6/8 beside 3/4): use a fraction of a
-      DIFFERENT value, such as the reciprocal or one with a mis-divided numerator"
+      - the answer is the reduced fraction, so it must not be a whole number. Distractors
+      SHOULD include unreduced equivalents of the answer (4/6 and 6/9 beside 2/3): that is
+      the misconception this skill tests, and exactly one option being in lowest terms is
+      what makes the question answerable"
     answer_family: rational
+    answer_form: lowest_terms
 
   - skill_id: g6_fraction_mul_div
     topic_id: g6_fractions
@@ -756,8 +764,13 @@ skills:
     topic_id: algebra_2
     name: "Simplify irrational numbers"
     difficulty_tiers: [1, 2]
-    structure: "a surd simplified, e.g. Eq(x, sqrt(50)) - the answer is 5*sqrt(2), not a decimal. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    # D-308, same correction as `g6_fraction_reduce`: the "must differ in value" rule was the
+    # gate's limitation stated as an authoring constraint, and it forbade this skill's most
+    # instructive distractor. 23 stored rejections are `2√20` beside `4√5` - one of the
+    # generator's own misconception tags is literally `stopped_halfway_through_simplification`.
+    structure: "a surd simplified, e.g. Eq(x, sqrt(50)) - the answer is 5*sqrt(2), not a decimal. A distractor MAY be an unsimplified equivalent (sqrt(72) beside 6*sqrt(2)): exactly one option must have a square-free radicand, and that one is the answer. Otherwise use wrong signs, wrong factors or wrong coefficients."
     answer_family: rational
+    answer_form: simplest_radical
 
   - skill_id: alg2_polynomial_factor
     topic_id: algebra_2

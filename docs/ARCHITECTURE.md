@@ -47,6 +47,50 @@ to rot, because nothing fails when it does.)*
 
 ## Cross-cutting invariants the diagrams encode
 
+- **A topic is offered when it can fill one exam, and its difficulty labels are the judge's
+  reading** (D-300/D-301/D-302). Two rules that had to change together. `topic_availability`
+  asked for `QUESTIONS_PER_DIFFICULTY` at *every* tier 1-5, so one thin tier closed a whole
+  topic; and a ±1 disagreement between the difficulty judge and the slot was `flagged`, which
+  kept the **slot's** tier — so 327 of 759 serving items carried the plan's intent over a
+  recorded judge disagreement, and re-judging them looked like an instrument that could not
+  reproduce its own labels (19% exact) when it was being scored against a label it never
+  assigned (62% against its own). Storing the judge's tier alone moves 214 items down against
+  116 up and empties the top tiers: openable topics would have gone 26 → 12. Under
+  `EXAM_QUESTION_COUNT` (= 2 × 5 = 10, so exam length is unchanged) it is **33 → 33**. The
+  builder draws up to two per tier exactly as before and then tops up from tiers with surplus,
+  so a topic holding two everywhere produces a byte-identical seeded exam. **The cost is real
+  and is the point:** a topic with little tier-5 content now serves an easier exam, so exam
+  difficulty varies by *topic* and not only by student — `g2_word_problems` draws 7 of 10 items
+  at tier 1. The threshold is imported from the builder rather than restated, because an
+  available topic the builder refuses is the 503 that rule exists to prevent, and
+  `test_every_topic_the_picker_calls_available_can_actually_build_an_exam` drives all 33 through
+  both.
+- **"Exactly one option is correct" is a claim about the answer's *value*, except where a skill
+  declares that it is a claim about the answer's *written form*** (D-308). The gate derives the
+  answer from the item's own equation and refuses the item when more than one option matches. For
+  96 of 99 authorable skills that is the whole rule. For a skill whose question asks for a form —
+  "reduce to lowest terms", "simplify" — it refuses the skill's best item, because `12/18`, `6/9`,
+  `2/3` and `4/6` are one value and four different answers to *that* question. The tie-break
+  therefore reads the option **text**: `sympify('4/6')` is already `2/3` and `sqrt(80)` is already
+  `4*sqrt(5)`, so the parsed value has lost the information before any comparison happens. Three
+  properties make this a scoping rule rather than a loosening: it is keyed on
+  `SkillDef.answer_form`, declared on **exactly two** skills and pinned as a set by a test; it
+  fails closed, so a form that leaves two canonical options or none leaves the rejection standing;
+  and the whole decision — readings, then tie-break — lives in one function, `resolved_matches`,
+  called by the pipeline, the loader and both censuses. That last point is the load-bearing one:
+  the reading sequence had already expired **four** times as a duplicated premise, most recently
+  when a bank-wide test still asserted "exactly one option matches" against content this rule
+  admits by design. Measured: **0 of the 936** items predating it change verdict, and the 14 that
+  depend on it are all new.
+- **`session_scope` is a unit of work: it commits on a clean exit and rolls back on an
+  exception** (D-284 addendum, fixed in D-294). It used to do neither — yield a session, close
+  it — so a caller that wrote without committing got a **no-op that reported success**:
+  `set_active_status` flushes, so a one-off script printed `activated 26, retired 3` and rolled
+  all of it back on the way out, and it was caught only because the export that followed produced
+  an empty diff. Measured before changing it: **0 of 66** `session_scope` blocks in the repo write
+  without an explicit commit, so the change alters nothing that exists and protects the *ad-hoc*
+  script, which is where the bug bit. It also matches the convention the request path already
+  sets — `get_db_session` in both apps commits after its yield.
 - **Authored content is served from the bank, not regenerated** (D-207). An authored template's
   `canonical_solution` was verified by the offline pipeline (SymPy re-solve + answer-key agreement)
   and written to `question_templates.canonical_solution` by the loader; the serving path reads it

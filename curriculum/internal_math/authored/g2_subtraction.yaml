@@ -227,7 +227,7 @@ templates:
   topic_id: g2_subtraction
   skill_id: g2_sub_three_numbers
   grade_band: 2-3
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -369,56 +369,6 @@ templates:
   option_c: 30 stickers
   option_d: 50 stickers
   correct_option: d
-- question_template_id: authored-g2_subtraction-d1-37101
-  topic_id: g2_subtraction
-  skill_id: g2_sub_two_digit
-  grade_band: 2-3
-  difficulty_label: 1
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 45
-  common_error_tags:
-  - added_instead_of_subtracting
-  - added_tens_digit_twice
-  - subtracted_from_smaller_number
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A bakery had 70 cupcakes in the morning and sold 20 cupcakes by noon. How many cupcakes are left?
-  context_block: null
-  answer_expression: Eq(x, 70 - 20)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Think about whether the bakery has more or fewer cupcakes after selling some.
-  - You need to subtract the number sold from the number the bakery started with.
-  - Write 70 - 20 and find the difference.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The bakery started with 70 cupcakes.
-      expression: '70'
-      common_mistake: null
-    - step_number: 2
-      explanation: The bakery sold 20 cupcakes, so we subtract 20 from 70.
-      expression: 70 - 20
-      common_mistake: null
-    - step_number: 3
-      explanation: Subtract to find the number of cupcakes remaining.
-      expression: '50'
-      common_mistake: null
-    final_answer: 50 cupcakes
-  random_seed: 37101
-  rendered_question: A bakery had 70 cupcakes in the morning and sold 20 cupcakes by noon. How many cupcakes
-    are left?
-  option_a: 90 cupcakes
-  option_b: 50 cupcakes
-  option_c: 52 cupcakes
-  option_d: 30 cupcakes
-  correct_option: b
 - question_template_id: authored-g2_subtraction-d1-37102
   topic_id: g2_subtraction
   skill_id: g2_sub_two_digit
@@ -518,6 +468,56 @@ templates:
   option_b: 30 stickers
   option_c: 40 stickers
   option_d: 70 stickers
+  correct_option: b
+- question_template_id: authored-g2_subtraction-d1-37101
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - added_tens_digit_twice
+  - subtracted_from_smaller_number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery had 70 cupcakes in the morning and sold 20 cupcakes by noon. How many cupcakes are left?
+  context_block: null
+  answer_expression: Eq(x, 70 - 20)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about whether the bakery has more or fewer cupcakes after selling some.
+  - You need to subtract the number sold from the number the bakery started with.
+  - Write 70 - 20 and find the difference.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bakery started with 70 cupcakes.
+      expression: '70'
+      common_mistake: null
+    - step_number: 2
+      explanation: The bakery sold 20 cupcakes, so we subtract 20 from 70.
+      expression: 70 - 20
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract to find the number of cupcakes remaining.
+      expression: '50'
+      common_mistake: null
+    final_answer: 50 cupcakes
+  random_seed: 37101
+  rendered_question: A bakery had 70 cupcakes in the morning and sold 20 cupcakes by noon. How many cupcakes
+    are left?
+  option_a: 90 cupcakes
+  option_b: 50 cupcakes
+  option_c: 52 cupcakes
+  option_d: 30 cupcakes
   correct_option: b
 - question_template_id: authored-g2_subtraction-d2-7200
   topic_id: g2_subtraction
