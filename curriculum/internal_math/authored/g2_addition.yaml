@@ -1,69 +1,11 @@
 curriculum_version: '2026.1'
 topic_id: g2_addition
 templates:
-- question_template_id: authored-g2_addition-d4-5400
-  topic_id: g2_addition
-  skill_id: g2_add_multi_digit
-  grade_band: 2-3
-  difficulty_label: 4
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 90
-  common_error_tags:
-  - forgot_to_carry_in_tens_place
-  - added_incorrectly_in_hundreds_place
-  - added_extra_thousand
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A library owns 2456 books on science and 1378 books on history. How many books do they own altogether?
-  context_block: null
-  answer_expression: x = 2456 + 1378
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Think about what operation you need to find a combined total from two separate groups.
-  - Add the number of science books to the number of history books.
-  - Line up the place values and add column by column, remembering to carry when needed.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: 'Write the addition with place values aligned: 2456 plus 1378.'
-      expression: 2456 + 1378
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Add the ones place: 6 + 8 = 14. Write 4 and carry 1.'
-      expression: 'ones: 6 + 8 = 14, write 4, carry 1'
-      common_mistake: null
-    - step_number: 3
-      explanation: 'Add the tens place: 5 + 7 + 1 (carried) = 13. Write 3 and carry 1.'
-      expression: 'tens: 5 + 7 + 1 = 13, write 3, carry 1'
-      common_mistake: null
-    - step_number: 4
-      explanation: 'Add the hundreds place: 4 + 3 + 1 (carried) = 8. Write 8.'
-      expression: 'hundreds: 4 + 3 + 1 = 8'
-      common_mistake: null
-    - step_number: 5
-      explanation: 'Add the thousands place: 2 + 1 = 3. Write 3.'
-      expression: 'thousands: 2 + 1 = 3'
-      common_mistake: null
-    final_answer: 3834 books
-  random_seed: 5400
-  rendered_question: A library owns 2456 books on science and 1378 books on history. How many books do
-    they own altogether?
-  option_a: 3824 books
-  option_b: 3734 books
-  option_c: 3834 books
-  option_d: 4834 books
-  correct_option: c
 - question_template_id: authored-g2_addition-d4-5401
   topic_id: g2_addition
   skill_id: g2_add_multi_digit
   grade_band: 2-3
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -122,6 +64,64 @@ templates:
   option_c: 4834 books
   option_d: 3734 books
   correct_option: a
+- question_template_id: authored-g2_addition-d4-5400
+  topic_id: g2_addition
+  skill_id: g2_add_multi_digit
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_carry_in_tens_place
+  - added_incorrectly_in_hundreds_place
+  - added_extra_thousand
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library owns 2456 books on science and 1378 books on history. How many books do they own altogether?
+  context_block: null
+  answer_expression: x = 2456 + 1378
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what operation you need to find a combined total from two separate groups.
+  - Add the number of science books to the number of history books.
+  - Line up the place values and add column by column, remembering to carry when needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the addition with place values aligned: 2456 plus 1378.'
+      expression: 2456 + 1378
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the ones place: 6 + 8 = 14. Write 4 and carry 1.'
+      expression: 'ones: 6 + 8 = 14, write 4, carry 1'
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tens place: 5 + 7 + 1 (carried) = 13. Write 3 and carry 1.'
+      expression: 'tens: 5 + 7 + 1 = 13, write 3, carry 1'
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the hundreds place: 4 + 3 + 1 (carried) = 8. Write 8.'
+      expression: 'hundreds: 4 + 3 + 1 = 8'
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Add the thousands place: 2 + 1 = 3. Write 3.'
+      expression: 'thousands: 2 + 1 = 3'
+      common_mistake: null
+    final_answer: 3834 books
+  random_seed: 5400
+  rendered_question: A library owns 2456 books on science and 1378 books on history. How many books do
+    they own altogether?
+  option_a: 3824 books
+  option_b: 3734 books
+  option_c: 3834 books
+  option_d: 4834 books
+  correct_option: c
 - question_template_id: authored-g2_addition-d4-97400
   topic_id: g2_addition
   skill_id: g2_add_multi_digit
@@ -628,7 +628,7 @@ templates:
   topic_id: g2_addition
   skill_id: g2_add_within_100
   grade_band: 2-3
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -827,11 +827,67 @@ templates:
   option_c: 49 cookies
   option_d: 48 cookies
   correct_option: c
-- question_template_id: authored-g2_addition-d2-99201
+- question_template_id: authored-g2_addition-d3-7301
   topic_id: g2_addition
   skill_id: g2_add_within_100
   grade_band: 2-3
   difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_carry
+  - concatenated_digits_instead_of_adding
+  - subtracted_instead_of_added
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student has 28 stickers in her collection and receives 35 more stickers as a birthday gift.
+    How many stickers does she have now?
+  context_block: null
+  answer_expression: x = 28 + 35
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by identifying how many stickers the student begins with and how many she receives.
+  - You need to combine the starting amount and the new amount to find the total.
+  - Write the addition 28 + 35 and add the ones place first, remembering to carry if needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The student starts with 28 stickers and receives 35 more. We need to add these two
+        amounts together.
+      expression: x = 28 + 35
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the ones place: 8 + 5 = 13. Write down 3 and carry 1 to the tens place.'
+      expression: 8 + 5 = 13, write 3 carry 1
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tens place: 2 + 3 + 1 (carried) = 6. Write down 6 in the tens place.'
+      expression: 2 + 3 + 1 = 6
+      common_mistake: null
+    - step_number: 4
+      explanation: Combining the tens and ones places gives us the total.
+      expression: x = 63
+      common_mistake: null
+    final_answer: 63 stickers
+  random_seed: 7301
+  rendered_question: A student has 28 stickers in her collection and receives 35 more stickers as a birthday
+    gift. How many stickers does she have now?
+  option_a: 53 stickers
+  option_b: 63 stickers
+  option_c: 7 stickers
+  option_d: 513 stickers
+  correct_option: b
+- question_template_id: authored-g2_addition-d2-99201
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 45
   common_error_tags:
@@ -938,62 +994,6 @@ templates:
   option_c: 54 stickers
   option_d: 52 stickers
   correct_option: a
-- question_template_id: authored-g2_addition-d3-7301
-  topic_id: g2_addition
-  skill_id: g2_add_within_100
-  grade_band: 2-3
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - forgot_to_carry
-  - concatenated_digits_instead_of_adding
-  - subtracted_instead_of_added
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A student has 28 stickers in her collection and receives 35 more stickers as a birthday gift.
-    How many stickers does she have now?
-  context_block: null
-  answer_expression: x = 28 + 35
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Start by identifying how many stickers the student begins with and how many she receives.
-  - You need to combine the starting amount and the new amount to find the total.
-  - Write the addition 28 + 35 and add the ones place first, remembering to carry if needed.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The student starts with 28 stickers and receives 35 more. We need to add these two
-        amounts together.
-      expression: x = 28 + 35
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Add the ones place: 8 + 5 = 13. Write down 3 and carry 1 to the tens place.'
-      expression: 8 + 5 = 13, write 3 carry 1
-      common_mistake: null
-    - step_number: 3
-      explanation: 'Add the tens place: 2 + 3 + 1 (carried) = 6. Write down 6 in the tens place.'
-      expression: 2 + 3 + 1 = 6
-      common_mistake: null
-    - step_number: 4
-      explanation: Combining the tens and ones places gives us the total.
-      expression: x = 63
-      common_mistake: null
-    final_answer: 63 stickers
-  random_seed: 7301
-  rendered_question: A student has 28 stickers in her collection and receives 35 more stickers as a birthday
-    gift. How many stickers does she have now?
-  option_a: 53 stickers
-  option_b: 63 stickers
-  option_c: 7 stickers
-  option_d: 513 stickers
-  correct_option: b
 - question_template_id: authored-g2_addition-d3-99300
   topic_id: g2_addition
   skill_id: g2_add_within_100

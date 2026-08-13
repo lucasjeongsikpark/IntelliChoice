@@ -1926,6 +1926,17 @@ openable, and **12 of them are tier 5**. Depth against D-223's 5-per-tier target
 on the same question — whether the difficulty rubric or the five-tier requirement is what should
 change — which is the first item of the next session rather than more generation.
 
+> **⏸ Amended 2026-08-12 by D-295 — the diagnosis above is incomplete, and the correction is
+> cheaper than either option it offered.** `judge_difficulty` *retiers* a `slot_gap >= 2` when
+> the run's histogram shows the judge discriminating and rejects only when it does not, so the
+> **87 retiered and 117 rejected candidates are the same disagreement at the same tiers**. And
+> `_MIN_JUDGE_OBSERVATIONS = 5` blocks **100% of positions 1-4 of every run** against 0.6% at
+> position 11+, so **the cost driver is the number of runs, not the tier mix** — this depth pass
+> ran many small per-topic batches and paid ~4 un-retierable candidates each time. Re-running it
+> as one large run is the first thing to try, and it needs no code change; the rubric question
+> (D-292) is still open but should be measured against runs that are not also paying a warm-up
+> toll. D-292's description of the ±1 policy is also backwards on both halves — see D-295.
+
 **Phase 4 — Video catalog across the taxonomy.**
 Runs after Phase 1's taxonomy lands (the classifier can only assign skills that exist). Choose
 K-12 math channels; verify YouTube API key + `packages/youtube` settings prerequisites; run

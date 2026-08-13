@@ -235,6 +235,63 @@ templates:
   option_c: 17.32 meters
   option_d: 25.98 meters
   correct_option: b
+- question_template_id: authored-trigonometry-d3-1605301
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - computed_sin_squared_only
+  - stopped_at_cosine_value
+  - misadded_fractions_with_same_denominator
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A physics class is investigating whether the Pythagorean identity sin²(θ) + cos²(θ) = 1 holds
+    true. Maya uses a calculator to check this identity at θ = 60°. She computes sin(60°) and cos(60°),
+    squares each result, and adds them. What value does she get?
+  context_block: null
+  answer_expression: x = sin(pi/3)**2 + cos(pi/3)**2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - sin(60°) equals √3/2 and cos(60°) equals 1/2. Square each of these separately.
+  - sin²(60°) is (√3/2)² = 3/4 and cos²(60°) is (1/2)² = 1/4. Now add them together.
+  - You need to compute 3/4 + 1/4 by adding the numerators over the common denominator.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the exact values of sin(60°) and cos(60°) from the special angles in trigonometry.
+      expression: sin(60°) = √3/2, cos(60°) = 1/2
+      common_mistake: null
+    - step_number: 2
+      explanation: Square sin(60°) to find sin²(60°).
+      expression: sin²(60°) = (√3/2)² = (√3)²/2² = 3/4
+      common_mistake: null
+    - step_number: 3
+      explanation: Square cos(60°) to find cos²(60°).
+      expression: cos²(60°) = (1/2)² = 1²/2² = 1/4
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the two squared values together.
+      expression: sin²(60°) + cos²(60°) = 3/4 + 1/4 = (3 + 1)/4 = 4/4 = 1
+      common_mistake: null
+    final_answer: '1'
+  random_seed: 1605301
+  rendered_question: A physics class is investigating whether the Pythagorean identity sin²(θ) + cos²(θ)
+    = 1 holds true. Maya uses a calculator to check this identity at θ = 60°. She computes sin(60°) and
+    cos(60°), squares each result, and adds them. What value does she get?
+  option_a: '1'
+  option_b: 3/4
+  option_c: 1/2
+  option_d: 7/4
+  correct_option: a
 - question_template_id: authored-trigonometry-d3-95300
   topic_id: trigonometry
   skill_id: trig_functions
@@ -302,7 +359,7 @@ templates:
   topic_id: trigonometry
   skill_id: trig_functions
   grade_band: 10-11
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -358,11 +415,209 @@ templates:
   option_c: 14 meters
   option_d: 48.5 meters
   correct_option: b
+- question_template_id: authored-trigonometry-d4-1505401
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_at_partial_sine_value
+  - evaluated_wrong_component
+  - arithmetic_error_with_radians
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A lighting designer is testing spotlights on a stage. One beam produces light intensity that varies
+    with angle as sin(π/3) times the cosine of π/6 radians, plus cosine of π/3 times the sine of π/6 radians.
+    What is the simplified value of this combined light intensity?
+  context_block: The lighting designer uses trigonometric functions to model how light intensity varies
+    with different beam angles on stage. Understanding how to simplify complex trigonometric expressions
+    helps predict and control the final brightness at any position.
+  answer_expression: x = sin(pi/3)*cos(pi/6) + cos(pi/3)*sin(pi/6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Look at the structure: you have a sine times a cosine, plus a cosine times a sine. This pattern matches
+    a well-known trig identity.'
+  - The sine addition formula says sin(A + B) = sin(A)·cos(B) + cos(A)·sin(B). Can you identify what A
+    and B are?
+  - If A = π/3 and B = π/6, then the expression becomes sin(π/3 + π/6) = sin(π/2). Now evaluate that.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Recognize that the expression sin(π/3)·cos(π/6) + cos(π/3)·sin(π/6) has the form sin(A)·cos(B)
+        + cos(A)·sin(B), which matches the sine addition formula.
+      expression: sin(A + B) = sin(A)·cos(B) + cos(A)·sin(B)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Identify the angles: A = π/3 and B = π/6. Rewrite the expression as sin(π/3 + π/6).'
+      expression: sin(π/3 + π/6) = sin((2π + π)/6) = sin(3π/6) = sin(π/2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate sin(π/2). The sine of π/2 radians (or 90 degrees) equals 1.
+      expression: sin(π/2) = 1
+      common_mistake: null
+    final_answer: '1'
+  random_seed: 1505401
+  rendered_question: 'The lighting designer uses trigonometric functions to model how light intensity
+    varies with different beam angles on stage. Understanding how to simplify complex trigonometric expressions
+    helps predict and control the final brightness at any position.
+
+
+    A lighting designer is testing spotlights on a stage. One beam produces light intensity that varies
+    with angle as sin(π/3) times the cosine of π/6 radians, plus cosine of π/3 times the sine of π/6 radians.
+    What is the simplified value of this combined light intensity?'
+  option_a: 1/2
+  option_b: '1'
+  option_c: (√3 + 1)/2
+  option_d: √3/2
+  correct_option: b
+- question_template_id: authored-trigonometry-d4-1605400
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_at_squared_fraction
+  - forgot_to_subtract_one
+  - used_wrong_standard_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: An architect is designing the angle of a roof truss. She needs to find the exact value of the
+    expression 2cos²(π/6) − 1 using a trigonometric identity. This value will help her determine if the
+    truss angle matches π/3 radians. What is the simplified exact value of this expression?
+  context_block: The double angle identity states that cos(2θ) = 2cos²(θ) − 1. This identity is useful
+    in engineering and architecture for computing exact angle values without a calculator.
+  answer_expression: Eq(x, 2*cos(pi/6)**2 - 1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First, recall that cos(π/6) is a standard value you should know. What is cos(π/6)?
+  - Now that you know cos(π/6) = √3/2, substitute this value into the expression 2cos²(π/6) − 1 and square
+    the fraction carefully.
+  - 'Work step-by-step: square √3/2 to get 3/4, multiply by 2 to get 3/2, then subtract 1 from 3/2.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Recall the standard value of cosine at π/6 radians.
+      expression: cos(π/6) = √3/2
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute cos(π/6) = √3/2 into the expression 2cos²(π/6) − 1.
+      expression: x = 2(√3/2)² − 1
+      common_mistake: null
+    - step_number: 3
+      explanation: Square the fraction (√3/2)² by squaring the numerator and denominator separately.
+      expression: (√3/2)² = (√3)²/2² = 3/4
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 2 by 3/4 to get 3/2.
+      expression: 2 × 3/4 = 6/4 = 3/2
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 1 from 3/2 by writing 1 as 2/2.
+      expression: 3/2 − 1 = 3/2 − 2/2 = 1/2
+      common_mistake: null
+    final_answer: 1/2
+  random_seed: 1605400
+  rendered_question: 'The double angle identity states that cos(2θ) = 2cos²(θ) − 1. This identity is useful
+    in engineering and architecture for computing exact angle values without a calculator.
+
+
+    An architect is designing the angle of a roof truss. She needs to find the exact value of the expression
+    2cos²(π/6) − 1 using a trigonometric identity. This value will help her determine if the truss angle
+    matches π/3 radians. What is the simplified exact value of this expression?'
+  option_a: 3/4
+  option_b: 1/2
+  option_c: √3/2
+  option_d: '1'
+  correct_option: b
+- question_template_id: authored-trigonometry-d4-1605402
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_square
+  - confused_exact_value
+  - algebraic_error_in_simplification
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A landscape designer is planning a hillside trail. The slope makes a 60° angle with the horizontal
+    ground. To calculate a certain structural property, the designer needs to find tan²(60°), which means
+    (tan 60°)². What is the value of tan²(60°)?
+  context_block: The exact trigonometric values at standard angles are tools for solving real problems
+    without a calculator. In this case, the designer applies the exact value of tan(60°) = √3.
+  answer_expression: x = tan(pi/3)**2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'The 60° angle (or π/3 radians) is one of the special angles where you should know the exact tangent
+    value. Recall or look up: what is tan(60°)?'
+  - 'Once you have tan(60°) = √3, the next step is to square that value: (√3)². What do you get when you
+    multiply √3 by itself?'
+  - Computing (√3)² is the same as √3 × √3. When you multiply a square root by itself, the root and the
+    exponent cancel.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The angle 60° is equivalent to π/3 radians, a standard angle with a known exact trigonometric
+        value.
+      expression: 60° = π/3
+      common_mistake: null
+    - step_number: 2
+      explanation: Recall the exact value of tangent at this standard angle.
+      expression: tan(60°) = tan(π/3) = √3
+      common_mistake: null
+    - step_number: 3
+      explanation: The problem asks for tan²(60°), which means we square the tangent value.
+      expression: tan²(60°) = (tan(60°))² = (√3)²
+      common_mistake: null
+    - step_number: 4
+      explanation: When we square a square root, the radical and the exponent cancel, leaving the number
+        under the radical.
+      expression: (√3)² = √3 × √3 = 3
+      common_mistake: A student might incorrectly think (√3)² = √(3²) = √9 = 3 or just write √3 without
+        squaring.
+    final_answer: '3'
+  random_seed: 1605402
+  rendered_question: 'The exact trigonometric values at standard angles are tools for solving real problems
+    without a calculator. In this case, the designer applies the exact value of tan(60°) = √3.
+
+
+    A landscape designer is planning a hillside trail. The slope makes a 60° angle with the horizontal
+    ground. To calculate a certain structural property, the designer needs to find tan²(60°), which means
+    (tan 60°)². What is the value of tan²(60°)?'
+  option_a: '3'
+  option_b: '2'
+  option_c: √3
+  option_d: '1'
+  correct_option: a
 - question_template_id: authored-trigonometry-d4-35402
   topic_id: trigonometry
   skill_id: trig_functions
   grade_band: 10-11
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 150
   common_error_tags:
@@ -415,7 +670,7 @@ templates:
   topic_id: trigonometry
   skill_id: trig_functions
   grade_band: 10-11
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -464,11 +719,279 @@ templates:
   option_c: 17.32 meters
   option_d: 20 meters
   correct_option: b
+- question_template_id: authored-trigonometry-d5-1505501
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - confused_angle_values
+  - multiplied_only_one_term
+  - did_not_add_final_results
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A music teacher is tuning instruments for a concert. She measures the frequency of a tuning fork
+    using the formula f = 2sin(π/6) + 2cos(π/3), where f is the frequency in hertz. What is the exact
+    value of the frequency?
+  context_block: 'Special angle values: sin(π/6) = 1/2, cos(π/3) = 1/2'
+  answer_expression: x = 2*sin(pi/6) + 2*cos(pi/3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Recall the exact values of sin(π/6) and cos(π/3) from the unit circle.
+  - sin(π/6) = 1/2 and cos(π/3) = 1/2, so evaluate each term separately.
+  - 2sin(π/6) gives one value and 2cos(π/3) gives another; add those two results together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the exact value of sin(π/6) from the unit circle.
+      expression: sin(π/6) = 1/2
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the first trigonometric value by 2.
+      expression: 2sin(π/6) = 2 × (1/2) = 1
+      common_mistake: null
+    - step_number: 3
+      explanation: Identify the exact value of cos(π/3) from the unit circle.
+      expression: cos(π/3) = 1/2
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply the second trigonometric value by 2.
+      expression: 2cos(π/3) = 2 × (1/2) = 1
+      common_mistake: null
+    - step_number: 5
+      explanation: Add both evaluated terms together to find the frequency.
+      expression: f = 1 + 1 = 2
+      common_mistake: null
+    final_answer: '2'
+  random_seed: 1505501
+  rendered_question: 'Special angle values: sin(π/6) = 1/2, cos(π/3) = 1/2
+
+
+    A music teacher is tuning instruments for a concert. She measures the frequency of a tuning fork using
+    the formula f = 2sin(π/6) + 2cos(π/3), where f is the frequency in hertz. What is the exact value
+    of the frequency?'
+  option_a: '1'
+  option_b: '4'
+  option_c: '3'
+  option_d: '2'
+  correct_option: d
+- question_template_id: authored-trigonometry-d5-1605500
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - confused_exact_values_at_different_angles
+  - added_arguments_instead_of_evaluating
+  - multiplied_by_coefficient_only_once
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A sound engineer is adjusting the gain on two microphone channels. Channel A amplifies the input
+    signal by a factor of 4·sin(π/6), and Channel B amplifies it by 2·cos(π/3). If the input signal has
+    amplitude 1, what is the total amplified signal when both channels are combined?
+  context_block: In audio engineering, signals from multiple microphone channels are often combined. The
+    total amplitude is found by adding the individual channel amplifications after evaluating their expressions.
+  answer_expression: x = 4*sin(pi/6) + 2*cos(pi/3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Recall the exact values: sin(π/6) = 1/2 and cos(π/3) = 1/2.'
+  - 'Substitute these values into the expressions: 4·(1/2) for Channel A and 2·(1/2) for Channel B.'
+  - 'Add the two amplification values: what do you get?'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The sine of π/6 radians (30°) is a standard exact value equal to 1/2.
+      expression: sin(π/6) = 1/2
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute sin(π/6) = 1/2 into the Channel A expression and multiply.
+      expression: 4·sin(π/6) = 4·(1/2) = 2
+      common_mistake: null
+    - step_number: 3
+      explanation: The cosine of π/3 radians (60°) is a standard exact value equal to 1/2.
+      expression: cos(π/3) = 1/2
+      common_mistake: null
+    - step_number: 4
+      explanation: Substitute cos(π/3) = 1/2 into the Channel B expression and multiply.
+      expression: 2·cos(π/3) = 2·(1/2) = 1
+      common_mistake: null
+    - step_number: 5
+      explanation: Add the two amplified signals to find the total combined amplitude.
+      expression: x = 2 + 1 = 3
+      common_mistake: null
+    final_answer: 3 units
+  random_seed: 1605500
+  rendered_question: 'In audio engineering, signals from multiple microphone channels are often combined.
+    The total amplitude is found by adding the individual channel amplifications after evaluating their
+    expressions.
+
+
+    A sound engineer is adjusting the gain on two microphone channels. Channel A amplifies the input signal
+    by a factor of 4·sin(π/6), and Channel B amplifies it by 2·cos(π/3). If the input signal has amplitude
+    1, what is the total amplified signal when both channels are combined?'
+  option_a: 3 units
+  option_b: 4 units
+  option_c: 2 units
+  option_d: 1.5 units
+  correct_option: a
+- question_template_id: authored-trigonometry-d5-1605502
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 150
+  common_error_tags:
+  - confused_special_angles
+  - ignored_order_of_operations
+  - radical_simplification_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A roller coaster engineer is designing a new track and needs to calculate a combined steepness
+    factor. She measures the slope ratio at a 45° angle, which equals tan(45°). She also measures the
+    product of slope ratios at a 30° angle (tan(30°)) and a 60° angle (tan(60°)). The combined steepness
+    factor x is found by adding the 45° slope ratio to the product of the 30° and 60° slope ratios. What
+    is the combined steepness factor x?
+  context_block: 'The engineer is working with standard angle measures from trigonometry: 30°, 45°, and
+    60°. These angles have exact trigonometric values that are commonly used in engineering calculations.'
+  answer_expression: x = tan(pi/4) + tan(pi/6)*tan(pi/3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Recall the exact values: tan(45°) = 1, tan(30°) = 1/√3, and tan(60°) = √3. You need all three to
+    build the expression.'
+  - 'The expression combines addition and multiplication: you add tan(45°) to the product tan(30°) × tan(60°).
+    Work out the product first.'
+  - Calculate tan(30°) × tan(60°) = (1/√3) × √3. After you simplify this product, you'll be ready to add
+    tan(45°).
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write down the exact values of the three tangent functions at standard angles.
+      expression: tan(45°) = 1, tan(30°) = 1/√3, tan(60°) = √3
+      common_mistake: null
+    - step_number: 2
+      explanation: Set up the expression for the combined steepness factor by adding tan(45°) to the product
+        of tan(30°) and tan(60°).
+      expression: x = 1 + (1/√3) × √3
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Simplify the product: (1/√3) × √3 = √3/√3 = 1.'
+      expression: (1/√3) × √3 = 1
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the results: 1 + 1 = 2.'
+      expression: x = 1 + 1 = 2
+      common_mistake: null
+    final_answer: '2'
+  random_seed: 1605502
+  rendered_question: 'The engineer is working with standard angle measures from trigonometry: 30°, 45°,
+    and 60°. These angles have exact trigonometric values that are commonly used in engineering calculations.
+
+
+    A roller coaster engineer is designing a new track and needs to calculate a combined steepness factor.
+    She measures the slope ratio at a 45° angle, which equals tan(45°). She also measures the product
+    of slope ratios at a 30° angle (tan(30°)) and a 60° angle (tan(60°)). The combined steepness factor
+    x is found by adding the 45° slope ratio to the product of the 30° and 60° slope ratios. What is the
+    combined steepness factor x?'
+  option_a: '1'
+  option_b: √3
+  option_c: 1 + √3
+  option_d: '2'
+  correct_option: d
+- question_template_id: authored-trigonometry-d4-1605401
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - mixed_up_addition_formula
+  - evaluated_individual_trig_values_separately
+  - arithmetic_error_on_angles
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A surveyor measures vertical displacement from two different angled sight lines. From the first
+    measurement, the vertical component is sin(π/3)cos(π/6). From the second measurement, the vertical
+    component is cos(π/3)sin(π/6). What is the exact value of the total vertical displacement when these
+    two components are added together?
+  context_block: The surveyor is combining two angled measurements to find a total vertical displacement.
+    Each measurement breaks down into a sine and cosine product, and the surveyor needs to find the combined
+    effect.
+  answer_expression: x = sin(pi/3)*cos(pi/6) + cos(pi/3)*sin(pi/6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what trigonometric identity or pattern might apply when you have a sum of products like
+    sin(A)cos(B) + cos(A)sin(B).
+  - 'This matches the sine addition formula: sin(A + B) = sin(A)cos(B) + cos(A)sin(B). What would A and
+    B be in this problem?'
+  - If A = π/3 and B = π/6, then the sum becomes sin(π/3 + π/6). Simplify the angle inside the sine function,
+    then evaluate.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Recognize that the expression sin(π/3)cos(π/6) + cos(π/3)sin(π/6) matches the sine
+        addition formula sin(A + B) = sin(A)cos(B) + cos(A)sin(B), where A = π/3 and B = π/6.
+      expression: sin(π/3 + π/6)
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the angles inside the sine function. π/3 = 2π/6, so π/3 + π/6 = 2π/6 + π/6 = 3π/6
+        = π/2.
+      expression: sin(π/2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate sin(π/2). The sine of π/2 radians (or 90°) is exactly 1.
+      expression: '1'
+      common_mistake: null
+    final_answer: '1'
+  random_seed: 1605401
+  rendered_question: 'The surveyor is combining two angled measurements to find a total vertical displacement.
+    Each measurement breaks down into a sine and cosine product, and the surveyor needs to find the combined
+    effect.
+
+
+    A surveyor measures vertical displacement from two different angled sight lines. From the first measurement,
+    the vertical component is sin(π/3)cos(π/6). From the second measurement, the vertical component is
+    cos(π/3)sin(π/6). What is the exact value of the total vertical displacement when these two components
+    are added together?'
+  option_a: '1'
+  option_b: 3/4
+  option_c: √3/2
+  option_d: (√3 + 1)/4
+  correct_option: a
 - question_template_id: authored-trigonometry-d5-35500
   topic_id: trigonometry
   skill_id: trig_functions
   grade_band: 10-11
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -521,71 +1044,6 @@ templates:
   option_c: '10'
   option_d: '8.66'
   correct_option: c
-- question_template_id: authored-trigonometry-d1-1286100
-  topic_id: trigonometry
-  skill_id: trig_ratios
-  grade_band: 10-11
-  difficulty_label: 1
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - used_adjacent_instead_of_opposite
-  - confused_sine_with_tangent
-  - confused_sine_with_cotangent
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A ladder leans against a wall, forming a right triangle with the ground. The ladder is 13 meters
-    long and the base is 5 meters from the wall. What is the sine of the angle the ladder makes with the
-    ground?
-  context_block: null
-  answer_expression: Eq(x, 12/13)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Draw the right triangle and label the ladder as the hypotenuse, the ground distance as one leg, and
-    the wall height as the other leg.
-  - Use the Pythagorean theorem to find the wall height, then recall that sine of an angle equals the
-    opposite side divided by the hypotenuse.
-  - For the angle at the ground, the opposite side is the wall height and the hypotenuse is the ladder
-    length.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: 'Identify the right triangle: the ladder is the hypotenuse (13 m), the ground distance
-        is the adjacent side (5 m), and the wall height is the opposite side (unknown).'
-      expression: hypotenuse = 13, adjacent = 5
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Use the Pythagorean theorem to find the opposite side: opposite² + adjacent² = hypotenuse².'
-      expression: opposite² + 5² = 13²
-      common_mistake: null
-    - step_number: 3
-      explanation: 'Simplify: opposite² + 25 = 169.'
-      expression: opposite² = 144
-      common_mistake: null
-    - step_number: 4
-      explanation: 'Take the square root: opposite = 12.'
-      expression: opposite = 12
-      common_mistake: null
-    - step_number: 5
-      explanation: Sine of the angle at the ground equals opposite divided by hypotenuse.
-      expression: sin(angle) = 12/13
-      common_mistake: null
-    final_answer: 12/13
-  random_seed: 1286100
-  rendered_question: A ladder leans against a wall, forming a right triangle with the ground. The ladder
-    is 13 meters long and the base is 5 meters from the wall. What is the sine of the angle the ladder
-    makes with the ground?
-  option_a: 12/5
-  option_b: 12/13
-  option_c: 5/12
-  option_d: 5/13
-  correct_option: b
 - question_template_id: authored-trigonometry-d1-1286101
   topic_id: trigonometry
   skill_id: trig_ratios
@@ -691,11 +1149,324 @@ templates:
   option_c: 3/5
   option_d: 4/5
   correct_option: d
-- question_template_id: authored-trigonometry-d1-96100
+- question_template_id: authored-trigonometry-d1-1506101
   topic_id: trigonometry
   skill_id: trig_ratios
   grade_band: 10-11
   difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - reciprocal_ratio
+  - sine_instead_of_tangent
+  - cosine_instead_of_tangent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A construction crew is building a roof truss. The vertical support beam rises 5 feet, and the
+    horizontal base of the truss is 12 feet long. What is the tangent of the angle of elevation measured
+    from the base of the truss?
+  context_block: null
+  answer_expression: Eq(x, Rational(5, 12))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - In a right triangle, the tangent of an angle is the ratio of the opposite side to the adjacent side.
+    Which side is opposite the angle at the base, and which is adjacent?
+  - The vertical beam (5 feet) is opposite the angle, and the horizontal base (12 feet) is adjacent to
+    it.
+  - 'Write the ratio: tan(angle) = opposite over adjacent.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the right triangle formed by the roof truss. The vertical support beam and
+        horizontal base meet at a right angle.
+      expression: Right triangle with vertical side = 5 feet, horizontal side = 12 feet
+      common_mistake: null
+    - step_number: 2
+      explanation: Locate the angle of elevation at the base of the truss. From this angle, the opposite
+        side is the vertical beam (5 feet) and the adjacent side is the horizontal base (12 feet).
+      expression: opposite = 5 feet, adjacent = 12 feet
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Apply the tangent ratio: tangent of an angle equals the opposite side divided by the
+        adjacent side.'
+      expression: tan(angle) = opposite / adjacent = 5 / 12
+      common_mistake: null
+    final_answer: 5/12
+  random_seed: 1506101
+  rendered_question: A construction crew is building a roof truss. The vertical support beam rises 5 feet,
+    and the horizontal base of the truss is 12 feet long. What is the tangent of the angle of elevation
+    measured from the base of the truss?
+  option_a: 5/12
+  option_b: 12/13
+  option_c: 5/13
+  option_d: 12/5
+  correct_option: a
+- question_template_id: authored-trigonometry-d2-96201
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - used_hypotenuse_as_answer
+  - used_cosine_instead_of_sine
+  - arithmetic_error_halving
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A wheelchair ramp is built against the side of a building. The ramp is 16 feet long and makes
+    a 30-degree angle with the ground. What is the vertical height the ramp reaches on the building?
+  context_block: null
+  answer_expression: x = 16 * sin(pi/6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Sketch the right triangle formed by the ramp, the building, and the ground. Label the hypotenuse,
+    the angle, and the side you need to find.
+  - The height is opposite the 30-degree angle, and the ramp is the hypotenuse. Use the sine ratio.
+  - 'Set up the equation: sin(30°) = height / 16, then solve for the height.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the right triangle: the ramp is the hypotenuse (16 feet), the vertical height
+        is the side opposite the 30-degree angle, and the ground distance is the adjacent side.'
+      expression: hypotenuse = 16, angle = 30°
+      common_mistake: null
+    - step_number: 2
+      explanation: The sine of an angle in a right triangle is the ratio of the opposite side to the hypotenuse.
+        Write sin(30°) = height / 16.
+      expression: sin(30°) = x / 16
+      common_mistake: null
+    - step_number: 3
+      explanation: Recall that sin(30°) = 1/2. Substitute this value into the equation.
+      expression: 1/2 = x / 16
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply both sides by 16 to solve for x.
+      expression: x = 16 * (1/2) = 8
+      common_mistake: null
+    final_answer: 8 feet
+  random_seed: 96201
+  rendered_question: A wheelchair ramp is built against the side of a building. The ramp is 16 feet long
+    and makes a 30-degree angle with the ground. What is the vertical height the ramp reaches on the building?
+  option_a: 16 feet
+  option_b: 4 feet
+  option_c: 8 feet
+  option_d: 13.9 feet
+  correct_option: c
+- question_template_id: authored-trigonometry-d3-96301
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - confused_side_with_hypotenuse
+  - used_adjacent_instead_of_opposite
+  - inverted_trigonometric_ratio
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A playground slide is 14 feet long and makes a 30° angle with the ground. What is the vertical
+    height from the ground to the top of the slide?
+  context_block: null
+  answer_expression: x = 14 * sin(pi/6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Draw a right triangle where the slide is the hypotenuse, the ground is the base, and the height is
+    what you are finding.
+  - The 30° angle is between the slide and the ground, so height is opposite to it. Use sine.
+  - Set up sin(30°) = height / 14, then multiply both sides by 14 and evaluate sin(30°).
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: In the right triangle formed by the slide, the ground, and the vertical height, the
+        slide is the hypotenuse (14 feet) and the 30° angle is at the base. The height is the side opposite
+        the 30° angle.
+      expression: sin(30°) = height / 14
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply both sides by 14 to isolate the height.
+      expression: height = 14 * sin(30°)
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate sin(30°) which equals 0.5.
+      expression: height = 14 * 0.5
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply to find the height.
+      expression: height = 7
+      common_mistake: null
+    final_answer: 7 feet
+  random_seed: 96301
+  rendered_question: A playground slide is 14 feet long and makes a 30° angle with the ground. What is
+    the vertical height from the ground to the top of the slide?
+  option_a: 7 feet
+  option_b: 12.1 feet
+  option_c: 14 feet
+  option_d: 28 feet
+  correct_option: a
+- question_template_id: authored-trigonometry-d1-1286100
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_adjacent_instead_of_opposite
+  - confused_sine_with_tangent
+  - confused_sine_with_cotangent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A ladder leans against a wall, forming a right triangle with the ground. The ladder is 13 meters
+    long and the base is 5 meters from the wall. What is the sine of the angle the ladder makes with the
+    ground?
+  context_block: null
+  answer_expression: Eq(x, 12/13)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Draw the right triangle and label the ladder as the hypotenuse, the ground distance as one leg, and
+    the wall height as the other leg.
+  - Use the Pythagorean theorem to find the wall height, then recall that sine of an angle equals the
+    opposite side divided by the hypotenuse.
+  - For the angle at the ground, the opposite side is the wall height and the hypotenuse is the ladder
+    length.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the right triangle: the ladder is the hypotenuse (13 m), the ground distance
+        is the adjacent side (5 m), and the wall height is the opposite side (unknown).'
+      expression: hypotenuse = 13, adjacent = 5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the Pythagorean theorem to find the opposite side: opposite² + adjacent² = hypotenuse².'
+      expression: opposite² + 5² = 13²
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Simplify: opposite² + 25 = 169.'
+      expression: opposite² = 144
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Take the square root: opposite = 12.'
+      expression: opposite = 12
+      common_mistake: null
+    - step_number: 5
+      explanation: Sine of the angle at the ground equals opposite divided by hypotenuse.
+      expression: sin(angle) = 12/13
+      common_mistake: null
+    final_answer: 12/13
+  random_seed: 1286100
+  rendered_question: A ladder leans against a wall, forming a right triangle with the ground. The ladder
+    is 13 meters long and the base is 5 meters from the wall. What is the sine of the angle the ladder
+    makes with the ground?
+  option_a: 12/5
+  option_b: 12/13
+  option_c: 5/12
+  option_d: 5/13
+  correct_option: b
+- question_template_id: authored-trigonometry-d1-1506100
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - inverted_ratio_adjacent_over_opposite
+  - incorrect_sides_selected
+  - confused_sine_with_tangent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A surveyor is measuring the angle of elevation from a point on the ground to the top of a communications
+    tower. She stands 8 metres away from the base of the tower. The vertical height from her eye level
+    to the top is 6 metres. What is the tangent of the angle of elevation?
+  context_block: The angle of elevation is the angle between the horizontal ground and the line of sight
+    up to the top of the tower. A right triangle forms with the surveyor's horizontal distance as the
+    base and the tower height as the vertical side.
+  answer_expression: Eq(x, Rational(3, 4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The right triangle has a horizontal leg of 8 m (the distance from the surveyor) and a vertical leg
+    of 6 m (the tower height above eye level). Which leg is opposite and which is adjacent to the angle
+    of elevation?
+  - For the angle of elevation, the opposite side is the vertical height (6 m) and the adjacent side is
+    the horizontal distance (8 m).
+  - 'Use the definition: tangent = opposite ÷ adjacent. Divide 6 by 8 and simplify.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: In a right triangle, identify which side is opposite and which is adjacent to the angle
+        of elevation. The angle sits where the surveyor stands. The opposite side is the vertical height
+        (perpendicular to the ground), and the adjacent side is the horizontal distance along the ground.
+      expression: opposite = 6 m, adjacent = 8 m
+      common_mistake: null
+    - step_number: 2
+      explanation: Recall the definition of tangent in a right triangle.
+      expression: tan(θ) = opposite / adjacent
+      common_mistake: null
+    - step_number: 3
+      explanation: Substitute the side lengths into the tangent ratio.
+      expression: tan(θ) = 6 / 8
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction by dividing both numerator and denominator by their greatest
+        common divisor, 2.
+      expression: tan(θ) = 3 / 4
+      common_mistake: null
+    - step_number: 5
+      explanation: Convert the simplified fraction to a decimal.
+      expression: 3 / 4 = 0.75
+      common_mistake: null
+    final_answer: '0.75'
+  random_seed: 1506100
+  rendered_question: 'The angle of elevation is the angle between the horizontal ground and the line of
+    sight up to the top of the tower. A right triangle forms with the surveyor''s horizontal distance
+    as the base and the tower height as the vertical side.
+
+
+    A surveyor is measuring the angle of elevation from a point on the ground to the top of a communications
+    tower. She stands 8 metres away from the base of the tower. The vertical height from her eye level
+    to the top is 6 metres. What is the tangent of the angle of elevation?'
+  option_a: '0.6'
+  option_b: '0.75'
+  option_c: '0.5'
+  option_d: '1.33'
+  correct_option: b
+- question_template_id: authored-trigonometry-d1-96100
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -757,7 +1528,7 @@ templates:
   topic_id: trigonometry
   skill_id: trig_ratios
   grade_band: 10-11
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -810,64 +1581,6 @@ templates:
   option_c: 5.66 metres
   option_d: 8 metres
   correct_option: d
-- question_template_id: authored-trigonometry-d3-96301
-  topic_id: trigonometry
-  skill_id: trig_ratios
-  grade_band: 10-11
-  difficulty_label: 1
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - confused_side_with_hypotenuse
-  - used_adjacent_instead_of_opposite
-  - inverted_trigonometric_ratio
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: A playground slide is 14 feet long and makes a 30° angle with the ground. What is the vertical
-    height from the ground to the top of the slide?
-  context_block: null
-  answer_expression: x = 14 * sin(pi/6)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Draw a right triangle where the slide is the hypotenuse, the ground is the base, and the height is
-    what you are finding.
-  - The 30° angle is between the slide and the ground, so height is opposite to it. Use sine.
-  - Set up sin(30°) = height / 14, then multiply both sides by 14 and evaluate sin(30°).
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: In the right triangle formed by the slide, the ground, and the vertical height, the
-        slide is the hypotenuse (14 feet) and the 30° angle is at the base. The height is the side opposite
-        the 30° angle.
-      expression: sin(30°) = height / 14
-      common_mistake: null
-    - step_number: 2
-      explanation: Multiply both sides by 14 to isolate the height.
-      expression: height = 14 * sin(30°)
-      common_mistake: null
-    - step_number: 3
-      explanation: Evaluate sin(30°) which equals 0.5.
-      expression: height = 14 * 0.5
-      common_mistake: null
-    - step_number: 4
-      explanation: Multiply to find the height.
-      expression: height = 7
-      common_mistake: null
-    final_answer: 7 feet
-  random_seed: 96301
-  rendered_question: A playground slide is 14 feet long and makes a 30° angle with the ground. What is
-    the vertical height from the ground to the top of the slide?
-  option_a: 7 feet
-  option_b: 12.1 feet
-  option_c: 14 feet
-  option_d: 28 feet
-  correct_option: a
 - question_template_id: authored-trigonometry-d2-1286201
   topic_id: trigonometry
   skill_id: trig_ratios
@@ -1048,69 +1761,11 @@ templates:
   option_c: 6 feet
   option_d: 6.9 feet
   correct_option: c
-- question_template_id: authored-trigonometry-d2-96201
-  topic_id: trigonometry
-  skill_id: trig_ratios
-  grade_band: 10-11
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 120
-  common_error_tags:
-  - used_hypotenuse_as_answer
-  - used_cosine_instead_of_sine
-  - arithmetic_error_halving
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A wheelchair ramp is built against the side of a building. The ramp is 16 feet long and makes
-    a 30-degree angle with the ground. What is the vertical height the ramp reaches on the building?
-  context_block: null
-  answer_expression: x = 16 * sin(pi/6)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Sketch the right triangle formed by the ramp, the building, and the ground. Label the hypotenuse,
-    the angle, and the side you need to find.
-  - The height is opposite the 30-degree angle, and the ramp is the hypotenuse. Use the sine ratio.
-  - 'Set up the equation: sin(30°) = height / 16, then solve for the height.'
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: 'Identify the right triangle: the ramp is the hypotenuse (16 feet), the vertical height
-        is the side opposite the 30-degree angle, and the ground distance is the adjacent side.'
-      expression: hypotenuse = 16, angle = 30°
-      common_mistake: null
-    - step_number: 2
-      explanation: The sine of an angle in a right triangle is the ratio of the opposite side to the hypotenuse.
-        Write sin(30°) = height / 16.
-      expression: sin(30°) = x / 16
-      common_mistake: null
-    - step_number: 3
-      explanation: Recall that sin(30°) = 1/2. Substitute this value into the equation.
-      expression: 1/2 = x / 16
-      common_mistake: null
-    - step_number: 4
-      explanation: Multiply both sides by 16 to solve for x.
-      expression: x = 16 * (1/2) = 8
-      common_mistake: null
-    final_answer: 8 feet
-  random_seed: 96201
-  rendered_question: A wheelchair ramp is built against the side of a building. The ramp is 16 feet long
-    and makes a 30-degree angle with the ground. What is the vertical height the ramp reaches on the building?
-  option_a: 16 feet
-  option_b: 4 feet
-  option_c: 8 feet
-  option_d: 13.9 feet
-  correct_option: c
 - question_template_id: authored-trigonometry-d3-1286300
   topic_id: trigonometry
   skill_id: trig_ratios
   grade_band: 10-11
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1175,7 +1830,7 @@ templates:
   topic_id: trigonometry
   skill_id: trig_ratios
   grade_band: 10-11
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -1237,7 +1892,7 @@ templates:
   topic_id: trigonometry
   skill_id: trig_ratios
   grade_band: 10-11
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:

@@ -21034,3 +21034,682 @@ D-291 recovered, is the first, and it is what failed the test. Requiring the fir
 there would have re-imposed in a test exactly the restriction three decisions measured and
 removed. The census now applies the same readings the gate does and still demands **exactly
 one** matching option, which is what it was written to protect.
+
+### D-294 — The 31% spend gap was one missing call, and `session_scope` stops lying
+
+**Date:** 2026-08-12 · **Session:** C1 (carry-over items 3 and 7) · **Status:** both fixed
+
+Two of C1's carry-over items, both free to diagnose and both real defects rather than
+housekeeping. Cost accounting is CLAUDE.md rule 7, so an unexplained 31% gap in it is a
+production-class bug.
+
+**1. The gap was the equation-design call, and it is arithmetic, not mystery.** C1 recorded
+that the pipeline's own run summaries totalled **1278¢** while
+`question_validation_runs.cost_cents` summed to **884¢** over the same window, candidate
+counts nearly matching (368 vs 378), and flagged it undiagnosed. The cause:
+`generate_authored_candidate` makes the design call **once per slot, before**
+`_attempt_authored_candidate` — which is the function that writes the rows. So the design
+spend reached `RunSummary` through the caller's running total and reached no row at all.
+
+Found by reconciling **one slot** against the rows it wrote rather than by re-querying the
+window: the scripted gateway reported `0.051¢` to the summary and wrote `0.041¢` to the row,
+a difference of exactly one of the slot's five model calls. Then confirmed on real money —
+a design attempt costs a **median 1.26¢** (n=25, isolated from design-*failure* rows, where
+nothing else ran) against an accepted row's **2.67¢** average, so those rows understate
+their slots by **32.0%**. The reported 31%, reproduced.
+
+**The worse half is that `cost_cents` meant two different things.** Only pure design
+failures carried the design spend, because they return before the inner function exists —
+**67 rows named the stage and 1,117 did not**. A uniform undercount can be corrected with a
+multiplier; this cannot.
+
+Fixed at the row, not at the outcome: the design cost is passed in for the row only and on
+attempt 1 only, so the caller's running total is untouched, every budget check is
+byte-identical, and a repaired slot records the design once across its rows. The row now
+also carries an `equation_design` stage so it explains its own cost — the absence of that
+record is what made an arithmetic error look like a mystery.
+`test_a_slots_rows_account_for_every_cent_the_slot_reports` pins
+`sum(rows) == what the summary was told` on three shapes (accepted, repaired-to-pending,
+rejected), verified in both directions — it fails on the pre-fix code with exactly the
+0.041-vs-0.051 gap. `scripts/measure_spend_reconciliation.py` makes the whole thing
+re-checkable.
+
+*Not fixed, recorded instead:* the `skipped_duplicate_id` path rolls its row back and the
+summary still counts the money, so `sum(rows) != summary` there by construction. The row
+genuinely cannot exist; the number is not lost, it is only unattributable.
+
+**2. `session_scope` committed nothing, and the fix was safe because it was measured
+first.** The D-284 addendum found that it yielded a session and closed it, making any
+caller that wrote without committing a **no-op that reported success**. The obvious worry
+about commit-on-clean-exit is the 61 test call sites and the shared dev Postgres. So it was
+counted before it was changed: **0 of 66** `session_scope` blocks in the repo write without
+an explicit commit. The change therefore alters the behaviour of nothing that exists — the
+CLIs commit deliberately (`_settle` exists for that), the tests commit because they assert
+across sessions — and what it protects is the *ad-hoc* script, which is exactly where the
+bug bit and where it is least likely to be noticed. It also matches the convention the
+request path already sets: `get_db_session` in both apps commits after its yield.
+
+Both directions again, and only one is interesting: a clean exit must persist, an exception
+must discard. The negative control passes against the *old* code too — which is the point.
+It is not there to catch this fix but a future over-broad one that commits on the way out
+of a failure.
+
+### D-295 — Every difficulty rejection this project has recorded was a warm-up cost
+
+**Date:** 2026-08-12 · **Session:** C1 · **Status:** measured; remedy is operational, not yet applied
+
+Set out to re-anchor the difficulty rubric (D-292's recommendation) and found something
+upstream of it, for free, in the retier path.
+
+**`judge_difficulty` does the opposite of what D-292 says it does.** D-292 records that the
+pipeline "tolerate[s] ±1 by storing the judge's tier, reject[s] beyond". Both halves are
+backwards: `slot_gap == 1` is **flagged and kept at the requested tier** (the judge's tier is
+*not* stored), and `slot_gap >= 2` is **retiered to the judge's tier** — rejected only when
+`may_retier` is false. Correcting the record matters because the real behaviour is what makes
+the finding below possible.
+
+**The finding, straight from recorded evidence with no reconstruction.** Across all 858
+candidates carrying a difficulty decision:
+
+| decision | n | requested-tier mix |
+|---|---|---|
+| accepted | 329 | — |
+| flagged (gap 1, kept at the requested tier) | 325 | — |
+| **retiered** (gap ≥2, dispersion healthy) | **87** | d4 ×28, d5 ×41 |
+| **rejected** (gap ≥2, dispersion collapsed) | **117** | d4 ×64, d5 ×40 |
+
+The bottom two rows are **the same disagreement at the same tiers**. The only discriminator
+is `may_retier`. So 117 candidates that had already passed the generator, both solvers and
+every judge flag were discarded by the *guard* — the thing D-239 built specifically to stop
+items being thrown away over one number being two off the slot they happened to land in.
+
+**A hypothesis I wrote down and then killed.** The first reading was that a batch targeting
+tiers 4–5 gets mostly-2 answers from a downward-drifting judge (D-292), which looks like a
+collapsed instrument, so `_JUDGE_COLLAPSE_SHARE` fires. **Measured: false.** The runs whose
+histograms collapse are *small* (n=5–7), not tier-homogeneous — their dominant requested
+tier is 33–60%, no higher than runs that retier freely. It would have been a satisfying
+story and it is not what the data says.
+
+**What is actually happening is a warm-up cost, and it is structural.**
+`_MIN_JUDGE_OBSERVATIONS = 5` means the guard blocks the opening of *every* run:
+
+| position in run | 1 | 2 | 3 | 4 | 5 | 6 | 7–10 | 11+ |
+|---|---|---|---|---|---|---|---|---|
+| blocked | 100% | 100% | 100% | 100% | 35% | 31% | 13% | **0.6%** |
+
+Stable at both grouping thresholds, which is why this conclusion survives the
+reconstruction's imperfect fidelity while the exact guard-caused count does not. **The cost
+driver is the number of runs, not the tier mix**: every `run_plan` invocation pays about four
+un-retierable candidates before its own evidence exists. Phase 3's depth pass ran many small
+per-topic batches and paid that toll once each. The tier-4/5 concentration in the rejections
+*follows* rather than causes it — those are the slots where the drift produces a gap of 2
+most often, so they take the warm-up hit. This is also the likeliest reading of C1's own two
+yields: **61%** on the mixed-tier depth run against **35%** when the serving-floor batch
+targeted the extremes.
+
+**The remedy is operational before it is a code change: fewer, larger runs.** That is not a
+workaround — D-231 scoped the histogram to a run precisely so a stale instrument could not
+authorise today's moves, and one large run is that design used as intended. Deliberately
+*not* done here: lowering `_MIN_JUDGE_OBSERVATIONS` or widening `_JUDGE_COLLAPSE_SHARE`,
+because both weaken the only protection against a genuinely constant judge restacking a
+run, and the measurement does not require it.
+
+**What was un-measurable, and is not any more.** `question_validation_runs` had **no run
+identifier**, so runs had to be inferred by clustering `created_at`;
+`scripts/measure_retier_guard.py` sweeps the threshold, replays the *real* `JudgeDispersion`
+and `judge_difficulty` over each grouping, and reports which one reproduces the recorded
+decisions — the best reaches **90.8%**, and the script refuses to present its numbers as
+evidence below 90% rather than quoting them anyway. That residual is exactly why the
+guard-caused count lands somewhere between 27 and 59 instead of on a number.
+
+So the column exists now (`pipeline_run_id`, migration `d4b81f6c2e70`), minted beside the
+histogram because it identifies the same scope, and
+`test_every_row_a_run_writes_carries_the_same_run_id` asserts one distinct non-null id per
+run — deliberately not the weaker "the id is set", which a per-candidate uuid would satisfy
+while being useless. **Not backfilled**: inferring it for historical rows would bake a
+~10%-wrong guess into the data as recorded fact, and `NULL` meaning "written before runs
+were identified" is both true and checkable.
+
+**The rubric question is not answered, only re-ordered.** D-292's downward drift is still
+real and still unaddressed; what changed is that it is no longer the cheapest available
+lever, and re-anchoring it should be measured against runs that are not also paying a
+warm-up toll.
+
+### D-296 — The warm-up fix works, and it does not open a single topic that needed opening
+
+**Date:** 2026-08-12 · **Session:** C1 · **Status:** measured on a real run; $1.70 spent
+
+D-295's remedy, tested prospectively instead of argued: **one** `run_plan` invocation over
+34 slots × 2 candidates, spanning all 8 topics below the serving floor, where the Phase 3
+depth pass had run many small per-topic batches. Preflight green, `--run-budget-cents 400`,
+models held identical to the previous waves so run size was the only variable.
+
+**Result: 43 accepted of 68 (63%), 169.93¢.** Against 35% when the serving-floor batch
+targeted the extremes in small batches, and 61% on the mixed-tier depth pass.
+
+**The warm-up mechanism is confirmed, and the confirmation is unusually clean:**
+
+| position | topic | tier | difficulty outcome |
+|---|---|---|---|
+| 1 | algebra_2 | d4 | **rejected** — histogram empty |
+| 2 | algebra_2 | d4 | **rejected** — histogram empty |
+| 19 | algebra_2 | d5 | **retiered** — kept |
+| 21 | g2_word_problems | d4 | **retiered** — kept |
+
+**Zero difficulty rejections after position 2.** Difficulty fell from **52% of rejections**
+in the small-batch pass to **2 of 25** here, and **16 candidates were retiered** — exactly
+the population a small-batch run discards. The toll is real, it is paid once, and one large
+run pays it once.
+
+**And it does not close the gaps, which is the finding that matters.** Only **1 of the 8**
+short topics would open (`g5_word_problems`, and it needed d1, not d5). The reason is one
+query away now that rows carry `pipeline_run_id` — all 68 rows of this run in one `WHERE`,
+no timestamp clustering:
+
+| retier | n |
+|---|---|
+| d4 → d2 | 7 |
+| d5 → d2 | 4 |
+| d5 → d3 | 5 |
+| **moved downward** | **16** |
+| **moved upward** | **0** |
+
+**A retier saves the item by moving it off the tier the serving floor needed.** Nine
+candidates asked for d5 were stored at d2/d3. So a larger run converts "rejected at d5" into
+"accepted at d3": better for bank size and for D-223's depth target, worth nothing for
+openability. The 12 remaining tier-4/5 gaps cannot be closed by any run-size change, because
+the drift is what decides where a saved candidate lands.
+
+**So the ordering was worth $1.70 and the conclusion reverses it.** D-295 put the rubric
+behind this because it was cheaper; the test says the cheap lever helps the bank and not the
+floor. **D-292's re-anchoring is the thing that gates openability**, and it is now the next
+action rather than a deferred one. What was bought: 43 items, a confirmed mechanism, and the
+knowledge that no amount of further generation at current settings will open those 7 topics.
+
+**A gate defect found by reading the rejections, in the family this project keeps
+re-finding.** `alg2_rational_radical` took **0 of 4**, `alg2_exponential_log` 0 of 2,
+`alg2_irrational` 0 of 2 — `RunSummary.shut_out`'s D-281 signal firing correctly. The cause
+is the symbolic verifier comparing an **uncancelled** quotient against the simplified option:
+
+```
+symbolic answer (x**3 - 8*x**2 + 19*x - 12)/(x - 3) does not match
+declared correct option 'c' ('x² − 5x + 4')
+```
+
+Verified rather than assumed — `sympy.cancel` on all four rejected expressions returns the
+declared option exactly, and `simplify(a - b) == 0` for every one. **All four items were
+correct and all four were refused.** This is D-281/D-282/D-291/D-293 a fifth time: a second
+honest reading of an already-verified answer model, here "the quotient in lowest terms".
+Polynomial division has therefore never been authorable in `algebra_2`. Not fixed here — the
+recovery is free to measure first, because D-195 stores rejected candidate content, and that
+measurement is the precondition this project has learned to insist on.
+
+> **Diagnosis corrected in D-297.** It is not a missing `cancel`, and the comparison already
+> does better than `cancel`. See below — the cause is that the option never parsed at all.
+
+### D-297 — The gate demanded a notation it could not read
+
+**Date:** 2026-08-12 · **Session:** C1 · **Status:** fixed, measured both directions
+
+**My D-296 diagnosis was wrong, and the way it was wrong is the finding.** I read
+
+```
+symbolic answer (x**3 - 8*x**2 + 19*x - 12)/(x - 3) does not match
+declared correct option 'c' ('x² − 5x + 4')
+```
+
+as a missing `sympy.cancel` on the derived side, and verified the two expressions are equal.
+They are — but the comparison already does strictly better than `cancel`:
+`simplify(expression - expected) == 0`, there since D-278. **It never ran.** The *option* did
+not parse:
+
+```
+_parse_side("x² - 5x + 4") -> ValueError: String "²" does not denote a Number
+```
+
+`_MATH_TEXT_SUBSTITUTIONS` normalizes `−`, `–`, `—`, `×`, `÷` and `^` (D-278) and **not
+superscript digits**. The uncancelled quotient in the message is just how the derived side
+prints, and I let it lead the diagnosis. Checking the *literal stored option text* instead of
+a retyped ASCII version is what found it.
+
+**Two of this project's own checks were in direct contradiction.** D-288 added
+`check_math_notation_is_readable` because 64 shipped fields showed students SymPy; it refuses
+`x**2` in any student-facing field and instructs "powers with superscripts like x²". The
+symbolic verifier then could not read `x²`. **The generator was told to write a notation, it
+complied, and the next check rejected it for complying** — and blamed the answer key while
+doing so. Three days between the two checks landing.
+
+**Measured before writing the fix, both directions (D-221), free via D-195**
+(`scripts/measure_superscript_reading.py`), over 38 stored symbolic-mismatch rejections:
+
+| outcome | n |
+|---|---|
+| **recovered** — declared option is the derived answer | **8** (algebra_2 5, calculus 3) |
+| **re-classified as ambiguous** — two options match | **6** |
+| declined — genuinely match nothing | 18 |
+| skipped — equation does not route to `symbolic` | 0 |
+
+**The 6 are the interesting column and they stay rejected.** They are genuinely ambiguous
+items: `authored-calculus-d4-1305401` offers `3x² + 6 + 6x² + 10x` beside the declared
+`9x² + 10x + 6`, which is the same expression twice. What changes is not the verdict but the
+*reason* — from "your answer key is wrong" (false, and unrepairable) to "more than one option
+matches" (true, and exactly the feedback D-198's repair path can act on). That is the D-283
+carry-over resolved for one rejection class rather than argued about.
+
+**Scoped to the symbolic arm, not added to the shared table, and the reason is measured
+rather than cautious.** `_MATH_TEXT_SUBSTITUTIONS` is applied by `_sympify` on the *value*
+path too, where `'12 m²'` (square metres) fails its direct parse and is rescued by the
+trailing-unit strip. Rewritten to `'12 m**2'` it reaches that strip carrying `**`, which the
+unit pattern does not match, so a value option that parses today would stop parsing. The file
+already scopes `_parse_side`'s implicit multiplication away from value options for the same
+reason; this follows it.
+
+**And it belongs *inside* the D-281 seam, which my first implementation got wrong — caught by
+the suite, on shipped content.** Applying the reading unconditionally in `_option_matches`
+broke **2 shipped `alg2_polynomial_factor` items** whose first reading already matched exactly
+one option:
+
+```
+option a  3x(x² + 4x + 3)     <- partially factored
+option b  3x(x + 1)(x + 3)    <- completely factored, declared correct
+```
+
+Those are the **same expression**. The stem asks to factor *completely*, which is what makes
+`a` wrong, and no equivalence check can see a word — so the skill's best distractor is
+necessarily equal to its answer. This is the `g6_fractions` "lowest terms" structure (a `6/8`
+distractor beside `3/4`) in a second skill, and it means the items are correct while being
+unverifiable by uniqueness.
+
+Consulted only when the first reading matched nothing, all of that disappears: those items
+never reach it, and the 8 recoveries and 6 re-explanations are unchanged. That is exactly the
+rule the seam exists to enforce — a second reading may turn a rejection into a pass, never one
+pass into a different pass — and I had reached past it. A census over all 15 shipped symbolic
+items found precisely the 2, which is the measurement that should have run *before* the edit
+rather than after the suite objected;
+`test_a_partially_factored_distractor_does_not_make_a_shipped_item_ambiguous` now pins it and
+fails against the unconditional version.
+
+One deliberate departure from the derivation readings beside it: this one is adopted **even
+when it matches several options**, because the verdict is a rejection either way and "more
+than one option matches" is true and repairable where "does not match your declared option"
+was neither (D-283).
+
+### D-298 — The same contradiction on the value arm, and this one failed silently
+
+**Date:** 2026-08-12 · **Session:** C1 · **Status:** fixed, measured both directions
+
+Found by reading *why* D-296's two other shut-out skills took zero, rather than assuming they
+shared D-297's cause. They did not share it with each other either:
+
+- **`alg2_exponential_log` 0 of 2** — both were **difficulty** rejections at run positions 1
+  and 2. That is D-295's warm-up toll, not a gate defect, and a warmer run fixes it.
+- **`alg2_irrational` 0 of 2** — `value answer (7*sqrt(2),) ... does not match declared
+  correct option 'd' ('7√2')`. D-297's contradiction again, on the **value** arm: D-288 asks
+  for readable notation, `7√2` is how anyone writes a surd, and the gate could not read it.
+
+**Why this one is worse than D-297, and it is the part worth keeping.** `_parse_side('x²')`
+*raises*, so D-297's defect announced itself. `sympy.sympify('√2')` returns
+**`Symbol('√2')`** — a non-number that compares unequal to every value and raises nothing. The
+option was not unparseable; it was quietly parsed as something else, and the gate reported a
+wrong answer key. A silent mis-parse in a checker is the failure mode this project has
+repeatedly paid for (the `TokenError` that escaped `derive_answer` in Phase R, the tuple
+`sympify` returns for `'4,700'` in D-274).
+
+**And it caught my own first attempt at the fix.** I inserted only the missing `*`, on the
+strength of `_sympify('√2')` printing `√2` — which is SymPy pretty-printing that symbol, not
+evidence it understood a radical. The negative control failed (`7√2` still not matching) and
+that is what exposed it. Both halves are needed: `√<digits>` → `sqrt(<digits>)`, *then*
+implicit multiplication.
+
+**Generalised rather than bolted on.** D-297's flag became one `_student_notation` reading
+covering both notations and **both arms**, still consulted only from the D-281 seam. Measured,
+both directions:
+
+| | n |
+|---|---|
+| **recovered** — `alg2_irrational` 1, **`trig_functions` 1** | **2** |
+| **re-explained** as "more than one option matches" | 2 |
+| declined — genuinely match nothing | 1 |
+| **shipped items the seam could affect** | **0** |
+
+`trig_functions` matters beyond the count: `trigonometry d5` is one of the 12 remaining
+serving-floor gaps.
+
+**A third skill with the same unverifiable-by-uniqueness shape.** `4√8` and `8√2` are the
+same number; `2√12` and `4√3` are the same number. An item asking for *simplest radical form*
+has an equal-valued best distractor, exactly as `alg2_polynomial_factor` asking to factor
+*completely* does (D-297) and `g6_fractions` asking for *lowest terms* does. Three skills now,
+one cause: **the phrase in the stem carries a constraint no value or equivalence check can
+see.** Those items stay rejected and now say why.
+
+**The census ran before the edit this time**, which is the D-297 lesson applied: 4 shipped
+items carry a radical and none changes. The 2 items that *would* change under an
+unconditional reading are the same `alg2_polynomial_factor` pair D-297 broke — they never
+reach the seam because their first reading already matches, which is precisely what the
+scoping buys.
+
+### D-299 — A crash where a rejection belongs, fourth occurrence, and this one cost a run
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** fixed, reproduced deterministically
+
+The re-generation run that was supposed to prove D-297/D-298 on fresh candidates **died at
+candidate 25 of 42**:
+
+```
+File "authored_validation.py", line 830, in _route_system
+    return DerivedAnswer("tuple", tuple(solved[0][s] for s in unknowns)), None
+KeyError: c
+```
+
+**`sympy.solve` answered a different question than the caller asked.** Two equations in three
+unknowns returns exactly *one* solution dict — so the "exactly one solution" check above it
+passes — expressing two unknowns in terms of the third, which is simply **absent** because it
+is free: `[{a: c - 2, b: 12 - c}]`. Indexing the missing one raised.
+
+Reproduced in three lines before fixing it, and `route_answer("Eq(a + b, 10); Eq(b + c, 12)")`
+is now a parametrised test in both directions — the underdetermined system is rejected with
+"does not determine c", and `Eq(x + y, 10); Eq(x - y, 2)` still routes to `tuple` with payload
+`(6, 4)`.
+
+**Fourth occurrence of one class**, and worth naming because the shape is now unmistakable:
+
+| # | what SymPy returned instead | where it surfaced |
+|---|---|---|
+| 1 | `TokenError` from an unparseable expression | Phase R, escaping `derive_answer` |
+| 2 | a plain **tuple** from `sympify('4,700')` | D-274 |
+| 3 | `None` where a `str` was assumed (`answer_expression` NULL) | 3-5 wave |
+| 4 | a solution dict **missing a free unknown** | here |
+
+Every one is the same mistake: SymPy answers a slightly different question than the caller
+asked, and the caller *indexes* the result instead of *checking* it. `route_answer`'s contract
+is that an answer no verifier can claim is a rejection, never an exception.
+
+**What it cost, which is the argument for fail-closed being a budget property and not only a
+correctness one.** D-193 commits per candidate, so the 24 completed candidates and their 68¢
+survived — "stopping part-way is safe" held. But the remaining **18 candidates of a
+budget-approved run were simply not attempted**, including the `trig_functions` d5 slot that
+is one of the 12 outstanding serving-floor gaps. A rejection would have cost one candidate; the
+exception cost the rest of the run.
+
+**The resumed half, and what the two runs together say about D-297/D-298.** The remaining 18
+candidates ran clean after the fix: **7 accepted (39%), 58.29¢, zero difficulty rejections**,
+with `design=7` the dominant rejection — the design stage cannot produce a valid equation for
+much of calculus/trigonometry, which is a different problem from anything fixed here. Both
+halves together: **42 candidates, 17 accepted, $1.26**, bank **895 → 912**, `algebra_2 d1`
+halved (×2 → ×1), items still needed **12 → 11**.
+
+**The evidence that D-297/D-298 actually work is in the rejection *messages*, not the yield.**
+Before, `algebra_2`'s symbolic skills produced `symbolic answer … does not match declared
+correct option 'c' ('x² − 5x + 4')` — a false accusation against a correct key. This run
+produced **five** `more than one option matches the derived value answer (4*sqrt(5),)` /
+`… symbolic answer x**3 + 6*x**2 + 8*x` instead. The gate now reads the notation, and where the
+item genuinely offers the same number twice it says so. That is the predicted behaviour and it
+is a better bug report than the one it replaced.
+
+**One thing this makes measurable that was not:** roughly a third of these skills' rejections
+are now the "equal-valued distractor" class, concentrated in exactly the skills whose stems say
+*simplest radical form* or *completely*. That is a **generator-prompt** problem, not a gate one,
+and D-252's record (five measured failures of explicit prompt clauses) says a clause forbidding
+it is unlikely to work. Left as a measured observation rather than a fix attempt.
+
+**The census's premise expired a third time, so the duplicate is gone.** Exporting the new
+items turned `test_every_shipped_item_routes_and_matches_its_own_key` red on
+`authored-algebra_2-d1-1606100` — a correct `6√2` item the *gate* accepts, which the census
+called unmatched because it **re-implemented** the gate's reading sequence and had never learned
+D-297/D-298. Its own docstring already records the premise moving twice, for the same reason both
+times. Duplicating a rule is what made that inevitable, so the sequence is now one function,
+`matching_options`, with the gate and the census as its two callers and the ordering rules
+documented where they live: first reading wins outright (D-281), notation before mathematics
+(D-297/D-298, adopted even when several options match), alternative derivations must be
+unambiguous.
+
+**And extracting it exposed a coverage hole that had been there all along.** Deliberately
+breaking the helper — truncating the first reading's match list to one entry, which would let a
+genuinely ungradeable item pass — kept **all 85 tests green**. Every existing ambiguity test
+reaches `len(matches) > 1` through a *second* reading (a boundary, a prose interval, student
+notation); nothing covered two options matching under the **first**. Now pinned by
+`test_two_options_stating_the_answer_under_the_FIRST_reading_are_rejected`, and it was only
+found because the refactor was verified by trying to defeat it rather than by re-running a green
+suite.
+
+### D-300 — The judge was never disagreeing with itself; it was disagreeing with the slot
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** measured, 10.24¢; the remedy is a decision, not yet taken
+
+Set out to re-anchor the difficulty rubric, which D-296 had established as the item gating
+openability. **The baseline measurement says the rubric is not the problem, and D-292's central
+premise is false.**
+
+**First, the sample had to be pinned, and doing so proved the point about why.** D-292 reported
+19% exact / 88% within one tier and did not record which 16 items it drew. The selector computes
+the sample from the bank; the bank has grown 658 → 912 since, and re-running it today returns a
+different set — two of the items are ones *this session* generated. `PINNED_SAMPLE` now fixes the
+16 by id and the resolver **fails loudly** if any has been retired or re-tiered, because silently
+dropping one would move the agreement rate for a reason unrelated to the rubric.
+
+**The baseline, on the pinned 16:** exact 3/16 (19%), within one 11/16 (69%), mean signed drift
+**−0.88 tiers**. Consistent with D-292's shape, so the phenomenon is real.
+
+**Then the rationales, captured for the first time (D-292 measured the drift and could not act on
+it because this was never recorded).** The judge is not vague or compressed. It cites the anchors
+by name and reads them correctly:
+
+> "This requires identity recognition and application before evaluation — **a tier-4 structure**."
+> "**This is the anchor for tier 4**: applying a theorem to determine a coefficient."
+> "This is a one-multiplication-step problem: **the rating anchor for** 'a rate stated directly…'"
+
+An instrument that quotes the right anchor and applies it is not the thing to fix. So: where did
+the *stored* tier come from?
+
+**From the slot, for 10 of the 16.** Checking each pinned item's authoring evidence:
+
+| how the item got its stored tier | n |
+|---|---|
+| `accepted` — judge agreed with the requested tier | 5 |
+| **`flagged` — judge said a different tier, item stored at the REQUESTED one** | **10** |
+| `retiered` — judge's tier stored | 1 |
+
+**8 of those 10 flagged items had the judge saying *lower*.** And `flagged` is what a gap of
+exactly 1 produces (`_DIFFICULTY_FLAG_AT = 1`): the item is kept, a human is pointed at it, and
+the tier stays the slot's.
+
+**So D-292's premise is falsified.** It reasoned: *"Their labels are this same judge's own
+ratings: a disagreement at generation time would have rejected or retiered them."* That holds for
+6 of 16. For the other 10 the stored label is the **plan's intent**, and the judge had already
+recorded its disagreement at authoring time. Re-asking it gets the same answer — which is
+**consistency, not noise**:
+
+| re-judge compared against | exact | within one |
+|---|---|---|
+| the bank's **stored** tier | 3/16 (19%) | 11/16 (69%) |
+| the judge's **own first rating** | **10/16 (62%)** | **14/16 (88%)** |
+
+The 19% that launched three decisions' worth of worry about a noisy instrument is largely an
+artefact of scoring the judge against a label it never assigned.
+
+**What this means for the thing it was measuring.** The bank's difficulty labels sit
+systematically about one tier above the only independent reading of them, *by design*, because a
+±1 disagreement keeps the requested tier. So part of the tier-4/5 "shortage" is a **labelling**
+artefact: items stored at d5 are, by the judge's own reading, d4. That also explains D-296
+cleanly — a large run converted "reject at d5" into "accept at d3" because the retier path stores
+the judge's tier while the flag path does not, and the two paths disagree about the same
+evidence.
+
+**Not acted on, because the three available remedies are opposed and the choice is the user's:**
+
+1. **Store the judge's tier on `flagged` too.** The bank's labels become measurements rather than
+   intentions. Honest, and it makes the d5 serving floor *harder*, since a chunk of today's d5
+   inventory is d4 by this reading.
+2. **Keep the requested tier.** The label means "what the plan asked for", which is defensible for
+   a *study plan* that plays tiers in order — but then the judge's rating is advisory and the
+   agreement rate is not a quality metric at all, and it should stop being quoted as one.
+3. **Re-anchor the rubric** so the judge's scale matches the plan's intent. This is what this
+   session set out to do, and the measurement says it would be fixing the instrument to agree
+   with a label the instrument never produced.
+
+**A methodological note worth more than the numbers.** Two prior decisions (D-292, D-296) reasoned
+correctly from a premise nobody checked: that a bank item's difficulty label is the judge's
+rating. Checking it cost one free query against evidence that had been stored since D-194. The
+measurement that mattered was not the 16 paid calls — it was reading what the pipeline had already
+written down about those same 16 items.
+
+### D-301 — The compromise: keep the labels, publish the skew, fix the metric
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** decided (user: "적당히 타협해도 좋아"), 19.94¢ total
+
+D-300 left three opposed remedies. The user's instruction was to take a reasonable middle path,
+so: **change no stored tier, quantify the skew, and fix the metric that caused the confusion.**
+
+**1. `difficulty_label` keeps meaning "the tier the plan asked for".** No content is rewritten.
+The study planner plays tiers in order, so the plan's intent is the operationally meaningful
+label, and rewriting 204 items' tiers would move the serving floor — making the d5 shortage
+*worse* — for a relabelling nobody has asked students about.
+
+**2. The skew is now a published number instead of an assumption**
+(`scripts/measure_tier_label_provenance.py`, free, whole bank rather than a 16-item sample):
+
+| judge's rating vs stored tier | n | share |
+|---|---|---|
+| judge says easier (**stored above**) | 204 | **27%** |
+| agrees | 451 | 59% |
+| judge says harder (stored below) | 104 | 14% |
+
+Provenance: `accepted` 327, **`flagged` 327**, `retiered` 105 — so a *third* of serving items
+carry the slot's tier over a judge disagreement, by design.
+
+**This corrects an overstatement I made from D-300's sample.** I wrote that the bank's labels sit
+"systematically about one tier above" the judge's reading. Bank-wide it is 27% above, 14% below,
+59% agreeing — a **13-point net skew**, not a wholesale shift, and it ranges 6% (`g2_subtraction`)
+to 41% (`pre_algebra`) by topic. The pinned probe sample is drawn from the topics that *produced*
+the disagreements, so it over-represents them by construction; that makes it the right sample for
+the agreement question and the wrong one for "how mislabelled is the bank".
+
+**3. No re-anchoring.** The rationales show the judge quoting the right anchor and applying it
+correctly; tuning it to agree with a label it never produced would be fixing the ruler to match
+the tape measure's operator.
+
+**4. The metric is fixed at the source.** `measure_judge_tier_agreement.py` now reports agreement
+against **both** references side by side, prints how each sampled item got its stored tier, and
+points at the provenance census. Quoting only the first number is what sent two decisions after
+the wrong lever, and the script no longer lets that happen silently.
+
+**And one finding that came free with verifying the fix: the probe is underpowered.** Running it
+twice over the *identical* pinned 16 gave:
+
+| run | vs stored tier | vs the judge's own rating |
+|---|---|---|
+| baseline | 19% exact / 69% within one | 62% / 88% |
+| verify | **6%** exact / 75% within one | 50% / 94% |
+
+Same items, same prompt, same model. The mean signed drift was **−0.88 both times** and the
+direction is unambiguous (pooled n=32: **56% vs 12.5% exact**), but 19% → 6% is most of the
+apparent effect size. So **D-292's 19% was never precise either**, and any future before/after
+rubric comparison at n=16 would be swamped by this variance — it needs several items per tier per
+arm, or repeated runs, before a change could be told from noise. Recorded here rather than
+discovered by someone spending on an inconclusive comparison.
+
+### D-302 — Follow the judge, let the tiers be uneven, fill the question count
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** decided by the user and implemented
+
+The user's decision, given D-300/D-301: *"judge의 판단을 따르자. difficulty가 균등하지 않아도 되고,
+biased되어 있어도 돼. judge판단을 따르고, 문제 수만 채우자."* Follow the judge's rating, accept an
+uneven and biased tier distribution, and optimise for item count.
+
+**The two halves are one change, and this is the measurement that shows why.** Storing the
+judge's tier alone would have been a serious regression:
+
+| | per-tier floor (old) | count floor (new) |
+|---|---|---|
+| stored tiers (before) | 26 of 33 openable | 33 of 33 |
+| **following the judge** | **12 of 33** | **33 of 33** |
+
+204 items move down against 104 up, so the top tiers empty and a floor demanding two at every
+tier closes 14 topics. The user's "difficulty need not be even" is exactly what releases that
+constraint, so both were done together.
+
+**What changed:**
+
+1. **`judge_difficulty` stores the judge's tier on `flagged`**, not only on `retiered`. A ±1
+   disagreement used to keep the slot's tier — the D-300/D-301 finding.
+2. **`EXAM_QUESTION_COUNT` (= 2 × 5 = 10) replaces "two at every difficulty"** as both the
+   builder's precondition and `topic_availability`'s rule. Exam length is unchanged; the
+   threshold and the draw remain the same number, imported from one place, because a topic
+   called available that the builder refuses is the 503 that module exists to prevent.
+3. **The builder tops up.** Pass 1 is the old loop with `len(templates)` as a ceiling, so a
+   topic holding two at every tier draws exactly what it always drew, in the same order — a
+   seeded exam stays byte-identical and the pinned pre-exam capture does not move. Pass 2 fills
+   any shortfall from tiers with surplus, easiest first, and is reached only by topics that used
+   to be *refused*.
+4. **330 existing items were re-tiered** to the judge's reading (214 down, 116 up) by
+   `scripts/backfill_flagged_to_judged_tier.py` — dry-run by default, explicit commit — and
+   re-exported, so the bank's tiers do not mean one thing before a date and another after it.
+
+**Result: 33 of 33 topics openable, and the 11-item shortfall is gone** — it was an artefact of
+the per-tier requirement, not missing content. The tier distribution is now visibly skewed:
+**d1 145, d2 336, d3 209, d4 186, d5 86**.
+
+**The consequence, stated plainly because it is a real product change and not a refactor.** A
+topic with little tier-5 content now serves an easier exam than one that has it, so exam
+difficulty varies **by topic** and not only by student. Two tests were inverted to say so
+(`test_one_short_difficulty_no_longer_closes_a_topic_that_can_still_fill_an_exam`, and the
+`effective_difficulty` assertion whose message was literally "a flag never moves the item"), each
+carrying the reason inline. The floor did not disappear, it moved: a topic that cannot fill one
+exam is still closed, pinned by its own test.
+
+**A process note on my own error.** Verifying the top-up pass by deleting it, I reverted the file
+with `git checkout --`, which discarded **all** of the uncommitted D-302 edits to it rather than
+the temporary one. Caught immediately by grepping for `EXAM_QUESTION_COUNT` and re-applied. The
+test did its job first — it caught the 9-question exam — but the lesson is that a throwaway edit
+inside uncommitted work has to be undone the same way it was made, not with a checkout.
+
+**Verified end to end, and every formerly-closed topic now builds a real exam:**
+
+| topic | tiers drawn |
+|---|---|
+| `algebra_2` | 1×d1, 4×d2, 2×d3, 2×d4, 1×d5 |
+| `g2_word_problems` | **7×d1**, 2×d2, 1×d5 |
+| `g6_word_problems` | 6×d1, 2×d2, 2×d3 — **no d4 or d5 at all** |
+| `trigonometry` | 4×d1, 2×d2, 2×d3, 2×d4 |
+
+All 10 questions, all seven topics. The skew is not theoretical: `g2_word_problems` serves what is
+effectively a tier-1 exam. That is the accepted trade, recorded with the actual numbers so nobody
+has to rediscover how lopsided it can get.
+
+**And the invariant is now pinned over the real bank, after the first version of the test turned
+out to be vacuous.** `test_every_topic_the_picker_calls_available_can_actually_build_an_exam`
+builds an exam for *every* topic the picker offers — 33 of them — which is the offer-equals-build
+agreement D-187 designed the availability rule for and D-288 found violated in the wild as a 503.
+Checking it the way this session has checked everything else, by loosening `_is_available` to
+`>= 1` and expecting a failure, showed it **passed**: every topic holds at least an exam's worth,
+so no topic sits in the gap the test was meant to police. The gap is now synthesised — thin one
+topic to nine items, assert it is withdrawn from the picker *and* that the builder raises — and
+that version does fail against the loosened rule.
+
+**Browser-level verification: the local e2e suite is 70 of 70 green** against this working tree
+and the re-tiered bank, including all four `journey-bands` walks (K-2 figure walk, 3-5, 6-8, 9-12)
+end to end. That matters more than the unit tests here, because D-302 changed what a student is
+*offered* and what an exam *contains*, and the band walks are the only checks that drive a topic
+from the picker through pre-exam, study and post-exam.
+
+**Deliberately not run against staging, and the reason is worth stating rather than skipping.**
+Staging serves the deployed build against its own RDS bank; these changes are uncommitted and the
+backfill touched only the local dev Postgres. A staging run would therefore have verified the
+*previous* state while appearing to verify this one — the most misleading possible outcome. Doing
+it properly needs a commit, a deploy, the migration against staging RDS, the backfill there, and a
+bank load, which is a deploy nobody asked for. The two staging failures D-288 left open
+(`journey-student`'s refresh, `time-telemetry`) both **pass locally here**, which is consistent
+with its staging-only diagnosis and adds nothing new either way.
+
+Negative control holds: `x² - 5x + 5` still does not match, and
+`test_a_wrong_symbolic_key_written_with_superscripts_is_still_rejected` pins it. Both new
+recall tests fail against the pre-fix code; the ambiguity test's pre-fix failure message is
+the defect itself, printing "does not match declared correct option 'c'" for an item whose
+real problem is two equal options.
+
+**And the measurement script's own baseline expired while I was using it.** Its first version
+ran the unmodified gate as "before" and patched the proposed substitutions in as "after" —
+so once the fix shipped inside `_option_matches`, both arms were the same code and it
+reported that the change recovers nothing. The baseline arm now *disables* the shipped
+reading instead. This is D-293's expired-premise failure a second time, found the same way:
+by re-running a measurement after the thing it measured had changed.

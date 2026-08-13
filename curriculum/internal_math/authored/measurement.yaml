@@ -153,7 +153,7 @@ templates:
   topic_id: measurement
   skill_id: measurement_area_volume
   grade_band: 4-5
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -209,7 +209,7 @@ templates:
   topic_id: measurement
   skill_id: measurement_area_volume
   grade_band: 4-5
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -260,7 +260,7 @@ templates:
   topic_id: measurement
   skill_id: measurement_area_volume
   grade_band: 4-5
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -309,6 +309,59 @@ templates:
   option_c: 408 square meters
   option_d: 82 square meters
   correct_option: c
+- question_template_id: authored-measurement-d5-97501
+  topic_id: measurement
+  skill_id: measurement_area_volume
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - multiplied_only_two_dimensions
+  - stopped_after_first_multiplication
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular aquarium has a length of 8 inches, a width of 5 inches, and a height of 6 inches.
+    What is the volume of the aquarium?
+  context_block: null
+  answer_expression: x = 8 * 5 * 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Volume measures how much space is inside a three-dimensional shape. For a rectangular prism, you need
+    all three dimensions.
+  - The volume of a rectangular prism is found by multiplying length times width times height.
+  - Set up the multiplication 8 × 5 × 6 and work through it step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the volume of a rectangular prism: volume equals length times
+        width times height.'
+      expression: V = 8 × 5 × 6
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the length and width first.
+      expression: 8 × 5 = 40
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply that result by the height to find the volume.
+      expression: 40 × 6 = 240
+      common_mistake: null
+    final_answer: 240 cubic inches
+  random_seed: 97501
+  rendered_question: A rectangular aquarium has a length of 8 inches, a width of 5 inches, and a height
+    of 6 inches. What is the volume of the aquarium?
+  option_a: 240 cubic inches
+  option_b: 40 cubic inches
+  option_c: 19 cubic inches
+  option_d: 48 cubic inches
+  correct_option: a
 - question_template_id: authored-measurement-d5-97500
   topic_id: measurement
   skill_id: measurement_area_volume
@@ -361,106 +414,6 @@ templates:
   option_c: 70 cubic inches
   option_d: 240 cubic inches
   correct_option: a
-- question_template_id: authored-measurement-d5-97501
-  topic_id: measurement
-  skill_id: measurement_area_volume
-  grade_band: 4-5
-  difficulty_label: 5
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - added_dimensions_instead_of_multiplying
-  - multiplied_only_two_dimensions
-  - stopped_after_first_multiplication
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A rectangular aquarium has a length of 8 inches, a width of 5 inches, and a height of 6 inches.
-    What is the volume of the aquarium?
-  context_block: null
-  answer_expression: x = 8 * 5 * 6
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Volume measures how much space is inside a three-dimensional shape. For a rectangular prism, you need
-    all three dimensions.
-  - The volume of a rectangular prism is found by multiplying length times width times height.
-  - Set up the multiplication 8 × 5 × 6 and work through it step by step.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: 'Identify the formula for the volume of a rectangular prism: volume equals length times
-        width times height.'
-      expression: V = 8 × 5 × 6
-      common_mistake: null
-    - step_number: 2
-      explanation: Multiply the length and width first.
-      expression: 8 × 5 = 40
-      common_mistake: null
-    - step_number: 3
-      explanation: Multiply that result by the height to find the volume.
-      expression: 40 × 6 = 240
-      common_mistake: null
-    final_answer: 240 cubic inches
-  random_seed: 97501
-  rendered_question: A rectangular aquarium has a length of 8 inches, a width of 5 inches, and a height
-    of 6 inches. What is the volume of the aquarium?
-  option_a: 240 cubic inches
-  option_b: 40 cubic inches
-  option_c: 19 cubic inches
-  option_d: 48 cubic inches
-  correct_option: a
-- question_template_id: authored-measurement-d2-956200
-  topic_id: measurement
-  skill_id: measurement_capacity
-  grade_band: 4-5
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - reversed_digits_in_sum
-  - subtracted_instead_of_added
-  - confused_unit_scale
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A pitcher contains 2 litres of orange juice and Maya adds 350 millilitres more. How many millilitres
-    of juice are in the pitcher now?
-  context_block: null
-  answer_expression: x = 2 * 1000 + 350
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - How many millilitres are in 1 litre?
-  - Multiply the number of litres by 1000 to convert to millilitres.
-  - Add the 350 millilitres to the converted amount.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Convert 2 litres to millilitres by multiplying by 1000, since 1 litre equals 1000 millilitres.
-      expression: 2 * 1000 = 2000
-      common_mistake: null
-    - step_number: 2
-      explanation: Add the 350 millilitres that Maya poured to the 2000 millilitres already in the pitcher.
-      expression: 2000 + 350 = 2350
-      common_mistake: null
-    final_answer: 2350 millilitres
-  random_seed: 956200
-  rendered_question: A pitcher contains 2 litres of orange juice and Maya adds 350 millilitres more. How
-    many millilitres of juice are in the pitcher now?
-  option_a: 2.35 millilitres
-  option_b: 1350 millilitres
-  option_c: 2035 millilitres
-  option_d: 2350 millilitres
-  correct_option: d
 - question_template_id: authored-measurement-d2-956201
   topic_id: measurement
   skill_id: measurement_capacity
@@ -508,59 +461,11 @@ templates:
   option_c: 453 millilitres
   option_d: 3453 millilitres
   correct_option: b
-- question_template_id: authored-measurement-d2-956202
-  topic_id: measurement
-  skill_id: measurement_capacity
-  grade_band: 4-5
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - added_4_and_275_directly_without_converting_liters
-  - multiplied_4_by_100_instead_of_1000
-  - subtracted_275_from_4000_instead_of_adding
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Maya fills a large jug with water for her science experiment. She pours in 4 liters from a pitcher
-    and then adds 275 milliliters from a measuring cup. How many milliliters of water are in the jug altogether?
-  context_block: null
-  answer_expression: Eq(x, 4*1000 + 275)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - How many milliliters are in one liter?
-  - Convert the 4 liters to milliliters by multiplying 4 by 1000, then add the extra milliliters.
-  - Write the total as 4 × 1000 + 275 and calculate.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Recognize that 1 liter equals 1000 milliliters, so 4 liters must be converted to milliliters.
-      expression: 4 × 1000 = 4000
-      common_mistake: null
-    - step_number: 2
-      explanation: Add the 275 milliliters that were poured from the measuring cup to the 4000 milliliters.
-      expression: 4000 + 275 = 4275
-      common_mistake: null
-    final_answer: 4275 milliliters
-  random_seed: 956202
-  rendered_question: Maya fills a large jug with water for her science experiment. She pours in 4 liters
-    from a pitcher and then adds 275 milliliters from a measuring cup. How many milliliters of water are
-    in the jug altogether?
-  option_a: 4275 milliliters
-  option_b: 679 milliliters
-  option_c: 1275 milliliters
-  option_d: 4279 milliliters
-  correct_option: a
 - question_template_id: authored-measurement-d3-956300
   topic_id: measurement
   skill_id: measurement_capacity
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -611,7 +516,7 @@ templates:
   topic_id: measurement
   skill_id: measurement_capacity
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -658,7 +563,7 @@ templates:
   topic_id: measurement
   skill_id: measurement_capacity
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -701,11 +606,106 @@ templates:
   option_c: 1325 milliliters
   option_d: 7007 milliliters
   correct_option: b
+- question_template_id: authored-measurement-d2-956200
+  topic_id: measurement
+  skill_id: measurement_capacity
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - reversed_digits_in_sum
+  - subtracted_instead_of_added
+  - confused_unit_scale
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A pitcher contains 2 litres of orange juice and Maya adds 350 millilitres more. How many millilitres
+    of juice are in the pitcher now?
+  context_block: null
+  answer_expression: x = 2 * 1000 + 350
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many millilitres are in 1 litre?
+  - Multiply the number of litres by 1000 to convert to millilitres.
+  - Add the 350 millilitres to the converted amount.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert 2 litres to millilitres by multiplying by 1000, since 1 litre equals 1000 millilitres.
+      expression: 2 * 1000 = 2000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the 350 millilitres that Maya poured to the 2000 millilitres already in the pitcher.
+      expression: 2000 + 350 = 2350
+      common_mistake: null
+    final_answer: 2350 millilitres
+  random_seed: 956200
+  rendered_question: A pitcher contains 2 litres of orange juice and Maya adds 350 millilitres more. How
+    many millilitres of juice are in the pitcher now?
+  option_a: 2.35 millilitres
+  option_b: 1350 millilitres
+  option_c: 2035 millilitres
+  option_d: 2350 millilitres
+  correct_option: d
+- question_template_id: authored-measurement-d2-956202
+  topic_id: measurement
+  skill_id: measurement_capacity
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_4_and_275_directly_without_converting_liters
+  - multiplied_4_by_100_instead_of_1000
+  - subtracted_275_from_4000_instead_of_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya fills a large jug with water for her science experiment. She pours in 4 liters from a pitcher
+    and then adds 275 milliliters from a measuring cup. How many milliliters of water are in the jug altogether?
+  context_block: null
+  answer_expression: Eq(x, 4*1000 + 275)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many milliliters are in one liter?
+  - Convert the 4 liters to milliliters by multiplying 4 by 1000, then add the extra milliliters.
+  - Write the total as 4 × 1000 + 275 and calculate.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Recognize that 1 liter equals 1000 milliliters, so 4 liters must be converted to milliliters.
+      expression: 4 × 1000 = 4000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the 275 milliliters that were poured from the measuring cup to the 4000 milliliters.
+      expression: 4000 + 275 = 4275
+      common_mistake: null
+    final_answer: 4275 milliliters
+  random_seed: 956202
+  rendered_question: Maya fills a large jug with water for her science experiment. She pours in 4 liters
+    from a pitcher and then adds 275 milliliters from a measuring cup. How many milliliters of water are
+    in the jug altogether?
+  option_a: 4275 milliliters
+  option_b: 679 milliliters
+  option_c: 1275 milliliters
+  option_d: 4279 milliliters
+  correct_option: a
 - question_template_id: authored-measurement-d3-957301
   topic_id: measurement
   skill_id: measurement_elapsed_time
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -761,7 +761,7 @@ templates:
   topic_id: measurement
   skill_id: measurement_elapsed_time
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -1023,7 +1023,7 @@ templates:
   topic_id: measurement
   skill_id: measurement_length
   grade_band: 4-5
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -1071,7 +1071,7 @@ templates:
   topic_id: measurement
   skill_id: measurement_length
   grade_band: 4-5
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 45
   common_error_tags:
@@ -1118,7 +1118,7 @@ templates:
   topic_id: measurement
   skill_id: measurement_length
   grade_band: 4-5
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -1162,53 +1162,7 @@ templates:
   option_c: 345 centimeters
   option_d: 3045 centimeters
   correct_option: c
-- question_template_id: authored-measurement-d2-958200
-  topic_id: measurement
-  skill_id: measurement_length
-  grade_band: 4-5
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 60
-  common_error_tags:
-  - added_meters_and_centimeters_without_converting
-  - added_meters_to_centimeters_without_scaling
-  - concatenated_digits_instead_of_adding
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A jump rope is 5 meters and 60 centimeters long. What is its total length in centimeters?
-  context_block: null
-  answer_expression: x = 5 * 100 + 60
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - How many centimeters are in 1 meter?
-  - Multiply the number of meters by 100 to convert them to centimeters.
-  - Add the 60 extra centimeters to the centimeters you got from the meters.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Convert 5 meters to centimeters. Since 1 meter equals 100 centimeters, multiply 5 by
-        100.
-      expression: 5 * 100 = 500
-      common_mistake: null
-    - step_number: 2
-      explanation: Add the additional 60 centimeters to the 500 centimeters from the meters.
-      expression: 500 + 60 = 560
-      common_mistake: null
-    final_answer: 560 centimeters
-  random_seed: 958200
-  rendered_question: A jump rope is 5 meters and 60 centimeters long. What is its total length in centimeters?
-  option_a: 510 centimeters
-  option_b: 5060 centimeters
-  option_c: 560 centimeters
-  option_d: 65 centimeters
-  correct_option: c
-- question_template_id: authored-measurement-d2-958201
+- question_template_id: authored-measurement-d3-958300
   topic_id: measurement
   skill_id: measurement_length
   grade_band: 4-5
@@ -1216,57 +1170,9 @@ templates:
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
+  - added_before_converting_then_scaled_incorrectly
   - concatenated_digits_instead_of_converting
-  - reversed_digit_order_in_place_value
-  - multiplied_meters_by_1000_instead_of_100
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: A curtain in the school hall is 6 meters and 80 centimeters long. What is the total length of
-    the curtain in centimeters?
-  context_block: null
-  answer_expression: Eq(x, 6*100 + 80)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - How many centimeters are in one meter?
-  - Multiply the number of meters by 100 to convert them to centimeters, then add the extra centimeters.
-  - Write 6 × 100 plus 80 to find the total in centimeters.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Convert the 6 meters to centimeters. Since 1 meter equals 100 centimeters, multiply
-        6 by 100.
-      expression: 6 * 100 = 600
-      common_mistake: null
-    - step_number: 2
-      explanation: Add the remaining 80 centimeters to the converted amount.
-      expression: 600 + 80 = 680
-      common_mistake: null
-    final_answer: 680 centimeters
-  random_seed: 958201
-  rendered_question: A curtain in the school hall is 6 meters and 80 centimeters long. What is the total
-    length of the curtain in centimeters?
-  option_a: 86 centimeters
-  option_b: 608 centimeters
-  option_c: 680 centimeters
-  option_d: 6080 centimeters
-  correct_option: c
-- question_template_id: authored-measurement-d2-958202
-  topic_id: measurement
-  skill_id: measurement_length
-  grade_band: 4-5
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - added_parts_without_conversion
-  - placed_values_side_by_side_without_operation
-  - converted_only_meters_forgot_to_add_centimeters
+  - ignored_meters_or_misapplied_conversion
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
@@ -1274,36 +1180,130 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A swimming pool lane rope is 7 meters and 50 centimeters long. What is the total length of the
-    rope in centimeters?
-  context_block: null
-  answer_expression: x = 7 * 100 + 50
+  stem: A school gym is decorating for a festival. The banner they hung is 8 meters and 35 centimeters
+    long. What is the total length of the banner in centimeters?
+  context_block: ''
+  answer_expression: x = 8 * 100 + 35
   figure_spec: null
   figure_reading: null
   hint_ladder:
   - How many centimeters are in one meter?
-  - Convert the 7 meters to centimeters first, then think about what to do with the 50 centimeters.
-  - Multiply 7 by 100 to get the meters in centimeters, then add the extra 50 centimeters.
+  - Convert the 8 meters to centimeters, then think about how to combine that with the 35 centimeters.
+  - Multiply 8 by 100 to get the meters in centimeters, then add the remaining 35 centimeters.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Convert 7 meters to centimeters. Since 1 meter equals 100 centimeters, multiply 7 by
-        100.
-      expression: 7 * 100 = 700
+      explanation: Convert the 8 meters to centimeters. Since 1 meter equals 100 centimeters, multiply
+        8 by 100.
+      expression: 8 * 100 = 800
       common_mistake: null
     - step_number: 2
-      explanation: Add the additional 50 centimeters to the converted amount.
-      expression: 700 + 50 = 750
+      explanation: Add the remaining 35 centimeters to the 800 centimeters from the meters.
+      expression: 800 + 35 = 835
       common_mistake: null
-    final_answer: 750 centimeters
-  random_seed: 958202
-  rendered_question: A swimming pool lane rope is 7 meters and 50 centimeters long. What is the total
-    length of the rope in centimeters?
-  option_a: 57 centimeters
-  option_b: 700 centimeters
-  option_c: 7050 centimeters
-  option_d: 750 centimeters
-  correct_option: d
+    final_answer: 835 centimeters
+  random_seed: 958300
+  rendered_question: A school gym is decorating for a festival. The banner they hung is 8 meters and 35
+    centimeters long. What is the total length of the banner in centimeters?
+  option_a: 835 centimeters
+  option_b: 843 centimeters
+  option_c: 135 centimeters
+  option_d: 8035 centimeters
+  correct_option: a
+- question_template_id: authored-measurement-d3-958301
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_9_and_25_then_added_100
+  - only_converted_centimeters_not_meters
+  - concatenated_digits_instead_of_converting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A garden hose is 9 meters and 25 centimeters long. What is the total length of the hose in centimeters?
+  context_block: null
+  answer_expression: Eq(x, 9 * 100 + 25)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many centimeters are in one meter?
+  - Multiply the number of meters by 100 to convert to centimeters, then add the remaining centimeters.
+  - Write 9 × 100 + 25 and calculate the sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the 9 meters to centimeters. Since 1 meter equals 100 centimeters, multiply
+        9 by 100.
+      expression: 9 * 100 = 900
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the 25 centimeters that are already given in centimeters to the converted amount.
+      expression: 900 + 25 = 925
+      common_mistake: null
+    final_answer: 925 centimeters
+  random_seed: 958301
+  rendered_question: A garden hose is 9 meters and 25 centimeters long. What is the total length of the
+    hose in centimeters?
+  option_a: 934 centimeters
+  option_b: 125 centimeters
+  option_c: 925 centimeters
+  option_d: 90025 centimeters
+  correct_option: c
+- question_template_id: authored-measurement-d3-958302
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_meters_and_centimeters_directly
+  - added_conversion_factor_instead_of_multiplying
+  - concatenated_digits_instead_of_converting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A climbing rope is 4 meters and 15 centimeters long. What is the total length of the rope in centimeters?
+  context_block: null
+  answer_expression: Eq(x, 4 * 100 + 15)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many centimeters are in one meter?
+  - Multiply the number of meters by 100 to convert to centimeters, then add the extra centimeters.
+  - Write x = 4 × 100 + 15 and compute the right side.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the meters to centimeters. Since 1 meter equals 100 centimeters, 4 meters equals
+        4 times 100.
+      expression: 4 × 100 = 400
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the remaining 15 centimeters to the converted amount.
+      expression: 400 + 15 = 415
+      common_mistake: null
+    final_answer: 415 centimeters
+  random_seed: 958302
+  rendered_question: A climbing rope is 4 meters and 15 centimeters long. What is the total length of
+    the rope in centimeters?
+  option_a: 55 centimeters
+  option_b: 4015 centimeters
+  option_c: 415 centimeters
+  option_d: 19 centimeters
+  correct_option: c
 - question_template_id: authored-measurement-d1-958100
   topic_id: measurement
   skill_id: measurement_length
@@ -1402,17 +1402,17 @@ templates:
   option_c: 425 centimeters
   option_d: 65 centimeters
   correct_option: c
-- question_template_id: authored-measurement-d3-958300
+- question_template_id: authored-measurement-d2-958200
   topic_id: measurement
   skill_id: measurement_length
   grade_band: 4-5
   difficulty_label: 3
   difficulty_confidence: 0.5
-  estimated_time_seconds: 90
+  estimated_time_seconds: 60
   common_error_tags:
-  - added_before_converting_then_scaled_incorrectly
-  - concatenated_digits_instead_of_converting
-  - ignored_meters_or_misapplied_conversion
+  - added_meters_and_centimeters_without_converting
+  - added_meters_to_centimeters_without_scaling
+  - concatenated_digits_instead_of_adding
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
@@ -1420,84 +1420,35 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A school gym is decorating for a festival. The banner they hung is 8 meters and 35 centimeters
-    long. What is the total length of the banner in centimeters?
-  context_block: ''
-  answer_expression: x = 8 * 100 + 35
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - How many centimeters are in one meter?
-  - Convert the 8 meters to centimeters, then think about how to combine that with the 35 centimeters.
-  - Multiply 8 by 100 to get the meters in centimeters, then add the remaining 35 centimeters.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Convert the 8 meters to centimeters. Since 1 meter equals 100 centimeters, multiply
-        8 by 100.
-      expression: 8 * 100 = 800
-      common_mistake: null
-    - step_number: 2
-      explanation: Add the remaining 35 centimeters to the 800 centimeters from the meters.
-      expression: 800 + 35 = 835
-      common_mistake: null
-    final_answer: 835 centimeters
-  random_seed: 958300
-  rendered_question: A school gym is decorating for a festival. The banner they hung is 8 meters and 35
-    centimeters long. What is the total length of the banner in centimeters?
-  option_a: 835 centimeters
-  option_b: 843 centimeters
-  option_c: 135 centimeters
-  option_d: 8035 centimeters
-  correct_option: a
-- question_template_id: authored-measurement-d3-958301
-  topic_id: measurement
-  skill_id: measurement_length
-  grade_band: 4-5
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - added_9_and_25_then_added_100
-  - only_converted_centimeters_not_meters
-  - concatenated_digits_instead_of_converting
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A garden hose is 9 meters and 25 centimeters long. What is the total length of the hose in centimeters?
+  stem: A jump rope is 5 meters and 60 centimeters long. What is its total length in centimeters?
   context_block: null
-  answer_expression: Eq(x, 9 * 100 + 25)
+  answer_expression: x = 5 * 100 + 60
   figure_spec: null
   figure_reading: null
   hint_ladder:
-  - How many centimeters are in one meter?
-  - Multiply the number of meters by 100 to convert to centimeters, then add the remaining centimeters.
-  - Write 9 × 100 + 25 and calculate the sum.
+  - How many centimeters are in 1 meter?
+  - Multiply the number of meters by 100 to convert them to centimeters.
+  - Add the 60 extra centimeters to the centimeters you got from the meters.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Convert the 9 meters to centimeters. Since 1 meter equals 100 centimeters, multiply
-        9 by 100.
-      expression: 9 * 100 = 900
+      explanation: Convert 5 meters to centimeters. Since 1 meter equals 100 centimeters, multiply 5 by
+        100.
+      expression: 5 * 100 = 500
       common_mistake: null
     - step_number: 2
-      explanation: Add the 25 centimeters that are already given in centimeters to the converted amount.
-      expression: 900 + 25 = 925
+      explanation: Add the additional 60 centimeters to the 500 centimeters from the meters.
+      expression: 500 + 60 = 560
       common_mistake: null
-    final_answer: 925 centimeters
-  random_seed: 958301
-  rendered_question: A garden hose is 9 meters and 25 centimeters long. What is the total length of the
-    hose in centimeters?
-  option_a: 934 centimeters
-  option_b: 125 centimeters
-  option_c: 925 centimeters
-  option_d: 90025 centimeters
+    final_answer: 560 centimeters
+  random_seed: 958200
+  rendered_question: A jump rope is 5 meters and 60 centimeters long. What is its total length in centimeters?
+  option_a: 510 centimeters
+  option_b: 5060 centimeters
+  option_c: 560 centimeters
+  option_d: 65 centimeters
   correct_option: c
-- question_template_id: authored-measurement-d3-958302
+- question_template_id: authored-measurement-d2-958201
   topic_id: measurement
   skill_id: measurement_length
   grade_band: 4-5
@@ -1505,9 +1456,57 @@ templates:
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
-  - added_meters_and_centimeters_directly
-  - added_conversion_factor_instead_of_multiplying
   - concatenated_digits_instead_of_converting
+  - reversed_digit_order_in_place_value
+  - multiplied_meters_by_1000_instead_of_100
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A curtain in the school hall is 6 meters and 80 centimeters long. What is the total length of
+    the curtain in centimeters?
+  context_block: null
+  answer_expression: Eq(x, 6*100 + 80)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many centimeters are in one meter?
+  - Multiply the number of meters by 100 to convert them to centimeters, then add the extra centimeters.
+  - Write 6 × 100 plus 80 to find the total in centimeters.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the 6 meters to centimeters. Since 1 meter equals 100 centimeters, multiply
+        6 by 100.
+      expression: 6 * 100 = 600
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the remaining 80 centimeters to the converted amount.
+      expression: 600 + 80 = 680
+      common_mistake: null
+    final_answer: 680 centimeters
+  random_seed: 958201
+  rendered_question: A curtain in the school hall is 6 meters and 80 centimeters long. What is the total
+    length of the curtain in centimeters?
+  option_a: 86 centimeters
+  option_b: 608 centimeters
+  option_c: 680 centimeters
+  option_d: 6080 centimeters
+  correct_option: c
+- question_template_id: authored-measurement-d2-958202
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_parts_without_conversion
+  - placed_values_side_by_side_without_operation
+  - converted_only_meters_forgot_to_add_centimeters
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
@@ -1515,35 +1514,36 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A climbing rope is 4 meters and 15 centimeters long. What is the total length of the rope in centimeters?
+  stem: A swimming pool lane rope is 7 meters and 50 centimeters long. What is the total length of the
+    rope in centimeters?
   context_block: null
-  answer_expression: Eq(x, 4 * 100 + 15)
+  answer_expression: x = 7 * 100 + 50
   figure_spec: null
   figure_reading: null
   hint_ladder:
   - How many centimeters are in one meter?
-  - Multiply the number of meters by 100 to convert to centimeters, then add the extra centimeters.
-  - Write x = 4 × 100 + 15 and compute the right side.
+  - Convert the 7 meters to centimeters first, then think about what to do with the 50 centimeters.
+  - Multiply 7 by 100 to get the meters in centimeters, then add the extra 50 centimeters.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Convert the meters to centimeters. Since 1 meter equals 100 centimeters, 4 meters equals
-        4 times 100.
-      expression: 4 × 100 = 400
+      explanation: Convert 7 meters to centimeters. Since 1 meter equals 100 centimeters, multiply 7 by
+        100.
+      expression: 7 * 100 = 700
       common_mistake: null
     - step_number: 2
-      explanation: Add the remaining 15 centimeters to the converted amount.
-      expression: 400 + 15 = 415
+      explanation: Add the additional 50 centimeters to the converted amount.
+      expression: 700 + 50 = 750
       common_mistake: null
-    final_answer: 415 centimeters
-  random_seed: 958302
-  rendered_question: A climbing rope is 4 meters and 15 centimeters long. What is the total length of
-    the rope in centimeters?
-  option_a: 55 centimeters
-  option_b: 4015 centimeters
-  option_c: 415 centimeters
-  option_d: 19 centimeters
-  correct_option: c
+    final_answer: 750 centimeters
+  random_seed: 958202
+  rendered_question: A swimming pool lane rope is 7 meters and 50 centimeters long. What is the total
+    length of the rope in centimeters?
+  option_a: 57 centimeters
+  option_b: 700 centimeters
+  option_c: 7050 centimeters
+  option_d: 750 centimeters
+  correct_option: d
 - question_template_id: authored-measurement-d1-101100
   topic_id: measurement
   skill_id: measurement_money
@@ -1594,55 +1594,6 @@ templates:
   option_c: $17.25
   option_d: $7.25
   correct_option: b
-- question_template_id: authored-measurement-d1-101101
-  topic_id: measurement
-  skill_id: measurement_money
-  grade_band: 4-5
-  difficulty_label: 1
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 60
-  common_error_tags:
-  - rounded_or_misread_cents_value
-  - dropped_cents_from_one_amount
-  - subtracted_instead_of_adding
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Liam does chores for his family. He earns $8.25 one week and $6.50 the next week. How much money
-    has he saved altogether?
-  context_block: ''
-  answer_expression: x = 8.25 + 6.50
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Find the total by combining the amount Liam earned each week.
-  - 'Add the two amounts of money together: the $8.25 from the first week and the $6.50 from the second
-    week.'
-  - Write 8.25 + 6.50 and compute the sum, lining up the decimal points.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Liam earned $8.25 in the first week and $6.50 in the second week. To find the total
-        saved, add these two amounts.
-      expression: 8.25 + 6.50
-      common_mistake: null
-    - step_number: 2
-      explanation: Line up the decimal points and add. 8.25 + 6.50 = 14.75.
-      expression: '14.75'
-      common_mistake: null
-    final_answer: $14.75
-  random_seed: 101101
-  rendered_question: Liam does chores for his family. He earns $8.25 one week and $6.50 the next week.
-    How much money has he saved altogether?
-  option_a: $15.75
-  option_b: $1.75
-  option_c: $14.75
-  option_d: $14.25
-  correct_option: c
 - question_template_id: authored-measurement-d1-959100
   topic_id: measurement
   skill_id: measurement_money
@@ -1690,57 +1641,6 @@ templates:
   option_c: '9.50'
   option_d: '22.00'
   correct_option: c
-- question_template_id: authored-measurement-d1-959101
-  topic_id: measurement
-  skill_id: measurement_money
-  grade_band: 4-5
-  difficulty_label: 1
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 60
-  common_error_tags:
-  - subtraction_borrowing_error
-  - added_instead_of_subtracted
-  - subtracted_in_wrong_order
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A baker started the day with $28.50 and then spent $12.75 on baking supplies. How much money does
-    the baker have left?
-  context_block: ''
-  answer_expression: Eq(x, 28.50 - 12.75)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Think about whether the baker's money increases or decreases when supplies are purchased.
-  - You need to subtract the amount spent from the starting amount.
-  - Write the subtraction 28.50 minus 12.75 and compute the result.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The baker starts with $28.50.
-      expression: '28.50'
-      common_mistake: null
-    - step_number: 2
-      explanation: The baker spends $12.75, so we subtract that from the starting amount.
-      expression: 28.50 - 12.75
-      common_mistake: null
-    - step_number: 3
-      explanation: 'Perform the subtraction: 28.50 minus 12.75 equals 15.75.'
-      expression: '15.75'
-      common_mistake: null
-    final_answer: $15.75
-  random_seed: 959101
-  rendered_question: A baker started the day with $28.50 and then spent $12.75 on baking supplies. How
-    much money does the baker have left?
-  option_a: $41.25
-  option_b: $15.75
-  option_c: $16.25
-  option_d: $16.75
-  correct_option: b
 - question_template_id: authored-measurement-d1-959102
   topic_id: measurement
   skill_id: measurement_money
@@ -1792,6 +1692,106 @@ templates:
   option_c: $16.50
   option_d: $33.10
   correct_option: c
+- question_template_id: authored-measurement-d1-101101
+  topic_id: measurement
+  skill_id: measurement_money
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - rounded_or_misread_cents_value
+  - dropped_cents_from_one_amount
+  - subtracted_instead_of_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam does chores for his family. He earns $8.25 one week and $6.50 the next week. How much money
+    has he saved altogether?
+  context_block: ''
+  answer_expression: x = 8.25 + 6.50
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the total by combining the amount Liam earned each week.
+  - 'Add the two amounts of money together: the $8.25 from the first week and the $6.50 from the second
+    week.'
+  - Write 8.25 + 6.50 and compute the sum, lining up the decimal points.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam earned $8.25 in the first week and $6.50 in the second week. To find the total
+        saved, add these two amounts.
+      expression: 8.25 + 6.50
+      common_mistake: null
+    - step_number: 2
+      explanation: Line up the decimal points and add. 8.25 + 6.50 = 14.75.
+      expression: '14.75'
+      common_mistake: null
+    final_answer: $14.75
+  random_seed: 101101
+  rendered_question: Liam does chores for his family. He earns $8.25 one week and $6.50 the next week.
+    How much money has he saved altogether?
+  option_a: $15.75
+  option_b: $1.75
+  option_c: $14.75
+  option_d: $14.25
+  correct_option: c
+- question_template_id: authored-measurement-d1-959101
+  topic_id: measurement
+  skill_id: measurement_money
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtraction_borrowing_error
+  - added_instead_of_subtracted
+  - subtracted_in_wrong_order
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker started the day with $28.50 and then spent $12.75 on baking supplies. How much money does
+    the baker have left?
+  context_block: ''
+  answer_expression: Eq(x, 28.50 - 12.75)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about whether the baker's money increases or decreases when supplies are purchased.
+  - You need to subtract the amount spent from the starting amount.
+  - Write the subtraction 28.50 minus 12.75 and compute the result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker starts with $28.50.
+      expression: '28.50'
+      common_mistake: null
+    - step_number: 2
+      explanation: The baker spends $12.75, so we subtract that from the starting amount.
+      expression: 28.50 - 12.75
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the subtraction: 28.50 minus 12.75 equals 15.75.'
+      expression: '15.75'
+      common_mistake: null
+    final_answer: $15.75
+  random_seed: 959101
+  rendered_question: A baker started the day with $28.50 and then spent $12.75 on baking supplies. How
+    much money does the baker have left?
+  option_a: $41.25
+  option_b: $15.75
+  option_c: $16.25
+  option_d: $16.75
+  correct_option: b
 - question_template_id: authored-measurement-d2-959200
   topic_id: measurement
   skill_id: measurement_money
@@ -1952,54 +1952,6 @@ templates:
   option_c: $30.85
   option_d: $12.25
   correct_option: b
-- question_template_id: authored-measurement-d2-960200
-  topic_id: measurement
-  skill_id: measurement_weight
-  grade_band: 4-5
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - reversed_digits_in_concatenation
-  - ignored_place_value_in_conversion
-  - multiplied_conversion_factor_by_ten
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A package arrives at the post office weighing 3 kg 450 g. What is the total weight of the package
-    in grams?
-  context_block: ''
-  answer_expression: x = 3 * 1000 + 450
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Remember that 1 kilogram equals 1000 grams, so you need to convert the kilograms first.
-  - Multiply the number of kilograms by 1000 to find how many grams that part weighs, then add the remaining
-    grams.
-  - Write the total as 3 times 1000 plus 450 and calculate the sum.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Convert the kilograms to grams by multiplying by 1000.
-      expression: 3 * 1000 = 3000
-      common_mistake: null
-    - step_number: 2
-      explanation: Add the remaining grams to the converted amount.
-      expression: 3000 + 450 = 3450
-      common_mistake: null
-    final_answer: 3450 grams
-  random_seed: 960200
-  rendered_question: A package arrives at the post office weighing 3 kg 450 g. What is the total weight
-    of the package in grams?
-  option_a: 3045 grams
-  option_b: 3450 grams
-  option_c: 30450 grams
-  option_d: 345 grams
-  correct_option: b
 - question_template_id: authored-measurement-d2-960201
   topic_id: measurement
   skill_id: measurement_weight
@@ -2046,56 +1998,11 @@ templates:
   option_c: 780 grams
   option_d: 5028 grams
   correct_option: b
-- question_template_id: authored-measurement-d2-960202
-  topic_id: measurement
-  skill_id: measurement_weight
-  grade_band: 4-5
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - ignored_the_grams_component
-  - used_incorrect_conversion_factor
-  - rounded_before_adding
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A bag of flour weighs 4 kg 275 g. How much does the bag weigh in grams?
-  context_block: ''
-  answer_expression: Eq(x, 4*1000 + 275)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - How many grams are in one kilogram?
-  - To convert 4 kilograms to grams, multiply 4 by 1000.
-  - Add the result from the kilograms to the 275 grams already given.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Convert the kilograms to grams. Since 1 kilogram equals 1000 grams, multiply 4 by 1000.
-      expression: 4 * 1000 = 4000
-      common_mistake: null
-    - step_number: 2
-      explanation: Add the grams from the kilogram conversion to the 275 grams already given.
-      expression: 4000 + 275 = 4275
-      common_mistake: null
-    final_answer: 4275 grams
-  random_seed: 960202
-  rendered_question: A bag of flour weighs 4 kg 275 g. How much does the bag weigh in grams?
-  option_a: 4300 grams
-  option_b: 4275 grams
-  option_c: 679 grams
-  option_d: 4000 grams
-  correct_option: b
 - question_template_id: authored-measurement-d3-960300
   topic_id: measurement
   skill_id: measurement_weight
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -2142,7 +2049,7 @@ templates:
   topic_id: measurement
   skill_id: measurement_weight
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -2183,6 +2090,99 @@ templates:
   option_c: 7125 grams
   option_d: 7025 grams
   correct_option: c
+- question_template_id: authored-measurement-d2-960200
+  topic_id: measurement
+  skill_id: measurement_weight
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - reversed_digits_in_concatenation
+  - ignored_place_value_in_conversion
+  - multiplied_conversion_factor_by_ten
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A package arrives at the post office weighing 3 kg 450 g. What is the total weight of the package
+    in grams?
+  context_block: ''
+  answer_expression: x = 3 * 1000 + 450
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Remember that 1 kilogram equals 1000 grams, so you need to convert the kilograms first.
+  - Multiply the number of kilograms by 1000 to find how many grams that part weighs, then add the remaining
+    grams.
+  - Write the total as 3 times 1000 plus 450 and calculate the sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the kilograms to grams by multiplying by 1000.
+      expression: 3 * 1000 = 3000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the remaining grams to the converted amount.
+      expression: 3000 + 450 = 3450
+      common_mistake: null
+    final_answer: 3450 grams
+  random_seed: 960200
+  rendered_question: A package arrives at the post office weighing 3 kg 450 g. What is the total weight
+    of the package in grams?
+  option_a: 3045 grams
+  option_b: 3450 grams
+  option_c: 30450 grams
+  option_d: 345 grams
+  correct_option: b
+- question_template_id: authored-measurement-d2-960202
+  topic_id: measurement
+  skill_id: measurement_weight
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - ignored_the_grams_component
+  - used_incorrect_conversion_factor
+  - rounded_before_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bag of flour weighs 4 kg 275 g. How much does the bag weigh in grams?
+  context_block: ''
+  answer_expression: Eq(x, 4*1000 + 275)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many grams are in one kilogram?
+  - To convert 4 kilograms to grams, multiply 4 by 1000.
+  - Add the result from the kilograms to the 275 grams already given.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the kilograms to grams. Since 1 kilogram equals 1000 grams, multiply 4 by 1000.
+      expression: 4 * 1000 = 4000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the grams from the kilogram conversion to the 275 grams already given.
+      expression: 4000 + 275 = 4275
+      common_mistake: null
+    final_answer: 4275 grams
+  random_seed: 960202
+  rendered_question: A bag of flour weighs 4 kg 275 g. How much does the bag weigh in grams?
+  option_a: 4300 grams
+  option_b: 4275 grams
+  option_c: 679 grams
+  option_d: 4000 grams
+  correct_option: b
 - question_template_id: authored-measurement-d3-960302
   topic_id: measurement
   skill_id: measurement_weight

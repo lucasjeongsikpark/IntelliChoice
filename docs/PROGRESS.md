@@ -7,9 +7,68 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Session C1: Phases 0 ✅, R ✅, 1 ✅ (all four grade bands), 5 ✅ (figures), 6 ⏸ partial,
+**Session C1, continued — 2026-08-12, D-294/D-295. Two carry-over defects closed, and the
+rubric question re-ordered rather than answered. No money spent. 1414 passing** (from 1410;
+lint and pyright clean throughout).
+
+**The 31% spend gap is diagnosed, fixed and reproducible (D-294).** It was the
+equation-design call: `generate_authored_candidate` makes it once per slot *before* the
+function that writes the rows, so its spend reached `RunSummary` and no row at all. Found by
+reconciling **one slot** (0.051¢ reported, 0.041¢ recorded — exactly one of five model calls)
+rather than re-querying the window, then confirmed on real money: a design attempt costs a
+median **1.26¢** against an accepted row's **2.67¢**, so those rows understate their slots by
+**32.0%**. The worse half was that `cost_cents` meant two different things — only pure design
+failures carried the design spend, **67 rows** naming the stage against **1,117** not. Fixed
+at the row, with `scripts/measure_spend_reconciliation.py` to re-check it.
+
+**`session_scope` no longer reports success for writes it discards (D-294)**, and the fix was
+safe because it was counted first: **0 of 66** blocks in the repo write without an explicit
+commit, so commit-on-clean-exit changes the behaviour of nothing that exists and protects the
+ad-hoc script, which is where the bug actually bit.
+
+**Every difficulty rejection this project has recorded — 117 of 117 — was a warm-up cost, not
+a content or instrument verdict (D-295).** `slot_gap >= 2` *retiers* when the run's histogram
+shows the judge discriminating and rejects only when it does not, so **87 retiered and 117
+rejected are the same disagreement at the same tiers** (d4 ×28/d5 ×41 against d4 ×64/d5 ×40);
+the only discriminator is `may_retier`. And `_MIN_JUDGE_OBSERVATIONS = 5` blocks **100% of
+positions 1-4 of every run** and 0.6% of position 11+. **The cost driver is the number of
+runs, not the tier mix** — every `run_plan` invocation pays ~4 un-retierable candidates, and
+Phase 3's depth pass ran many small per-topic batches. This is the likeliest reading of C1's
+own two yields: 61% mixed-tier against 35% when the serving-floor batch targeted the extremes.
+
+**The remedy was then tested and it reverses its own ordering (D-296).** One run, 34 slots ×2,
+all 8 short topics, models held constant: **43 of 68 accepted (63%), $1.70**, zero difficulty
+rejections after position 2 and **16 candidates retiered** where small batches would have
+discarded them. And **only 1 of 8 topics opened**, because all 16 retiers moved **downward** —
+nine d5 candidates stored at d2/d3. A retier saves the item by moving it off the tier the floor
+needed, so **the rubric is the gating item after all**, now on evidence rather than instinct.
+The run also exposed a gate defect that has always blocked polynomial division in `algebra_2`.
+
+**Corrections this forced, kept because they run against my own first reading:** D-292 states
+the policy backwards on both halves (±1 is *flagged and kept at the requested tier*, not
+stored at the judge's; beyond ±1 is *retiered*, not rejected); I first read the bank's 109
+tier-mismatched items as a rule violation, and retiering ≥2 tiers is designed behaviour; and
+my tier-homogeneity explanation for the collapse was **measured and killed** — collapsed runs
+are small (n=5-7), not homogeneous (dominant requested tier 33-60%).
+
+**The bank is 912 and 26 of 33 topics open; 11 items still stand between 7 topics and being
+openable.** D-296's 43 items and the D-297/D-298 re-generation's 17 are approved and exported
+(852 → 895 → 912). Total spend across both paid runs this session: **$2.96**, every one behind a
+green preflight and an explicit `--run-budget-cents`.
+
+**A crash cost 18 of a run's 42 candidates, and it is the fourth of one kind (D-299).**
+`_route_system` indexed `solved[0][s]` for every unknown; `sympy.solve` on two equations in three
+unknowns returns **one** dict — passing the "exactly one solution" check — with the free unknown
+simply absent, so it raised `KeyError` and killed the run at candidate 25. After Phase R's
+`TokenError`, D-274's tuple-from-`sympify`, and the NULL `answer_expression`, the pattern is
+unmistakable: **SymPy answers a slightly different question than the caller asked, and the caller
+indexes the result instead of checking it.** Now a rejection, reproduced in three lines and pinned
+both directions. D-193's per-candidate commit meant the 24 completed candidates and their 68¢
+survived — fail-closed is a budget property here, not only a correctness one.
+
+**Prior state of C1: Phases 0 ✅, R ✅, 1 ✅ (all four grade bands), 5 ✅ (figures), 6 ⏸ partial,
 3 ⏸ partial. 2026-08-11/12, D-273 through D-293. 852 approved and exported, 0 pending,
-~$41 spent, 1410 passing.** Phase 3 added **194 items for $12.95** and took the bank from
+~$41 spent.** Phase 3 added **194 items for $12.95** and took the bank from
 **20 to 25 of 33 topics a student can actually open**.
 
 **The auto-approval decision is taken and recorded (D-289).** All five pre-registered criteria
@@ -62,16 +121,86 @@ throughput was 3× what I read; and I wrote a recall test asserting `x <= 10` ag
 
 **Carry-over, in the order they matter:**
 
-1. **14 items still stand between 8 topics and being openable**, and **12 of them are tier 5**
-   (plus `algebra_2` d1 and `g6_fractions` d1). This is not a spending problem — see D-292. The
-   real question is whether every topic must span all five tiers, which is a product decision.
-2. **The difficulty rubric is the highest-value thing left** (D-292). Re-anchoring it and
-   re-running the 16-call probe is cheap, and every future wave's yield depends on it.
-3. **The two spend numbers this project keeps disagree by 31%** — the pipeline's own run summaries
-   total **1278¢** for the runs this session while `question_validation_runs.cost_cents` sums to
-   **884¢** over the same window, with candidate counts nearly matching (368 vs 378). The budget
-   ceiling enforces the first. Cost accounting is CLAUDE.md rule 7, so an unexplained 31% gap in it
-   is worth one session's attention. **Not diagnosed — flagged rather than explained away.**
+1. **RESOLVED (D-302): follow the judge, tiers may be uneven, fill the question count — and
+   all 33 topics now open.** The user's decision superseded D-301's keep-the-labels compromise.
+   `judge_difficulty` stores the judge's tier on `flagged` too, and `EXAM_QUESTION_COUNT` (10,
+   unchanged exam length) replaces "two at every difficulty" as both the builder's precondition
+   and the availability rule. **Both halves were required together**: following the judge alone
+   moves 214 items down against 116 up and would have taken openable topics **26 → 12**; with
+   the count rule it is **33 → 33**, and the 11-item shortfall was an artefact of the per-tier
+   requirement rather than missing content. 330 existing items re-tiered and re-exported. Bank
+   tier distribution is now deliberately skewed: **d1 145, d2 336, d3 209, d4 186, d5 86**.
+   **Real product consequence:** a topic with little tier-5 content serves an easier exam, so
+   exam difficulty now varies by topic and not only by student — measured, not hypothetical:
+   `g2_word_problems` draws **7 of 10 items at tier 1** and `g6_word_problems` draws **no d4 or
+   d5 at all**. **Verified in a browser: the local e2e suite is 70 of 70**, including all four
+   `journey-bands` walks end to end, and every one of the seven formerly-closed topics builds a
+   real 10-question exam. **Not run against staging on purpose** — staging serves the deployed
+   build against its own RDS bank, so it would have verified the *previous* state while looking
+   like it verified this one.
+1z. **Superseded compromise, kept for its measurements (D-301).** No
+   stored tier is rewritten and the rubric is not re-anchored. `difficulty_label` officially
+   means "the tier the plan asked for" — the study planner plays tiers in order, and rewriting
+   204 items would move the serving floor the wrong way. The skew is now a published number
+   (`scripts/measure_tier_label_provenance.py`): **27% of serving items stored above the judge's
+   reading, 59% agreeing, 14% below** — a 13-point net skew ranging 6% to 41% by topic, **not**
+   the wholesale one-tier shift I first claimed from the 16-item sample. `measure_judge_tier_
+   agreement.py` now reports both references side by side so the misreading cannot recur.
+   **The probe is also underpowered**: two runs over the identical 16 gave 19% and **6%** against
+   the stored tier (direction unambiguous, pooled 56% vs 12.5%), so a future rubric comparison
+   at n=16 would be swamped by noise.
+1a. **The measurement behind it (D-300).** Measured
+   for 10.24¢ on a now-**pinned** 16-item sample: the judge scores **19% exact against the
+   bank's stored tier** but **62% exact / 88% within one against its own first rating**. The
+   gap is that **10 of the 16 items were `flagged` at authoring** — the judge named a different
+   tier (8 of them *lower*) and the item was stored at the **requested** tier anyway, which is
+   what a ±1 disagreement does by design. So the bank's labels sit about a tier above the only
+   independent reading of them, and re-anchoring would be tuning the instrument to agree with a
+   label it never produced. **The decision now on the table is which of three things to do** —
+   store the judge's tier on `flagged`, keep the requested tier and stop quoting agreement as a
+   quality metric, or re-anchor anyway. See D-300; not taken.
+1b. **Superseded framing, kept because two decisions were built on it (D-296).** The
+   one-large-run experiment was run and it worked on its own terms
+   (63% yield, difficulty rejections from 52% of rejections down to 2 of 25) **and opened
+   only 1 of the 8 short topics.** All 16 retiers moved **downward, none upward**: nine
+   candidates asked for d5 were stored at d2/d3, so a retier saves the item by moving it off
+   the tier the floor needed. No run-size change can close the tier-4/5 gaps, because the
+   drift decides where a saved candidate lands. The 16-call probe
+   (`scripts/measure_judge_tier_agreement.py`) is cheap but **its sample is not pinned by id**
+   and the bank has grown, so a fresh baseline is needed before any before/after comparison
+   means anything.
+2. ~~**A gate defect blocking polynomial division in `algebra_2`**~~ — **closed by D-297, and
+   my D-296 diagnosis of it was wrong.** Not a missing `cancel`: the comparison already does
+   `simplify(a - b) == 0` and **never ran**, because `_parse_side("x² - 5x + 4")` raises on the
+   superscript. **Two of this project's checks contradicted each other** — D-288 instructs
+   "powers with superscripts like x²" and refuses `x**2`; the symbolic verifier could not read
+   `x²`. Fixed in the symbolic arm only (the shared table is on the value path, where
+   `'12 m²'` would break) **and inside the D-281 seam** — my first version applied it
+   unconditionally and broke **2 shipped items**, because `alg2_polynomial_factor` asks to
+   factor *completely* and `3x(x² + 4x + 3)` equals `3x(x + 1)(x + 3)`. Same structure as the
+   `g6_fractions` "lowest terms" case, now known in a second skill. Measured over 38 stored
+   rejections: **8 recovered, 6 correctly re-classified as ambiguous** (the verdict is
+   unchanged; the *reason* becomes true and repairable), 18 genuine defects, negative control
+   holds. **Still unrun:** the re-generation that would actually stock those
+   `algebra_2`/`calculus` skills.
+2b. **The same contradiction on the value arm, worse because it was silent (D-298).**
+   `alg2_irrational` took 0 of 2 on `value answer (7*sqrt(2),) ... does not match ... ('7√2')`.
+   `sympy.sympify('√2')` returns **`Symbol('√2')`** — a non-number that raises nothing and
+   matches nothing, so the option was quietly parsed as something else. My first fix inserted
+   only the missing `*` and the negative control caught it; the transform must produce
+   `sqrt(...)`. Now one `_student_notation` reading covers both notations and both arms, still
+   inside the D-281 seam. **2 recovered — one is `trig_functions`, a serving-floor gap** — 2
+   re-explained, 1 genuine defect, **0 shipped items affected** (census run *before* the edit
+   this time). D-296's other shut-out, `alg2_exponential_log`, was **not** this: both its
+   candidates were difficulty rejections at run positions 1-2, i.e. D-295's warm-up toll.
+3. **43 items from the D-296 run are `pending` and unreviewed** — the bank was at "0 pending"
+   before. D-289's recorded decision is auto-approve with no sampling, so the remaining step is
+   approve + `make question-export` + PR. Left pending deliberately rather than approved
+   unasked, because 16 of them sit at tiers nobody targeted.
+4. **11 items still stand between 7 topics and being openable** (measured live, and this
+   **corrects** the earlier "14 items / 12 of them tier 5": the live split was
+   `{d1: 5, d4: 2, d5: 7}`, and `g5_word_problems` has since closed). `g6_fractions` d1 ×2 of
+   those remain **unauthorable by design** — see the D-292 note on the uniqueness check.
 4. **A refresh mid-exam restores the wrong question, on staging only** (D-288). Question 3 →
    Question 1 after a reload; passes locally. Session sharing, answer durability, CloudFront
    caching and the D-272 restore guard were each tested and **killed** — the next step is
@@ -80,11 +209,19 @@ throughput was 3× what I read; and I wrote a recall test asserting `x <= 10` ag
    "done when" nothing was done against. Stems are gate-checked at authoring; replies are not.
 6. **Depth is half-done against D-223's target**: 83 of 165 (topic × tier) cells hold ≥5 items.
    The remaining half is mostly tiers 4-5, so item 2 above gates it.
-7. **`session_scope` never commits** (D-284 addendum) — any one-off script writing through it
-   without an explicit commit is a no-op **that reports success**.
+7. ~~**`session_scope` never commits**~~ — **closed by D-294.** It now commits on a clean exit
+   and rolls back on an exception, verified in both directions.
 8. **The rejection messages name symptoms, not remedies** (D-283), and `arithmetic_identity` is
    still unwired (D-273).
 9. **`main` is still unprotected** — carried since #20.
+10. **Phase 4 (video catalog) has never been started** — noticed while scoping this session.
+    The existing catalog predates the 245-skill taxonomy, and a real run needs a
+    `YOUTUBE_API_KEY` plus quota budgeting. Not a regression, just never picked up.
+11. **`question_validation_runs` rows written before D-295 have `pipeline_run_id = NULL`** and
+    are deliberately not backfilled — inferring it would bake a ~10%-wrong guess into the data
+    as recorded fact. Per-run analysis of the historical rows stays a reconstruction
+    (`scripts/measure_retier_guard.py`), and the script refuses to quote numbers below 90%
+    fidelity.
 
 **Superseded plan text below, kept for the phase definitions:** Phase 1 is the first phase that spends money, and two
 things it must carry from Phase R: **teach `Eq(x, Max(...))` in the rubric work** — comparison

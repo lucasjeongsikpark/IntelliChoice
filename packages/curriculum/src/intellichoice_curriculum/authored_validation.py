@@ -211,6 +211,79 @@ _MATH_TEXT_SUBSTITUTIONS = {
     # caret means the same thing an option with one does.
     "^": "**",
 }
+# D-297: the gate was demanding a notation it could not read. D-288's
+# `check_math_notation_is_readable` refuses `x**2` in any student-facing field and tells the
+# generator to write "powers with superscripts like x²"; the symbolic arm then handed that
+# text to `_parse_side`, which raised `ValueError: String "²" does not denote a Number`. The
+# generator complied with one check and was rejected by the next, and the rejection blamed
+# the answer key: "symbolic answer ... does not match declared correct option 'c' ('x² − 5x
+# + 4')" on an item whose two sides were the same polynomial.
+#
+# **Deliberately NOT in `_MATH_TEXT_SUBSTITUTIONS`**, unlike D-278's `^`. That table is
+# applied by `_sympify` on the *value* path too, where `'12 m²'` (square metres) currently
+# fails its direct parse and is rescued by the trailing-unit strip - rewritten to `'12 m**2'`
+# it would reach that strip carrying `**`, which the unit pattern does not match, and a value
+# option that parses today would stop parsing. Same reasoning the symbolic arm already uses
+# to keep `_parse_side`'s implicit multiplication away from value options.
+_SUPERSCRIPT_POWERS = {
+    "⁰": "**0", "¹": "**1", "²": "**2", "³": "**3", "⁴": "**4",
+    "⁵": "**5", "⁶": "**6", "⁷": "**7", "⁸": "**8", "⁹": "**9",
+}
+
+
+# D-298: the same defect on the *value* arm, found by reading D-296's shut-out skills.
+# `alg2_irrational` took 0 of 2 with `value answer (7*sqrt(2),) ... does not match declared
+# correct option 'd' ('7√2')`, so the whole skill was unauthorable and the rejection again
+# blamed a correct answer key.
+#
+# **And this one fails silently, which is worse than the superscript.** `_parse_side('x²')`
+# raises, so D-297's defect at least announced itself. `sympy.sympify('√2')` returns
+# `Symbol('√2')` - a *non-number* that compares unequal to every value and never raises. So
+# `7√2` was not "unparseable", it was quietly parsed as something else. My first attempt here
+# only inserted the missing `*` on the strength of `_sympify('√2')` printing `√2`, which is
+# SymPy pretty-printing a symbol whose name happens to be a radical; the negative control
+# caught it. Both parts are needed: `√<digits>` -> `sqrt(<digits>)`, then implicit
+# multiplication before it.
+_RADICAL_SURD = re.compile(r"√\s*(\d+(?:\.\d+)?)")
+_RADICAL_IMPLICIT_MUL = re.compile(r"(?<=[0-9])\s*(?=sqrt\()")
+
+
+def _student_notation(text: str) -> str:
+    """Read an option the way it was *written for a student*, not for SymPy.
+
+    One reading covering both notations D-288 asks the generator to use and the gate could
+    not parse: superscript powers (D-297) and a coefficient in front of a radical (D-298).
+    Consulted only from the D-281 seam - see the comment there for why that scoping is
+    load-bearing rather than cautious.
+
+    **A stated limitation rather than a silent one:** only a radical over *digits* is read.
+    `√x` and `√(x + 1)` still parse as symbols and still fail to match, because reading them
+    would need the implicit-multiplication transforms the value arm deliberately does not
+    have (see the symbolic arm's own note). No content in the bank needs them today; an item
+    that does will be rejected, not silently mis-derived.
+    """
+    text = _superscripts_to_powers(text)
+    text = _RADICAL_SURD.sub(r"sqrt(\1)", text)
+    return _RADICAL_IMPLICIT_MUL.sub("*", text)
+
+
+def _superscripts_to_powers(text: str) -> str:
+    """`x² − 5x + 4` -> `x**2 - 5x + 4`, for the symbolic arm's second reading only.
+
+    Measured before it was written, both directions (D-221), free because D-195 stores
+    rejected candidate content (`scripts/measure_superscript_reading.py`): of 38 stored
+    symbolic-mismatch rejections it recovers **8** whose declared option is the derived
+    answer, leaves 18 genuinely non-matching, and turns **6** into "more than one option
+    matches" - which is the correct verdict for them, because those items really do offer the
+    same expression twice (`3x² + 6 + 6x² + 10x` beside `9x² + 10x + 6`). Those 6 stay
+    rejected; what changes is that they are rejected for the defect they have instead of one
+    they do not. A wrong key still fails: `x² - 5x + 5` does not match.
+    """
+    for character, replacement in _SUPERSCRIPT_POWERS.items():
+        text = text.replace(character, replacement)
+    return text
+
+
 # "x = 7" as an option means the value 7 - a restated equation, not a different answer.
 _ASSIGNMENT_PREFIX_RE = re.compile(r"^\s*[A-Za-z]\w*\s*=\s*")
 
@@ -754,6 +827,24 @@ def _route_system(equation: str, normalized: str) -> tuple[DerivedAnswer | None,
         return None, (
             f"system {equation!r} has {len(solved)} solutions, expected exactly one"
         )
+    # D-299: fail closed, because `sympy.solve` answers a *different question* than
+    # "what is each unknown" when the system is underdetermined. Two equations in three
+    # unknowns returns `[{a: c - 2, b: 12 - c}]` - one dict, so the count check above
+    # passes, and `c` is simply absent because it is free. Indexing it raised `KeyError`
+    # and **killed a paid run at candidate 25 of 42**, discarding the remaining budget.
+    #
+    # Same defect class as the `TokenError` Phase R found escaping `derive_answer`, and the
+    # tuple `sympify` returns for `'4,700'` in D-274: a crash where a rejection belongs.
+    # `route_answer`'s contract is that an answer no verifier can claim is a *rejection*,
+    # never an exception - one unusable candidate must cost one candidate.
+    missing = [s for s in unknowns if s not in solved[0]]
+    if missing:
+        return None, (
+            f"system {equation!r} does not determine "
+            f"{', '.join(str(s) for s in missing)} - SymPy solved it with "
+            f"{len(unknowns) - len(missing)} of {len(unknowns)} unknowns fixed, so the "
+            f"question has more unknowns than it constrains"
+        )
     return DerivedAnswer("tuple", tuple(solved[0][s] for s in unknowns)), None
 
 
@@ -806,7 +897,9 @@ def _option_as_value_set(text: str) -> frozenset[sympy.Basic] | None:
     return frozenset(values)
 
 
-def _option_matches(derivation: DerivedAnswer, text: str) -> bool:
+def _option_matches(
+    derivation: DerivedAnswer, text: str, *, student_notation: bool = False
+) -> bool:
     """Does this option state the derived answer, read under its own model?
 
     Every arm returns False rather than raising on an unparseable option, so a distractor
@@ -815,7 +908,8 @@ def _option_matches(derivation: DerivedAnswer, text: str) -> bool:
     """
     if derivation.model == "value":
         (expected,) = derivation.payload  # type: ignore[misc]
-        parsed = _sympify(text)
+        # D-298: `7√2` needs the implicit multiplication spelled out before SymPy sees it.
+        parsed = _sympify(_student_notation(text) if student_notation else text)
         return parsed is not None and _values_equal(parsed, expected)
 
     if derivation.model == "multi_root":
@@ -856,8 +950,11 @@ def _option_matches(derivation: DerivedAnswer, text: str) -> bool:
         # parse and reaches the unit-stripping fallback, and with transforms on it would
         # succeed as a product of eight symbols and never get there.
         expression: sympy.Basic | None
+        normalized = _normalize_math_text(text)
+        if student_notation:
+            normalized = _student_notation(normalized)
         try:
-            expression = _parse_side(_normalize_math_text(text))
+            expression = _parse_side(normalized)
         except _PARSE_ERRORS:
             expression = _sympify(text)
         if expression is None:
@@ -1080,6 +1177,62 @@ def _second_readings(derivation: DerivedAnswer, equation: str) -> list[DerivedAn
     return []
 
 
+def matching_options(
+    derivation: DerivedAnswer, options: dict[str, str], equation: str
+) -> tuple[list[str], DerivedAnswer]:
+    """Which options state the derived answer, under every reading the gate admits.
+
+    Returns the matching labels and the derivation they matched under, which is what the
+    caller needs to report a verdict.
+
+    **Extracted because the duplicate expired three times.** The gate applied this sequence
+    inline and `test_every_shipped_item_routes_and_matches_its_own_key` re-implemented it, so
+    every decision that admitted a new reading (D-281's boundary, D-282's prose interval,
+    D-291's positive root, D-297/D-298's student notation) left the census asserting the
+    *old* rule against a bank the gate had already moved on from. Its own docstring records
+    the premise moving twice; the third time was `authored-algebra_2-d1-1606100`, a correct
+    `6√2` item the gate accepts and the census called unmatched. One function, two callers,
+    no premise to expire.
+
+    The ordering rules are the substance and each one is load-bearing:
+
+    1. **The first reading wins outright.** If it matches anything, no other reading is
+       consulted - a second reading may turn a rejection into a pass, never one pass into a
+       different pass (D-281). This is what keeps the two `alg2_polynomial_factor` items,
+       whose partially-factored distractor equals their answer, out of the notation reading.
+    2. **Notation before mathematics.** `_student_notation` re-reads the *same* answer in the
+       notation D-288 requires of student-facing text (`x²`, `7√2`), so it is the most
+       faithful reading available and is tried first. It is adopted even when several options
+       match, because the verdict is a rejection either way and "more than one option
+       matches" is true and repairable where "does not match your declared option" is neither
+       (D-283).
+    3. **Alternative derivations must be unambiguous.** A closed boundary, a prose interval
+       or the one positive root is a genuinely different reading of the equation, so it has
+       to clear the same exactly-one bar the first reading clears.
+    """
+    matches = [label for label, text in options.items() if _option_matches(derivation, text)]
+    if matches:
+        return matches, derivation
+
+    readable = [
+        label
+        for label, text in options.items()
+        if _option_matches(derivation, text, student_notation=True)
+    ]
+    if readable:
+        return readable, derivation
+
+    for reading in [
+        *_second_readings(derivation, equation),
+        *_positive_root_reading(derivation, options),
+    ]:
+        second = [label for label, text in options.items() if _option_matches(reading, text)]
+        if len(second) == 1:
+            return second, reading
+
+    return [], derivation
+
+
 def check_sympy_independent_solve(
     item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
 ) -> None:
@@ -1105,27 +1258,8 @@ def check_sympy_independent_solve(
         return
 
     options = _options(item)
-    matches = [label for label, text in options.items() if _option_matches(derivation, text)]
+    matches, derivation = matching_options(derivation, options, item.equation)
     derived = derivation.payload
-
-    # D-281. Only when the first reading matches *nothing* - never to break a tie the first
-    # reading already made, and never to add a second match to one it made. So this can
-    # turn a rejection into a pass, but it can never turn a rejection into a *different*
-    # pass, and an item the gate already accepted takes this path not at all.
-    if not matches:
-        readings = [
-            *_second_readings(derivation, item.equation),
-            *_positive_root_reading(derivation, options),
-        ]
-        for reading in readings:
-            second = [
-                label for label, text in options.items() if _option_matches(reading, text)
-            ]
-            # Exactly one, or the item is still ambiguous and stays rejected - the same
-            # bar the first reading has to clear.
-            if len(second) == 1:
-                matches, derivation, derived = second, reading, reading.payload
-                break
 
     if item.correct_option not in matches:
         result.fail(

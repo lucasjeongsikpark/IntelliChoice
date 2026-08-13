@@ -112,7 +112,7 @@ templates:
   topic_id: decimals
   skill_id: decimal_add_sub
   grade_band: 4-5
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -168,7 +168,7 @@ templates:
   topic_id: decimals
   skill_id: decimal_add_sub
   grade_band: 4-5
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -457,7 +457,7 @@ templates:
   topic_id: decimals
   skill_id: decimal_add_sub
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -622,11 +622,62 @@ templates:
   option_c: 6.35 liters
   option_d: 8.35 liters
   correct_option: a
-- question_template_id: authored-decimals-d4-996400
+- question_template_id: authored-decimals-d5-996502
   topic_id: decimals
   skill_id: decimal_divide
   grade_band: 4-5
   difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - divided_in_reverse_order
+  - moved_decimal_point_incorrectly
+  - multiplied_both_by_100_instead_of_10
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A cyclist travels 10.8 kilometers and uses 1.2 liters of water during the ride. How many kilometers
+    does the cyclist travel per liter of water?
+  context_block: ''
+  answer_expression: Eq(x, 10.8 / 1.2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find kilometers per liter, you need to divide the total distance by the amount of water used.
+  - Set up the division 10.8 ÷ 1.2 to find the rate.
+  - Multiply both numbers by 10 to eliminate the decimal in the divisor, giving you 108 ÷ 12.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find kilometers per liter, divide the total distance by the total water used.
+      expression: x = 10.8 / 1.2
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply both the dividend and divisor by 10 to make the divisor a whole number.
+      expression: x = 108 / 12
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide 108 by 12.
+      expression: x = 9
+      common_mistake: null
+    final_answer: 9 kilometers per liter
+  random_seed: 996502
+  rendered_question: A cyclist travels 10.8 kilometers and uses 1.2 liters of water during the ride. How
+    many kilometers does the cyclist travel per liter of water?
+  option_a: 9 kilometers per liter
+  option_b: 108 kilometers per liter
+  option_c: 12 kilometers per liter
+  option_d: 0.9 kilometers per liter
+  correct_option: a
+- question_template_id: authored-decimals-d4-996400
+  topic_id: decimals
+  skill_id: decimal_divide
+  grade_band: 4-5
+  difficulty_label: 5
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -679,7 +730,7 @@ templates:
   topic_id: decimals
   skill_id: decimal_divide
   grade_band: 4-5
-  difficulty_label: 4
+  difficulty_label: 5
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -893,62 +944,11 @@ templates:
   option_c: 3.2 liters per square meter
   option_d: 7.56 liters per square meter
   correct_option: c
-- question_template_id: authored-decimals-d5-996502
-  topic_id: decimals
-  skill_id: decimal_divide
-  grade_band: 4-5
-  difficulty_label: 5
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 180
-  common_error_tags:
-  - divided_in_reverse_order
-  - moved_decimal_point_incorrectly
-  - multiplied_both_by_100_instead_of_10
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A cyclist travels 10.8 kilometers and uses 1.2 liters of water during the ride. How many kilometers
-    does the cyclist travel per liter of water?
-  context_block: ''
-  answer_expression: Eq(x, 10.8 / 1.2)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - To find kilometers per liter, you need to divide the total distance by the amount of water used.
-  - Set up the division 10.8 ÷ 1.2 to find the rate.
-  - Multiply both numbers by 10 to eliminate the decimal in the divisor, giving you 108 ÷ 12.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: To find kilometers per liter, divide the total distance by the total water used.
-      expression: x = 10.8 / 1.2
-      common_mistake: null
-    - step_number: 2
-      explanation: Multiply both the dividend and divisor by 10 to make the divisor a whole number.
-      expression: x = 108 / 12
-      common_mistake: null
-    - step_number: 3
-      explanation: Divide 108 by 12.
-      expression: x = 9
-      common_mistake: null
-    final_answer: 9 kilometers per liter
-  random_seed: 996502
-  rendered_question: A cyclist travels 10.8 kilometers and uses 1.2 liters of water during the ride. How
-    many kilometers does the cyclist travel per liter of water?
-  option_a: 9 kilometers per liter
-  option_b: 108 kilometers per liter
-  option_c: 12 kilometers per liter
-  option_d: 0.9 kilometers per liter
-  correct_option: a
 - question_template_id: authored-decimals-d3-997300
   topic_id: decimals
   skill_id: decimal_multiply
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1004,7 +1004,7 @@ templates:
   topic_id: decimals
   skill_id: decimal_multiply
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -1059,7 +1059,7 @@ templates:
   topic_id: decimals
   skill_id: decimal_multiply
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:

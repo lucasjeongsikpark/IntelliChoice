@@ -20,6 +20,21 @@ from learning_api.services.variant_persistence import build_variant_row
 
 DIFFICULTIES = (1, 2, 3, 4, 5)
 QUESTIONS_PER_DIFFICULTY = 2
+# D-302: the exam's length, which is what a topic must now be able to fill. It is exactly
+# what the per-difficulty rule used to imply (2 x 5), so no exam changes length.
+#
+# **Why the rule moved from "2 at every tier" to "10 in total."** The old precondition made a
+# topic unopenable if any single tier was short, and D-301 measured that a third of serving
+# items carry the slot's tier over a judge disagreement. Once the judge's tier is stored
+# (D-302), 214 items move down and 116 up, which empties the top tiers: openable topics would
+# have gone 26 -> 12. Measured under this rule instead: **33 of 33**, with no topic short of
+# 10 items. The user's decision was to follow the judge, accept an uneven and biased tier
+# distribution, and fill the question count.
+#
+# The consequence, stated because it is a real product change: a topic with no tier-5 content
+# now serves an easier exam than one that has it, so exam difficulty varies by topic and not
+# only by student.
+EXAM_QUESTION_COUNT = QUESTIONS_PER_DIFFICULTY * len(DIFFICULTIES)
 
 
 class AssessmentBuildError(Exception):
@@ -105,22 +120,48 @@ async def build_pre_exam(
             for template in templates
         ]
     )
+    available = sum(len(templates_by_difficulty[d]) for d in DIFFICULTIES)
+    if available < EXAM_QUESTION_COUNT:
+        raise AssessmentBuildError(
+            f"topic {topic_id} has only {available} approved templates across every "
+            f"difficulty, need {EXAM_QUESTION_COUNT}"
+        )
+
     variant_rows = []
+    taken: set[str] = set()
+
+    def _draw(template) -> None:
+        taken.add(template.question_template_id)
+        variant_rows.append(
+            build_variant_row(
+                template=template,
+                rng=rng,
+                canonical_variant=canonical_variants.get(template.question_template_id),
+            )
+        )
+
+    # Pass 1 is the old loop with `len(templates)` as a ceiling, and that is deliberate: for a
+    # topic holding QUESTIONS_PER_DIFFICULTY at every tier it draws exactly what it always
+    # drew, in the same order, so a seeded exam is byte-identical and the pinned pre-exam
+    # capture does not move. Only a topic that used to be *refused* takes a different path.
     for difficulty in DIFFICULTIES:
         templates = templates_by_difficulty[difficulty]
-        if len(templates) < QUESTIONS_PER_DIFFICULTY:
-            raise AssessmentBuildError(
-                f"topic {topic_id} difficulty {difficulty} has only {len(templates)} "
-                f"approved templates, need {QUESTIONS_PER_DIFFICULTY}"
-            )
-        for template in rng.sample(templates, QUESTIONS_PER_DIFFICULTY):
-            variant_rows.append(
-                build_variant_row(
-                    template=template,
-                    rng=rng,
-                    canonical_variant=canonical_variants.get(template.question_template_id),
-                )
-            )
+        for template in rng.sample(templates, min(QUESTIONS_PER_DIFFICULTY, len(templates))):
+            _draw(template)
+
+    # Pass 2 tops the exam up to its full length from whichever tiers have surplus, easiest
+    # first. Reached only when a tier was short, so it cannot perturb pass 1's draws.
+    for difficulty in DIFFICULTIES:
+        if len(variant_rows) >= EXAM_QUESTION_COUNT:
+            break
+        surplus = [
+            t
+            for t in templates_by_difficulty[difficulty]
+            if t.question_template_id not in taken
+        ]
+        wanted = min(EXAM_QUESTION_COUNT - len(variant_rows), len(surplus))
+        for template in rng.sample(surplus, wanted):
+            _draw(template)
 
     stored_variants = await question_repo.create_variants(variant_rows)
     await _store_items(

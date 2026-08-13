@@ -315,6 +315,18 @@ def judge_difficulty(
             )
     elif proposal_gap >= _DIFFICULTY_FLAG_AT or slot_gap >= _DIFFICULTY_FLAG_AT:
         decision = "flagged"
+        # D-302: the judge's tier is stored here too, not only on a re-tier. It used to keep
+        # `requested`, which is what D-300 found: 10 of 16 sampled bank items carried the
+        # *slot's* tier over a recorded judge disagreement, so "the judge does not reproduce
+        # its own labels" was largely the judge being scored against a label it never
+        # assigned. Bank-wide, 327 of 759 serving items were labelled this way (D-301).
+        #
+        # The user's decision, after seeing both measurements: follow the judge, accept that
+        # the resulting tier distribution is uneven and biased, and fill the question count
+        # instead. That last clause is load-bearing - storing the judge's tier moves 204 items
+        # down against 104 up, which empties the top tiers, so it is only safe together with
+        # `EXAM_QUESTION_COUNT` replacing the per-tier serving floor.
+        effective = reviewed
     else:
         decision = "accepted"
     return DifficultyVerdict(
@@ -1486,6 +1498,22 @@ async def _attempt_authored_candidate(
     repair: RepairContext | None = None,
     design: EquationDesignResponse | None = None,
     dispersion: JudgeDispersion | None = None,
+    # D-294. The design call is made by the caller, once per slot, *before* this function
+    # runs - so its cost was reaching `RunSummary` (via the caller's running total) and no
+    # `question_validation_runs` row at all. Measured: a design attempt costs a median
+    # 1.26c against an accepted row's 2.67c, so every accepted row understated its slot by
+    # about a third, and the two spend numbers this project keeps disagreed by exactly that.
+    #
+    # Passed in for the *row* only, never added to the returned `PipelineOutcome` - the
+    # caller already holds the design cost in its own running total, and adding it here too
+    # would double-count it. The caller passes it on attempt 1 and zero afterwards, so a
+    # repaired slot records the design once across its rows and `sum(rows) == the slot's
+    # contribution to the run summary` holds either way.
+    design_cost_cents: float = 0.0,
+    # D-295: threaded through rather than derived, so every row a run writes carries the
+    # run that wrote it. `None` for callers outside a batch (review_cli's edit-and-rerun),
+    # which is a real state and not a gap.
+    pipeline_run_id: str | None = None,
     # NOTE: this function does not read `avoid_equations`/`avoid_scenarios` and never
     # did - the design is handed to it already built, so both belong on
     # `generate_authored_candidate`, which is where the design call lives. The dead
@@ -1549,6 +1577,33 @@ async def _attempt_authored_candidate(
         spend += cost
         total_cost += cost
 
+    def _row_cost() -> float:
+        """What this attempt's row should say the slot has spent so far (D-294).
+
+        Distinct from `total_cost`, which is what the *caller* is told: the caller adds
+        this attempt to a slot total it already owns, and the design cost is already in
+        there. Only the row needs the sum, because a row is the only place a reader can
+        see what a candidate cost after the run has ended.
+        """
+        return total_cost + design_cost_cents
+
+    def _design_evidence() -> dict:
+        """The design stage as row evidence, so a row explains its own cost (D-294).
+
+        Without this the accepted rows carried design *money* and no design *record*,
+        which is the state that made the 31% gap look like a mystery instead of an
+        arithmetic error: 67 rows named the stage (the design failures, which return
+        before this function) and 1,117 did not.
+        """
+        if design_cost_cents <= 0.0:
+            return {}
+        return {
+            "equation_design": {
+                "passed": True,
+                "cost_cents": round(design_cost_cents, 4),
+            }
+        }
+
     repo = QuestionRepository(session)
     template_id = f"authored-{topic_id}-d{difficulty_label}-{seed}"
 
@@ -1566,6 +1621,7 @@ async def _attempt_authored_candidate(
         # never a replacement for it. A reviewer needs both the content and the readings
         # that rejected it.
         evidence = dict(stage_results)
+        evidence.update(_design_evidence())
         if snapshot is not None:
             evidence["candidate_snapshot"] = snapshot
         await repo.create_validation_run(
@@ -1574,7 +1630,8 @@ async def _attempt_authored_candidate(
                 outcome="rejected",
                 stage_results=evidence,
                 reasons=reasons,
-                cost_cents=total_cost,
+                cost_cents=_row_cost(),
+                pipeline_run_id=pipeline_run_id,
             )
         )
         return PipelineOutcome(
@@ -2017,13 +2074,15 @@ async def _attempt_authored_candidate(
             parameter_values={},
         )
     )
+    stage_results.update(_design_evidence())
     await repo.create_validation_run(
         QuestionValidationRun(
             question_template_id=template.question_template_id,
             outcome="pending",
             stage_results=stage_results,
             reasons=[],
-            cost_cents=total_cost,
+            cost_cents=_row_cost(),
+            pipeline_run_id=pipeline_run_id,
         )
     )
 
@@ -2111,6 +2170,9 @@ async def generate_authored_candidate(
     # first candidate of a slot, and for every caller that generates one item at a time.
     avoid_equations: Sequence[str] = (),
     avoid_scenarios: Sequence[str] = (),
+    # D-295: one id per `run_plan` invocation, recorded on every row the run writes so
+    # per-run dispersion, yield and spend stop needing reconstruction from timestamps.
+    pipeline_run_id: str | None = None,
 ) -> PipelineOutcome:
     """One slot, with a bounded repair loop: when a candidate is rejected for something a
     rewrite could fix, the Generator is told what was wrong and tries again (D-198).
@@ -2138,6 +2200,10 @@ async def generate_authored_candidate(
     spent = 0.0
     repair: RepairContext | None = None
     design: EquationDesignResponse | None = None
+    # Hoisted out of the block below so the loop can hand it to the first attempt's row
+    # (D-294). Stays 0.0 when the design stage is off or never reached a model, which is
+    # exactly when there is no design cost to record.
+    design_cost = 0.0
 
     if design_attempts > 0:
         topic = next((t for t in curriculum.topics if t.topic_id == topic_id), None)
@@ -2175,6 +2241,7 @@ async def generate_authored_candidate(
                         else f"equation design failed after {design_attempts} attempts"
                     ],
                     cost_cents=spent,
+                    pipeline_run_id=pipeline_run_id,
                 )
                 await QuestionRepository(session).create_validation_run(run)
                 return PipelineOutcome(
@@ -2210,6 +2277,11 @@ async def generate_authored_candidate(
             # the defect", which is the whole instruction a repair is given.
             design=design,
             dispersion=dispersion,
+            # Attempt 1 only: the design was paid for once, so recording it on every
+            # attempt's row would make a repaired slot look like it designed twice
+            # (D-294).
+            design_cost_cents=design_cost if attempt == 1 else 0.0,
+            pipeline_run_id=pipeline_run_id,
         )
         outcome.equation = designed_equation
         outcome.scenario_sketch = designed_scenario

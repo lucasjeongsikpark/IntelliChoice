@@ -19,6 +19,7 @@ students.
 import argparse
 import asyncio
 import logging
+import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -510,9 +511,20 @@ async def run_plan(
     curriculum = load_curriculum()
     summary = RunSummary()
     summary.scheduled = len(plan.slots)
+    # D-295. Identifies exactly the scope the judge's histogram below is rebuilt for: one
+    # `run_plan` invocation. Every row this run writes carries it, so "where in its run was
+    # this candidate, and had the histogram warmed up yet" becomes a query instead of a
+    # reconstruction from timestamps - which is what D-295 had to do, at ~90% fidelity, and
+    # why the count of guard-caused rejections could not be pinned down.
+    #
+    # Minted before the log record rather than beside the histogram, so the run's opening
+    # line carries it: a second record with the same `event` name would make
+    # "pipeline_run_started" mean two different shapes to any log query.
+    pipeline_run_id = str(uuid.uuid4())
     _log.info(
         "pipeline_run_started",
         extra={
+            "pipeline_run_id": pipeline_run_id,
             "scheduled": len(plan.slots),
             "run_budget_cents": plan.run_budget_cents,
             "max_repair_attempts": plan.max_repair_attempts,
@@ -585,6 +597,7 @@ async def run_plan(
                 # the repetition being prevented is local - the model collapses onto what it
                 # just wrote, not onto something twelve candidates ago.
                 avoid_scenarios=used_scenarios.get(slot.skill_id, [])[-_SCENARIO_MEMORY:],
+                pipeline_run_id=pipeline_run_id,
             )
         except IntegrityError as exc:
             # The collision surfaces HERE, not at commit: `QuestionRepository.create_template`

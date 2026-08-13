@@ -157,7 +157,7 @@ templates:
   topic_id: g4_word_problems
   skill_id: g4_wp_decimals
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -210,7 +210,7 @@ templates:
   topic_id: g4_word_problems
   skill_id: g4_wp_decimals
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -266,7 +266,7 @@ templates:
   topic_id: g4_word_problems
   skill_id: g4_wp_decimals
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -318,7 +318,7 @@ templates:
   topic_id: g4_word_problems
   skill_id: g4_wp_decimals
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -370,7 +370,7 @@ templates:
   topic_id: g4_word_problems
   skill_id: g4_wp_decimals
   grade_band: 4-5
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -423,11 +423,117 @@ templates:
   option_c: 8 bottles
   option_d: 7 bottles
   correct_option: c
-- question_template_id: authored-g4_word_problems-d1-97100
+- question_template_id: authored-g4_word_problems-d1-1506101
   topic_id: g4_word_problems
   skill_id: g4_wp_division
   grade_band: 4-5
   difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - incorrect_divisor_reversal
+  - subtraction_instead_of_division
+  - mental_arithmetic_error
+  - incomplete_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery has 2,160 cookies to pack equally into 18 boxes for delivery. How many cookies go in
+    each box?
+  context_block: null
+  answer_expression: Eq(18*x, 2160)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - You need to split 2,160 cookies evenly among the 18 boxes.
+  - 'Since each box gets the same number of cookies, write: 18 times (what each box gets) equals 2,160.'
+  - Set up 18 · x = 2,160 and divide both sides by 18.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an equation where x is the number of cookies in each box. Since 18 boxes share
+        2,160 cookies equally, we have 18 times x equals 2,160.
+      expression: 18 · x = 2160
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide both sides by 18 to find how many cookies go in each box.
+      expression: x = 2160 ÷ 18
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the division: 2160 ÷ 18 = 120.'
+      expression: x = 120
+      common_mistake: null
+    final_answer: 120 cookies
+  random_seed: 1506101
+  rendered_question: A bakery has 2,160 cookies to pack equally into 18 boxes for delivery. How many cookies
+    go in each box?
+  option_a: 102 cookies
+  option_b: 108 cookies
+  option_c: 120 cookies
+  option_d: 132 cookies
+  correct_option: c
+- question_template_id: authored-g4_word_problems-d1-1506100
+  topic_id: g4_word_problems
+  skill_id: g4_wp_division
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - rounded_down_instead_of_dividing
+  - rounded_up_instead_of_dividing
+  - arithmetic_error_in_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school receives 1,440 pencils in a bulk shipment. The pencils need to be shared equally among
+    12 classrooms. How many pencils will each classroom receive?
+  context_block: null
+  answer_expression: Eq(12*x, 1440)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - You need to find how many pencils each of the 12 classrooms gets. Write down what the total should
+    equal.
+  - If each classroom gets x pencils, then 12 classrooms get 12 times x pencils altogether.
+  - 'Set up: 12 times something equals 1,440. Now solve by dividing.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The school has 1,440 pencils total that must be divided equally among 12 classrooms.
+        Set up a division equation where x is the number of pencils each classroom receives.
+      expression: 12 * x = 1440
+      common_mistake: null
+    - step_number: 2
+      explanation: To solve for x, divide both sides of the equation by 12.
+      expression: x = 1440 / 12
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the division: 1,440 divided by 12 equals 120.'
+      expression: x = 120
+      common_mistake: null
+    final_answer: 120 pencils
+  random_seed: 1506100
+  rendered_question: A school receives 1,440 pencils in a bulk shipment. The pencils need to be shared
+    equally among 12 classrooms. How many pencils will each classroom receive?
+  option_a: 108 pencils
+  option_b: 110 pencils
+  option_c: 130 pencils
+  option_d: 120 pencils
+  correct_option: d
+- question_template_id: authored-g4_word_problems-d1-97100
+  topic_id: g4_word_problems
+  skill_id: g4_wp_division
+  grade_band: 4-5
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -475,7 +581,7 @@ templates:
   topic_id: g4_word_problems
   skill_id: g4_wp_division
   grade_band: 4-5
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -521,7 +627,7 @@ templates:
   topic_id: g4_word_problems
   skill_id: g4_wp_division
   grade_band: 4-5
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -573,7 +679,7 @@ templates:
   topic_id: g4_word_problems
   skill_id: g4_wp_division
   grade_band: 4-5
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -620,7 +726,7 @@ templates:
   topic_id: g4_word_problems
   skill_id: g4_wp_division
   grade_band: 4-5
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 60
   common_error_tags:
@@ -806,6 +912,257 @@ templates:
   option_c: 99 apples
   option_d: 882 apples
   correct_option: b
+- question_template_id: authored-g4_word_problems-d4-1507400
+  topic_id: g4_word_problems
+  skill_id: g4_wp_formula_mixed
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_add_width
+  - stopped_after_sum
+  - applied_formula_without_grouping
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A rectangular garden has a length of 15 meters and a width of 8 meters. A farmer wants to build
+    a fence around the entire garden. Using the formula P = 2(l + w), what is the perimeter of the garden?
+  context_block: A rectangular garden has a length of 15 meters and a width of 8 meters.
+  answer_expression: x = 2 * (15 + 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First, add the length and width together. What do you get?
+  - 'You should have 23 from adding 15 and 8. Now apply the formula: multiply that sum by 2.'
+  - The perimeter is 2 times the sum of the length and width.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The formula for perimeter is P = 2(l + w). We are given length = 15 m and width = 8
+        m. First, add the length and width.
+      expression: 15 + 8 = 23
+      common_mistake: null
+    - step_number: 2
+      explanation: Now multiply the sum by 2 to find the perimeter.
+      expression: 2 × 23 = 46
+      common_mistake: null
+    final_answer: 46 meters
+  random_seed: 1507400
+  rendered_question: 'A rectangular garden has a length of 15 meters and a width of 8 meters.
+
+
+    A rectangular garden has a length of 15 meters and a width of 8 meters. A farmer wants to build a
+    fence around the entire garden. Using the formula P = 2(l + w), what is the perimeter of the garden?'
+  option_a: 30 meters
+  option_b: 38 meters
+  option_c: 46 meters
+  option_d: 23 meters
+  correct_option: c
+- question_template_id: authored-g4_word_problems-d4-1507401
+  topic_id: g4_word_problems
+  skill_id: g4_wp_formula_mixed
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - skipped_addition
+  - incorrect_operation_assumption
+  - misidentified_components
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Sara is ordering goodie bags for a party. Each bag costs $5, and she is buying 12 bags. There
+    is also a $8 delivery fee for the entire order. What is the total cost?
+  context_block: Sara is ordering goodie bags for a party. Each bag costs $5, and she is buying 12 bags.
+    There is also a $8 delivery fee for the entire order.
+  answer_expression: x = 5 * 12 + 8
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the cost of all the bags before adding the delivery fee.
+  - Multiply 5 by 12 to get the cost of the bags, then add the delivery fee.
+  - Calculate 5 × 12 first, then add 8 to that result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Multiply the cost per bag by the number of bags to find the subtotal.
+      expression: 5 × 12 = 60
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the delivery fee to the subtotal to find the total cost.
+      expression: 60 + 8 = 68
+      common_mistake: null
+    final_answer: 68 dollars
+  random_seed: 1507401
+  rendered_question: 'Sara is ordering goodie bags for a party. Each bag costs $5, and she is buying 12
+    bags. There is also a $8 delivery fee for the entire order.
+
+
+    Sara is ordering goodie bags for a party. Each bag costs $5, and she is buying 12 bags. There is also
+    a $8 delivery fee for the entire order. What is the total cost?'
+  option_a: 77 dollars
+  option_b: 65 dollars
+  option_c: 68 dollars
+  option_d: 60 dollars
+  correct_option: c
+- question_template_id: authored-g4_word_problems-d4-977402
+  topic_id: g4_word_problems
+  skill_id: g4_wp_formula_mixed
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_add_extra_amount
+  - added_all_three_numbers_instead_of_multiplying_first
+  - added_the_extra_amount_to_the_batch_size_instead_of_the_total
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker makes 9 batches of cookies with 12 cookies per batch, plus 6 extra cookies. How many cookies
+    does the baker have altogether?
+  context_block: null
+  answer_expression: x = 9 * 12 + 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find how many cookies are in the 9 batches first, before thinking about the extra cookies.
+  - Multiply the number of batches by the number of cookies per batch, then add the extra cookies.
+  - Write the total as 9 times 12, plus 6.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the number of cookies in the 9 batches by multiplying the number of batches by
+        cookies per batch.
+      expression: 9 * 12 = 108
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the 6 extra cookies to the batch total.
+      expression: 108 + 6 = 114
+      common_mistake: null
+    final_answer: 114 cookies
+  random_seed: 977402
+  rendered_question: A baker makes 9 batches of cookies with 12 cookies per batch, plus 6 extra cookies.
+    How many cookies does the baker have altogether?
+  option_a: 27 cookies
+  option_b: 120 cookies
+  option_c: 114 cookies
+  option_d: 108 cookies
+  correct_option: c
+- question_template_id: authored-g4_word_problems-d5-1507500
+  topic_id: g4_word_problems
+  skill_id: g4_wp_formula_mixed
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_after_first_operation
+  - added_all_numbers_without_multiplying
+  - arithmetic_error_in_multiplication
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Marcus rides his bike at 12 km/h for 3 hours, then walks an additional 8 km to reach his destination.
+    What is the total distance Marcus travels?
+  context_block: null
+  answer_expression: x = 12 * 3 + 8
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How far does Marcus travel during the biking part? Use speed and time.
+  - His bike ride covers 12 × 3 = 36 km. Now you need to add the walking distance.
+  - Find the bike distance first, then add the 8 km walk to find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the distance Marcus travels by bike using the formula distance = speed ×
+        time.
+      expression: 12 × 3 = 36
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the walking distance to the biking distance to find the total distance.
+      expression: 36 + 8 = 44
+      common_mistake: null
+    final_answer: 44 km
+  random_seed: 1507500
+  rendered_question: Marcus rides his bike at 12 km/h for 3 hours, then walks an additional 8 km to reach
+    his destination. What is the total distance Marcus travels?
+  option_a: 32 km
+  option_b: 36 km
+  option_c: 47 km
+  option_d: 44 km
+  correct_option: d
+- question_template_id: authored-g4_word_problems-d5-1507501
+  topic_id: g4_word_problems
+  skill_id: g4_wp_formula_mixed
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - forgot_base_fee
+  - multiplied_base_fee_by_hours
+  - rounded_or_estimated
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A painter charges a $20 base fee plus $15 per hour. What is the total cost for a 6-hour job?
+  context_block: null
+  answer_expression: x = 20 + 15 * 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'The total cost has two parts: a fixed amount charged no matter how long the job takes, plus a charge
+    that depends on the hours.'
+  - The hourly charges are $15 times 6 hours. Add that result to the base fee.
+  - Calculate 15 times 6 first, then add the $20 base fee to your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the cost formula: total cost equals the base fee plus the hourly rate multiplied
+        by the number of hours.'
+      expression: Total cost = 20 + (15 × 6)
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the hourly rate by the number of hours to find the hourly charges.
+      expression: 15 × 6 = 90
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the base fee to the hourly charges to find the total cost.
+      expression: 20 + 90 = 110
+      common_mistake: Forgetting to add the base fee and stopping at 90 dollars
+    final_answer: 110 dollars
+  random_seed: 1507501
+  rendered_question: A painter charges a $20 base fee plus $15 per hour. What is the total cost for a
+    6-hour job?
+  option_a: 110 dollars
+  option_b: 90 dollars
+  option_c: 26 dollars
+  option_d: 120 dollars
+  correct_option: a
 - question_template_id: authored-g4_word_problems-d5-98501
   topic_id: g4_word_problems
   skill_id: g4_wp_formula_mixed
@@ -908,54 +1265,6 @@ templates:
   option_c: 31 feet
   option_d: 19 feet
   correct_option: a
-- question_template_id: authored-g4_word_problems-d4-977402
-  topic_id: g4_word_problems
-  skill_id: g4_wp_formula_mixed
-  grade_band: 4-5
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - forgot_to_add_extra_amount
-  - added_all_three_numbers_instead_of_multiplying_first
-  - added_the_extra_amount_to_the_batch_size_instead_of_the_total
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A baker makes 9 batches of cookies with 12 cookies per batch, plus 6 extra cookies. How many cookies
-    does the baker have altogether?
-  context_block: null
-  answer_expression: x = 9 * 12 + 6
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Find how many cookies are in the 9 batches first, before thinking about the extra cookies.
-  - Multiply the number of batches by the number of cookies per batch, then add the extra cookies.
-  - Write the total as 9 times 12, plus 6.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Find the number of cookies in the 9 batches by multiplying the number of batches by
-        cookies per batch.
-      expression: 9 * 12 = 108
-      common_mistake: null
-    - step_number: 2
-      explanation: Add the 6 extra cookies to the batch total.
-      expression: 108 + 6 = 114
-      common_mistake: null
-    final_answer: 114 cookies
-  random_seed: 977402
-  rendered_question: A baker makes 9 batches of cookies with 12 cookies per batch, plus 6 extra cookies.
-    How many cookies does the baker have altogether?
-  option_a: 27 cookies
-  option_b: 120 cookies
-  option_c: 114 cookies
-  option_d: 108 cookies
-  correct_option: c
 - question_template_id: authored-g4_word_problems-d5-37500
   topic_id: g4_word_problems
   skill_id: g4_wp_formula_mixed

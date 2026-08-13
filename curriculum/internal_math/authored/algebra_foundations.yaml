@@ -76,75 +76,6 @@ templates:
   option_c: 5 cookies per tray
   option_d: 6 cookies per tray
   correct_option: a
-- question_template_id: authored-algebra_foundations-d2-1185202
-  topic_id: algebra_foundations
-  skill_id: alg_distribute
-  grade_band: 6-7
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 180
-  common_error_tags:
-  - distributed_only_the_first_term_in_bracket
-  - dropped_coefficient_when_combining_like_terms
-  - stopped_before_final_division
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A gardener plants 5 flower beds. Each bed has 2 rows of plants plus 3 border plants. After planting,
-    she removes 6 rows for transplanting. She now has 35 plants total. How many plants are in each row?
-  context_block: ''
-  answer_expression: 5*(2*x + 3) - 6*x = 35
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Write an expression for the total plants in one bed if each row has x plants.
-  - Five beds give 5(2x + 3) plants. Then 6 rows, each with x plants, are removed.
-  - Expand the bracket, combine the x terms, then solve for x.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Each bed contains 2 rows (each with x plants) plus 3 border plants, so one bed has
-        2x + 3 plants.
-      expression: 2*x + 3
-      common_mistake: null
-    - step_number: 2
-      explanation: Five beds together contain 5(2x + 3) plants.
-      expression: 5*(2*x + 3)
-      common_mistake: null
-    - step_number: 3
-      explanation: 'Expand the bracket: 5(2x + 3) = 10x + 15.'
-      expression: 10*x + 15
-      common_mistake: null
-    - step_number: 4
-      explanation: After removing 6 rows (6x plants), the total is 10x + 15 - 6x = 4x + 15.
-      expression: 4*x + 15
-      common_mistake: null
-    - step_number: 5
-      explanation: 'Set this equal to the total given: 4x + 15 = 35.'
-      expression: 4*x + 15 = 35
-      common_mistake: null
-    - step_number: 6
-      explanation: 'Subtract 15 from both sides: 4x = 20.'
-      expression: 4*x = 20
-      common_mistake: null
-    - step_number: 7
-      explanation: 'Divide both sides by 4: x = 5.'
-      expression: x = 5
-      common_mistake: null
-    final_answer: 5 plants per row
-  random_seed: 1185202
-  rendered_question: A gardener plants 5 flower beds. Each bed has 2 rows of plants plus 3 border plants.
-    After planting, she removes 6 rows for transplanting. She now has 35 plants total. How many plants
-    are in each row?
-  option_a: 10 plants per row
-  option_b: 5 plants per row
-  option_c: 2 plants per row
-  option_d: 4 plants per row
-  correct_option: b
 - question_template_id: authored-algebra_foundations-d2-1425200
   topic_id: algebra_foundations
   skill_id: alg_distribute
@@ -208,6 +139,75 @@ templates:
   option_b: 7x + 9
   option_c: 17x + 9
   option_d: 7x + 8
+  correct_option: b
+- question_template_id: authored-algebra_foundations-d2-1185202
+  topic_id: algebra_foundations
+  skill_id: alg_distribute
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - distributed_only_the_first_term_in_bracket
+  - dropped_coefficient_when_combining_like_terms
+  - stopped_before_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener plants 5 flower beds. Each bed has 2 rows of plants plus 3 border plants. After planting,
+    she removes 6 rows for transplanting. She now has 35 plants total. How many plants are in each row?
+  context_block: ''
+  answer_expression: 5*(2*x + 3) - 6*x = 35
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total plants in one bed if each row has x plants.
+  - Five beds give 5(2x + 3) plants. Then 6 rows, each with x plants, are removed.
+  - Expand the bracket, combine the x terms, then solve for x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each bed contains 2 rows (each with x plants) plus 3 border plants, so one bed has
+        2x + 3 plants.
+      expression: 2*x + 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Five beds together contain 5(2x + 3) plants.
+      expression: 5*(2*x + 3)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Expand the bracket: 5(2x + 3) = 10x + 15.'
+      expression: 10*x + 15
+      common_mistake: null
+    - step_number: 4
+      explanation: After removing 6 rows (6x plants), the total is 10x + 15 - 6x = 4x + 15.
+      expression: 4*x + 15
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Set this equal to the total given: 4x + 15 = 35.'
+      expression: 4*x + 15 = 35
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Subtract 15 from both sides: 4x = 20.'
+      expression: 4*x = 20
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Divide both sides by 4: x = 5.'
+      expression: x = 5
+      common_mistake: null
+    final_answer: 5 plants per row
+  random_seed: 1185202
+  rendered_question: A gardener plants 5 flower beds. Each bed has 2 rows of plants plus 3 border plants.
+    After planting, she removes 6 rows for transplanting. She now has 35 plants total. How many plants
+    are in each row?
+  option_a: 10 plants per row
+  option_b: 5 plants per row
+  option_c: 2 plants per row
+  option_d: 4 plants per row
   correct_option: b
 - question_template_id: authored-algebra_foundations-d3-1186300
   topic_id: algebra_foundations
@@ -327,7 +327,7 @@ templates:
   topic_id: algebra_foundations
   skill_id: alg_inequalities
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -380,6 +380,64 @@ templates:
   option_c: m < 70
   option_d: m < 13
   correct_option: b
+- question_template_id: authored-algebra_foundations-d5-98501
+  topic_id: algebra_foundations
+  skill_id: alg_inequalities
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - forgot_to_reverse_inequality_when_dividing_by_negative
+  - solved_as_equation_instead_of_inequality
+  - reversed_inequality_direction_incorrectly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A storage unit has 75 cubic feet of space. Each box stored takes 4 cubic feet. After storing boxes,
+    at most 15 cubic feet can remain unused. How many boxes must be stored?
+  context_block: null
+  answer_expression: 75 - 4*b <= 15
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How much space will remain after storing b boxes?
+  - The remaining space is 75 - 4b, and the problem says that cannot be more than 15.
+  - Write 75 - 4b ≤ 15, then isolate b. Remember that dividing by a negative flips the inequality sign.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The storage unit starts with 75 cubic feet. Each box takes 4 cubic feet, so b boxes
+        take 4b cubic feet. The space remaining is 75 - 4b.
+      expression: 75 - 4*b
+      common_mistake: null
+    - step_number: 2
+      explanation: The problem says at most 15 cubic feet can remain unused, which means the remaining
+        space must be less than or equal to 15.
+      expression: 75 - 4*b <= 15
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 75 from both sides to isolate the term with b.
+      expression: -4*b <= -60
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by -4. Because we are dividing by a negative number, the inequality
+        sign reverses.
+      expression: b >= 15
+      common_mistake: null
+    final_answer: at least 15 boxes
+  random_seed: 98501
+  rendered_question: A storage unit has 75 cubic feet of space. Each box stored takes 4 cubic feet. After
+    storing boxes, at most 15 cubic feet can remain unused. How many boxes must be stored?
+  option_a: at least 15 boxes
+  option_b: exactly 15 boxes
+  option_c: at most 15 boxes
+  option_d: at least 18 boxes
+  correct_option: a
 - question_template_id: authored-algebra_foundations-d5-1186501
   topic_id: algebra_foundations
   skill_id: alg_inequalities
@@ -435,17 +493,17 @@ templates:
   option_c: x < 18
   option_d: x > 18
   correct_option: c
-- question_template_id: authored-algebra_foundations-d5-98501
+- question_template_id: authored-algebra_foundations-d3-1187302
   topic_id: algebra_foundations
-  skill_id: alg_inequalities
+  skill_id: alg_linear_functions
   grade_band: 6-7
-  difficulty_label: 5
+  difficulty_label: 2
   difficulty_confidence: 0.5
-  estimated_time_seconds: 240
+  estimated_time_seconds: 180
   common_error_tags:
-  - forgot_to_reverse_inequality_when_dividing_by_negative
-  - solved_as_equation_instead_of_inequality
-  - reversed_inequality_direction_incorrectly
+  - Distributed only over the first term in the parentheses
+  - Combined the constant into the coefficient before distributing
+  - Stopped at the intermediate step 5x = 25 without dividing
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
@@ -453,45 +511,60 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A storage unit has 75 cubic feet of space. Each box stored takes 4 cubic feet. After storing boxes,
-    at most 15 cubic feet can remain unused. How many boxes must be stored?
+  stem: A flower shop creates bouquets. Each bouquet contains x roses plus 2 lilies. After making 9 bouquets,
+    the shop removes 4x roses for individual sales. Altogether 43 flowers have been arranged. How many
+    roses are in each bouquet?
   context_block: null
-  answer_expression: 75 - 4*b <= 15
+  answer_expression: Eq(9*(x + 2) - 4*x, 43)
   figure_spec: null
   figure_reading: null
   hint_ladder:
-  - How much space will remain after storing b boxes?
-  - The remaining space is 75 - 4b, and the problem says that cannot be more than 15.
-  - Write 75 - 4b ≤ 15, then isolate b. Remember that dividing by a negative flips the inequality sign.
+  - Write an expression for the total flowers in one bouquet if each contains x roses.
+  - Nine bouquets hold 9(x + 2) flowers, then 4x roses are removed, and the total is 43.
+  - Distribute the 9, combine the x terms, then solve for x.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: The storage unit starts with 75 cubic feet. Each box takes 4 cubic feet, so b boxes
-        take 4b cubic feet. The space remaining is 75 - 4b.
-      expression: 75 - 4*b
+      explanation: Each bouquet contains x roses plus 2 lilies, so one bouquet has x + 2 flowers.
+      expression: x + 2
       common_mistake: null
     - step_number: 2
-      explanation: The problem says at most 15 cubic feet can remain unused, which means the remaining
-        space must be less than or equal to 15.
-      expression: 75 - 4*b <= 15
+      explanation: Nine bouquets contain 9 times that amount.
+      expression: 9*(x + 2)
       common_mistake: null
     - step_number: 3
-      explanation: Subtract 75 from both sides to isolate the term with b.
-      expression: -4*b <= -60
+      explanation: Distribute the 9 to both terms inside the parentheses.
+      expression: 9*x + 18
       common_mistake: null
     - step_number: 4
-      explanation: Divide both sides by -4. Because we are dividing by a negative number, the inequality
-        sign reverses.
-      expression: b >= 15
+      explanation: The shop then removes 4x roses, so subtract 4x from the total.
+      expression: 9*x + 18 - 4*x
       common_mistake: null
-    final_answer: at least 15 boxes
-  random_seed: 98501
-  rendered_question: A storage unit has 75 cubic feet of space. Each box stored takes 4 cubic feet. After
-    storing boxes, at most 15 cubic feet can remain unused. How many boxes must be stored?
-  option_a: at least 15 boxes
-  option_b: exactly 15 boxes
-  option_c: at most 15 boxes
-  option_d: at least 18 boxes
+    - step_number: 5
+      explanation: 'Combine like terms: 9x - 4x = 5x.'
+      expression: 5*x + 18
+      common_mistake: null
+    - step_number: 6
+      explanation: Set the expression equal to the total number of flowers arranged, which is 43.
+      expression: 5*x + 18 = 43
+      common_mistake: null
+    - step_number: 7
+      explanation: Subtract 18 from both sides to isolate the term with x.
+      expression: 5*x = 25
+      common_mistake: null
+    - step_number: 8
+      explanation: Divide both sides by 5 to solve for x.
+      expression: x = 5
+      common_mistake: null
+    final_answer: 5 roses
+  random_seed: 1187302
+  rendered_question: A flower shop creates bouquets. Each bouquet contains x roses plus 2 lilies. After
+    making 9 bouquets, the shop removes 4x roses for individual sales. Altogether 43 flowers have been
+    arranged. How many roses are in each bouquet?
+  option_a: 5 roses
+  option_b: 3 roses
+  option_c: 25 roses
+  option_d: 7 roses
   correct_option: a
 - question_template_id: authored-algebra_foundations-d4-1187401
   topic_id: algebra_foundations
@@ -639,79 +712,6 @@ templates:
   option_c: 3 bookmarks
   option_d: 6 bookmarks
   correct_option: b
-- question_template_id: authored-algebra_foundations-d3-1187302
-  topic_id: algebra_foundations
-  skill_id: alg_linear_functions
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 180
-  common_error_tags:
-  - Distributed only over the first term in the parentheses
-  - Combined the constant into the coefficient before distributing
-  - Stopped at the intermediate step 5x = 25 without dividing
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A flower shop creates bouquets. Each bouquet contains x roses plus 2 lilies. After making 9 bouquets,
-    the shop removes 4x roses for individual sales. Altogether 43 flowers have been arranged. How many
-    roses are in each bouquet?
-  context_block: null
-  answer_expression: Eq(9*(x + 2) - 4*x, 43)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Write an expression for the total flowers in one bouquet if each contains x roses.
-  - Nine bouquets hold 9(x + 2) flowers, then 4x roses are removed, and the total is 43.
-  - Distribute the 9, combine the x terms, then solve for x.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Each bouquet contains x roses plus 2 lilies, so one bouquet has x + 2 flowers.
-      expression: x + 2
-      common_mistake: null
-    - step_number: 2
-      explanation: Nine bouquets contain 9 times that amount.
-      expression: 9*(x + 2)
-      common_mistake: null
-    - step_number: 3
-      explanation: Distribute the 9 to both terms inside the parentheses.
-      expression: 9*x + 18
-      common_mistake: null
-    - step_number: 4
-      explanation: The shop then removes 4x roses, so subtract 4x from the total.
-      expression: 9*x + 18 - 4*x
-      common_mistake: null
-    - step_number: 5
-      explanation: 'Combine like terms: 9x - 4x = 5x.'
-      expression: 5*x + 18
-      common_mistake: null
-    - step_number: 6
-      explanation: Set the expression equal to the total number of flowers arranged, which is 43.
-      expression: 5*x + 18 = 43
-      common_mistake: null
-    - step_number: 7
-      explanation: Subtract 18 from both sides to isolate the term with x.
-      expression: 5*x = 25
-      common_mistake: null
-    - step_number: 8
-      explanation: Divide both sides by 5 to solve for x.
-      expression: x = 5
-      common_mistake: null
-    final_answer: 5 roses
-  random_seed: 1187302
-  rendered_question: A flower shop creates bouquets. Each bouquet contains x roses plus 2 lilies. After
-    making 9 bouquets, the shop removes 4x roses for individual sales. Altogether 43 flowers have been
-    arranged. How many roses are in each bouquet?
-  option_a: 5 roses
-  option_b: 3 roses
-  option_c: 25 roses
-  option_d: 7 roses
-  correct_option: a
 - question_template_id: authored-algebra_foundations-d3-99300
   topic_id: algebra_foundations
   skill_id: alg_linear_functions
@@ -824,11 +824,76 @@ templates:
   option_c: 8r + 2t
   option_d: 5r + 8t
   correct_option: a
-- question_template_id: authored-algebra_foundations-d1-1428100
+- question_template_id: authored-algebra_foundations-d2-1188200
   topic_id: algebra_foundations
   skill_id: alg_simplify_expressions
   grade_band: 6-7
   difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - combined_only_one_variable
+  - combined_only_fiction_terms
+  - added_all_coefficients_together
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian shelves 6 fiction books and 2 reference books in the morning, then shelves 3 more
+    fiction books and 7 more reference books in the afternoon. Which expression shows the total number
+    of books she shelved?
+  context_block: null
+  answer_expression: 6*f + 2*r + 3*f + 7*r
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the morning books and another for the afternoon books.
+  - The morning gives you 6f + 2r and the afternoon gives you 3f + 7r. Add those two expressions together.
+  - Combine the terms that have f and combine the terms that have r separately.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the expression for the morning books: 6 fiction and 2 reference.'
+      expression: 6*f + 2*r
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Write the expression for the afternoon books: 3 fiction and 7 reference.'
+      expression: 3*f + 7*r
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the two expressions together to get the total.
+      expression: 6*f + 2*r + 3*f + 7*r
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine the fiction terms: 6f + 3f = 9f.'
+      expression: 9*f
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the reference terms: 2r + 7r = 9r.'
+      expression: 9*r
+      common_mistake: null
+    - step_number: 6
+      explanation: Write the simplified expression.
+      expression: 9*f + 9*r
+      common_mistake: null
+    final_answer: 9f + 9r
+  random_seed: 1188200
+  rendered_question: A librarian shelves 6 fiction books and 2 reference books in the morning, then shelves
+    3 more fiction books and 7 more reference books in the afternoon. Which expression shows the total
+    number of books she shelved?
+  option_a: 11f + 11r
+  option_b: 9f + 2r
+  option_c: 6f + 7r
+  option_d: 9f + 9r
+  correct_option: d
+- question_template_id: authored-algebra_foundations-d1-1428100
+  topic_id: algebra_foundations
+  skill_id: alg_simplify_expressions
+  grade_band: 6-7
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -890,7 +955,7 @@ templates:
   topic_id: algebra_foundations
   skill_id: alg_simplify_expressions
   grade_band: 6-7
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -941,71 +1006,6 @@ templates:
   option_b: 7x + 12
   option_c: 10x + 7
   option_d: 7x + 7
-  correct_option: d
-- question_template_id: authored-algebra_foundations-d2-1188200
-  topic_id: algebra_foundations
-  skill_id: alg_simplify_expressions
-  grade_band: 6-7
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - combined_only_one_variable
-  - combined_only_fiction_terms
-  - added_all_coefficients_together
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A librarian shelves 6 fiction books and 2 reference books in the morning, then shelves 3 more
-    fiction books and 7 more reference books in the afternoon. Which expression shows the total number
-    of books she shelved?
-  context_block: null
-  answer_expression: 6*f + 2*r + 3*f + 7*r
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Write an expression for the morning books and another for the afternoon books.
-  - The morning gives you 6f + 2r and the afternoon gives you 3f + 7r. Add those two expressions together.
-  - Combine the terms that have f and combine the terms that have r separately.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: 'Write the expression for the morning books: 6 fiction and 2 reference.'
-      expression: 6*f + 2*r
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Write the expression for the afternoon books: 3 fiction and 7 reference.'
-      expression: 3*f + 7*r
-      common_mistake: null
-    - step_number: 3
-      explanation: Add the two expressions together to get the total.
-      expression: 6*f + 2*r + 3*f + 7*r
-      common_mistake: null
-    - step_number: 4
-      explanation: 'Combine the fiction terms: 6f + 3f = 9f.'
-      expression: 9*f
-      common_mistake: null
-    - step_number: 5
-      explanation: 'Combine the reference terms: 2r + 7r = 9r.'
-      expression: 9*r
-      common_mistake: null
-    - step_number: 6
-      explanation: Write the simplified expression.
-      expression: 9*f + 9*r
-      common_mistake: null
-    final_answer: 9f + 9r
-  random_seed: 1188200
-  rendered_question: A librarian shelves 6 fiction books and 2 reference books in the morning, then shelves
-    3 more fiction books and 7 more reference books in the afternoon. Which expression shows the total
-    number of books she shelved?
-  option_a: 11f + 11r
-  option_b: 9f + 2r
-  option_c: 6f + 7r
-  option_d: 9f + 9r
   correct_option: d
 - question_template_id: authored-algebra_foundations-d2-1188202
   topic_id: algebra_foundations
@@ -1401,7 +1401,7 @@ templates:
   topic_id: algebra_foundations
   skill_id: alg_simultaneous
   grade_band: 6-7
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 240
   common_error_tags:
@@ -1472,7 +1472,7 @@ templates:
   topic_id: algebra_foundations
   skill_id: alg_simultaneous
   grade_band: 6-7
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 240
   common_error_tags:

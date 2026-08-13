@@ -67,7 +67,7 @@ templates:
   topic_id: calculus
   skill_id: calc_derivatives
   grade_band: 11-12
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 120
   common_error_tags:
@@ -129,7 +129,7 @@ templates:
   topic_id: calculus
   skill_id: calc_derivatives
   grade_band: 11-12
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -181,6 +181,75 @@ templates:
   option_c: 8 degrees Celsius per hour
   option_d: -8 degrees Celsius per hour
   correct_option: a
+- question_template_id: authored-calculus-d3-1605301
+  topic_id: calculus
+  skill_id: calc_derivatives
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_divide_by_coefficient
+  - ignored_negative_sign_in_division
+  - doubled_the_critical_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A manufacturing company's monthly profit (in dollars) from producing x items is given by P(x)
+    = -2x² + 20x - 10. The company wants to maximize profit. At what production level is profit at its
+    maximum?
+  context_block: To find the maximum profit, you need to find where the rate of change of profit is zero.
+    This is a critical point where profit stops increasing and starts decreasing.
+  answer_expression: -4*x + 20 = 0
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The derivative of P(x) = -2x² + 20x - 10 tells you the rate at which profit changes as production
+    increases.
+  - Taking the derivative gives dP/dx = -4x + 20. To find where profit stops changing, set this derivative
+    equal to zero.
+  - Rearrange the equation -4x + 20 = 0 so that x is alone on one side.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the maximum profit, we need to find where the derivative of the profit function
+        equals zero. This is where the profit stops increasing.
+      expression: dP/dx = d/dx[-2x² + 20x - 10]
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Differentiate each term: the derivative of -2x² is -4x, the derivative of 20x is 20,
+        and the derivative of -10 is 0.'
+      expression: dP/dx = -4x + 20
+      common_mistake: null
+    - step_number: 3
+      explanation: Set the derivative equal to zero to find the critical point.
+      expression: -4x + 20 = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 20 from both sides to isolate the term with x.
+      expression: -4x = -20
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by -4 to solve for x.
+      expression: x = -20 / -4 = 5
+      common_mistake: null
+    final_answer: 5 items
+  random_seed: 1605301
+  rendered_question: 'To find the maximum profit, you need to find where the rate of change of profit
+    is zero. This is a critical point where profit stops increasing and starts decreasing.
+
+
+    A manufacturing company''s monthly profit (in dollars) from producing x items is given by P(x) = -2x²
+    + 20x - 10. The company wants to maximize profit. At what production level is profit at its maximum?'
+  option_a: 2 items
+  option_b: 5 items
+  option_c: 10 items
+  option_d: 20 items
+  correct_option: b
 - question_template_id: authored-calculus-d3-1465301
   topic_id: calculus
   skill_id: calc_derivatives
@@ -510,244 +579,6 @@ templates:
   option_c: 24 meters
   option_d: 12 meters
   correct_option: b
-- question_template_id: authored-calculus-d4-1307401
-  topic_id: calculus
-  skill_id: calc_integrals
-  grade_band: 11-12
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 180
-  common_error_tags:
-  - forgot_to_divide_by_new_exponent
-  - applied_power_rule_incorrectly
-  - arithmetic_error_in_evaluation
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A factory machine produces widgets at a rate that increases over time. The rate is r(t) = 5t widgets
-    per hour, where t is the number of hours since the machine started. How many widgets does the machine
-    produce during the first 4 hours?
-  context_block: null
-  answer_expression: 5*16/2 = x
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - The total number of widgets is the area under the rate curve from t = 0 to t = 4.
-  - You need to integrate r(t) = 5t from 0 to 4; the antiderivative of 5t is (5/2)t².
-  - Evaluate (5/2)t² at t = 4 and subtract its value at t = 0.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The total number of widgets is the definite integral of the rate function from t =
-        0 to t = 4.
-      expression: ∫₀⁴ 5t dt
-      common_mistake: null
-    - step_number: 2
-      explanation: Find the antiderivative of 5t, which is (5/2)t².
-      expression: (5/2)t²
-      common_mistake: null
-    - step_number: 3
-      explanation: Evaluate the antiderivative at the upper limit t = 4.
-      expression: (5/2)(4²) = (5/2)(16) = 40
-      common_mistake: null
-    - step_number: 4
-      explanation: Evaluate the antiderivative at the lower limit t = 0.
-      expression: (5/2)(0²) = 0
-      common_mistake: null
-    - step_number: 5
-      explanation: Subtract the lower limit value from the upper limit value.
-      expression: 40 - 0 = 40
-      common_mistake: null
-    final_answer: 40 widgets
-  random_seed: 1307401
-  rendered_question: A factory machine produces widgets at a rate that increases over time. The rate is
-    r(t) = 5t widgets per hour, where t is the number of hours since the machine started. How many widgets
-    does the machine produce during the first 4 hours?
-  option_a: 80 widgets
-  option_b: 20 widgets
-  option_c: 40 widgets
-  option_d: 10 widgets
-  correct_option: c
-- question_template_id: authored-calculus-d4-1307402
-  topic_id: calculus
-  skill_id: calc_integrals
-  grade_band: 11-12
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 180
-  common_error_tags:
-  - forgot_to_apply_power_rule_denominator
-  - multiplied_rate_by_time_directly
-  - squared_the_coefficient_instead_of_the_variable
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A printer's speed increases as it warms up. After starting, it prints at a rate of 7t pages per
-    minute, where t is the number of minutes since the start. How many pages are printed in the first
-    4 minutes?
-  context_block: null
-  answer_expression: 7 * 8 = x
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - The rate 7t tells you how fast the printer is working at any instant, but the total pages printed
-    requires adding up all those changing rates over the interval.
-  - To find the total pages, integrate the rate function from t = 0 to t = 4 minutes.
-  - Set up the definite integral of 7t from 0 to 4, apply the power rule, and then evaluate at the endpoints.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The total number of pages is the integral of the rate function from t = 0 to t = 4.
-      expression: ∫₀⁴ 7t dt
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Apply the power rule for integration: the integral of t is t²/2.'
-      expression: 7 · [t²/2]₀⁴
-      common_mistake: null
-    - step_number: 3
-      explanation: 'Evaluate at the upper limit: substitute t = 4.'
-      expression: 7 · (16/2) = 7 · 8
-      common_mistake: null
-    - step_number: 4
-      explanation: 'Evaluate at the lower limit: substitute t = 0, which gives 0.'
-      expression: 7 · 8 - 0 = 56
-      common_mistake: null
-    final_answer: 56 pages
-  random_seed: 1307402
-  rendered_question: A printer's speed increases as it warms up. After starting, it prints at a rate of
-    7t pages per minute, where t is the number of minutes since the start. How many pages are printed
-    in the first 4 minutes?
-  option_a: 32 pages
-  option_b: 56 pages
-  option_c: 112 pages
-  option_d: 28 pages
-  correct_option: b
-- question_template_id: authored-calculus-d4-1467400
-  topic_id: calculus
-  skill_id: calc_integrals
-  grade_band: 11-12
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 180
-  common_error_tags:
-  - evaluated_at_upper_bound_only_forgot_subtraction
-  - added_bounds_instead_of_subtracting
-  - incorrect_antiderivative_power_rule
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: A car accelerates at a rate of 4t + 6 metres per second squared, where t is time in seconds. What
-    is the change in the car's velocity from t = 0 to t = 3 seconds?
-  context_block: null
-  answer_expression: v = (2*3**2 + 6*3) - (2*0**2 + 6*0)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - To find the change in velocity from an acceleration function, you need to integrate the acceleration
-    over the given time interval.
-  - The antiderivative of 4t + 6 is 2t² + 6t. Evaluate this at both t = 3 and t = 0.
-  - Calculate [2(3)² + 6(3)] minus [2(0)² + 6(0)] to find the total change.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The change in velocity is the definite integral of acceleration from t = 0 to t = 3.
-        We need to find the antiderivative of 4t + 6.
-      expression: ∫(4t + 6) dt = 2t² + 6t + C
-      common_mistake: null
-    - step_number: 2
-      explanation: Evaluate the antiderivative at the upper bound t = 3.
-      expression: 2(3)² + 6(3) = 2(9) + 18 = 18 + 18 = 36
-      common_mistake: null
-    - step_number: 3
-      explanation: Evaluate the antiderivative at the lower bound t = 0.
-      expression: 2(0)² + 6(0) = 0 + 0 = 0
-      common_mistake: null
-    - step_number: 4
-      explanation: Subtract the lower bound value from the upper bound value to find the change in velocity.
-      expression: 36 - 0 = 36
-      common_mistake: null
-    final_answer: 36 metres per second
-  random_seed: 1467400
-  rendered_question: A car accelerates at a rate of 4t + 6 metres per second squared, where t is time
-    in seconds. What is the change in the car's velocity from t = 0 to t = 3 seconds?
-  option_a: 18 metres per second
-  option_b: 36 metres per second
-  option_c: 30 metres per second
-  option_d: 42 metres per second
-  correct_option: b
-- question_template_id: authored-calculus-d4-1467401
-  topic_id: calculus
-  skill_id: calc_integrals
-  grade_band: 11-12
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 180
-  common_error_tags:
-  - forgot_to_subtract_lower_bound
-  - evaluated_only_upper_bound
-  - subtracted_in_wrong_order
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A factory produces widgets at a rate of p(t) = 6t² - 4t + 10 widgets per hour. How many widgets
-    are produced between hour 1 and hour 3?
-  context_block: null
-  answer_expression: x = (2*3**3 - 2*3**2 + 10*3) - (2*1**3 - 2*1**2 + 10*1)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - To find total production, you need to accumulate the rate over the time interval from t = 1 to t =
-    3.
-  - The antiderivative of 6t² - 4t + 10 is 2t³ - 2t² + 10t. Evaluate this at both endpoints.
-  - Compute the antiderivative at t = 3 and subtract the antiderivative at t = 1.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: To find the total number of widgets produced, integrate the rate function p(t) = 6t²
-        - 4t + 10 from t = 1 to t = 3.
-      expression: ∫(6t² - 4t + 10) dt from 1 to 3
-      common_mistake: null
-    - step_number: 2
-      explanation: Find the antiderivative of 6t² - 4t + 10, which is 2t³ - 2t² + 10t.
-      expression: 2t³ - 2t² + 10t
-      common_mistake: null
-    - step_number: 3
-      explanation: Evaluate the antiderivative at the upper bound t = 3.
-      expression: 2(3)³ - 2(3)² + 10(3) = 54 - 18 + 30 = 66
-      common_mistake: null
-    - step_number: 4
-      explanation: Evaluate the antiderivative at the lower bound t = 1.
-      expression: 2(1)³ - 2(1)² + 10(1) = 2 - 2 + 10 = 10
-      common_mistake: null
-    - step_number: 5
-      explanation: Subtract the lower bound value from the upper bound value to find the total production.
-      expression: 66 - 10 = 56
-      common_mistake: null
-    final_answer: 56 widgets
-  random_seed: 1467401
-  rendered_question: A factory produces widgets at a rate of p(t) = 6t² - 4t + 10 widgets per hour. How
-    many widgets are produced between hour 1 and hour 3?
-  option_a: 46 widgets
-  option_b: 10 widgets
-  option_c: 56 widgets
-  option_d: 66 widgets
-  correct_option: c
 - question_template_id: authored-calculus-d3-1307302
   topic_id: calculus
   skill_id: calc_integrals
@@ -935,6 +766,244 @@ templates:
   option_b: 27 liters
   option_c: 54 liters
   option_d: 81 liters
+  correct_option: c
+- question_template_id: authored-calculus-d4-1307401
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_divide_by_new_exponent
+  - applied_power_rule_incorrectly
+  - arithmetic_error_in_evaluation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A factory machine produces widgets at a rate that increases over time. The rate is r(t) = 5t widgets
+    per hour, where t is the number of hours since the machine started. How many widgets does the machine
+    produce during the first 4 hours?
+  context_block: null
+  answer_expression: 5*16/2 = x
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The total number of widgets is the area under the rate curve from t = 0 to t = 4.
+  - You need to integrate r(t) = 5t from 0 to 4; the antiderivative of 5t is (5/2)t².
+  - Evaluate (5/2)t² at t = 4 and subtract its value at t = 0.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total number of widgets is the definite integral of the rate function from t =
+        0 to t = 4.
+      expression: ∫₀⁴ 5t dt
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the antiderivative of 5t, which is (5/2)t².
+      expression: (5/2)t²
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the upper limit t = 4.
+      expression: (5/2)(4²) = (5/2)(16) = 40
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate the antiderivative at the lower limit t = 0.
+      expression: (5/2)(0²) = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract the lower limit value from the upper limit value.
+      expression: 40 - 0 = 40
+      common_mistake: null
+    final_answer: 40 widgets
+  random_seed: 1307401
+  rendered_question: A factory machine produces widgets at a rate that increases over time. The rate is
+    r(t) = 5t widgets per hour, where t is the number of hours since the machine started. How many widgets
+    does the machine produce during the first 4 hours?
+  option_a: 80 widgets
+  option_b: 20 widgets
+  option_c: 40 widgets
+  option_d: 10 widgets
+  correct_option: c
+- question_template_id: authored-calculus-d4-1307402
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_apply_power_rule_denominator
+  - multiplied_rate_by_time_directly
+  - squared_the_coefficient_instead_of_the_variable
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A printer's speed increases as it warms up. After starting, it prints at a rate of 7t pages per
+    minute, where t is the number of minutes since the start. How many pages are printed in the first
+    4 minutes?
+  context_block: null
+  answer_expression: 7 * 8 = x
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The rate 7t tells you how fast the printer is working at any instant, but the total pages printed
+    requires adding up all those changing rates over the interval.
+  - To find the total pages, integrate the rate function from t = 0 to t = 4 minutes.
+  - Set up the definite integral of 7t from 0 to 4, apply the power rule, and then evaluate at the endpoints.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total number of pages is the integral of the rate function from t = 0 to t = 4.
+      expression: ∫₀⁴ 7t dt
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Apply the power rule for integration: the integral of t is t²/2.'
+      expression: 7 · [t²/2]₀⁴
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Evaluate at the upper limit: substitute t = 4.'
+      expression: 7 · (16/2) = 7 · 8
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Evaluate at the lower limit: substitute t = 0, which gives 0.'
+      expression: 7 · 8 - 0 = 56
+      common_mistake: null
+    final_answer: 56 pages
+  random_seed: 1307402
+  rendered_question: A printer's speed increases as it warms up. After starting, it prints at a rate of
+    7t pages per minute, where t is the number of minutes since the start. How many pages are printed
+    in the first 4 minutes?
+  option_a: 32 pages
+  option_b: 56 pages
+  option_c: 112 pages
+  option_d: 28 pages
+  correct_option: b
+- question_template_id: authored-calculus-d4-1467400
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - evaluated_at_upper_bound_only_forgot_subtraction
+  - added_bounds_instead_of_subtracting
+  - incorrect_antiderivative_power_rule
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A car accelerates at a rate of 4t + 6 metres per second squared, where t is time in seconds. What
+    is the change in the car's velocity from t = 0 to t = 3 seconds?
+  context_block: null
+  answer_expression: v = (2*3**2 + 6*3) - (2*0**2 + 6*0)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the change in velocity from an acceleration function, you need to integrate the acceleration
+    over the given time interval.
+  - The antiderivative of 4t + 6 is 2t² + 6t. Evaluate this at both t = 3 and t = 0.
+  - Calculate [2(3)² + 6(3)] minus [2(0)² + 6(0)] to find the total change.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The change in velocity is the definite integral of acceleration from t = 0 to t = 3.
+        We need to find the antiderivative of 4t + 6.
+      expression: ∫(4t + 6) dt = 2t² + 6t + C
+      common_mistake: null
+    - step_number: 2
+      explanation: Evaluate the antiderivative at the upper bound t = 3.
+      expression: 2(3)² + 6(3) = 2(9) + 18 = 18 + 18 = 36
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the lower bound t = 0.
+      expression: 2(0)² + 6(0) = 0 + 0 = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract the lower bound value from the upper bound value to find the change in velocity.
+      expression: 36 - 0 = 36
+      common_mistake: null
+    final_answer: 36 metres per second
+  random_seed: 1467400
+  rendered_question: A car accelerates at a rate of 4t + 6 metres per second squared, where t is time
+    in seconds. What is the change in the car's velocity from t = 0 to t = 3 seconds?
+  option_a: 18 metres per second
+  option_b: 36 metres per second
+  option_c: 30 metres per second
+  option_d: 42 metres per second
+  correct_option: b
+- question_template_id: authored-calculus-d4-1467401
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_subtract_lower_bound
+  - evaluated_only_upper_bound
+  - subtracted_in_wrong_order
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A factory produces widgets at a rate of p(t) = 6t² - 4t + 10 widgets per hour. How many widgets
+    are produced between hour 1 and hour 3?
+  context_block: null
+  answer_expression: x = (2*3**3 - 2*3**2 + 10*3) - (2*1**3 - 2*1**2 + 10*1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find total production, you need to accumulate the rate over the time interval from t = 1 to t =
+    3.
+  - The antiderivative of 6t² - 4t + 10 is 2t³ - 2t² + 10t. Evaluate this at both endpoints.
+  - Compute the antiderivative at t = 3 and subtract the antiderivative at t = 1.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the total number of widgets produced, integrate the rate function p(t) = 6t²
+        - 4t + 10 from t = 1 to t = 3.
+      expression: ∫(6t² - 4t + 10) dt from 1 to 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the antiderivative of 6t² - 4t + 10, which is 2t³ - 2t² + 10t.
+      expression: 2t³ - 2t² + 10t
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the upper bound t = 3.
+      expression: 2(3)³ - 2(3)² + 10(3) = 54 - 18 + 30 = 66
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate the antiderivative at the lower bound t = 1.
+      expression: 2(1)³ - 2(1)² + 10(1) = 2 - 2 + 10 = 10
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract the lower bound value from the upper bound value to find the total production.
+      expression: 66 - 10 = 56
+      common_mistake: null
+    final_answer: 56 widgets
+  random_seed: 1467401
+  rendered_question: A factory produces widgets at a rate of p(t) = 6t² - 4t + 10 widgets per hour. How
+    many widgets are produced between hour 1 and hour 3?
+  option_a: 46 widgets
+  option_b: 10 widgets
+  option_c: 56 widgets
+  option_d: 66 widgets
   correct_option: c
 - question_template_id: authored-calculus-d5-1307501
   topic_id: calculus
@@ -1466,6 +1535,122 @@ templates:
   option_c: '48'
   option_d: '47'
   correct_option: c
+- question_template_id: authored-calculus-d2-1468200
+  topic_id: calculus
+  skill_id: calc_limits
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - miscalculated_exponent_or_dropped_term
+  - added_final_constant_instead_of_subtracting
+  - stopped_before_final_operation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An engineer models the strength of a beam under load with the function f(x) = x³ + 2x - 1, where
+    x is the load in tons. What is the limit of f(x) as x approaches 3?
+  context_block: null
+  answer_expression: Eq(L, 3**3 + 2*3 - 1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Because the function is a polynomial, you can find the limit by substituting the value directly into
+    the expression.
+  - Substitute x = 3 into f(x) = x³ + 2x - 1.
+  - Compute 3³ first, then add 2 times 3, then subtract 1.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The function is a polynomial, so the limit as x approaches 3 is found by direct substitution.
+      expression: f(3) = 3³ + 2(3) - 1
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the cube: 3³ equals 27.'
+      expression: f(3) = 27 + 2(3) - 1
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 2 by 3 to get 6.
+      expression: f(3) = 27 + 6 - 1
+      common_mistake: null
+    - step_number: 4
+      explanation: Add 27 and 6 to get 33, then subtract 1.
+      expression: f(3) = 33 - 1 = 32
+      common_mistake: null
+    final_answer: 32 units
+  random_seed: 1468200
+  rendered_question: An engineer models the strength of a beam under load with the function f(x) = x³
+    + 2x - 1, where x is the load in tons. What is the limit of f(x) as x approaches 3?
+  option_a: 34 units
+  option_b: 32 units
+  option_c: 28 units
+  option_d: 33 units
+  correct_option: b
+- question_template_id: authored-calculus-d2-1468201
+  topic_id: calculus
+  skill_id: calc_limits
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracting_middle_term
+  - dropped_constant_term
+  - squared_entire_expression_instead_of_first_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A factory's profit is modeled by P(x) = x² - 2x + 5, where x is production in thousands of units.
+    What is the limit of P(x) as x approaches 6?
+  context_block: null
+  answer_expression: Eq(L, 6**2 - 2*6 + 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Since P is a polynomial, the limit as x approaches 6 is the same as the value of P at 6.
+  - Substitute x = 6 into the expression x² - 2x + 5.
+  - Calculate 6² first, then subtract 2 times 6, and finally add 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Because P(x) is a polynomial, it is continuous everywhere, so the limit as x approaches
+        6 equals P(6).
+      expression: lim (x→6) P(x) = P(6)
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute x = 6 into the function P(x) = x² - 2x + 5.
+      expression: P(6) = 6² - 2(6) + 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate 6 squared.
+      expression: 6² = 36
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 2 by 6.
+      expression: 2(6) = 12
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the terms: 36 - 12 + 5.'
+      expression: 36 - 12 + 5 = 29
+      common_mistake: null
+    final_answer: 29 thousand dollars
+  random_seed: 1468201
+  rendered_question: A factory's profit is modeled by P(x) = x² - 2x + 5, where x is production in thousands
+    of units. What is the limit of P(x) as x approaches 6?
+  option_a: 31 thousand dollars
+  option_b: 29 thousand dollars
+  option_c: 24 thousand dollars
+  option_d: 41 thousand dollars
+  correct_option: b
 - question_template_id: authored-calculus-d2-1308201
   topic_id: calculus
   skill_id: calc_limits
@@ -1579,119 +1764,3 @@ templates:
   option_c: 43 dollars
   option_d: 45 dollars
   correct_option: d
-- question_template_id: authored-calculus-d2-1468200
-  topic_id: calculus
-  skill_id: calc_limits
-  grade_band: 11-12
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - miscalculated_exponent_or_dropped_term
-  - added_final_constant_instead_of_subtracting
-  - stopped_before_final_operation
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: An engineer models the strength of a beam under load with the function f(x) = x³ + 2x - 1, where
-    x is the load in tons. What is the limit of f(x) as x approaches 3?
-  context_block: null
-  answer_expression: Eq(L, 3**3 + 2*3 - 1)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Because the function is a polynomial, you can find the limit by substituting the value directly into
-    the expression.
-  - Substitute x = 3 into f(x) = x³ + 2x - 1.
-  - Compute 3³ first, then add 2 times 3, then subtract 1.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The function is a polynomial, so the limit as x approaches 3 is found by direct substitution.
-      expression: f(3) = 3³ + 2(3) - 1
-      common_mistake: null
-    - step_number: 2
-      explanation: 'Evaluate the cube: 3³ equals 27.'
-      expression: f(3) = 27 + 2(3) - 1
-      common_mistake: null
-    - step_number: 3
-      explanation: Multiply 2 by 3 to get 6.
-      expression: f(3) = 27 + 6 - 1
-      common_mistake: null
-    - step_number: 4
-      explanation: Add 27 and 6 to get 33, then subtract 1.
-      expression: f(3) = 33 - 1 = 32
-      common_mistake: null
-    final_answer: 32 units
-  random_seed: 1468200
-  rendered_question: An engineer models the strength of a beam under load with the function f(x) = x³
-    + 2x - 1, where x is the load in tons. What is the limit of f(x) as x approaches 3?
-  option_a: 34 units
-  option_b: 32 units
-  option_c: 28 units
-  option_d: 33 units
-  correct_option: b
-- question_template_id: authored-calculus-d2-1468201
-  topic_id: calculus
-  skill_id: calc_limits
-  grade_band: 11-12
-  difficulty_label: 2
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - added_instead_of_subtracting_middle_term
-  - dropped_constant_term
-  - squared_entire_expression_instead_of_first_term
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A factory's profit is modeled by P(x) = x² - 2x + 5, where x is production in thousands of units.
-    What is the limit of P(x) as x approaches 6?
-  context_block: null
-  answer_expression: Eq(L, 6**2 - 2*6 + 5)
-  figure_spec: null
-  figure_reading: null
-  hint_ladder:
-  - Since P is a polynomial, the limit as x approaches 6 is the same as the value of P at 6.
-  - Substitute x = 6 into the expression x² - 2x + 5.
-  - Calculate 6² first, then subtract 2 times 6, and finally add 5.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Because P(x) is a polynomial, it is continuous everywhere, so the limit as x approaches
-        6 equals P(6).
-      expression: lim (x→6) P(x) = P(6)
-      common_mistake: null
-    - step_number: 2
-      explanation: Substitute x = 6 into the function P(x) = x² - 2x + 5.
-      expression: P(6) = 6² - 2(6) + 5
-      common_mistake: null
-    - step_number: 3
-      explanation: Evaluate 6 squared.
-      expression: 6² = 36
-      common_mistake: null
-    - step_number: 4
-      explanation: Multiply 2 by 6.
-      expression: 2(6) = 12
-      common_mistake: null
-    - step_number: 5
-      explanation: 'Combine the terms: 36 - 12 + 5.'
-      expression: 36 - 12 + 5 = 29
-      common_mistake: null
-    final_answer: 29 thousand dollars
-  random_seed: 1468201
-  rendered_question: A factory's profit is modeled by P(x) = x² - 2x + 5, where x is production in thousands
-    of units. What is the limit of P(x) as x approaches 6?
-  option_a: 31 thousand dollars
-  option_b: 29 thousand dollars
-  option_c: 24 thousand dollars
-  option_d: 41 thousand dollars
-  correct_option: b

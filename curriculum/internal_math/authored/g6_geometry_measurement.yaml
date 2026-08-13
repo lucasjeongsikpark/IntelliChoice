@@ -270,7 +270,7 @@ templates:
   topic_id: g6_geometry_measurement
   skill_id: g6_circle_measures
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -325,7 +325,7 @@ templates:
   topic_id: g6_geometry_measurement
   skill_id: g6_circle_measures
   grade_band: 6-7
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -382,7 +382,7 @@ templates:
   topic_id: g6_geometry_measurement
   skill_id: g6_factors_multiples
   grade_band: 6-7
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -440,7 +440,7 @@ templates:
   topic_id: g6_geometry_measurement
   skill_id: g6_factors_multiples
   grade_band: 6-7
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -497,7 +497,7 @@ templates:
   topic_id: g6_geometry_measurement
   skill_id: g6_factors_multiples
   grade_band: 6-7
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
@@ -554,7 +554,7 @@ templates:
   topic_id: g6_geometry_measurement
   skill_id: g6_factors_multiples
   grade_band: 6-7
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
