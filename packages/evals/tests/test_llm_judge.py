@@ -61,8 +61,24 @@ def test_run_llm_judge_accepts_a_narrower_qa_dimension_list() -> None:
 
 
 def _no_real_bedrock_creds_reason() -> str | None:
+    """D-309: an explicit opt-in as well as credentials, matching the sibling in
+    `apps/chat-api/tests/test_qa_coverage_eval_real_bedrock.py` ("set CHAT_EVAL_REAL_BEDROCK=1
+    (costs money)").
+
+    The credential check alone was written when the docstring below was true - "no real AWS
+    credentials exist anywhere in this codebase's history". Staging credentials have existed
+    since S32/D-084, and this project's documented way to give repo Python AWS access is
+    `eval "$(aws --profile <p> configure export-credentials --format env)"`, which sets exactly
+    the two variables this reads. Under that workflow `make test` would have made a **real paid
+    Bedrock call** as part of the suite. Nothing was spent - runs here use `AWS_PROFILE`, which
+    botocore resolves from `~/.aws/credentials` without exporting anything - but a test suite
+    that becomes paid depending on how you authenticated is a cost bug waiting for someone
+    else's shell.
+    """
+    if os.environ.get("EVAL_REAL_BEDROCK") != "1":
+        return "set EVAL_REAL_BEDROCK=1 (costs money)"
     if not (os.environ.get("AWS_ACCESS_KEY_ID") and os.environ.get("AWS_SECRET_ACCESS_KEY")):
-        return "no real AWS credentials in this environment (D-025 posture)"
+        return "no real AWS credentials exported in this environment"
     return None
 
 
@@ -70,10 +86,15 @@ def _no_real_bedrock_creds_reason() -> str | None:
     (_reason := _no_real_bedrock_creds_reason()) is not None, reason=_reason or ""
 )
 def test_run_llm_judge_against_real_bedrock_creds() -> None:
-    """Never runs in this project (no real AWS credentials exist anywhere in this
-    codebase's history, D-025) - the point is that the skip condition and the real-
-    provider wiring are correct, so this runs against staging creds per ROADMAP S30's
-    own "Done when" wording, not that it's exercised here.
+    """Runs only when someone asks for it with `EVAL_REAL_BEDROCK=1` - the point is that the
+    skip condition and the real-provider wiring are correct, per ROADMAP S30's own "Done when"
+    wording, not that it is exercised here.
+
+    **The premise this was written on stopped being true (D-309).** It said "no real AWS
+    credentials exist anywhere in this codebase's history, D-025"; staging credentials have
+    existed since S32/D-084, so the credential check alone no longer means "never runs" - it
+    means "runs, and spends, whenever the caller happened to export keys". Hence the explicit
+    flag above.
     """
 
     async def run() -> None:

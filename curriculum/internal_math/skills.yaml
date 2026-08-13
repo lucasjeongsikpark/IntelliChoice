@@ -754,8 +754,15 @@ skills:
     topic_id: algebra_1
     name: "Work with functions and their graphs"
     difficulty_tiers: [3, 4]
-    structure: "a bare EXPRESSION defining the function, e.g. 2*x**2 - 3*x + 1 - the answer is
-      the expression, or its simplified form. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead. THE EQUATION MUST MATCH WHAT THE STEM ASKS FOR: if the question asks for a VALUE (a root, an output at a given input), write an equation that derives that value - Eq(x**2 - 7*x + 12, 0) - not the bare expression, because a symbolic answer can never match a numeric option."
+    # D-309: this field used to contradict itself, and the contradiction was the blocker.
+    # It opened with "a bare EXPRESSION ... the answer is the expression" and then closed with
+    # "THE EQUATION MUST MATCH WHAT THE STEM ASKS FOR ... not the bare expression". The first
+    # sentence sets the model's conception of the item, so it wrote a stem asking for a root
+    # and an equation giving the function - 3 of this skill's 14 rejections, all of them AFTER
+    # the closing clause was added (clause 2026-08-11, rejections 2026-08-12), which is D-252's
+    # record that emphasis does not fix a contradiction. Rewritten as two symmetric kinds with
+    # no default, the same remedy D-304 applied one level up.
+    structure: "ONE OF TWO KINDS, and the equation form follows from which you chose - never a default. (1) The stem asks for a VALUE (a root, or the output at a given input): write the equation that DERIVES that value - Eq(x**2 - 7*x + 12, 0) for the roots, Eq(x, 2*3**2 - 3*3 + 1) for f(3) - and every option is a number. (2) The stem asks for the FUNCTION (simplify it, compose two, write the rule a table describes): write the bare expression, e.g. 2*x**2 - 3*x + 1, and every option is an expression. Mixing them is the one thing that cannot work: a bare expression derives a symbolic answer, which can never match a numeric option. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form - an unsimplified or equivalent rewrite is the SAME expression and makes two options correct. Use wrong signs, wrong factors or wrong coefficients."
     answer_family: signed
 
 
@@ -867,8 +874,34 @@ skills:
     topic_id: calculus
     name: "Solve a simple differential equation"
     difficulty_tiers: [4, 5]
-    structure: "a bare EXPRESSION that is the solution, e.g. 3*exp(2*t) - the answer is a
-      function, checked by equivalence. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: a partially factored, unsimplified or equivalent rewrite is the SAME expression and makes two options correct, which the gate rejects. Use wrong signs, wrong factors or wrong coefficients instead."
+    # D-309: this skill held 0 items and **9 of 10 candidates died at the design stage**, which
+    # is cheap but total. Read from the stored attempts, the model tried the three natural ways
+    # to write a differential equation and the validator refused all three:
+    #   'dy/dt = -2*y, with y(0) = 5'  -> "is not a single equation"
+    #   'Eq(y, 4*exp(-2*t))'           -> "has 2 unknowns, expected exactly one"
+    #   'Eq(8, C*exp(-3*0))'           -> "derives the value answer (8,), but final_answer says
+    #                                      '8*exp(-3*t)'"
+    # The second one IS the intended answer, wrapped. The validator is right to refuse it -
+    # `Eq(y, <the answer>)` is D-191's vacuous form, which verifies nothing - and the working
+    # form, the bare expression, was never tried because "equation" invites the wrapper and the
+    # example below did not say otherwise. Fourth occurrence of one shape: the skill never said
+    # which of the five answer models it wants.
+    #
+    # **The rewrite below did NOT work, and saying so is the point (D-252's record).** Measured:
+    # 9 of 10 design failures before it, 9 of 10 after, and the model still never wrote a bare
+    # expression once - it wrote `dy/dt = -0.05*y, with y(0) = 100`, `Eq(y, 50*exp(-0.1*t))`,
+    # `dP/dt = 3*P; P(0) = 2`. The reason it cannot be fixed here is one level up: the design
+    # validator's own refusal says "model the question as one relation with one unknown, e.g.
+    # 'Eq(3 + 7*m, 4 + 4*m)'" - a **value** example, the one form a differential equation cannot
+    # take - so the feedback pushes the model back to the model that cannot work. Turning the
+    # design stage off entirely (`--design-attempts 0`) does not help either: 8 of 10 then fail
+    # the gate because the generator, unconstrained, writes arithmetic word problems and calls
+    # them calculus (`Eq(8 + 0.5*t, h)`, "a population growing by 8 per month", `B = 8t`).
+    # Three levers, three failure modes, 0 items each time, $1.14. This skill is unauthorable by
+    # the pipeline as it stands; it needs an answer-model-aware design refusal, or hand
+    # authoring the way family-C figures were (D-279). Kept because it states what the gate
+    # actually needs, not because it changed anything.
+    structure: "the equation field is a BARE EXPRESSION and nothing else - no 'Eq(...)' wrapper, no 'y =', no initial condition appended, because the answer IS the function and is checked by equivalence. Write 3*exp(2*t), never Eq(y, 3*exp(2*t)) and never 'dy/dt = 2*y'; solve the differential equation yourself and give its solution. Options and every student-facing field use student notation instead: 3e^(2t), never 3*exp(2*t), because an asterisk is refused as programmer notation. EVERY DISTRACTOR MUST DIFFER IN VALUE from the answer, not merely in form: an unsimplified or equivalent rewrite is the SAME expression and makes two options correct. Use wrong signs, wrong coefficients or a wrong rate in the exponent instead."
     answer_family: signed
 
 
