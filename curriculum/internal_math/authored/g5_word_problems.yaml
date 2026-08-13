@@ -413,6 +413,111 @@ templates:
   option_c: 13.2 liters
   option_d: 8.25 liters
   correct_option: b
+- question_template_id: authored-g5_word_problems-d1-1806100
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_denominators
+  - multiplied_instead_of_added
+  - used_wrong_denominator
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Sarah has 3/8 of a pizza and her brother has 2/8 of the same pizza. They combine their pieces
+    together. What fraction of the whole pizza do they have?
+  context_block: null
+  answer_expression: Eq(x, Rational(3,8) + Rational(2,8))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'When Sarah and her brother put their pizza pieces together, what are you trying to find: a single
+    amount or two separate amounts?'
+  - Both pieces are measured in eighths, so you can add them by combining the top numbers and keeping
+    the bottom the same.
+  - Add 3 and 2 to get the numerator, and keep 8 as the denominator.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Sarah has 3/8 of a pizza and her brother has 2/8 of a pizza. To find the total fraction
+        they have together, add the two fractions.
+      expression: 3/8 + 2/8
+      common_mistake: null
+    - step_number: 2
+      explanation: Both fractions have the same denominator (eighths). When adding fractions with like
+        denominators, add the numerators and keep the denominator the same.
+      expression: (3 + 2)/8
+      common_mistake: Some students might multiply the numerators and denominators, or add the denominators
+        too.
+    - step_number: 3
+      explanation: Simplify by adding the numerators.
+      expression: 5/8
+      common_mistake: null
+    final_answer: 5/8 of a pizza
+  random_seed: 1806100
+  rendered_question: Sarah has 3/8 of a pizza and her brother has 2/8 of the same pizza. They combine
+    their pieces together. What fraction of the whole pizza do they have?
+  option_a: 5/16 of a pizza
+  option_b: 5/8 of a pizza
+  option_c: 6/8 of a pizza
+  option_d: 1/6 of a pizza
+  correct_option: b
+- question_template_id: authored-g5_word_problems-d1-1806101
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_denominators_instead_of_numerators
+  - misinterpreted_two_events_as_whole
+  - attempted_common_denominator_without_simplifying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maya is reading a book. On Monday she read 2/6 of the book. On Tuesday she read 3/6 of the book.
+    What fraction of the book has Maya read in total?
+  context_block: null
+  answer_expression: Eq(x, Rational(2,6) + Rational(3,6))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Maya read a part of the book each day. Think about what happens when you add fractions with the same
+    denominator.
+  - 'When the denominators are the same, add just the numerators: the bottom number stays 6.'
+  - You are adding 2 + 3 in the numerator, with 6 as the denominator.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya read 2/6 on Monday and 3/6 on Tuesday. Both fractions have the same denominator,
+        so we can add them by adding the numerators and keeping the denominator.
+      expression: 2/6 + 3/6 = (2 + 3)/6
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the numerators.
+      expression: (2 + 3)/6 = 5/6
+      common_mistake: null
+    final_answer: 5/6 of the book
+  random_seed: 1806101
+  rendered_question: Maya is reading a book. On Monday she read 2/6 of the book. On Tuesday she read 3/6
+    of the book. What fraction of the book has Maya read in total?
+  option_a: 5/12 of the book
+  option_b: 6/12 of the book
+  option_c: 5/6 of the book
+  option_d: 1 whole book
+  correct_option: c
 - question_template_id: authored-g5_word_problems-d1-66101
   topic_id: g5_word_problems
   skill_id: g5_wp_fractions
@@ -515,6 +620,174 @@ templates:
   option_b: 1 1/2 cups
   option_c: 8/8 cups
   option_d: 2 cups
+  correct_option: d
+- question_template_id: authored-g5_word_problems-d2-1806200
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_numerators_and_denominators
+  - subtracted_instead_of_added
+  - incorrect_common_denominator_arithmetic
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Marcus received his allowance of $60. He spent 1/3 of it on a video game and 1/4 of it on new
+    socks. What fraction of his total allowance did he spend on both items?
+  context_block: null
+  answer_expression: Eq(x, Rational(1,3) + Rational(1,4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Marcus needs to combine the fraction spent on the video game and the fraction spent on socks. What
+    do you add together?
+  - You're adding 1/3 + 1/4. Since the denominators are different, find a common denominator that both
+    3 and 4 divide into evenly.
+  - Once you have the same denominator for both fractions, add the numerators and write the sum as a single
+    fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Marcus spent 1/3 on a video game and 1/4 on socks. We need to add these fractions to
+        find the total fraction spent.
+      expression: x = 1/3 + 1/4
+      common_mistake: null
+    - step_number: 2
+      explanation: To add fractions, we need a common denominator. The least common multiple of 3 and
+        4 is 12.
+      expression: LCM(3, 4) = 12
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Convert 1/3 to twelfths: 1/3 = 4/12 (multiply numerator and denominator by 4).'
+      expression: 1/3 = 4/12
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Convert 1/4 to twelfths: 1/4 = 3/12 (multiply numerator and denominator by 3).'
+      expression: 1/4 = 3/12
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Now add the fractions with the same denominator: 4/12 + 3/12 = 7/12.'
+      expression: 4/12 + 3/12 = 7/12
+      common_mistake: null
+    final_answer: 7/12 of the allowance
+  random_seed: 1806200
+  rendered_question: Marcus received his allowance of $60. He spent 1/3 of it on a video game and 1/4
+    of it on new socks. What fraction of his total allowance did he spend on both items?
+  option_a: 5/12
+  option_b: 1/7
+  option_c: 7/12
+  option_d: 7/24
+  correct_option: c
+- question_template_id: authored-g5_word_problems-d2-1806201
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_numerators_and_denominators
+  - added_across_without_common_denominator
+  - computed_reciprocal_sum
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker is preparing for a big order and uses flour from a large bag for two recipes. The first
+    recipe calls for 1/2 of the bag, and the second recipe calls for 1/3 of the bag. What fraction of
+    the flour bag does the baker use in total?
+  context_block: null
+  answer_expression: Eq(x, Rational(1,2) + Rational(1,3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The baker uses some of the bag for the first recipe and some for the second. You need to find the
+    total amount used.
+  - To add fractions with different denominators, you need a common denominator. What is a denominator
+    that works for both 2 and 3?
+  - Convert 1/2 to sixths and 1/3 to sixths, then add the numerators together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To add 1/2 and 1/3, we need a common denominator. The least common multiple of 2 and
+        3 is 6.
+      expression: 1/2 = 3/6 and 1/3 = 2/6
+      common_mistake: null
+    - step_number: 2
+      explanation: Now that both fractions have the same denominator, we can add them by adding the numerators.
+      expression: 3/6 + 2/6 = (3 + 2)/6 = 5/6
+      common_mistake: null
+    final_answer: 5/6 of the flour bag
+  random_seed: 1806201
+  rendered_question: A baker is preparing for a big order and uses flour from a large bag for two recipes.
+    The first recipe calls for 1/2 of the bag, and the second recipe calls for 1/3 of the bag. What fraction
+    of the flour bag does the baker use in total?
+  option_a: 5/6 of the flour bag
+  option_b: 1/6 of the flour bag
+  option_c: 2/5 of the flour bag
+  option_d: 11/6 of the flour bag
+  correct_option: a
+- question_template_id: authored-g5_word_problems-d3-1806300
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - inverted_fraction_operation
+  - took_complement_fraction
+  - rounded_or_truncated_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A community garden has 60 tomato plants growing. Three-fifths of the plants are ripe and ready
+    to pick. How many plants are ripe?
+  context_block: null
+  answer_expression: Eq(x, Rational(3,5) * 60)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - You need to find what fraction 3/5 means of the total 60 plants.
+  - To find a fraction of a number, multiply the fraction by the total number.
+  - Calculate 3/5 × 60 by multiplying 3 times 60, then dividing by 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to find how many plants are ripe, which is 3/5 of all 60 plants. This means
+        we multiply the fraction by the total.
+      expression: x = (3/5) × 60
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the numerator by 60 first: 3 × 60 = 180.'
+      expression: x = 180/5
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide 180 by 5 to get the final answer.
+      expression: x = 36
+      common_mistake: null
+    final_answer: 36 plants
+  random_seed: 1806300
+  rendered_question: A community garden has 60 tomato plants growing. Three-fifths of the plants are ripe
+    and ready to pick. How many plants are ripe?
+  option_a: 20 plants
+  option_b: 45 plants
+  option_c: 40 plants
+  option_d: 36 plants
   correct_option: d
 - question_template_id: authored-g5_word_problems-d2-986200
   topic_id: g5_word_problems
@@ -667,6 +940,62 @@ templates:
   option_c: 213 seeds
   option_d: 64 seeds
   correct_option: a
+- question_template_id: authored-g5_word_problems-d3-1806301
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_one_half_instead
+  - used_one_third_instead
+  - subtracted_complement_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Alex has a collection of 90 stickers. She decides to give 2/3 of her stickers to her friend Maya
+    as a birthday gift. How many stickers does Alex give to Maya?
+  context_block: null
+  answer_expression: Eq(x, Rational(2,3) * 90)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Think about what 2/3 means: if you split all the stickers into 3 equal groups, how many groups are
+    you giving away?'
+  - 'You need to find 2/3 of 90. That means you multiply: (2/3) × 90. First, multiply 2 times 90.'
+  - Once you have 2 × 90, divide the result by 3 to get your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Alex starts with 90 stickers and gives 2/3 of them away. We need to find 2/3 of 90.
+      expression: x = (2/3) × 90
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the numerator by 90 first.
+      expression: x = (2 × 90) / 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 2 times 90.
+      expression: x = 180 / 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide 180 by 3 to find the final answer.
+      expression: x = 60
+      common_mistake: null
+    final_answer: 60 stickers
+  random_seed: 1806301
+  rendered_question: Alex has a collection of 90 stickers. She decides to give 2/3 of her stickers to
+    her friend Maya as a birthday gift. How many stickers does Alex give to Maya?
+  option_a: 45 stickers
+  option_b: 75 stickers
+  option_c: 30 stickers
+  option_d: 60 stickers
+  correct_option: d
 - question_template_id: authored-g5_word_problems-d3-986300
   topic_id: g5_word_problems
   skill_id: g5_wp_fractions

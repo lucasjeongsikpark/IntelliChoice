@@ -710,6 +710,194 @@ templates:
   option_c: 6√2
   option_d: √36 + √2
   correct_option: c
+- question_template_id: authored-algebra_2-d1-1806101
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - doubled_the_coefficient
+  - extracted_only_the_perfect_square_part
+  - did_not_simplify_the_radical
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A carpenter is cutting square tiles for a kitchen backsplash. Each tile has a side length of √72
+    inches. To order the right frame, she needs to know the simplified radical form of this measurement.
+    What is √72 simplified?
+  context_block: A carpenter is cutting square tiles for a kitchen backsplash. Each tile has a side length
+    of √72 inches.
+  answer_expression: Eq(x, sqrt(72))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the prime factorization of 72. What perfect square divides evenly into 72?
+  - 72 = 36 × 2. Since 36 is a perfect square, you can split √72 into √36 × √2.
+  - Simplify √36 first, then multiply the result by √2 to get your final answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the prime factorization of 72 and identify the largest perfect square factor.
+      expression: 72 = 36 × 2, where 36 = 6²
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite √72 as a product of the square root of the perfect square and the square root
+        of the remaining factor.
+      expression: √72 = √(36 × 2) = √36 × √2
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify √36 to 6.
+      expression: √36 = 6
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 6 by √2 to get the simplified form.
+      expression: 6 × √2 = 6√2
+      common_mistake: null
+    final_answer: 6√2 inches
+  random_seed: 1806101
+  rendered_question: 'A carpenter is cutting square tiles for a kitchen backsplash. Each tile has a side
+    length of √72 inches.
+
+
+    A carpenter is cutting square tiles for a kitchen backsplash. Each tile has a side length of √72 inches.
+    To order the right frame, she needs to know the simplified radical form of this measurement. What
+    is √72 simplified?'
+  option_a: √36 inches
+  option_b: 6√2 inches
+  option_c: 12√2 inches
+  option_d: 36√2 inches
+  correct_option: b
+- question_template_id: authored-algebra_2-d1-1906100
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - mistook_root_for_square
+  - incomplete_factorization
+  - wrong_factor_pair
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A designer is creating a square tile pattern for a gallery floor. One tile has an area of 72 square
+    centimetres. To find the exact side length, the designer measures and calculates √72 centimetres.
+    Simplify this radical expression to help the designer record the precise measurement.
+  context_block: null
+  answer_expression: Eq(x, sqrt(72))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for perfect square factors of 72. What perfect squares divide evenly into 72?
+  - 72 = 36 × 2. Since 36 is a perfect square, you can write √72 = √(36 × 2).
+  - Use the property √(a × b) = √a × √b to separate the perfect square from what remains under the radical.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the prime factorization of 72 to identify perfect square factors.
+      expression: 72 = 8 × 9 = 2³ × 3² = 36 × 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Recognize that 36 is a perfect square since 6² = 36.
+      expression: 72 = 36 × 2 = 6² × 2
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Rewrite √72 using the product property of radicals: √(a × b) = √a × √b.'
+      expression: √72 = √(36 × 2) = √36 × √2
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify √36 to 6 since 6 × 6 = 36.
+      expression: √36 × √2 = 6√2
+      common_mistake: null
+    final_answer: 6√2 cm
+  random_seed: 1906100
+  rendered_question: A designer is creating a square tile pattern for a gallery floor. One tile has an
+    area of 72 square centimetres. To find the exact side length, the designer measures and calculates
+    √72 centimetres. Simplify this radical expression to help the designer record the precise measurement.
+  option_a: 36 cm
+  option_b: √6 cm
+  option_c: 12√2 cm
+  option_d: 6√2 cm
+  correct_option: d
+- question_template_id: authored-algebra_2-d1-1906101
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - failed_to_extract_perfect_square
+  - extracted_only_the_radicand
+  - incorrectly_multiplied_coefficients
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A carpenter is building a wooden frame for a garden bed. To reinforce one corner, she measures
+    the diagonal across a rectangular panel and finds it measures √98 inches. She wants to express this
+    diagonal length in simplified radical form to order the correct bracing material. What is the simplified
+    form of √98?
+  context_block: A carpenter measuring materials needs to simplify radical expressions to order supplies
+    accurately.
+  answer_expression: Eq(x, sqrt(98))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by finding the prime factorization of 98. What are the factors?
+  - Since 98 = 2 × 49, and 49 is a perfect square (7²), you can write √98 = √(49 × 2).
+  - Use the property that √(a × b) = √a × √b to split the radical, then simplify √49.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the prime factorization of 98 by dividing by small primes.
+      expression: 98 = 2 × 49 = 2 × 7²
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite √98 using the factorization, grouping the perfect square.
+      expression: √98 = √(49 × 2) = √(7² × 2)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Apply the product rule for radicals: √(a × b) = √a × √b.'
+      expression: √(7² × 2) = √(7²) × √2
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify √(7²) by recognizing that the square root of a perfect square is the base.
+      expression: √(7²) = 7
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine to write the final simplified radical form.
+      expression: 7 × √2 = 7√2
+      common_mistake: null
+    final_answer: 7√2
+  random_seed: 1906101
+  rendered_question: 'A carpenter measuring materials needs to simplify radical expressions to order supplies
+    accurately.
+
+
+    A carpenter is building a wooden frame for a garden bed. To reinforce one corner, she measures the
+    diagonal across a rectangular panel and finds it measures √98 inches. She wants to express this diagonal
+    length in simplified radical form to order the correct bracing material. What is the simplified form
+    of √98?'
+  option_a: √2
+  option_b: 14√2
+  option_c: 49√2
+  option_d: 7√2
+  correct_option: d
 - question_template_id: authored-algebra_2-d2-1606201
   topic_id: algebra_2
   skill_id: alg2_irrational
@@ -774,6 +962,130 @@ templates:
   option_c: 14√2 meters
   option_d: 4√13 meters
   correct_option: d
+- question_template_id: authored-algebra_2-d2-1806201
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - did_not_extract_all_perfect_squares
+  - left_composite_radicand_unsimplified
+  - treated_sum_as_perfect_square
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An electrician measures the impedance of an AC circuit and finds it to be √200 ohms. To match
+    the specifications on the equipment's label, the impedance must be expressed in simplified radical
+    form. What is the simplified form of the impedance?
+  context_block: null
+  answer_expression: Eq(x, sqrt(200))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for perfect square factors of the number under the radical. What pairs of identical factors does
+    200 have?
+  - 200 = 100 × 2. Since 100 is a perfect square, you can separate √200 into a product of two square roots.
+  - Write √200 = √100 × √2, then simplify √100 to finish.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To simplify √200, find the largest perfect square that divides 200.
+      expression: 200 = 4 × 50 = 4 × 25 × 2 = 100 × 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite √200 as the product of √100 and √2, using the property √(a·b) = √a·√b.
+      expression: √200 = √(100 × 2) = √100 × √2
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate √100 and leave √2 in the radical because 2 is not a perfect square.
+      expression: √100 × √2 = 10 × √2 = 10√2
+      common_mistake: null
+    final_answer: 10√2 ohms
+  random_seed: 1806201
+  rendered_question: An electrician measures the impedance of an AC circuit and finds it to be √200 ohms.
+    To match the specifications on the equipment's label, the impedance must be expressed in simplified
+    radical form. What is the simplified form of the impedance?
+  option_a: 10√2 ohms
+  option_b: 2√100 ohms
+  option_c: 4√50 ohms
+  option_d: 14 ohms
+  correct_option: a
+- question_template_id: authored-algebra_2-d2-1906201
+  topic_id: algebra_2
+  skill_id: alg2_irrational
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - miscalculated_sum_under_radical
+  - ignored_radical
+  - added_instead_of_pythagorean
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A landscape designer is creating a diagonal path across a rectangular garden plot. The plot is
+    12 meters long and 6 meters wide. The path cuts diagonally from one corner to the opposite corner.
+    To order the correct amount of fencing material, the designer needs to express the path's length in
+    simplified radical form. What is the simplified form of the diagonal path's length?
+  context_block: The designer uses the Pythagorean theorem to find the diagonal and works with exact measurements,
+    not decimals, to ensure precision.
+  answer_expression: Eq(x, sqrt(12**2 + 6**2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Use the Pythagorean theorem: the diagonal squared equals 12² plus 6² under the radical.'
+  - Calculate 12² + 6² to find what is under the square root, then look for perfect square factors of
+    that sum.
+  - Factor 180 as 36 times 5, so √180 = √36 × √5 = 6√5. Stop there without simplifying further.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Use the Pythagorean theorem to find the diagonal: the path length squared equals the
+        sum of the square of the length and the square of the width.'
+      expression: x² = 12² + 6²
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Calculate the squares: 12² = 144 and 6² = 36.'
+      expression: x² = 144 + 36
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the results to find what is under the radical.
+      expression: x² = 180, so x = √180
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Factor 180 into its prime factors: 180 = 36 × 5, where 36 is a perfect square.'
+      expression: √180 = √(36 × 5)
+      common_mistake: null
+    - step_number: 5
+      explanation: Use the property √(a × b) = √a × √b to separate the perfect square.
+      expression: √180 = √36 × √5 = 6√5
+      common_mistake: null
+    final_answer: 6√5 meters
+  random_seed: 1906201
+  rendered_question: 'The designer uses the Pythagorean theorem to find the diagonal and works with exact
+    measurements, not decimals, to ensure precision.
+
+
+    A landscape designer is creating a diagonal path across a rectangular garden plot. The plot is 12
+    meters long and 6 meters wide. The path cuts diagonally from one corner to the opposite corner. To
+    order the correct amount of fencing material, the designer needs to express the path''s length in
+    simplified radical form. What is the simplified form of the diagonal path''s length?'
+  option_a: 12 meters
+  option_b: 6√5 meters
+  option_c: 18 meters
+  option_d: 6√3 meters
+  correct_option: b
 - question_template_id: authored-algebra_2-d3-1267301
   topic_id: algebra_2
   skill_id: alg2_polynomial_factor
@@ -895,6 +1207,84 @@ templates:
   option_c: x²(x + 5) + 6x
   option_d: x(x + 2)(x + 3)
   correct_option: d
+- question_template_id: authored-algebra_2-d3-1807300
+  topic_id: algebra_2
+  skill_id: alg2_polynomial_factor
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incorrect_sign_in_second_group_factor
+  - incorrect_remaining_factor_after_extraction
+  - incomplete_factorization_with_trailing_constant
+  - wrong_common_factor_chosen
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A factory manufactures decorative panels with a repeating geometric pattern. The area of one panel
+    can be expressed by the polynomial x³ + 2x² − 3x − 6 square metres, where x represents a scaling factor.
+    The factory needs to express this area as a product of simpler factors so they can calculate dimensions
+    for different orders. Write the fully factored form of the polynomial.
+  context_block: The factory designs panels with modular components. Understanding the factored form helps
+    them scale production and calculate how many panels fit into custom orders of different sizes.
+  answer_expression: x**3 + 2*x**2 - 3*x - 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Try grouping the four terms into two pairs: the first two terms together, and the last two terms
+    together.'
+  - From x³ + 2x² you can factor out x², and from −3x − 6 you can factor out −3. What common expression
+    appears in both results?
+  - Once you have the common factor (x + 2) removed from both groups, the remaining factor is what is
+    left from each group after dividing.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Group the first two terms and the last two terms separately to look for common factors
+        within each group.
+      expression: (x³ + 2x²) + (−3x − 6)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Factor out the greatest common factor from the first group: x² is the GCF of x³ and
+        2x².'
+      expression: x²(x + 2) + (−3x − 6)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Factor out the greatest common factor from the second group: −3 is the GCF of −3x
+        and −6.'
+      expression: x²(x + 2) − 3(x + 2)
+      common_mistake: null
+    - step_number: 4
+      explanation: Notice that (x + 2) appears as a factor in both terms. Factor it out using the distributive
+        property.
+      expression: (x + 2)(x² − 3)
+      common_mistake: null
+    - step_number: 5
+      explanation: The factorization is complete. The polynomial factors into a binomial and a difference
+        of squares (which cannot be factored further over the integers without introducing irrational
+        terms).
+      expression: (x + 2)(x² − 3)
+      common_mistake: null
+    final_answer: (x + 2)(x² - 3)
+  random_seed: 1807300
+  rendered_question: 'The factory designs panels with modular components. Understanding the factored form
+    helps them scale production and calculate how many panels fit into custom orders of different sizes.
+
+
+    A factory manufactures decorative panels with a repeating geometric pattern. The area of one panel
+    can be expressed by the polynomial x³ + 2x² − 3x − 6 square metres, where x represents a scaling factor.
+    The factory needs to express this area as a product of simpler factors so they can calculate dimensions
+    for different orders. Write the fully factored form of the polynomial.'
+  option_a: x(x + 2)(x - 3) + 6
+  option_b: (x - 2)(x² + 3)
+  option_c: (x + 2)(x² - 3)
+  option_d: (x + 1)(x² + x - 6)
+  correct_option: c
 - question_template_id: authored-algebra_2-d4-1507400
   topic_id: algebra_2
   skill_id: alg2_polynomial_factor
@@ -1040,6 +1430,149 @@ templates:
   option_c: (x + 1)(x - 2)(x - 4)
   option_d: (x + 1)(x + 2)(x + 4)
   correct_option: c
+- question_template_id: authored-algebra_2-d4-1807400
+  topic_id: algebra_2
+  skill_id: alg2_polynomial_factor
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - repeated_factor_instead_of_opposite_sign
+  - repeated_factor_and_sign_error
+  - factoring_by_grouping_sign_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A landscape architect is designing a modular garden bed from a rectangular plot. The plot's area
+    in square metres can be modelled by the polynomial x³ - 3x² - 4x + 12. To build the bed with three
+    adjustable rectangular panels, the architect must express this area as a product of three linear factors.
+    What is the complete factorisation of x³ - 3x² - 4x + 12?
+  context_block: A landscape architect is designing a modular garden bed. The plot's total growing area
+    is given by a cubic polynomial. To build the bed, the architect needs to factor the polynomial into
+    three linear factors, each representing one adjustable dimension of the bed.
+  answer_expression: x**3 - 3*x**2 - 4*x + 12
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Test whether small integer values, like x = 2, x = -2, x = 3, make the polynomial equal zero.
+  - When the polynomial equals zero at x = 2, then (x - 2) is a factor. Divide the original by (x - 2)
+    to find what remains.
+  - After dividing, you get a quadratic. Factor that quadratic by finding two numbers that multiply to
+    give the constant term and add to give the middle coefficient.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Test whether x = 2 is a root by substituting into the polynomial.
+      expression: 2³ - 3(2)² - 4(2) + 12 = 8 - 12 - 8 + 12 = 0
+      common_mistake: null
+    - step_number: 2
+      explanation: Since the polynomial equals zero at x = 2, (x - 2) is a factor. Divide the polynomial
+        by (x - 2) using polynomial long division or synthetic division.
+      expression: (x³ - 3x² - 4x + 12) ÷ (x - 2) = x² - x - 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Factor the quadratic x² - x - 6. Find two numbers that multiply to -6 and add to -1.
+      expression: x² - x - 6 = (x - 3)(x + 2)
+      common_mistake: forgetting that -3 and +2 multiply to -6 and add to -1, not +1
+    - step_number: 4
+      explanation: Combine all three linear factors to get the complete factorisation.
+      expression: x³ - 3x² - 4x + 12 = (x - 2)(x - 3)(x + 2)
+      common_mistake: null
+    final_answer: (x - 2)(x + 2)(x - 3)
+  random_seed: 1807400
+  rendered_question: 'A landscape architect is designing a modular garden bed. The plot''s total growing
+    area is given by a cubic polynomial. To build the bed, the architect needs to factor the polynomial
+    into three linear factors, each representing one adjustable dimension of the bed.
+
+
+    A landscape architect is designing a modular garden bed from a rectangular plot. The plot''s area
+    in square metres can be modelled by the polynomial x³ - 3x² - 4x + 12. To build the bed with three
+    adjustable rectangular panels, the architect must express this area as a product of three linear factors.
+    What is the complete factorisation of x³ - 3x² - 4x + 12?'
+  option_a: (x - 2)(x - 2)(x - 3)
+  option_b: (x - 2)(x + 2)(x - 3)
+  option_c: (x + 2)(x + 2)(x - 3)
+  option_d: (x - 2)(x + 3)(x - 2)
+  correct_option: b
+- question_template_id: authored-algebra_2-d4-1807401
+  topic_id: algebra_2
+  skill_id: alg2_polynomial_factor
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - sign_error_on_first_factor
+  - sign_error_on_second_factor
+  - sign_error_on_third_factor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A shipping company models the volume of a cargo box using the polynomial x³ + 6x² − x − 30 cubic
+    metres, where x is a scaling parameter. To build the container, engineers need to rewrite this as
+    a product of linear factors. Factor the polynomial completely.
+  context_block: 'The factor theorem states that if p(a) = 0 for a polynomial p(x), then (x − a) is a
+    factor. To find integer-valued roots, test the rational root theorem: any candidate root divides the
+    constant term.'
+  answer_expression: x**3 + 6*x**2 - x - 30
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Test small integer values—both positive and negative—to find where the polynomial equals zero. Start
+    by checking x = 2, x = −3, and x = −5.
+  - If the polynomial is zero when x = 2, then (x − 2) is a factor. If it is zero at x = −3, then (x +
+    3) is a factor. Check all three.
+  - Once you confirm that x = 2, x = −3, and x = −5 each make the polynomial zero, you can write the complete
+    factorization.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Apply the factor theorem by testing integer values. We seek roots of p(x) = x³ + 6x²
+        − x − 30. The rational root theorem tells us any integer root divides 30.
+      expression: 'Test x = 2: 2³ + 6(2)² − 2 − 30 = 8 + 24 − 2 − 30 = 0'
+      common_mistake: null
+    - step_number: 2
+      explanation: Since p(2) = 0, (x − 2) is a factor. Now test x = −3 in the original polynomial.
+      expression: 'Test x = −3: (−3)³ + 6(−3)² − (−3) − 30 = −27 + 54 + 3 − 30 = 0'
+      common_mistake: null
+    - step_number: 3
+      explanation: Since p(−3) = 0, (x + 3) is a factor. Now test x = −5 in the original polynomial.
+      expression: 'Test x = −5: (−5)³ + 6(−5)² − (−5) − 30 = −125 + 150 + 5 − 30 = 0'
+      common_mistake: null
+    - step_number: 4
+      explanation: Since p(−5) = 0, (x + 5) is a factor. We have found three linear factors for a cubic
+        polynomial, which is the complete factorization.
+      expression: x³ + 6x² − x − 30 = (x − 2)(x + 3)(x + 5)
+      common_mistake: 'Confusing the sign: if x = 2 is a root, the factor is (x − 2), not (x + 2).'
+    - step_number: 5
+      explanation: 'Verify by expanding: (x − 2)(x + 3) = x² + x − 6. Then (x² + x − 6)(x + 5) = x³ +
+        5x² + x² + 5x − 6x − 30 = x³ + 6x² − x − 30. ✓'
+      expression: (x − 2)(x + 3)(x + 5) = x³ + 6x² − x − 30
+      common_mistake: null
+    final_answer: (x - 2)(x + 3)(x + 5)
+  random_seed: 1807401
+  rendered_question: 'The factor theorem states that if p(a) = 0 for a polynomial p(x), then (x − a) is
+    a factor. To find integer-valued roots, test the rational root theorem: any candidate root divides
+    the constant term.
+
+
+    A shipping company models the volume of a cargo box using the polynomial x³ + 6x² − x − 30 cubic metres,
+    where x is a scaling parameter. To build the container, engineers need to rewrite this as a product
+    of linear factors. Factor the polynomial completely.'
+  option_a: (x - 2)(x + 3)(x + 5)
+  option_b: (x + 2)(x + 3)(x + 5)
+  option_c: (x - 2)(x + 3)(x - 5)
+  option_d: (x - 2)(x - 3)(x - 5)
+  correct_option: a
 - question_template_id: authored-algebra_2-d4-98401
   topic_id: algebra_2
   skill_id: alg2_polynomial_factor

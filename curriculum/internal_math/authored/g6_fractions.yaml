@@ -444,6 +444,61 @@ templates:
   option_c: 27/4 pounds
   option_d: 11/6 pounds
   correct_option: a
+- question_template_id: authored-g6_fractions-d2-1806201
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_fractions_instead_of_multiplying
+  - only_reduced_one_pair
+  - stopped_at_unreduced_fraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maria tends a community garden plot that takes up 2/3 of a large field. She plants flowers in
+    3/5 of her garden plot. What fraction of the total field is covered with flowers?
+  context_block: null
+  answer_expression: Eq(x, Rational(2,3) * Rational(3,5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The garden plot is 2/3 of the whole field. Within that plot, flowers cover 3/5 of the garden. You
+    need the fraction of the entire field.
+  - 'To find what part of the whole field the flowers occupy, you multiply: the garden''s share of the
+    field times the flowers'' share of the garden.'
+  - 'Set up: x = (2/3) × (3/5). Now multiply the numerators together and the denominators together.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The garden plot occupies 2/3 of the field. Flowers cover 3/5 of the garden plot. To
+        find what fraction of the total field has flowers, multiply these two fractions.
+      expression: x = (2/3) × (3/5)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the numerators: 2 × 3 = 6. Multiply the denominators: 3 × 5 = 15.'
+      expression: x = 6/15
+      common_mistake: null
+    - step_number: 3
+      explanation: Reduce the fraction by dividing both numerator and denominator by their greatest common
+        divisor, 3.
+      expression: x = 6÷3 / 15÷3 = 2/5
+      common_mistake: null
+    final_answer: 2/5
+  random_seed: 1806201
+  rendered_question: Maria tends a community garden plot that takes up 2/3 of a large field. She plants
+    flowers in 3/5 of her garden plot. What fraction of the total field is covered with flowers?
+  option_a: 2/5
+  option_b: 3/5
+  option_c: 5/8
+  option_d: 1/3
+  correct_option: a
 - question_template_id: authored-g6_fractions-d2-97200
   topic_id: g6_fractions
   skill_id: g6_fraction_mul_div
@@ -499,6 +554,171 @@ templates:
   option_c: 11/7 cups
   option_d: 11/12 cups
   correct_option: b
+- question_template_id: authored-g6_fractions-d3-1806300
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_instead_of_divided
+  - stopped_at_intermediate_fraction
+  - reciprocal_not_used_correctly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker has 4/5 of a batch of cookies and wants to divide them into packages that each hold 2/5
+    of a batch. How many full packages can the baker fill?
+  context_block: null
+  answer_expression: Eq(x, Rational(4, 5) / Rational(2, 5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - When you divide one fraction by another, what operation and number do you use instead?
+  - To divide by 2/5, multiply by its reciprocal, which is 5/2. So you need to compute (4/5) × (5/2).
+  - Multiply the numerators together and the denominators together, then simplify your result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To divide fractions, we multiply by the reciprocal of the divisor.
+      expression: (4/5) ÷ (2/5) = (4/5) × (5/2)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the numerators: 4 × 5 = 20. Multiply the denominators: 5 × 2 = 10.'
+      expression: (4 × 5) / (5 × 2) = 20/10
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the fraction by dividing both numerator and denominator by their greatest
+        common factor, 10.
+      expression: 20/10 = 2
+      common_mistake: null
+    final_answer: 2 packages
+  random_seed: 1806300
+  rendered_question: A baker has 4/5 of a batch of cookies and wants to divide them into packages that
+    each hold 2/5 of a batch. How many full packages can the baker fill?
+  option_a: 2 packages
+  option_b: 3 packages
+  option_c: 1 package
+  option_d: 8/10 packages
+  correct_option: a
+- question_template_id: authored-g6_fractions-d3-1806301
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_fractions_instead_of_multiplying
+  - subtracted_fractions_instead_of_multiplying
+  - added_denominators_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A runner is training for a marathon. She completes 5/6 of the full race distance, but learns that
+    only 3/5 of the portion she ran will count toward her official training log. What fraction of the
+    full marathon distance counts toward her goal?
+  context_block: null
+  answer_expression: Eq(x, Rational(5,6) * Rational(3,5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The runner completed 5/6 of the full marathon distance. How much of that portion counts?
+  - 'You need to find 3/5 of 5/6. Write this as a multiplication: 3/5 times 5/6.'
+  - Multiply the numerators together and the denominators together. Then reduce the result by finding
+    common factors.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The runner completed 5/6 of the marathon, but only 3/5 of her completed portion counts.
+        We need to find what fraction of the full distance is 3/5 of 5/6.
+      expression: 'Multiply: 3/5 × 5/6'
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the numerators: 3 × 5 = 15. Multiply the denominators: 5 × 6 = 30.'
+      expression: 15/30
+      common_mistake: null
+    - step_number: 3
+      explanation: Both 15 and 30 share a common factor of 15. Reduce by dividing both by 15.
+      expression: 15/30 = (15÷15)/(30÷15) = 1/2
+      common_mistake: null
+    final_answer: 1/2
+  random_seed: 1806301
+  rendered_question: A runner is training for a marathon. She completes 5/6 of the full race distance,
+    but learns that only 3/5 of the portion she ran will count toward her official training log. What
+    fraction of the full marathon distance counts toward her goal?
+  option_a: 1/2
+  option_b: 15/11
+  option_c: 2/11
+  option_d: 8/11
+  correct_option: a
+- question_template_id: authored-g6_fractions-d4-1806401
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incorrect_mixed_number_conversion
+  - error_in_fraction_multiplication
+  - forgot_to_apply_the_multiplier
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A painter has 1 1/3 gallons of paint and applies 3/4 of that amount to a wall. How many gallons
+    of paint does the painter use?
+  context_block: A painter has 1 1/3 gallons of paint and applies 3/4 of that amount to a wall.
+  answer_expression: Eq(x, Rational(4,3) * Rational(3,4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First, write 1 1/3 as a single fraction. What is that?
+  - 'You now have 4/3 gallons. Applying 3/4 of it means you multiply: 4/3 × 3/4.'
+  - Multiply the numerators together and the denominators together, then simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the mixed number 1 1/3 to an improper fraction.
+      expression: 1 1/3 = (1 × 3 + 1) / 3 = 4/3
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Set up the multiplication: the painter uses 3/4 of 4/3 gallons.'
+      expression: x = 4/3 × 3/4
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators and denominators.
+      expression: (4 × 3) / (3 × 4) = 12/12
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction.
+      expression: 12/12 = 1
+      common_mistake: null
+    final_answer: 1 gallon
+  random_seed: 1806401
+  rendered_question: 'A painter has 1 1/3 gallons of paint and applies 3/4 of that amount to a wall.
+
+
+    A painter has 1 1/3 gallons of paint and applies 3/4 of that amount to a wall. How many gallons of
+    paint does the painter use?'
+  option_a: 7/12 gallon
+  option_b: 4/3 gallons
+  option_c: 1 gallon
+  option_d: 1 1/9 gallons
+  correct_option: c
 - question_template_id: authored-g6_fractions-d2-1446200
   topic_id: g6_fractions
   skill_id: g6_fraction_mul_div
@@ -1255,3 +1475,74 @@ templates:
   option_c: 9 pieces
   option_d: 4 pieces
   correct_option: b
+- question_template_id: authored-g6_fractions-d4-1806400
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - ignored_reciprocal_rule
+  - multiplied_instead_of_divided
+  - incomplete_fraction_reduction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A seamstress has 3 1/2 meters of fabric. She needs to cut it into pieces that are each 1/4 meter
+    long for a quilting project. How many pieces can she cut from the fabric?
+  context_block: A seamstress is preparing fabric for a quilting project. She has one piece of fabric
+    that measures 3 1/2 meters long. She needs to cut this fabric into smaller identical pieces, each
+    measuring exactly 1/4 meter, with no fabric left over.
+  answer_expression: Eq(x, Rational(7,2) / Rational(1,4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'First, convert 3 1/2 to an improper fraction: how many fourths would that be? (Hint: think about
+    what 3 is as fourths, then add the extra 1/2.)'
+  - To divide by a fraction, you multiply by its reciprocal. So 7/2 ÷ 1/4 becomes 7/2 × ?/? — what reciprocal
+    goes there?
+  - 'Multiply: 7/2 × 4/1 = (7 × 4)/(2 × 1). Complete the arithmetic to find how many pieces.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the mixed number 3 1/2 to an improper fraction by multiplying the whole number
+        by the denominator and adding the numerator.
+      expression: 3 1/2 = (3 × 2 + 1)/2 = 7/2 meters
+      common_mistake: null
+    - step_number: 2
+      explanation: To find how many 1/4-meter pieces fit into 7/2 meters, divide the total length by the
+        piece length.
+      expression: x = 7/2 ÷ 1/4
+      common_mistake: null
+    - step_number: 3
+      explanation: Division by a fraction is the same as multiplication by its reciprocal. The reciprocal
+        of 1/4 is 4/1.
+      expression: x = 7/2 × 4/1
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply the numerators together and the denominators together.
+      expression: x = (7 × 4)/(2 × 1) = 28/2
+      common_mistake: null
+    - step_number: 5
+      explanation: Reduce the fraction by dividing numerator and denominator by their common factor.
+      expression: x = 28/2 = 14
+      common_mistake: null
+    final_answer: 14 pieces
+  random_seed: 1806400
+  rendered_question: 'A seamstress is preparing fabric for a quilting project. She has one piece of fabric
+    that measures 3 1/2 meters long. She needs to cut this fabric into smaller identical pieces, each
+    measuring exactly 1/4 meter, with no fabric left over.
+
+
+    A seamstress has 3 1/2 meters of fabric. She needs to cut it into pieces that are each 1/4 meter long
+    for a quilting project. How many pieces can she cut from the fabric?'
+  option_a: 14 pieces
+  option_b: 28 pieces
+  option_c: 7 pieces
+  option_d: 10 pieces
+  correct_option: a

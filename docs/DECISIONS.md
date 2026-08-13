@@ -21894,3 +21894,72 @@ so once the fix shipped inside `_option_matches`, both arms were the same code a
 reported that the change recovers nothing. The baseline arm now *disables* the shipped
 reading instead. This is D-293's expired-premise failure a second time, found the same way:
 by re-running a measurement after the thing it measured had changed.
+
+### D-306 — The repair path, measured twice: it does not converge, and B1 accepts the hint-leak cost
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** A3 tested and rejected as a lever; B1 decided as no-action
+
+Two of the six options laid out for the blocking content classes. The user chose **A3** (turn on
+D-198's repair path for the equal-valued-distractor class) and **B1** (do nothing about hint
+leaks).
+
+**A3 needed no code.** `validation` is already in `_REPAIRABLE_STAGES` and its reasons pass
+through verbatim, and post-D-297 the message is both accurate and actionable — *"more than one
+option matches the derived value answer (3/4,): ['a', 'b', 'c', 'd']"*. So this was a run, not a
+change. Targeted at where the class concentrates: `g6_fraction_reduce` (25 of 64 historical
+rejections), `alg2_irrational` (19), `g5_wp_fractions` (6), `alg2_polynomial_factor` (3).
+
+| run | slots | generator calls | fixed | still rejected | `g6_fraction_reduce` |
+|---|---|---|---|---|---|
+| `--max-repair-attempts 2` | 24 | 42 | **2** | 8 | **0 of 4** |
+| `--max-repair-attempts 4` | 8 | 30 | **2** | 5 | **0 of 4** |
+
+**4 candidates rescued for ~40 extra Generator calls across both runs ($0.98).** The skill the
+experiment was designed around never accepted an item, at five tries per slot.
+
+**A correction to my own reading of the first run, and it is why the second one was worth
+paying for.** From three data points in one slot I reported repair *converging monotonically*
+— 4 → 3 → 2 equal options. The deeper run shows it **oscillating**:
+
+```
+slot 1:  equal = 3 -> 4 -> 3 -> 4 -> 3      no convergence
+slot 2:          2 -> 2 -> 2 -> 2 -> 3      plateau, then worse
+slot 3:          3 -> 3 -> 3 -> 3 -> 3      flat
+slot 4:          4 -> 2 -> 4 -> 4 -> 3      reached 2, regressed to 4
+```
+
+**Why, and this is the transferable part.** The model's conception of a "reduce to lowest terms"
+item is *"several equivalent fractions, pick the reduced one"* — `12/18, 6/9, 2/3, 4/6`. That is
+exactly the item that cannot be graded by value, so each repair re-rolls and re-introduces
+equivalents. **Naming the defect accurately does not change what the model thinks the item is.**
+
+So **D-283's complaint was not the blocker here.** "The rejection messages name symptoms, not
+remedies" is a real observation, and this class now has a message that is a remedy — and it still
+does not work. That is worth knowing before anyone invests in rewriting the other messages.
+
+**What the runs did produce:** 19 items accepted and exported, bank **917 -> 936**.
+`alg2_irrational`, `g5_wp_fractions`, `g6_fraction_mul_div` and `alg2_polynomial_factor` all
+yielded; only the pure lowest-terms skill did not.
+
+**A4's case is materially stronger now, measured on the items repair could not fix.** The items
+repair produces are *good* items that only the value test refuses — `12/18, 6/9, **2/3**, 4/6`
+has exactly one option in lowest terms and is unambiguous to a student:
+
+| population | recoverable by a canonical-form check |
+|---|---|
+| all equal-value rejections on record (pure fractions), 44 | **16** |
+| the 32 in these two runs that repair could not fix | **12** |
+
+The test is deterministic (`gcd == 1`), needs no model call, and accepts exactly the items a
+student could grade correctly. **Not implemented** — A4 was not among the options chosen, and the
+new evidence is recorded here rather than acted on unasked.
+
+**B1, recorded because a deliberate no-action is a decision.** The hint-leak class (34
+rejections, 4%) stays as it is. Two sub-cases were separated first: a genuine leak (`answer √3`,
+hint 2 states the ratio *is* √3), and a structural one where the last rung has nowhere to go —
+for `diff(4x³ - 5x² + 6x - 2, x)`, hint 2 gives the term-by-term derivatives and the only step
+left is to simplify them, so hint 3 reads `Simplify: 12x² - 10x + 6`, which *is* the answer. The
+gate is right in both. One number remains unexplained and is left unexplained rather than
+guessed at: **14 of 30** leak rejections have a single-character answer, and this check has
+already been repaired twice for false positives on short answers (D-195). I hypothesised a third
+hole via fractions (`√2/2`) and **measured it at 0 of 17**, so there may be none.

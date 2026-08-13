@@ -231,7 +231,23 @@ throughput was 3× what I read; and I wrote a recall test asserting `x <= 10` ag
    is structural**: the last step of differentiating is simplification, and simplification
    produces the answer, so a three-rung ladder over a symbolic answer tends to leak on rung 3.
    The gate is right; the ladder shape is what does not fit.
-9. **The rejection messages name symptoms, not remedies** (D-283), and `arithmetic_identity` is
+9. **The repair path is not the lever for equal-valued distractors, measured twice (D-306).**
+   A3 needed no code — `validation` is already repairable and post-D-297 its message is accurate
+   and actionable. At 2 and at 4 repair attempts: **4 candidates rescued for ~40 extra Generator
+   calls ($0.98)**, and `g6_fraction_reduce` took **0 of 4 both times**. Repair **oscillates**
+   rather than converges (3→4→3→4→3; one slot reached 2 and regressed to 4) because the model's
+   conception of the item is "several equivalent fractions, pick the reduced one" — exactly the
+   item value-grading cannot accept. **So D-283's "symptoms not remedies" was not the blocker
+   here**: the message is a remedy now and still does not work. 19 items exported (bank
+   917 → 936). **A4 is the remaining option and is now sized: 16 of 44 on record, and 12 of the
+   32 repair could not fix**, by a deterministic `gcd == 1` test needing no model call. Not
+   implemented — not among the options chosen.
+9b. **B1 decided: the hint-leak class (34, 4%) stays as it is.** Two sub-cases separated — a
+   genuine leak, and a structural one where the last rung of a symbolic ladder has nowhere to go.
+   **14 of 30 leak rejections have a single-character answer and that concentration is
+   unexplained**; a fraction-boundary hypothesis measured 0 of 17.
+9c. **The rejection messages name symptoms, not remedies** (D-283) — still true in general, but
+   see D-306 for one class where fixing the message changed nothing. `arithmetic_identity` is
    still unwired (D-273).
 10. **Phase 4 (video catalog) is sized but blocked on a credential; its cost bug is fixed
     (D-305).** The catalog holds **4 videos covering 4 of 112 skills and 1 of 33 topics**, so
