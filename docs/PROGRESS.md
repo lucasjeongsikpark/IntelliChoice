@@ -24,8 +24,27 @@ half).**
 2. **The two remaining unstocked skills.** A4 is done and it closed one of three:
    `g6_fraction_reduce` went **0 → 7 items** at 100% acceptance. Still zero, and untried:
    **`alg1_functions`** (algebra_1, tiers 3-4) and **`calc_differential_equations`** (calculus,
-   tiers 4-5). Nothing is known about why they are empty — that is the first thing to measure,
-   and D-195's stored rejections make it free.
+   tiers 4-5). **Diagnosed for free from D-195's stored rejections, so the next session starts
+   with a cause rather than a survey** — and the two are not the same problem:
+
+   | `alg1_functions` — 14 rejections, no single blocker | n |
+   |---|---|
+   | difficulty disagreement | 6 |
+   | **answer model wrong: the *function* was written, not the equation to solve** | 3 |
+   | other | 2 |
+   | no equation at all | 1 |
+   | one root of several declared as the answer | 1 |
+   | readability only | 1 |
+
+   The 3-item class is the interesting one and it is a *skill-structure* problem, not a gate one:
+   the model wrote `-2*t**2 + 10*t - 12`, which routes to `symbolic` and derives the expression
+   itself, where the question asks when profit reaches zero — `Eq(-2*t**2 + 10*t - 12, 0)`,
+   which routes to `multi_root`. The skill's `structure` never says which. The single
+   "one root of several" rejection is D-291's positive-root class in a new dress ("when does it
+   *first* reach zero" is one root of two).
+
+   **`calc_differential_equations` has only 2 rejections ever** — it is under-*attempted*, not
+   blocked, and the cheapest next move is simply to schedule it.
 3. **Depth against D-223's 5-per-occupied-tier target** is now a volume question rather than a
    blocked-content one: the class that refused to converge under repair is admitted by the gate,
    measured at **59 of 74** stored rejections recoverable.
