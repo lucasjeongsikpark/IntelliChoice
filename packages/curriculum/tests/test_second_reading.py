@@ -25,6 +25,7 @@ Free: pure SymPy, no model call, no database.
 
 import pytest
 import sympy
+from intellichoice_curriculum import authored_validation as av
 from intellichoice_curriculum.authored_validation import (
     _student_notation,
     validate_authored_item,
@@ -490,3 +491,68 @@ def test_two_options_stating_the_answer_under_the_FIRST_reading_are_rejected():
     failures = _failures(item)
     assert failures, "two options stating 42 must not be gradeable"
     assert any("more than one option" in f for f in failures), failures
+
+
+# --------------------------------------------------------------------------------------
+# 7. D-303: what counts as one sentence, for the readability ceiling
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "expected", "why"),
+    [
+        ("A cat sat. A dog ran.", 2, "the ordinary case"),
+        ("The recipe needs 2.5 cups of flour today.", 1, "a decimal is not a sentence end"),
+        ("She paid $3.50 for 1.5 kg of apples.", 1, "two decimals, still one sentence"),
+        ('3 say "Try Again." What is the probability?', 2, "the period sits inside the quote"),
+        ("then p(c) = 0.\n\nAn engineer models it.", 2, "a sentence may end in a digit"),
+        ("Divide 756 by 6. The answer is 126.", 2, "so may both of them"),
+        ("Is it 4? Yes! Done.", 3, "? and ! end sentences too"),
+    ],
+)
+def test_the_readability_ceiling_agrees_about_what_a_sentence_is(text, expected, why):
+    """Every one of these was wrong in some draft of `_sentences`, which is why they are here.
+
+    The shipped version before D-303 was `re.split(r"[.!?]", text)` and split decimals, so a
+    long sentence became short fragments and cleared the 30-word ceiling. My first replacement
+    required whitespace after the period and so read `say "Try Again." What is...` as one
+    48-word sentence; my second added a no-digit-before rule and so refused to end a sentence
+    at `= 0.`, which is how half of a mathematics explanation ends.
+    """
+    assert len(av._sentences(text)) == expected, why
+
+
+def test_a_long_sentence_full_of_decimals_no_longer_clears_the_ceiling():
+    """The hole D-303 closed, as the sentence that demonstrated it.
+
+    33 words carrying six decimals. The old splitter saw seven fragments of 4-6 words and
+    passed it; spelled out without decimals the same sentence was rejected at 51 words, which
+    is the inconsistency that made this a defect rather than a preference.
+
+    Measured before fixing: **0 of 9,552** bank sentences actually exploited it, so this
+    protects future content rather than repairing existing content.
+    """
+    padded = (
+        "The recipe needs 2.5 cups of flour and 3.5 cups of sugar and 1.5 spoons of salt "
+        "and 4.5 grams of yeast and 6.5 millilitres of water and 7.5 pinches of pepper today"
+    )
+    assert len(padded.split()) > 30
+    assert len(av._sentences(padded)) == 1, "one sentence, however many decimals it carries"
+
+
+def test_the_gate_itself_applies_the_corrected_sentence_rule():
+    """The wiring, not just the helper - and the reason this test exists is a near miss.
+
+    The parametrised cases above call `_sentences` directly, so they pass whether or not
+    `check_age_appropriate_wording` actually uses it: reverting the call site to
+    `re.split(r"[.!?]", text)` left all of them green. A rule nothing routes through is not
+    enforced, which is the same lesson `matching_options` taught in D-299.
+    """
+    long_decimal_sentence = (
+        "A baker measures 2.5 cups of flour and 3.5 cups of sugar and 1.5 spoons of salt "
+        "and 4.5 grams of yeast and 6.5 millilitres of water and 7.5 pinches of pepper, "
+        "so how many months of savings are needed?"
+    )
+    assert len(long_decimal_sentence.split()) > 30
+    failures = _failures(_item(stem=long_decimal_sentence))
+    assert any("readability ceiling" in f for f in failures), failures

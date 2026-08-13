@@ -205,8 +205,17 @@ throughput was 3× what I read; and I wrote a recall test asserting `x <= 10` ag
    Question 1 after a reload; passes locally. Session sharing, answer durability, CloudFront
    caching and the D-272 restore guard were each tested and **killed** — the next step is
    server-side logs. `time-telemetry` also fails on staging, uninvestigated.
-5. **Grade-1 reading level in tutor replies is unmeasured** (D-288) — the one clause of Phase 6's
-   "done when" nothing was done against. Stems are gate-checked at authoring; replies are not.
+5. **Grade-1 reading level: the deterministic path is measured and fine; the generative path is
+   still open (D-303).** The bank's 912 items — stems, hint ladders, solution steps, which *are*
+   what a student reads when they ask for help — run at a **median 7-9 words per sentence in
+   every band** (band 1-2: median 7, p90 14, max 21), nowhere near the 30-word ceiling. 26% of
+   band-1-2 sentences pass a rough 10-word grade-1 guide, which is the honest residual.
+   **The gate's ceiling was evadable and is fixed:** it split on every period *including
+   decimals*, so a 33-word sentence with six decimals passed while the same sentence spelled out
+   was rejected at 51 words. 0 of 9,552 bank sentences exploited it, so the fix protects future
+   content. **Still genuinely open:** `generate_hint` / `generate_solution` /
+   `generate_personalized_hint` have no readability check and `tutor_chat_messages` holds 0 rows,
+   so measuring them needs paid generation of a fresh sample.
 6. **Depth is half-done against D-223's target**: 83 of 165 (topic × tier) cells hold ≥5 items.
    The remaining half is mostly tiers 4-5, so item 2 above gates it.
 7. ~~**`session_scope` never commits**~~ — **closed by D-294.** It now commits on a clean exit

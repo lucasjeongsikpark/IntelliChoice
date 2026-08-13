@@ -128,6 +128,35 @@ _META_COMMENTARY_RE = re.compile(
 # Heuristic readability ceiling (§5.8.5 "age-appropriate wording") - a rough proxy only;
 # real nuance is the LLM judge's job (plan §7 step 3), not this deterministic gate's.
 _MAX_WORDS_PER_SENTENCE = 30
+# D-303: what counts as one sentence, for the ceiling above.
+#
+# **The old form was `re.split(r"[.!?]", text)`, which splits on every period - including the
+# one inside a decimal.** So a long sentence became several short fragments and cleared the
+# ceiling: a 33-word sentence carrying six decimals passes, while the same sentence with the
+# decimals spelled out is rejected at 51 words. Demonstrated, not theorised.
+#
+# **Measured before changing it: 0 of 9,552 bank sentences actually exploit that**, so this is
+# a latent hole rather than a live defect, and 0 of 17,379 per-field sentences exceed the
+# ceiling under the corrected rule - the swap rejects nothing already shipped.
+#
+# A sentence ends at `.!?`, optionally followed by a closing quote or bracket, when what comes
+# next is whitespace or the end of the text. The two conditions each earn their place: without
+# the closing-quote clause, `3 say "Try Again." What is...` reads as one 48-word sentence;
+# without the whitespace lookahead, `2.5 cups` is two. Both were wrong in a draft of this
+# change and both are pinned by tests.
+_SENTENCE_END_RE = re.compile(r'[.!?]+["\')\]]*(?=\s|$)')
+
+
+def _sentences(text: str) -> list[str]:
+    """Split prose into sentences the way `_MAX_WORDS_PER_SENTENCE` means it (D-303)."""
+    parts: list[str] = []
+    last = 0
+    for match in _SENTENCE_END_RE.finditer(text):
+        parts.append(text[last : match.end()])
+        last = match.end()
+    if text[last:].strip():
+        parts.append(text[last:])
+    return [part for part in (candidate.strip() for candidate in parts) if part]
 MIN_DIFFICULTY = 1
 MAX_DIFFICULTY = 5
 
@@ -1499,7 +1528,7 @@ def check_age_appropriate_wording(
     for text in _text_fields(item):
         for word in disallowed_wording_found(text):
             result.fail(f"disallowed wording found: {word!r}")
-        for sentence in re.split(r"[.!?]", text):
+        for sentence in _sentences(text):
             word_count = len(sentence.split())
             if word_count > _MAX_WORDS_PER_SENTENCE:
                 result.fail(

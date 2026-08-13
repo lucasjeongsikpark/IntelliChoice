@@ -21701,6 +21701,69 @@ bank load, which is a deploy nobody asked for. The two staging failures D-288 le
 (`journey-student`'s refresh, `time-telemetry`) both **pass locally here**, which is consistent
 with its staging-only diagnosis and adds nothing new either way.
 
+### D-303 — Reading level: the bank is fine, the ceiling was evadable, and my ruler was wrong three times
+
+**Date:** 2026-08-13 · **Session:** C1 (Phase 6's last clause) · **Status:** measured and fixed
+
+ROADMAP C1 Phase 6 asks for "grade-1 reading level in stems **and** tutor replies", and D-288
+recorded it as the one clause nothing was done against. Two halves, and only one of them is
+measurable for free:
+
+- **The generative tutor path has no check and no corpus.** `generate_hint`,
+  `generate_solution` and `generate_personalized_hint` say "age-appropriate" in a prompt and
+  measure nothing, and `tutor_chat_messages` holds **0 rows** — so unlike every other
+  measurement this session there is no stored evidence. Measuring it needs paid generation, which
+  measures a fresh sample rather than production behaviour. **Still open, and now written down as
+  such rather than as an unstated gap.**
+- **The deterministic path is 912 items of stored student-facing text.** A student who asks for
+  help reads the bank's `hint_ladder`; one who asks for the answer reads its
+  `canonical_solution`. Those *are* the replies for the common path, and they are free to read.
+
+**The measurement (`scripts/measure_reading_level.py`), and the good news first:**
+
+| band | sentences | median words | p90 | max |
+|---|---|---|---|---|
+| 1-2 | 1,361 | **7** | 14 | 21 |
+| 4-5 | 2,920 | 7 | 15 | 25 |
+| 6-7 | 4,467 | 8 | 15 | 29 |
+| 10-11 | 1,424 | 8 | 18 | 29 |
+
+**Median 7-9 words per sentence in every band, and nothing anywhere near the 30-word ceiling.**
+The bank is not writing long sentences at young students. In band 1-2, 26% of sentences run past
+a rough 10-word grade-1 guide, which is the honest residual — but the distribution is not the
+problem the clause feared.
+
+**What the measurement did find is a hole in the gate.** `_MAX_WORDS_PER_SENTENCE` was applied
+over `re.split(r"[.!?]", text)`, which splits on **every period, including the one inside a
+decimal**. Demonstrated: a 33-word sentence carrying six decimals becomes seven fragments of 4-6
+words and **passes**; the same sentence with the decimals spelled out is rejected at 51 words. A
+ceiling that a decimal point turns off is not a ceiling.
+
+**Measured before fixing, and the number argues for the fix being cheap rather than urgent: 0 of
+9,552 bank sentences exploit it**, and 0 of 17,379 per-field sentences exceed the ceiling under
+the corrected rule — so the swap rejects nothing already shipped. This protects future content.
+
+**Three wrong rulers, each caught by following up an implausible number instead of reporting
+it.** This is the part worth keeping, because every one of them would have shipped a false
+finding:
+
+1. My splitter required whitespace after the period, so `3 say "Try Again." What is…` read as one
+   **45-word sentence** — which I nearly reported as a shipped item breaching the ceiling. The
+   gate was right and I was wrong.
+2. Fixing that, I added a no-digit-before rule to protect decimals — which refuses to end a
+   sentence at `= 0.`, and half of a mathematics explanation ends exactly there. It reported
+   **19 evasions**; the correct count is 0. The whitespace lookahead already handles decimals, so
+   the lookbehind was pure harm.
+3. Measuring across a **concatenation** of stem + hints + steps rather than per field invented a
+   36-word sentence out of two 28-word fields. The gate's unit is the field; mine has to be too.
+
+The splitter is now validated against all seven cases before use, and they are pinned as tests.
+And one more near miss on top: those tests call `_sentences` directly, so reverting the *call
+site* to the old regex left **all of them green**. A rule nothing routes through is not enforced —
+the same lesson `matching_options` taught in D-299 — so
+`test_the_gate_itself_applies_the_corrected_sentence_rule` goes through
+`validate_authored_item` and does fail against the old call site.
+
 Negative control holds: `x² - 5x + 5` still does not match, and
 `test_a_wrong_symbolic_key_written_with_superscripts_is_still_rejected` pins it. Both new
 recall tests fail against the pre-fix code; the ambiguity test's pre-fix failure message is
