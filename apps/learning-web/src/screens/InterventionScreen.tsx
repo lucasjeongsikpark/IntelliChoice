@@ -194,6 +194,21 @@ function HelpView({
                 : "Get another hint"}
             </button>
           )}
+          {/* The pause can now be open on content that is *not* a hint: §5.11.6's "no video
+              for this skill" panel reopens it (`nodes.intervention_choice`) so that the two
+              options its own message names stay reachable. Without this branch the reopened
+              panel offered the solution and not the hint, so the sentence "You may choose a
+              hint or step-by-step solution instead" was still half wrong - which is how the
+              first version of this fix looked correct in a screenshot and was not.
+              No level arithmetic here on purpose: this panel does not know the ladder
+              position (the server keeps it in `assistance_level_by_variant`), and
+              `_hint_round` clamps the requested level to the ladder's length, so the worst
+              case is the deepest rung served again rather than a rung that does not exist. */}
+          {!isHint && (
+            <button disabled={busy} onClick={() => onChoose("hint")}>
+              Get a hint
+            </button>
+          )}
           <button className="secondary" disabled={busy} onClick={() => onChoose("solution")}>
             Show the solution
           </button>

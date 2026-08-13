@@ -25,11 +25,38 @@ no PII by design; the residual risk is Bedrock spend, which the gateway caps). S
 decision is ever revisited: rotate at the source, then re-run `deploy-staging.yml`, because ECS
 tasks read the value at container start.
 
+**⚠️ PR #251 IS OPEN AND UNMERGED — the one thing to resolve before anything else.** A UI/UX +
+observability audit ran on 2026-08-13 (D-314 → D-316) and its work sits on
+`fix/help-dead-end-and-error-visibility`: two commits, **CI green on all nine checks**, read from CI
+rather than inferred. Nothing is on `main` and **nothing is deployed**, so staging still serves
+`sha=ae41b7f2212f` and still has all four defects below.
+
+Four things were fixed and verified in a browser and the database, not from the diff:
+
+| fix | evidence at close |
+|---|---|
+| the §5.11.6 no-video dead end + the **three-site** support miscount behind it (D-314) | `video_used = false`, no `video` series on `learning_support_usage_total`, "Videos suggested: **0**" after three unavailable requests, **0** `mcp_tool_calls` so the reopen is free |
+| a stale cross-exam view-time flush that 404'd at the pre→post boundary (D-314) | **zero** 404s/409s across a full journey, including the boundary that produced the 404 before |
+| error visibility, which did not exist at all (D-315) | boundary verified by crashing it; the 503 handler's test fails with the handler disabled |
+| **D-288 made investigable** (D-316) + every CORS preflight was logging a raw student path | fresh process: preflight and 404 both `<unmatched>`, **0** student ids in the log; a two-answer walk logged `answered: 2, first_unanswered: 2` and the client agreed |
+
+**The next step for D-288 is now mechanical rather than open-ended:** merge, deploy, re-run the D-311
+two-test invocation against staging, and read `exam_overview_read` for that session. `answered` short
+of the acknowledged POSTs puts the fault behind the endpoint; `answered` correct while the student
+still lands on question 1 puts it in the client — and means the four already-killed explanations were
+all looking on the wrong side. **A15** (`pre_intro` out of the SSE connect path) should ship in the
+same deploy, since it is the leading candidate for `time-telemetry`'s staging-only failure and one
+run would then answer both.
+
 **What the next session should pick up, in order:**
 
-1. **Decide whether to spend on depth.** It is the only substantial thing left in C1 and it is
-   sized below: ~$13-16 and ~3.5 hours of generation. Nothing is blocked; this is a budget call.
-2. **Decide whether the two exposed staging secrets get rotated after all.** Declined once with a
+1. **Merge PR #251 and deploy it, then read staging.** Everything above is worthless until it runs
+   where the defects are. Note `uvicorn --reload` does not complete while an SSE client is connected
+   (23+ min measured) — the ECS analogue is a task that will not drain, so watch the deploy's drain
+   step rather than assuming it.
+2. **Decide whether to spend on depth.** The only substantial thing left in C1 and it is sized:
+   ~$13-16 and ~3.5 hours of generation. Nothing is blocked; this is a budget call.
+3. **Decide whether the two exposed staging secrets get rotated after all.** Declined once with a
    reason (D-310); the reason may not hold if staging ever serves anything real.
 3. **Coverage is done. The two criteria still open are now SIZED (D-313), so the decision to
    spend on them is a number rather than an impression.**
@@ -712,6 +739,81 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — the help system's dead end, found by walking to the end (2026-08-13, D-314 → D-316)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1512 passed**, 2 skipped, 1 xfailed (+11 on
+the 1501 baseline) · **local e2e 70/70** including `time-telemetry`, `post-finalize-poll` (asserts
+zero 409s) and the ladder journey · web `tsc --noEmit` and `oxlint` clean. **$0 spent** — no paid
+call, the whole session ran against the dev mock and read-only AWS. Not deployed, not committed:
+the changes are on `main`'s working tree only.
+
+**A full-journey UI/UX audit in a real browser, plus a code sweep of the observability stack.** The
+browser walk went further than the e2e suite structurally can — post-exam, results, the dashboard,
+the report, and the attendance-blocked path with its email approval — because
+`journey-student.spec.ts` always picks the first option and therefore never reaches the mastery bar
+(its own stated boundary, `:32-43`).
+
+**Two defects fixed (D-314), both verified in the browser and the database rather than from the
+diff:**
+
+1. **The §5.11.6 no-video path was a trap on the common path.** 108 of 112 skills have no catalog
+   video, so the fallback is the *usual* outcome; its message says "you may choose a hint or
+   step-by-step solution instead" while the pause closed on the same turn. Now the pause reopens
+   (free — 0 `mcp_tool_calls` across three requests, bounded to one extra round), and three sites
+   that recorded support from *what was asked for* rather than what arrived now share one predicate.
+   Measured after: `video_used = false`, no `video` series on `learning_support_usage_total`, and
+   "Videos suggested: **0**" on the results screen.
+2. **A stale cross-exam view-time flush.** At the pre→post boundary the client POSTed time for a
+   *pre-exam* item and took a **404**, swallowed by fire-and-forget. The overview response already
+   carried its own `phase`; only one of its consumers read it. Now one `examOverview` gates them
+   all. Measured after: **zero 404s and zero 409s** across a full journey.
+
+**Observability is in better shape than the docs suggest, and verified live today.** Local
+OTel → Jaeger carried all 8 LangGraph node spans plus SQL, `mcp.gmail.send_email` and
+`bedrock.generate_structured`; the 22 Prometheus KPIs moved in step with the walk; Grafana healthy.
+On staging all 26 CloudWatch alarms read OK (the two `p95-latency-scale-in` ALARMs are the correct
+at-rest state, D-182), and **`langsmith-ingest-failed` had zero failures** — a positive-controlled
+window, not an empty-store false negative.
+
+**Also fixed: D-288 is now investigable (D-316).** Access-log lines carry the session id from
+their path (an allowlist — `student_id` is deliberately excluded), and `exam_overview_read` records
+the server's own view of the exam position (`items`, `answered`, `first_unanswered`). That one line
+splits D-288 in two: `answered` short of the acknowledged POSTs puts the fault behind the endpoint,
+`answered` correct while the student still lands on question 1 puts it in the client. Verifying it
+turned up a third thing — **every CORS preflight was logging the raw path**, student external id
+included (23 lines in one local session), because `CORSMiddleware` answers `OPTIONS` before routing
+and the middleware's fallback read `request.url.path`. That contradicted the module's own docstring
+and is now `<unmatched>`.
+
+**Also fixed: error visibility at both ends of the telemetry stack (D-315).** An `ErrorBoundary`
+around `<App/>` turns a render crash from a blank screen into a `role="alert"` recovery screen that
+reloads (resuming the same session, since the id is in `sessionStorage`); `window.onerror` /
+`unhandledrejection` listeners cover what a boundary structurally cannot see; and learning-api
+finally has the narrow `BedrockGatewayError` → 503 handler chat-api has carried since AUD-C-07, so
+such a failure is logged as JSON with a `trace_id` and passes through `CORSMiddleware` instead of
+reaching the browser as `net::ERR_FAILED`. **None of it reaches the maintainer yet** — there is no
+sink, deliberately: that needs an authenticated endpoint, a rate limit and a PII rule for stack text,
+which is a decision and not a default. The boundary has **no automated test** because the web app has
+no test runner; it was verified by crashing it in a browser.
+
+**Carry-over from the audit, not fixed this session** (the rest of the plan, in priority order):
+
+| # | finding | why it matters |
+|---|---|---|
+| 1 | **A15: `pre_intro` still makes a Bedrock call inside the SSE connect path** and drops a modal over the live exam | the leading candidate for `time-telemetry`'s staging-only failure, and it should ship in the same deploy as D-316's logging so one staging run answers both |
+| 2 | **No sink for client-side errors** (D-315's stated boundary) | the recovery screen and the console records exist; nobody is told. Needs the endpoint/rate-limit/PII decision, or Sentry |
+| 3 | **No URL routing** — the whole app lives at `/` | any reload drops the student back into the session flow; dashboard, results and sign-in are unbookmarkable and the back button is dead. Also a prerequisite for §5.1.2's first-visit notice, which needs a route-aware gate |
+| 4 | **The study phase can re-serve the session's own exam items** — a study question came back verbatim as pre-exam Q1 *and* post-exam Q1 | pre/post sharing a fixed set is a defensible gain design; the *study* phase serving the same variant inflates measured gain. **Needs a product decision, not a quiet patch** |
+| 5 | copy/format cluster: "You used 1 hints and viewed 1 solutions" (no pluralisation); "completed 10 of 10" where it means *scored*; `2.0 → 10.0` decimals in narratives vs integers elsewhere; the student-visible report shows raw `Overall accuracy: 0.24` (discouraging, and inconsistent with the `88%` next to it — §5.10.3); the gain modal reuses the "WHY THIS IS YOUR NEXT STEP" header on a results context; the pre-exam's stale "Answer submitted for question 10" live-region text survives into study | each is small; together they are what a parent sees |
+| 6 | dashboard charts: labels truncate to identical unreadable pairs ("Add and subtract…denominators" ×2) and the difficulty axis repeats `8/13/2026` five times | the charts are the dashboard's whole point |
+| 7 | the topic screen is a flat ~5,000-px wall of 33 buttons with "Suggested for your grade" scattered mid-list | grouping "For you" first is the fix |
+| 8 | **`uvicorn --reload` does not complete at all while an SSE client stays connected** — measured **23+ minutes** hung on one open browser stream, and it silently blocked an e2e run (Playwright waits on port 8001) | first read as ~33 s, which was only true because that measurement closed the tab. The production analogue is an ECS task that cannot drain: it stalls a deploy, and a request killed mid-`interrupt()` is exactly AUD-X-07's unfixed seam (b) |
+| 9 | no durable per-LLM-call record (log lines only, retention-bound); cost rates are placeholders; **no observability vars in `.env.example`**; `langsmith_config.py:7-12` still says "no real LangSmith account exists" (stale since D-242) | the docstring is the cheapest fix on this list |
+
+**The `Hint L1, addressing …` scaffolding visible in local dev is the dev mock**
+(`mock_provider.py:72`), not product text. Worth stating because it means *real* tutor-content
+quality is invisible in local dev and still unmeasured — D-303's carry-over, unchanged.
 
 ### Session log — the label was never the judge's, and three rulers of mine were wrong (2026-08-12/13, D-294 → D-306)
 

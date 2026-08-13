@@ -570,7 +570,17 @@ function App() {
               void session
                 .respond({ interrupt_type: "intervention_choice", choice })
                 .then((result) => {
-                  if (result !== null && choice !== "continue") recordAssistance(choice);
+                  if (result === null || choice === "continue") return;
+                  // A "video" that found no catalog entry served nothing, and counting it
+                  // put "Videos suggested: 1" on the results screen and in the parent
+                  // report for a student who was shown only the §5.11.6 "not currently
+                  // available" message. The server stopped recording it too (`nodes.
+                  // _intervention_served`); this is the same predicate on the copy of the
+                  // count the student actually reads. Keyed on the video's presence, not
+                  // on the message text, for the same reason the server's is.
+                  const help = result.intervention;
+                  const served = help?.type !== "video" || Boolean(help?.video_url);
+                  if (served) recordAssistance(choice);
                 })
             }
             onDismiss={() => setInterventionDismissed(true)}

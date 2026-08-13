@@ -1450,6 +1450,39 @@ async def _exam_overview_view(
         elapsed = (datetime.now(UTC) - flow.exam_clock_start(session_row)).total_seconds()
         remaining_seconds = max(0, int(session_row.time_limit_seconds - elapsed))
 
+    # **The one line that splits D-288 in two.** That defect is a staging-only mid-exam refresh
+    # landing on "Question 1 of 10" after two acknowledged answers, and its recorded next step
+    # has been "server-side logs for that session" - because from the outside there is no way
+    # to tell whether the *server* believes item 1 is unanswered or the client is ignoring a
+    # correct answer. This response is the sole input to the client's restore
+    # (`ExamScreen`'s one-shot effect derives the position from it, deliberately not from
+    # persisted state), so the server's own view of it is exactly the missing evidence:
+    #
+    #   - `answered` short of the acknowledged POSTs -> the fault is behind this endpoint,
+    #     in the answer write or `get_item_states`.
+    #   - `answered` correct while the student still lands on 1 -> the fault is in the client,
+    #     and D-288's four already-killed explanations were all looking on the wrong side.
+    #
+    # `first_unanswered` is the number the restore actually uses, and matching its rule here
+    # (`status != "answered"`, so `skipped`/`flagged` count as remaining) rather than
+    # re-deriving it is the point - a diagnostic that computes the position differently from
+    # the code it is diagnosing can disagree with it and be believed.
+    unanswered = sorted(
+        item.display_order for item in item_responses if item.status != "answered"
+    )
+    logger.info(
+        "exam_overview_read",
+        extra={
+            "learning_session_id": learning_session_id,
+            "assessment_session_id": exam_session_id,
+            "phase": phase,
+            "items": len(item_responses),
+            "answered": len(item_responses) - len(unanswered),
+            "first_unanswered": unanswered[0] if unanswered else None,
+            "marked_viewed": mark_viewed,
+        },
+    )
+
     return ExamOverviewResponse(
         learning_session_id=learning_session_id,
         phase=phase,

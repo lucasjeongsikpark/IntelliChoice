@@ -22361,3 +22361,220 @@ stands at **84 of 153 cells**, and bringing every occupied cell to 5 needs **189
 315 candidates at the measured 60% acceptance, ~$13-16, and ~3.5 hours of wall clock at the
 account's measured ~1.5 candidates/minute. Recorded so the decision to spend that is taken against
 a number rather than an impression.
+
+### D-314 — The help system's dead end: three sites recording a video nobody watched
+
+**Date:** 2026-08-13 · **Session:** UI/UX audit · **Status:** fixed, verified in a browser · pytest
+1507, local e2e 70/70
+
+A browser walk of the whole student journey — the first one to reach post-exam and results, which
+the e2e suite structurally cannot (`journey-student.spec.ts:32-43`) — found the §5.11.6 no-video
+path is not an edge case but the **common** one, and that it was both a UX trap and a metrics
+defect.
+
+**Why it is common.** D-302 opened all 33 topics; the catalog holds 4 videos across 4 of 112
+skills. So 108 skills answer with `FALLBACK_MESSAGE`. Locally the 4 stocked skills are all
+`linear_*`, which is why every fraction-topic walk takes the fallback.
+
+**The trap.** The fallback message ends "You may choose a hint or step-by-step solution instead",
+and the pause closed on the same turn — so the message named two options the UI had just taken
+away, and the student's one intervention was spent on nothing. Reopening the pause is what makes
+that sentence true.
+
+**The bookkeeping, and the shape this project keeps paying for.** Three sites recorded support from
+*what the student asked for* rather than what arrived:
+
+| site | what it wrote |
+|---|---|
+| `intervention_choice` | `study_attempts.video_used`, `SUPPORT_USAGE`, the `intervention_chosen` memory event |
+| the tutor chat's `request_video` | the same two, independently |
+| `App.tsx`'s `recordAssistance` | the "Videos suggested" count the student and the parent report read |
+
+Downstream that means "Solved independently" — the results headline — counted a student as helped
+by a video they were told did not exist. Fixed with **one predicate, `_intervention_served`**, used
+at all three, per ARCHITECTURE's gate-consistency invariant. It keys on the **presence of the
+video**, never on the fallback message's text, so rewording §5.11.6 cannot silently make an
+unserved video count as served.
+
+**The bound, and why it is not a cost bug.** Reopening lets a student ask again. In the dominant
+case that is free: `search_video` returns `(None, 0.0)` from `has_servable_video` before any
+embedding (D-207/D-305) — measured, **0 rows** in `mcp_tool_calls` across three video requests. The
+rarer paid case is a skill stocked at a *different* difficulty, which pays for one embedding and
+still matches nothing; that is bounded to one extra round by refusing to reopen when the student is
+already on the unavailable-video panel.
+
+**`_showing_unavailable_video` exists because the first version of the bound was wrong.** I wrote it
+as `not _intervention_served(state.last_intervention)`, which is also true for `None` — so it would
+have refused to reopen on a student's *first* request, the case the fix exists for. "No intervention
+yet" and "an intervention that served nothing" are different facts. Caught before running anything,
+and it is now the one case in `test_intervention_served.py` with its own named test.
+
+**The fix looked complete in a screenshot and was not.** With the pause reopened the panel offered
+*Show the solution* and still not *Get a hint*: `HelpView`'s ladder branch renders a hint button
+only when the current content **is** a hint, which was true while the only reopened state was
+mid-ladder. So the message went from naming two unreachable options to naming one. Found by reading
+the rendered buttons rather than trusting the reopen.
+
+**Second defect, same walk (a cousin of AUD-F-24).** At the pre→post boundary the client POSTed
+view-time for a **pre-exam** item and took a **404**, swallowed by the fire-and-forget
+`.catch(() => {})`. `currentOverviewItem` was gated on `isExamPhase`, which is true on *both* sides
+of that boundary — it only ever excluded the study phase. The real fault is that `App` holds the
+previous phase's overview until the new fetch lands, so `overview` described a finished exam while
+`phase` said otherwise. **The overview response has always carried its own `phase`**; only the
+position-restore effect was reading it. Now one derived `examOverview` gates every consumer — the
+flush, the navigator, the timer, the unanswered counts — so they cannot disagree about which exam
+they describe. Same one-gate-checks-it/siblings-don't shape as the finding above.
+
+**Verified, in a browser and in the database rather than from the diff:** the reopened panel offers
+both named options and the hint serves from it; a second video click closes the pause; `video_used
+= false` with `hint_used = true` on the attempt; `learning_support_usage_total` carries a `hint`
+series and **no `video` series at all**; "Videos suggested: **0**" on the results screen after three
+unavailable-video requests; and **zero 404s and zero 409s** across a full journey including the
+boundary that produced the 404 before.
+
+**A test that asserted the defect.** `test_video_used_is_recorded` asserted `video_used is True`
+unconditionally while deliberately tolerating either content shape — so on the common no-catalog
+path it pinned the bug. It now asserts the *pairing* in both branches (recorded support and the
+resolved pause must agree with what was shown), which is D-222's rule kept and D-307's lesson
+applied.
+
+**Noted, not fixed — and the first number I put on it was wrong.** `uvicorn --reload` was recorded
+here as hanging "~33 s" on an open SSE connection. That was only true because the measurement closed
+the browser tab. Left with a live SSE client it does not complete **at all**: measured **23+ minutes**
+still hung, and it silently blocked a whole e2e run, because Playwright's `webServer` waits on port
+8001 and the suite therefore sat before its first test with an empty log. Dev friction on this side,
+but the production analogue is an ECS task that cannot drain — it stalls a deploy, and a request
+killed mid-`interrupt()` is precisely AUD-X-07's seam (b), the half that is still unfixed and has no
+detection code. Worth measuring properly before it is dismissed as a local annoyance.
+
+**Two instrument mistakes of mine in the same stretch, both already on this project's record.**
+`pgrep -f 'playwright test'` matched **its own command line**, so "3 processes" could not distinguish
+a running suite from my own wait-loop — the identical self-match that D-310's canary produced, and the
+fix is the same `[p]laywright` bracket trick. And the run was launched as `npx playwright test | tail`,
+whose pipe buffers everything until exit, so a 23-minute hang looked like silence; the JSON reporter's
+`artifacts/results.json` is the output that survives, and its mtime is what showed the run had written
+nothing.
+
+### D-315 — Error visibility: a recovery screen and a JSON 503, and deliberately no sink yet
+
+**Date:** 2026-08-13 · **Session:** UI/UX audit · **Status:** built, both halves seen to work ·
+pytest 1508
+
+The audit's largest observability gap was not in the telemetry stack — that is in good shape and
+was verified live (D-314) — but at the two ends of it. **A React render crash was reported nowhere
+and looked like nothing:** `main.tsx` was a bare `createRoot().render(<StrictMode><App/></StrictMode>)`,
+so an exception during render unmounted the tree and left a K-12 student on white space with no
+text and no button. The only thing in this repo that has ever observed such a crash is
+`e2e/fixtures/capture.ts:149`, which is test-time. **And learning-api had no exception handler at
+all** — the same structural gap AUD-C-07 recorded for chat-api, in the app with far more Bedrock
+call sites.
+
+**Three pieces, all small:**
+
+| piece | what it changes |
+|---|---|
+| `components/ErrorBoundary.tsx` wrapping `<App/>` | a crash becomes a `role="alert"` recovery screen with a reload, plus a `react_render_crash` console record |
+| `window.addEventListener('error' / 'unhandledrejection')` in `main.tsx` | the errors a boundary structurally cannot see — async continuations and unawaited rejections |
+| `@app.exception_handler(BedrockGatewayError)` in learning-api | 503 with a student-safe detail, logged through `JsonLogFormatter` so it carries `trace_id` |
+
+**Reload rather than reset**, because the session id lives in `sessionStorage`: reloading resumes the
+same session at the same phase, which is what a student mid-exam needs and what SPEC Phase 11's
+refresh requirement already guarantees. Re-rendering the crashed tree in place would crash again on
+the same props.
+
+**`console.error` in exactly one place, against the codebase's own convention.** Every other error
+path uses `console.warn` (`api/errors.ts:139`) *because* §2.6 criterion 3 counts console errors and
+those paths are handled. A crash that destroyed the UI is not handled and should fail that criterion
+loudly rather than pass quietly inside a green run. The distinction is the point, not an oversight.
+
+**Deliberately no sink, and this is the part to not over-read.** None of this reaches the maintainer.
+Sending a crash report needs decisions this change should not make on its own: an authenticated
+endpoint, a rate limit, and a PII rule for message and stack text — a React error message can quote
+rendered content, and SPEC §5.30's floor is per-store and not inherited (D-104 §4). Recorded as
+carry-over rather than guessed at. Sentry remains an option; for a solo-maintained ~1,000 MAU
+product a small owned endpoint is the likelier fit, but that is a decision, not a default.
+
+**The boundary was verified by crashing it, and the first probe was wrong in an instructive way.**
+`{(() => { throw ... })()}` inside the JSX threw while the element tree was being *built* — before
+`render()` was called — so the boundary never mounted and the page went blank. That blank page is
+exactly the defect being fixed, produced by the probe rather than by the code, and it would have
+read as "the boundary does not work" if taken at face value. A real child component
+(`function Boom(): never`) is caught: recovery screen rendered, `react_render_crash` logged, probe
+reverted. **No frontend test runner exists** (the web app has `oxlint`, `tsc` and Vite, no vitest),
+so the boundary has no automated test — stated here rather than left to be assumed, since an e2e
+trigger would mean adding a crash path to product code.
+
+**The 503 handler's test was checked in both directions** (D-107 §1's rule): it fails with the
+handler disabled and passes with it, and it asserts that `str(exc)` does **not** reach the student
+alongside asserting the status.
+
+### D-316 — The logs could not name a session, and every CORS preflight logged a raw path
+
+**Date:** 2026-08-13 · **Session:** UI/UX audit · **Status:** built and verified against a fresh
+process · pytest 1512
+
+D-288 — the staging-only mid-exam refresh that lands on the wrong question — has been parked at
+"the next step is server-side logs for that session" since 2026-08-07. That step was not *undone*;
+it was **impossible**. `http_request` lines carried the route template, method, status and duration,
+and `trace_id` joins the spans of one *request*, not the requests of one student's sitting. Nothing
+in the store could group a session's lines, so there was no query to write.
+
+**Three changes, one purpose.**
+
+**1. An allowlisted session id on every access-log line.** `LOGGABLE_PATH_PARAMS =
+("learning_session_id", "chat_session_id")` — read from `scope["path_params"]` after `call_next`,
+flat keys so `PiiDenylistFilter` (top-level only, its own documented limit) actually inspects them.
+
+An allowlist rather than dumping `path_params`, because `/students/{student_id}` already exists and
+a wholesale dump would start logging a reference to a real minor the moment someone adds a route.
+`student_id` and `assessment_item_id` are deliberately excluded. Absent, not null, when a route has
+no session — `logging_config` already omits rather than nulls its trace fields when nothing is
+tracing, and a `learning_session_id: null` on every `/healthz` line is noise a Logs Insights filter
+would then have to exclude.
+
+**2. `exam_overview_read` — the line that splits D-288 in two.** The overview response is the sole
+input to the client's position restore (derived, deliberately not persisted), so the server's own
+view of it is exactly the missing evidence: `items`, `answered`, `first_unanswered`, `phase`,
+`marked_viewed`, keyed by both session ids. `answered` short of the acknowledged POSTs puts the
+fault behind the endpoint; `answered` correct while the student still lands on question 1 puts it in
+the client, and means D-288's four already-killed explanations were all looking on the wrong side.
+
+`first_unanswered` is computed with the *same* rule the restore uses (`status != "answered"`, so
+`skipped`/`flagged` count as remaining) rather than re-derived — a diagnostic that computes the
+position differently from the code it is diagnosing can disagree with it and be believed.
+
+**3. A raw path on every CORS preflight, found by verifying (2).** Grepping a local session's log
+for the student fixtures returned **23 hits, every one an `OPTIONS`** carrying
+`/learning/students/student-ext-N/...` verbatim. `CORSMiddleware` answers a preflight before routing
+sets `scope["route"]`, so the middleware's fallback — `request.url.path` — ran on every one of them.
+
+This contradicted the module's own docstring, which promised it "never touches `request.url` … so a
+token can't leak through it by construction". Not a rule-1 violation (an `*_external_id` is the
+reference Postgres stores by design) and the *token* claim did survive, because `.path` drops the
+query string. But a guarantee stated "by construction" with a branch that denies it is not a
+guarantee, and there were two further costs: the same endpoint logged as `GET` and as `OPTIONS`
+could not be grouped by `path`, and the raw form is unbounded cardinality in the field the store is
+queried by. Now `UNMATCHED_PATH = "<unmatched>"`. Nothing is lost that the system does not already
+hold — the ALB and CloudFront access logs record raw paths at the edge.
+
+**Verified against a fresh process, after two readings that were not.** The first probe said the
+preflight fix had not worked; the running server was executing **stale code**, because
+`request_logging.py` lives under `packages/` and uvicorn's `--reload` was not watching it. The
+restart then failed to bind, twice, with `address already in use` — the holder was the reloader's
+spawned worker (`python -c from multiprocessing.spawn import…`), whose command line contains no
+"uvicorn" and which `pkill -f 'uvicorn learning_api.main:app'` therefore never matched. Found with
+`lsof -nP -iTCP:8001 -sTCP:LISTEN`. On a genuinely fresh process: preflight → `<unmatched>`, a real
+404 → `<unmatched>`, and **0** occurrences of any student id in the whole log.
+
+**The test for (3) failed first for a reason that was not the subject.** It added `CORSMiddleware`
+*after* the logging middleware, so CORS was outermost, answered the preflight, and the logging
+middleware never ran — an empty buffer, which reads as "the fix does not work" rather than "the app
+is wrong". Starlette's stack is LIFO by registration and both real apps install CORS *first*
+(`learning_api.main` ~line 272 vs ~327); S34's comment in that file records the same ordering rule
+after ~1,100 real 429s were invisible for the same reason. `_capturing_app(with_cors=True)` now
+mirrors the shipped order, and says why in its docstring.
+
+**Measured working end to end**, on a walk that answered two questions and reloaded: the server
+logged `answered: 2, first_unanswered: 2` and the client restored to question 3 — agreeing, which is
+the *non*-defective case and therefore also the control that shows the instrument reads correctly
+when nothing is wrong. What it does on staging is now a question with an answer.

@@ -1537,11 +1537,30 @@ def test_intervention_choice_pause_records_choice_and_blocks_skip() -> None:
         # the JSON and `"video_url" in intervention` is true even for the fallback. Getting
         # that wrong is how the first version of this fix passed a rigged catalog 8/8 while
         # never once exercising the branch it was written for.
-        if intervention["video_url"]:
+        video_served = bool(intervention["video_url"])
+        if video_served:
             assert intervention["video_title"]
             assert intervention["video_source"]
         else:
             assert intervention["message"] == video_catalog.FALLBACK_MESSAGE
+
+        # **Both branches assert, and they assert the same invariant** - the recorded
+        # support and the resolved pause must agree with what the student was shown. This
+        # block used to assert `video_used is True` unconditionally while tolerating either
+        # content shape, so on the common no-catalog path it asserted the defect: an
+        # unavailable video recorded as support (fixed here), and a pause that closed while
+        # the message on screen said "you may choose a hint or step-by-step solution
+        # instead". Which branch a given machine takes is still not this test's business
+        # (D-222) - that the two facts match is.
+        if video_served:
+            # Served: the pause resolves, exactly as it always did.
+            assert respond_body["pending_interrupt"] is None
+        else:
+            # Nothing served: the pause stays open on the same question, so the two options
+            # the fallback message names are still reachable.
+            pending = respond_body["pending_interrupt"]
+            assert pending is not None
+            assert pending["interrupt_type"] == "intervention_choice"
 
         # `_study_session_id` reads via `app.state.learning_graph`, so it must run while
         # this block's checkpointer connection is still open.
@@ -1549,7 +1568,7 @@ def test_intervention_choice_pause_records_choice_and_blocks_skip() -> None:
 
     attempt = _study_attempt(study_session_id, wrong_variant_id)
     assert attempt.is_correct is False
-    assert attempt.video_used is True
+    assert attempt.video_used is video_served
     assert attempt.hint_used is False
     assert attempt.solution_used is False
 

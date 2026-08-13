@@ -861,6 +861,15 @@ async def _video_intervention(
         mastery_state=topic_resolver.resolve_mastery_state(mastery),
     )
     if video is None:
+        # Not an error, and on this bank the *usual* outcome: D-302 opened all 33 topics
+        # while the catalog holds 4 videos across 4 of 112 skills, so 108 skills answer
+        # here. Logged rather than counted, because the useful grouping is per skill and
+        # `SUPPORT_USAGE`'s EMF export is capped at one dimension - a metric filter over
+        # this line can be added later without an app deploy.
+        logger.info(
+            "video_unavailable",
+            extra={"skill_id": template.skill_id, "difficulty": template.difficulty_label},
+        )
         return {"type": "video", "message": video_catalog.FALLBACK_MESSAGE}, cost
     return {
         "type": "video",
@@ -868,6 +877,42 @@ async def _video_intervention(
         "video_url": video.url,
         "video_source": video.source,
     }, cost
+
+
+def _intervention_served(content: dict | None) -> bool:
+    """Did this intervention actually put help in front of the student?
+
+    **One predicate, every caller** - the button panel's `intervention_choice` and the
+    tutor chat's `request_video`/`request_solution` both record support against
+    `study_attempts` and both increment `SUPPORT_USAGE`, and ARCHITECTURE's
+    gate-consistency invariant is that "same" means one function, not one intention. The
+    two sites had drifted in exactly the way that invariant describes: both recorded a
+    video as used whenever one was *asked for*.
+
+    The only content shape that reaches a student with nothing is §5.11.6's video
+    fallback, where `search_video` found no approved catalog row for the skill and
+    `_video_intervention` returns the message alone.
+
+    Keyed on the *presence of the video*, never on the fallback message's text: an
+    unserved video must not start counting as served because someone reworded §5.11.6.
+    """
+    if content is None:
+        return False
+    if content.get("type") != "video":
+        return True
+    return bool(content.get("video_url"))
+
+
+def _showing_unavailable_video(content: dict | None) -> bool:
+    """Is the student already looking at §5.11.6's "no video for this skill" panel?
+
+    Deliberately not spelled `not _intervention_served(content)`, which is also true for
+    `None`. "No intervention yet" and "an intervention that served nothing" are different
+    facts, and only the second one may bound the pause-reopen below - conflating them would
+    refuse to reopen on a student's *first* request, which is the case the reopen exists
+    for.
+    """
+    return content is not None and not _intervention_served(content)
 
 
 async def _resolve_relevant_fact(
@@ -1099,15 +1144,13 @@ async def intervention_choice(state: LearningState, runtime: Runtime[TurnContext
     choice_value = choice.get("choice") if isinstance(choice, dict) else None
     if choice_value not in ("hint", "solution", "video", "continue"):
         choice_value = None
-    if choice_value in ("hint", "solution", "video"):
-        SUPPORT_USAGE.labels(support_type=choice_value).inc()
 
-    attempt = await ctx.study_repo.update_intervention_choice(
-        state.last_study_attempt_id,
-        hint_used=choice_value == "hint",
-        video_used=choice_value == "video",
-        solution_used=choice_value == "solution",
-    )
+    # Read, don't write, until the content is in hand. The support flags used to be
+    # recorded here - before the lookup that decides whether any help exists - so an
+    # unavailable video was recorded as used. The write now happens once the content is
+    # known, at `served_choice` below.
+    attempt = await ctx.study_repo.get_attempt(state.last_study_attempt_id)
+    assert attempt is not None
 
     last_intervention: dict | None = None
     bedrock_spend_cents = state.bedrock_spend_cents
@@ -1138,11 +1181,48 @@ async def intervention_choice(state: LearningState, runtime: Runtime[TurnContext
     # choice_value in (None, "continue"): no new content this round - fall through to
     # advance_study below, same as an unrecognized/absent choice always has.
 
+    # The support this round actually delivered, or None - one name for the whole fact, so
+    # the metric, the durable flags and the memory event below cannot disagree about it.
+    # Recorded against what the student *received*, not what they asked for.
+    # `update_intervention_choice` OR's its flags in, so the all-False call on a
+    # "continue"/unavailable round is the same no-op write it has always been on
+    # "continue".
+    served_choice = choice_value if _intervention_served(last_intervention) else None
+    if served_choice is not None:
+        SUPPORT_USAGE.labels(support_type=served_choice).inc()
+    attempt = await ctx.study_repo.update_intervention_choice(
+        state.last_study_attempt_id,
+        hint_used=served_choice == "hint",
+        video_used=served_choice == "video",
+        solution_used=served_choice == "solution",
+    )
+
+    # §5.11.6's fallback ends "You may choose a hint or step-by-step solution instead",
+    # and the pause used to close on the very same turn - so the message named two options
+    # the UI had already taken away, and the student's one intervention was spent on
+    # nothing. Measured in a browser 2026-08-13, on the *common* path rather than an edge:
+    # with 108 of 112 skills holding no catalog video, this was the default outcome of
+    # asking for a video. Reopening the pause is what makes the sentence true.
+    #
+    # Free in that dominant case - `search_video` returns `(None, 0.0)` from
+    # `has_servable_video` without an embedding call (D-207/D-305). Bounded to one extra
+    # round in the rarer paid case (a skill stocked at a *different* difficulty pays for an
+    # embedding and still matches nothing) by refusing to reopen when the student is
+    # already looking at an unavailable-video panel - same predicate, read off the
+    # previous round's checkpointed content.
+    if (
+        choice_value == "video"
+        and served_choice is None
+        and not _showing_unavailable_video(state.last_intervention)
+    ):
+        awaiting_next_hint = True
+
     # S25 (plan §9): one `intervention_chosen` event per resumed round - "continue"/no
-    # choice isn't a support choice, so it doesn't get one.
-    if choice_value in ("hint", "solution", "video"):
+    # choice isn't a support choice, so it doesn't get one, and neither does a video that
+    # served nothing (`served_choice`, for the same reason the flags above use it).
+    if served_choice is not None:
         hint_level = (
-            assistance_levels.get(attempt.question_variant_id) if choice_value == "hint" else None
+            assistance_levels.get(attempt.question_variant_id) if served_choice == "hint" else None
         )
         await memory_events.emit_intervention_chosen(
             ctx.memory_repo,
@@ -1150,7 +1230,7 @@ async def intervention_choice(state: LearningState, runtime: Runtime[TurnContext
             student_external_id=attempt.student_external_id,
             session_id=state.session_id,
             question_variant_id=attempt.question_variant_id,
-            choice=choice_value,
+            choice=served_choice,
             hint_level=hint_level,
         )
 
@@ -1435,13 +1515,20 @@ async def run_chat_turn(
             ctx, attempt, choice_value, 0, bedrock_spend_cents + cost
         )
         cost += call_cost
-        await ctx.study_repo.update_intervention_choice(
-            attempt.attempt_id,
-            hint_used=False,
-            video_used=choice_value == "video",
-            solution_used=choice_value == "solution",
-        )
-        SUPPORT_USAGE.labels(support_type=choice_value).inc()
+        # Same predicate as the button panel, via the same function: a "show me a video"
+        # that finds no catalog row served nothing, and recording it as used is what made
+        # `study_attempts.video_used` and "Solved independently" disagree with what the
+        # student saw. `_chat_reply_from_content` already renders the fallback message, so
+        # the student is told the truth either way - only the bookkeeping was wrong.
+        served_choice = choice_value if _intervention_served(content) else None
+        if served_choice is not None:
+            await ctx.study_repo.update_intervention_choice(
+                attempt.attempt_id,
+                hint_used=False,
+                video_used=served_choice == "video",
+                solution_used=served_choice == "solution",
+            )
+            SUPPORT_USAGE.labels(support_type=served_choice).inc()
         reply_text = _chat_reply_from_content(content)
     else:
         assert intent in ("question_help", "why_wrong")

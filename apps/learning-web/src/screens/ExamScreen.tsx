@@ -140,6 +140,16 @@ export function ExamScreen({
 }: Props) {
   const isExamPhase = phase === "pre_exam" || phase === "post_exam";
 
+  // **The overview of the exam actually on screen, or null.** `App` keeps holding the
+  // previous phase's overview until the new phase's fetch lands, so for a window at the
+  // pre->post boundary `overview` describes a *finished* exam while `phase` says otherwise.
+  // The response has always carried its own `phase`; every consumer here except the position
+  // restore was ignoring it, which is the same one-gate-checks-it/siblings-don't shape this
+  // codebase keeps paying for - so the check lives in one derived value that the flush, the
+  // navigator, the timer and the unanswered counts all read. They can no longer disagree
+  // about which exam they are describing.
+  const examOverview = overview !== null && overview.phase === phase ? overview : null;
+
   const [cachedBatch, setCachedBatch] = useState<QuestionItem[] | null>(null);
   const [currentDisplayOrder, setCurrentDisplayOrder] = useState(0);
   const [answeredSelections, setAnsweredSelections] = useState<Record<number, string>>({});
@@ -255,26 +265,22 @@ export function ExamScreen({
   // the local position is the better answer.
   const restoredPhaseRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!isExamPhase || !overview) return;
+    if (!isExamPhase || !examOverview) return;
     if (restoredPhaseRef.current === phase) return;
     if (Object.keys(answeredSelections).length > 0) {
       // Not a restore any more, and never will be for this phase.
       restoredPhaseRef.current = phase;
       return;
     }
-    // App keeps holding the previous phase's overview after the phase moves on (the staleness
-    // AUD-F-24 documents), so without this the post-exam would restore a position derived
-    // from the pre-exam's item statuses.
-    if (overview.phase !== phase) return;
     restoredPhaseRef.current = phase;
-    if (overview.items.length === 0) return;
-    const ordered = [...overview.items].sort((a, b) => a.display_order - b.display_order);
+    if (examOverview.items.length === 0) return;
+    const ordered = [...examOverview.items].sort((a, b) => a.display_order - b.display_order);
     // `skipped` and `flagged` are both still unanswered, and deliberately count as work
     // remaining - only `answered` is locked in.
     const firstUnanswered = ordered.find((item) => item.status !== "answered");
     const target = firstUnanswered ?? ordered[ordered.length - 1];
     if (target) setCurrentDisplayOrder(target.display_order);
-  }, [isExamPhase, phase, overview, answeredSelections]);
+  }, [isExamPhase, phase, examOverview, answeredSelections]);
 
   // Gated on `isExamPhase`, which AUD-F-24 turned from a nicety into a correctness
   // requirement. `overview` is the *exam's* item list and App keeps holding it after the
@@ -290,8 +296,14 @@ export function ExamScreen({
   // is the point of AUD-F-24, so the staleness has to be handled rather than outrun.
   // Gating here is also just what the data means - view time is recorded against
   // `assessment_item_id`, which only exists for pre/post-exam items, never for study.
+  //
+  // `examOverview`, not `overview`, is the rest of that fix. `isExamPhase` alone is true on
+  // *both* sides of the pre->post boundary, so it never excluded the window this comment is
+  // about - it only excluded the study phase. Measured in a browser 2026-08-13: exactly one
+  // `POST .../time` for pre-exam item 1 at the post-exam's first render, answered **404**,
+  // and swallowed by the fire-and-forget `.catch(() => {})`.
   const currentOverviewItem = isExamPhase
-    ? overview?.items.find((item) => item.display_order === currentDisplayOrder)
+    ? examOverview?.items.find((item) => item.display_order === currentDisplayOrder)
     : undefined;
 
   // View-time autosave tick: flushes accumulated time for the item being left whenever
@@ -447,7 +459,7 @@ export function ExamScreen({
   }
 
   async function handleFinalizeConfirm() {
-    const hasUnanswered = overview?.items.some((item) => item.status !== "answered") ?? false;
+    const hasUnanswered = examOverview?.items.some((item) => item.status !== "answered") ?? false;
     finalizedRef.current = true;
     const ok = await onFinalize(hasUnanswered);
     if (ok) setModalOpen(false);
@@ -529,9 +541,9 @@ export function ExamScreen({
   // top of it, not a replacement for it - which is why the modal still explains that
   // unanswered questions are graded incorrect when the expired path reaches it.
   const unansweredCount =
-    overview?.items.filter((item) => item.status !== "answered").length ?? 0;
+    examOverview?.items.filter((item) => item.status !== "answered").length ?? 0;
   const examExpired =
-    overview?.remaining_seconds != null && overview.remaining_seconds <= 0;
+    examOverview?.remaining_seconds != null && examOverview.remaining_seconds <= 0;
   const submitBlocked = unansweredCount > 0 && !examExpired;
 
   const rememberedSelection = answeredSelections[currentDisplayOrder];
@@ -543,13 +555,16 @@ export function ExamScreen({
         <span>{position}</span>
         {phase === "study" && streak > 1 && <span className="streak">🔥 {streak} in a row</span>}
         {isExamPhase && (
-          <ExamTimer remainingSeconds={overview?.remaining_seconds ?? null} onExpire={handleExpire} />
+          <ExamTimer
+            remainingSeconds={examOverview?.remaining_seconds ?? null}
+            onExpire={handleExpire}
+          />
         )}
       </div>
 
-      {isExamPhase && overview && (
+      {isExamPhase && examOverview && (
         <QuestionNavBar
-          items={overview.items}
+          items={examOverview.items}
           currentDisplayOrder={currentDisplayOrder}
           disabled={busy}
           onJump={handleJump}
@@ -621,7 +636,7 @@ export function ExamScreen({
         </>
       )}
 
-      {isExamPhase && overview && (
+      {isExamPhase && examOverview && (
         <div className="submit-exam">
           <button
             type="button"
@@ -644,9 +659,9 @@ export function ExamScreen({
         {statusMessage}
       </div>
 
-      {modalOpen && overview && (
+      {modalOpen && examOverview && (
         <SubmitConfirmationModal
-          overview={overview}
+          overview={examOverview}
           busy={busy}
           onConfirm={() => void handleFinalizeConfirm()}
           onCancel={() => setModalOpen(false)}

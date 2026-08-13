@@ -2101,6 +2101,29 @@ taxonomy and the planner only — but where the judge disagrees with the declara
 generation is the cheap part (pilot ~$15–40, full depth low hundreds of dollars at the one
 measured rate) and the caps, not the estimates, are the bound.
 
+### Amendment — what the 2026-08-13 UI/UX audit changed about C1's two open Phase 6 clauses (D-314 → D-316)
+
+**No clause moved to ✅, and none was re-scoped.** What changed is that the staging e2e clause stopped
+being a mystery and became a queued task with a named cause, so the next session does not start with
+a survey.
+
+| clause | before the audit | after |
+|---|---|---|
+| Phase 6: staging e2e green as a whole run | ⛔ 63 / 1, `time-telemetry` failing, **uninvestigated** | ⛔ 63 / 1, unchanged — but **A15** (`pre_intro` makes a Bedrock call inside the SSE connect path and drops a modal over the live exam) is the leading candidate, and D-316 makes the *other* staging defect (D-288) readable for the first time. Both want the same deploy |
+| Phase 4: video catalog | ⛔ blocked on a `YOUTUBE_API_KEY` | ⛔ unchanged as a *blocker*, but its consequence is no longer silent: the no-video path was a UX trap and a metrics defect on 108 of 112 skills, and that is fixed (D-314) rather than waiting on the key |
+
+**One new product question, recorded here because it is not a bug to patch.** A browser walk saw a
+study-phase question served **verbatim** as both pre-exam Q1 and post-exam Q1 of the same session.
+Pre/post sharing one fixed set is a defensible learning-gain design; the *study* phase drawing the
+same variant is not obviously so, because it inflates the measured gain the parent report is built
+on. Needs a decision before any claim that gain numbers are trustworthy, and it belongs with
+whoever owns §5.9/§5.12 rather than in a fix session.
+
+**Also worth carrying into whichever session next deploys:** `uvicorn --reload` does not complete at
+all while an SSE client stays connected (measured 23+ minutes). The production analogue is an ECS
+task that cannot drain — it stalls a deploy, and a request killed mid-`interrupt()` is exactly
+AUD-X-07's seam (b), the half that is still unfixed and has no detection code.
+
 ### Parallel track (any time, non-coding) — Phase 0 legal & policy docs (§6.1)
 Privacy Notice, AI Use Notice, product Learning Notice, retention policy, etc. Drafting can
 happen in a writing-focused session; **counsel review is a launch gate, not a dev blocker.**
