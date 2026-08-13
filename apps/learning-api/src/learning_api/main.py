@@ -30,7 +30,7 @@ from intellichoice_shared.auth import (
     install_dev_token_gate_middleware,
     staging_secret_matches,
 )
-from intellichoice_shared.bedrock import BedrockTask
+from intellichoice_shared.bedrock import BedrockGatewayError, BedrockTask
 from intellichoice_shared.build_identity import build_identity
 from intellichoice_shared.db_ready import ping_engine
 from intellichoice_shared.email import EmailMessage
@@ -326,6 +326,41 @@ install_dev_token_gate_middleware(app, endpoint_is_open=_dev_token_endpoint_is_o
 # that's lifespan-scoped, since it needs the per-lifespan `engine`s (see `lifespan` above).
 install_request_logging_middleware(app)
 install_http_metrics_middleware(app, service_name=get_settings().otel_service_name)
+
+@app.exception_handler(BedrockGatewayError)
+async def _bedrock_gateway_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """The same narrow backstop chat-api has carried since AUD-C-07, which this app did not.
+
+    Two things were true of an unhandled gateway failure here: the JSON log line describing
+    it did not exist (uvicorn's default 500 prints a traceback outside `JsonLogFormatter`,
+    so it carries no `trace_id` and cannot be joined to the X-Ray span or the LangSmith
+    run), and the response is raised outside `CORSMiddleware`, so the browser saw an opaque
+    `net::ERR_FAILED` instead of a status - AUD-F-16's CORS half, in the app that has the
+    most Bedrock call sites.
+
+    **Deliberately not a catch-all**, for the reason chat-api's own docstring gives: a
+    handler that turns every exception into a transient-outage response is how a real crash
+    becomes invisible. 503 because the condition genuinely is retryable.
+
+    The student-facing wording is this app's own (§5.10.3's growth-oriented register), not
+    an import from chat-api - the two apps talk to different people about different things,
+    and a shared constant would drift toward whichever app changed last.
+    """
+    del request
+    logger.warning(
+        "bedrock_gateway_error_unhandled",
+        extra={"reason": type(exc).__name__, "detail": str(exc)},
+    )
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "detail": (
+                "Something on our side is not responding right now. Your work is saved - "
+                "please try again in a moment."
+            )
+        },
+    )
+
 
 app.include_router(sessions_router)
 app.include_router(stream_router)
