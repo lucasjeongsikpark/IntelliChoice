@@ -2063,6 +2063,39 @@ staging serves the seeded bank end to end.
   readability check and `tutor_chat_messages` holds 0 rows, so measuring it needs paid generation
   of a fresh sample rather than production behaviour.
 
+### Session C1 — status at close, clause by clause (2026-08-13, D-307 → D-313)
+
+⏸ **PARTIAL, and the shape of what remains changed: coverage is complete, depth is not.** Measured
+at close, not recalled:
+
+| clause | where it stands |
+|---|---|
+| every A/B topic has ≥10 approved items | ✅ **33 of 33** |
+| every authorable skill stocked ≥1 item | ✅ **99 of 99** — *first time true*, see below |
+| multi-tier where the skill spans | ⛔ **76 of 91** spanning skills at >1 tier |
+| depth: D-223's 5 per occupied (topic, tier) cell | ⛔ **84 of 153** cells; 189 items short |
+| judge dispersion real per topic | ✅ (26 of 26 generated topics, D-289) |
+| auto-approval decision recorded with its numbers | ✅ D-289 |
+| spend within per-run caps | ✅ every run behind a green preflight and an explicit cap |
+| Phase 6: per-band walks green on staging | ✅ 4 of 4, against the deployed build |
+| Phase 6: staging e2e green as a whole run | ⛔ **63 / 1** (`time-telemetry`, open since D-288) |
+| Phase 6: staging serves the seeded bank | ✅ verified at `sha=ae41b7f2212f`, 958 items |
+| Phase 4: video catalog | ⛔ blocked on a real `YOUTUBE_API_KEY`, not on work |
+
+**"Every skill stocked" was reported as met four times before it was true.** Each wave table
+counted only its own skills, so three permanently-empty skills stayed invisible until D-308
+counted the taxonomy as a whole. All three are now closed (D-308, D-309, D-312), and the honest
+reading of the earlier ✅ marks is that they were scoped claims presented as global ones.
+
+**The multi-tier clause is measured against a span the content no longer respects (D-313).** 106
+items across 39 skills carry a stored tier outside their skill's declared `difficulty_tiers`,
+because D-302 stores the judge's rating. Harmless at runtime — `difficulty_tiers` is read by the
+taxonomy and the planner only — but where the judge disagrees with the declaration, the fix is the
+**declaration**, which is a taxonomy edit and a separate decision.
+
+**Depth is now purely a budget question and is sized:** 189 items ≈ 315 candidates at the measured
+60% acceptance ≈ **$13-16** and ~3.5 h of wall clock at the account's measured ~1.5 candidates/min.
+
 **Budget guardrails, session-wide:** every paid run behind a green preflight and an explicit
 `--run-budget-cents`; waves sized to ~100–150 review items so the human bottleneck is paced;
 generation is the cheap part (pilot ~$15–40, full depth low hundreds of dollars at the one

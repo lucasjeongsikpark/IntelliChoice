@@ -47,6 +47,29 @@ to rot, because nothing fails when it does.)*
 
 ## Cross-cutting invariants the diagrams encode
 
+- **Every gate that judges an authored item must apply the *same* predicate, and "same" means
+  one function — not one intention** (D-312, and it has now cost content six times). Four places
+  decide whether an item's answer is acceptable: the **design** pre-check (§3b stage 1), the
+  **item gate** (stage 3), the **loader** (which re-gates every environment's copy), and the
+  repository's own bank test. Each divergence has been paid for in content that could not exist:
+  - a rule scoped to one answer model and installed as universal — the number rule (D-274), then
+    the design prompt (D-304), each blocking a whole family of skills;
+  - a gate *stricter* than the loader — D-308's first draft left the repo test and the census at
+    `answer_form="any"`, which would have made new `g6_fraction_reduce` items pass generation and
+    `make curriculum-load` and then fail CI, unexportable, for a rule no environment applies;
+  - a gate *weaker* than the one it claims to duplicate — `validate_equation_design`'s comment
+    says it uses "the same predicate the item gate uses" while consulting only the first reading,
+    so it refused every correct exponential design and `calc_differential_equations` held **0**
+    items for four attempts (D-309, D-312);
+  - a reading sequence duplicated into a census, which expired **four** times as new readings
+    were admitted (D-281, D-282, D-291, D-297/D-298, D-308) before `matching_options` and then
+    `resolved_matches` became its single owner.
+
+  The mechanical form of the invariant: `resolved_matches` owns "which options state this
+  answer" and `CurriculumContent.answer_form` owns "which canonical form this skill requires",
+  and every one of the four callers reads them rather than reimplementing the intent. A second
+  reading of an answer may turn a rejection into a pass, never one pass into a different pass
+  (D-281) — which is what makes adding one safe to do in a single place.
 - **A topic is offered when it can fill one exam, and its difficulty labels are the judge's
   reading** (D-300/D-301/D-302). Two rules that had to change together. `topic_availability`
   asked for `QUESTIONS_PER_DIFFICULTY` at *every* tier 1-5, so one thin tier closed a whole

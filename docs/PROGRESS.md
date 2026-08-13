@@ -9386,6 +9386,64 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
 
 ## Session log
 
+### Session C1 — close-out (2026-08-13, D-307 → D-313)
+
+**Verification at close:** ruff clean, pyright **0 errors**, pytest **1501 passed / 2 skipped / 1
+xfailed** (from 1440), local **e2e 70/70**, **staging e2e 63 / 1**, 958 items re-gated with **0**
+failures. Four PRs merged (#247 `14085ca`, #248 `4c5b7e8`, #249 `72e7c04`, #250 `ae41b7f`), CI
+green on all nine checks each — **read, not assumed**, which is D-307's rule and the correction of
+how the previous session closed. Two staging deploys, both verified against the deployed build
+rather than the workflow's report. **$7.02** spent across nine paid runs, each behind a green
+preflight and an explicit `--run-budget-cents`.
+
+**What this half of C1 actually settled.** Coverage is complete and depth is not, and the reason
+the two separated is worth keeping: three authorable skills held **zero** items, and no wave table
+had ever shown it because each counted only its own skills. All three are closed (D-308 the
+canonical-form tie-break, D-309 a self-contradicting skill structure, D-312 a design gate weaker
+than the one it claimed to duplicate). What remains — 189 items to bring every occupied cell to 5,
+and 15 spanning skills at one tier — is a **budget** question and a **taxonomy** question, not a
+blocked-content one.
+
+**The pattern, stated once because it is now the most reliable thing this project knows about
+itself.** Seven of this session's defects were *two parts of the system demanding incompatible
+things, with the failure charged to the model*: the gate demanding `x²` while the parser raised on
+it; the design prompt demanding a whole number while the skill said "an expression"; a value test
+refusing a skill that asks for a *form*; two authoring prompts forbidding each skill's most
+instructive distractor because the gate could not read it; a refusal message advising a numeric
+equation to a skill whose answer is a function; and a design gate whose own comment claimed it
+applied "the same predicate the item gate uses" while consulting a strictly weaker one. **That last
+was mine** — I wrote D-309's diagnosis and stopped one layer short of a reading I had added four
+decisions earlier. `docs/ARCHITECTURE.md` now carries it as an invariant with all six occurrences,
+because a comment asserting two things agree is a hypothesis.
+
+**And the method: read the stored output, not the tally.** D-312's fourth lever moved its counter
+by **one** and looked like another clause that does nothing (D-252's record) — the stored attempts
+showed it had worked *completely* and the failure had simply moved into the same counter's other
+bucket. Five of this session's findings came from reading rejected-candidate content that D-195
+stores for free; none came from reading code.
+
+**Corrections to my own work this half, kept because each would have shipped a false claim:** a
+`ps | grep` canary that matched its own command line and nearly absolved a real secret leak; "the
+refresh test fails consistently after the ladder walk" (it passes in the full suite — a two-test
+invocation is not the suite); "the deploy needs the backfill against staging RDS", written twice
+and false, which would have had someone hand-mutate a production-shaped database; and a memory of
+mine claiming repo Python could not use the `jeongsik-staging-admin` profile at all.
+
+**Carry-over:**
+- **⚠️ Two staging `/dev/token` secrets exposed and deliberately NOT rotated** (D-310, user's
+  decision, reason recorded). The leak vector is fixed at the source.
+- `time-telemetry` on staging, and D-288's refresh defect — both open, both needing server-side
+  logs rather than another client-side guess.
+- 15 of 92 items with a context block repeat its opening sentence in the stem (cosmetic, no gate
+  check).
+- `question_variants` holds 338,778 `runtime` rows against 1,055 `canonical`; per-showing minting
+  is designed (D-189), but no retention policy exists.
+- Phase 4 (video catalog) blocked on a real `YOUTUBE_API_KEY`.
+- The generative tutor path's reading level (D-303) still needs paid generation to measure.
+
+**Decisions:** D-307 … D-313.
+
+
 ### Session C1, continued — the last skill, and the fix that lied about working (2026-08-13)
 
 - **Scope:** merge #249, then `calc_differential_equations`, which D-309 had recorded as blocked
