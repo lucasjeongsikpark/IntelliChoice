@@ -779,6 +779,32 @@ def route_answer(equation: str) -> tuple[DerivedAnswer | None, str | None]:
     return DerivedAnswer("symbolic", expression), None
 
 
+# D-312: the forms the router accepts, named once because **two** refusals become the retry's
+# instructions and both used to advise only the `value` model's shape.
+#
+# Measured on `calc_differential_equations`, which held 0 items with 9 of 10 candidates dying at
+# the design stage. The model wrote the three natural ways to express a differential equation and
+# each refusal pointed it back at a numeric equation:
+#
+#   'dy/dt = -0.05*y, with y(0) = 100'  -> "not a single equation - model the question as one
+#                                           relation with one unknown, e.g. Eq(3 + 7*m, 4 + 4*m)"
+#   'Eq(y, 50*exp(-0.1*t))'             -> "has 2 unknowns - write a system as Eq(...); Eq(...)"
+#
+# Both refusals are correct. Both advise a model whose answer is a **number**, to a skill whose
+# answer is a **function** - and the one form that works, the bare expression, appeared in
+# neither. D-274 and D-304 are this project installing a rule scoped to one answer model as
+# universal; this is the same mistake inside a rejection message, which is worse, because the
+# retry is built on it (D-283: a message that names the symptom without the remedy sends the next
+# attempt to the wrong lever - here the next attempt is a paid model call).
+_ROUTER_FORMS = (
+    "the accepted forms are: one equation in one unknown when the answer is a NUMBER "
+    "('Eq(3 + 7*m, 4 + 4*m)'); an inequality when it is a threshold ('12 + 6*m >= 54'); two "
+    "equations separated by ';' when it is a pair ('Eq(x + y, 10); Eq(x - y, 2)'); and a BARE "
+    "EXPRESSION - no 'Eq(...)', no 'y =' - when the answer IS an expression ('3*exp(2*t)' for a "
+    "function, '(x - 3)*(x + 3)' for a factorisation, '5*sqrt(2)' for a surd)"
+)
+
+
 def _route_equation(equation: str, normalized: str) -> tuple[DerivedAnswer | None, str | None]:
     """`Eq(...)` or `lhs = rhs`: one unknown, one or more roots."""
     try:
@@ -788,8 +814,7 @@ def _route_equation(equation: str, normalized: str) -> tuple[DerivedAnswer | Non
             sides = _RELATION_SPLIT_RE.split(normalized)
             if len(sides) != 2:
                 return None, (
-                    f"equation {equation!r} is not a single equation - model the question "
-                    f"as one relation with one unknown, e.g. 'Eq(3 + 7*m, 4 + 4*m)'"
+                    f"equation {equation!r} is not a single equation - {_ROUTER_FORMS}"
                 )
             relation = sympy.Eq(_parse_side(sides[0]), _parse_side(sides[1]))
     except _PARSE_ERRORS:
@@ -828,7 +853,7 @@ def _route_equation(equation: str, normalized: str) -> tuple[DerivedAnswer | Non
     if len(unknowns) != 1:
         return None, (
             f"equation {equation!r} has {len(unknowns)} unknowns, expected exactly one - "
-            f"write a system as 'Eq(...); Eq(...)' if that is what the question asks"
+            f"{_ROUTER_FORMS}"
         )
     try:
         solutions = sympy.solve(relation, unknowns[0])

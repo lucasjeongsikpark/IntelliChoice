@@ -1138,7 +1138,24 @@ def validate_equation_design(
     # The same predicate the item gate uses, rather than a second comparison that would drift
     # from it (D-223). It reads `'3 or -3'` as a root set and `'(6, 4)'` as a tuple, which a
     # bare `_sympify` cannot.
-    if not _option_matches(derivation, design.final_answer):
+    # **D-312: the second reading belongs here too, and leaving it out cost a whole skill.**
+    # D-297/D-298/D-309 taught the *item* gate to read the notation D-288 requires of
+    # student-facing text (`x²`, `7√2`, `3e^(4t)`) - and this call, which claims to be "the same
+    # predicate the item gate uses", was left consulting the first reading only. Measured the
+    # moment D-312's refusal fix got the model writing the right equation form:
+    #
+    #   equation '2*exp(3*t)' rejected: derives the symbolic answer 2*exp(3*t), but
+    #   final_answer says '2e^(3t)' - they must state the same thing
+    #
+    # Both state the same thing. `2e^(3t)` is what D-288 *requires* the answer be written as, so
+    # the design stage refused every correct exponential design in `calc_differential_equations`
+    # - 8 of 10 candidates, after three other levers had each moved the failure one layer
+    # deeper. Same ordering rule as `matching_options`: the first reading wins outright, and the
+    # student reading is consulted only when it matched nothing, so this can turn a rejection
+    # into a pass and never one pass into a different one (D-281).
+    if not _option_matches(derivation, design.final_answer) and not _option_matches(
+        derivation, design.final_answer, student_notation=True
+    ):
         return [
             f"equation derives the {derivation.model} answer {derivation.payload}, but "
             f"final_answer says {design.final_answer!r} - they must state the same thing"

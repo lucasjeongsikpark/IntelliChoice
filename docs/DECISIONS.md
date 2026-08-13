@@ -22265,3 +22265,58 @@ one is the suite anybody runs:
 So nothing here is evidence about D-288's refresh defect either way, and I am not adding a fifth
 client-side guess to a symptom that already has three fixes and four killed explanations. What is
 worth carrying: **a two-test invocation is not the suite**, and I reported one as though it were.
+
+### D-312 — The last unstocked skill: four levers, and the fourth one only worked because of the fifth
+
+**Date:** 2026-08-13 · **Session:** C1 · **Status:** stocked — **99 of 99** authorable skills, 51¢
+
+D-309 recorded `calc_differential_equations` as **blocked** after three levers each produced 0
+items, and named what it needed: an answer-model-aware design refusal. That turned out to be
+right *and insufficient*, and the sequence is the whole value of this entry.
+
+| lever | design failures | accepted |
+|---|---|---|
+| baseline (D-309) | 9 of 10 | 0 |
+| `structure` rewritten to demand a bare expression | 9 of 10 — **unchanged** | 0 |
+| design stage disabled (`--design-attempts 0`) | n/a | 0, and the generator wrote *arithmetic* |
+| **the router's refusal names every accepted form** | 8 of 10 | **0** |
+| **+ the design gate reads student notation** | **0 of 10** | **6 of 10 (60%)** |
+
+**Lever 4, and why its headline number lied.** Two of the router's refusals become the design
+stage's retry instructions, and both advised only the `value` model's shape — `Eq(3 + 7*m, 4 +
+4*m)` to a skill whose answer is a function. Fixing that moved the design-failure count by
+**one**, which read like another clause that does nothing (D-252's record). Reading the stored
+attempts said otherwise: **the model immediately started writing `2*exp(3*t)`**, exactly the form
+the new refusal advised. The lever worked completely; the metric hid it because the failure moved
+one layer deeper in the same stage.
+
+**Lever 5, found only by reading the attempts rather than the tally:**
+
+    equation '2*exp(3*t)' rejected: derives the symbolic answer 2*exp(3*t),
+    but final_answer says '2e^(3t)' - they must state the same thing
+
+Both state the same thing. `2e^(3t)` is what D-288 **requires** student-facing text to be, and
+`validate_equation_design` — whose own comment calls itself "the same predicate the item gate
+uses" — consulted only the first reading. D-297, D-298 and D-309 each taught the *item* gate a
+notation the generator was being told to use; none of them reached the *design* gate. So the
+design stage refused every correct exponential design in the skill. One `student_notation=True`
+fallback, ordered the same way `matching_options` orders it (first reading wins outright), and the
+skill went from 0 to 6.
+
+**Sixth occurrence of one shape, and this time it was mine.** "Two parts of the system demanding
+incompatible things, with the failure charged to the model" — D-288 asking for `x²` while the
+parser raised on it, the design prompt demanding a whole number while the skill said "an
+expression", D-207's guard asking "is the catalog empty" when the question was "does this skill
+have one", and now a gate that says it duplicates another gate's predicate while consulting a
+strictly weaker version of it. D-309 wrote the diagnosis for this skill and stopped one layer
+short; the layer it stopped at was a reading *I* had added four decisions earlier.
+
+**What the six items are, checked rather than assumed.** All six are genuine
+solve-the-differential-equation items (`dP/dt = 3P` with `P(0) = 5` → `5e^(3t)`), in student
+notation, with instructive distractors — `9 + 2t` for reading exponential growth as linear,
+`2e^(9t)` for swapping the coefficient and the rate. **All six landed at tier 5 and none at tier
+4**, because the judge rated every one a 5; the skill declares `[4, 5]`, so "stocked" holds and
+"multi-tier where the skill spans" does not.
+
+**Coverage: 99 of 99 authorable skills stocked**, bank 952 → 958. The Phase 1 clause that four
+wave tables had each reported as met — "every skill stocked ≥1" — is now true for the first time.
