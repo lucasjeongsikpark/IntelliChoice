@@ -7,9 +7,34 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Session C1, continued — 2026-08-12, D-294/D-295. Two carry-over defects closed, and the
-rubric question re-ordered rather than answered. No money spent. 1414 passing** (from 1410;
-lint and pyright clean throughout).
+**Session C1 remains ⏸ partial. Closed 2026-08-13 at D-306, on branch
+`c1-tier-labels-and-notation-gate` / PR #247 (six commits, not merged). Bank 936, 33 of 33
+topics openable, pytest 1440 + e2e 70/70, $4.50 spent.**
+
+**What the next session should pick up, in order:**
+
+1. **Merge or review PR #247.** Six commits, 55 files. It contains a **product behaviour change**
+   (exam composition and topic availability) and a **data migration** applied only to the dev
+   database — staging still runs the old build against its own bank. Nothing here has been
+   deployed, and doing so needs the migration plus `scripts/backfill_flagged_to_judged_tier.py`
+   run against staging RDS, then a bank load.
+2. **The canonical-form check (A4), the one open lever on depth.** Depth is **82 of 152 occupied
+   cells** at D-223's 5-per-tier target, and the blocker is now named rather than guessed: the
+   equal-valued-distractor class, 64 rejections, concentrated in the canonical-form skills.
+   D-306 measured the repair path against it at two budgets and it **does not converge**. A
+   deterministic `gcd == 1` / simplest-form test is sized at **16 of 44** recoverable on record
+   and **12 of the 32** repair could not fix. Requires both-directions measurement before it
+   ships, because it relaxes duplicate detection.
+3. **Phase 4 (video catalog) is blocked on a credential, not on work.** The catalog holds **4
+   videos covering 4 of 112 skills and 1 of 33 topics**; closing it needs a real
+   `YOUTUBE_API_KEY` plus quota budgeting. Its cost bug is already fixed (D-305).
+4. **The generative tutor path's reading level** — no readability check and `tutor_chat_messages`
+   holds 0 rows, so measuring it means paying to generate a fresh sample (D-303).
+5. **D-288's staging refresh defect** is still open and needs server-side logs.
+
+**Superseded status text below, kept for its measurements.** Session C1, continued — 2026-08-12,
+D-294/D-295. Two carry-over defects closed, and the rubric question re-ordered rather than
+answered. No money spent. 1414 passing (from 1410; lint and pyright clean throughout).
 
 **The 31% spend gap is diagnosed, fixed and reproducible (D-294).** It was the
 equation-design call: `generate_authored_candidate` makes it once per slot *before* the
@@ -628,6 +653,59 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — the label was never the judge's, and three rulers of mine were wrong (2026-08-12/13, D-294 → D-306)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1440 passed**, 2 skipped, 1 xfailed
+(+30 on the 1410 baseline) · **local e2e 70/70** including all four `journey-bands` walks ·
+migration `d4b81f6c2e70` round-tripped down and up · bank **936 items** across 33 topics.
+**$4.50** across seven paid runs, each behind a green preflight and an explicit
+`--run-budget-cents`: $1.70 the one-large-run experiment, $1.26 the symbolic re-run, $0.46 the
+design-prompt verification, $0.98 the two repair runs, $0.20 two judge probes.
+**Deliberately not run against staging** — it serves the deployed build against its own RDS bank,
+so a staging run would have verified the *previous* state while looking like it verified this one.
+
+**The finding the session turned on.** A bank item's difficulty label was **not** the judge's
+rating. A ±1 disagreement is `flagged`, and flagged kept the **slot's** tier — so 327 of 759
+serving items carried the plan's intent over a *recorded* judge disagreement. Scored against its
+own first rating the judge agrees **62% exact / 88% within one**, against **19% / 69%** versus the
+stored tier. D-292 and D-296 had both reasoned from the unchecked premise; checking it cost one
+free query against evidence stored since D-194. On that evidence the user decided: follow the
+judge, accept an uneven and biased tier distribution, fill the question count — and **33 of 33
+topics now open**, because the 11-item shortfall was an artefact of the per-tier rule.
+
+**Built:** the spend-accounting fix (D-294, the design call reached `RunSummary` and no row —
+32% understated) and `session_scope` committing on a clean exit, measured safe at 0 of 66 call
+sites; `pipeline_run_id` so per-run analysis stops being a timestamp reconstruction (D-295); two
+notation readings behind the D-281 seam for `x²` and `7√2`, which D-288 *demands* and the gate
+could not parse (D-297/D-298); a fail-closed guard where a `KeyError` had killed a paid run at
+candidate 25 of 42 (D-299); `EXAM_QUESTION_COUNT` replacing "two at every difficulty", with the
+builder topping up and 330 items re-tiered to the judge's reading (D-302); a corrected sentence
+splitter after the readability ceiling turned out evadable by decimals (D-303); the design
+prompt scoped to the answer model it was contradicting (D-304); the video cost guard scoped by
+skill (D-305).
+
+**Measured and deliberately NOT acted on:** the difficulty rubric needs no re-anchoring (D-300);
+the hint-leak class stays as it is (B1, D-306); the canonical-form check is sized at 16 of 44
+recoverable but was not among the options chosen (D-306).
+
+**Corrections to my own work, kept because a correction that only runs in the flattering
+direction is not one.** Seven: a tier-5-anchor hypothesis killed for free; the bank's 109
+tier-mismatched items read as a rule violation when re-tiering ≥2 tiers is designed behaviour;
+a tier-homogeneity explanation of the guard measured and killed; "missing `cancel`" when the
+option never parsed at all; a radical fix that only inserted `*` because `sympify('√2')` prints
+like a number and is a **Symbol**; **three** wrong sentence splitters in one measurement, each
+caught by following up an implausible number instead of reporting it; and reading monotone
+convergence into three points of one repair slot when the deeper run showed oscillation. Plus
+two process errors: two concurrent `make test` runs on the shared dev Postgres faking a failure,
+and `git checkout --` discarding uncommitted work while undoing a throwaway edit.
+
+**The pattern worth carrying forward.** Five of this session's eight defects were **two parts of
+the system demanding incompatible things, with the failure charged to the model**: D-288 asks for
+`x²` and the parser raises on it; the design prompt demands "one unknown, a positive whole number"
+while the skill structure says "an expression, not a number"; D-207's cost guard asks "is the
+catalog empty" when the question is "does this skill have one". In each case both halves were
+already in the repo and the emphatic one won.
 
 ### Session log — the ruler, not the shelf (2026-08-12, D-289 → D-293)
 

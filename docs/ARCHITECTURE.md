@@ -47,6 +47,33 @@ to rot, because nothing fails when it does.)*
 
 ## Cross-cutting invariants the diagrams encode
 
+- **A topic is offered when it can fill one exam, and its difficulty labels are the judge's
+  reading** (D-300/D-301/D-302). Two rules that had to change together. `topic_availability`
+  asked for `QUESTIONS_PER_DIFFICULTY` at *every* tier 1-5, so one thin tier closed a whole
+  topic; and a ±1 disagreement between the difficulty judge and the slot was `flagged`, which
+  kept the **slot's** tier — so 327 of 759 serving items carried the plan's intent over a
+  recorded judge disagreement, and re-judging them looked like an instrument that could not
+  reproduce its own labels (19% exact) when it was being scored against a label it never
+  assigned (62% against its own). Storing the judge's tier alone moves 214 items down against
+  116 up and empties the top tiers: openable topics would have gone 26 → 12. Under
+  `EXAM_QUESTION_COUNT` (= 2 × 5 = 10, so exam length is unchanged) it is **33 → 33**. The
+  builder draws up to two per tier exactly as before and then tops up from tiers with surplus,
+  so a topic holding two everywhere produces a byte-identical seeded exam. **The cost is real
+  and is the point:** a topic with little tier-5 content now serves an easier exam, so exam
+  difficulty varies by *topic* and not only by student — `g2_word_problems` draws 7 of 10 items
+  at tier 1. The threshold is imported from the builder rather than restated, because an
+  available topic the builder refuses is the 503 that rule exists to prevent, and
+  `test_every_topic_the_picker_calls_available_can_actually_build_an_exam` drives all 33 through
+  both.
+- **`session_scope` is a unit of work: it commits on a clean exit and rolls back on an
+  exception** (D-284 addendum, fixed in D-294). It used to do neither — yield a session, close
+  it — so a caller that wrote without committing got a **no-op that reported success**:
+  `set_active_status` flushes, so a one-off script printed `activated 26, retired 3` and rolled
+  all of it back on the way out, and it was caught only because the export that followed produced
+  an empty diff. Measured before changing it: **0 of 66** `session_scope` blocks in the repo write
+  without an explicit commit, so the change alters nothing that exists and protects the *ad-hoc*
+  script, which is where the bug bit. It also matches the convention the request path already
+  sets — `get_db_session` in both apps commits after its yield.
 - **Authored content is served from the bank, not regenerated** (D-207). An authored template's
   `canonical_solution` was verified by the offline pipeline (SymPy re-solve + answer-key agreement)
   and written to `question_templates.canonical_solution` by the loader; the serving path reads it
