@@ -12,10 +12,20 @@ checks). Work continued past it to D-309 on branch `c1-the-last-two-unstocked-sk
 936 → 952, **98 of 99 authorable skills stocked** (was 96), 33 of 33 topics openable, pytest
 1440 → 1495, local e2e 70/70, **$6.51 spent in total**.**
 
-**Nothing is deployed.** Staging still runs the pre-#247 build against its own bank. Deploying
-needs migration `d4b81f6c2e70` plus `scripts/backfill_flagged_to_judged_tier.py` against
-staging RDS, then a bank load, then `gh workflow run deploy-staging.yml --ref main` (the push
-trigger is deliberately commented out, so merging deployed nothing).
+**Deploying is `gh workflow run deploy-staging.yml --ref main` and nothing else — and this
+corrects an instruction I wrote twice in this file.** It said the deploy also needed
+`scripts/backfill_flagged_to_judged_tier.py` run against staging RDS. It does not.
+`difficulty_label` is a **file-owned** field (`_file_owned_template_fields`), the loader
+re-gates and updates in place any item whose file content drifted (D-235), and the bank YAML in
+the repo *is* the post-backfill export — measured: **0 of 952** items disagree between the file
+and the dev database. So the workflow's own "Load the curriculum and approved question bank"
+step performs the re-tier on staging. The backfill script was the tool that produced the
+corrected dev state *before* the export, not a deploy step.
+
+The workflow also runs `alembic upgrade head` itself, so migration `d4b81f6c2e70` needs no
+manual step either. The `push` trigger is deliberately commented out, so **merging deploys
+nothing** — the deploy is a manual `workflow_dispatch` by design, and its own comment says to
+verify by pinning the run id, never by "the latest run is green".
 
 **What the next session should pick up, in order:**
 
