@@ -10,6 +10,74 @@ import { expect, type Locator, type Page } from "@playwright/test";
 
 export const PHASE_CHIP = ".phase-chip";
 
+/** The stage-narrative modal. `aria-modal`, and only an explicit Continue closes it. */
+export const NARRATIVE_OVERLAY = ".narrative-overlay";
+
+/**
+ * Whether the server's last graded answer opened a retry-ladder pause, per page.
+ *
+ * **Why the harness needs to be told rather than to look** (D-324). `clearInterventionIfPresent`
+ * used to race the pause against `.option-text` on the theory that "whichever screen materialises
+ * first ends the wait", so a question with no pause would cost nothing. The breadcrumb added in the
+ * same session measured what that race actually does: **16 calls, every one resolved in 2-4 ms, with
+ * `options=4` present in all 16.** The options of the question just answered are still mounted when
+ * the function is called, so the `.or(options)` branch is satisfied immediately and the wait has no
+ * capacity to wait. Twelve of the sixteen returned false in ~3 ms; the four that worked a pause were
+ * the ones where the pause had *already* arrived. D-288's fix was never waiting for anything.
+ *
+ * A fixed timeout instead would make every correct answer pay it, which is the cost D-288 was right
+ * to avoid. The way out is that the server already says: `POST /answers` carries
+ * `pending_interrupt.interrupt_type`, which D-318 was built to read. Recording it here turns "guess
+ * from the DOM whether a pause is coming" into "wait only when one is known to be coming, and skip
+ * instantly otherwise" - no race, and no timeout on the common path.
+ *
+ * A `WeakMap` keyed by `Page` so parallel workers and `journey-bands`' four sequential walks cannot
+ * read each other's state, and so nothing is retained after a page closes.
+ */
+const pauseOpenedByLastAnswer = new WeakMap<Page, boolean>();
+const answersListenerInstalled = new WeakSet<Page>();
+
+/** Idempotent: `answerCurrentQuestion` calls this, so every caller gets it without opting in. */
+function trackLadderPauses(page: Page): void {
+  if (answersListenerInstalled.has(page)) return;
+  answersListenerInstalled.add(page);
+  page.on("response", async (response) => {
+    if (response.request().method() !== "POST" || !response.url().endsWith("/answers")) return;
+    if (response.status() >= 300) return;
+    try {
+      const body = (await response.json()) as {
+        pending_interrupt?: { interrupt_type?: string };
+      };
+      pauseOpenedByLastAnswer.set(
+        page,
+        body.pending_interrupt?.interrupt_type === "intervention_choice",
+      );
+    } catch {
+      // A body that is not JSON says nothing either way; leave the previous value alone.
+    }
+  });
+}
+
+/**
+ * Closes a stage-narrative modal **only when one is actually covering the page**.
+ *
+ * Deliberately not `dismissNarrativeIfPresent`, for two reasons. It clicks with a raw
+ * `click()` rather than `stableClick`, because `stableClick` calls *this* on failure and the
+ * pair would recurse without bound. And it is gated on the overlay being present rather than
+ * on a `^continue$` button existing anywhere, so it cannot consume a Continue that belongs
+ * to some other screen.
+ */
+async function dismissBlockingNarrative(page: Page): Promise<boolean> {
+  if ((await page.locator(NARRATIVE_OVERLAY).count()) === 0) return false;
+  const button = page.getByRole("button", { name: /^continue$/i });
+  if ((await button.count()) === 0) return false;
+  return button
+    .first()
+    .click({ timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+}
+
 /**
  * Clicks through the learning app's re-render churn.
  *
@@ -33,29 +101,6 @@ export const PHASE_CHIP = ".phase-chip";
  * swap screens, and a retry that is no longer needed costs one extra locator call while a
  * missing one costs a flaky primary journey.
  */
-/** The stage-narrative modal. `aria-modal`, and only an explicit Continue closes it. */
-export const NARRATIVE_OVERLAY = ".narrative-overlay";
-
-/**
- * Closes a stage-narrative modal **only when one is actually covering the page**.
- *
- * Deliberately not `dismissNarrativeIfPresent`, for two reasons. It clicks with a raw
- * `click()` rather than `stableClick`, because `stableClick` calls *this* on failure and the
- * pair would recurse without bound. And it is gated on the overlay being present rather than
- * on a `^continue$` button existing anywhere, so it cannot consume a Continue that belongs
- * to some other screen.
- */
-async function dismissBlockingNarrative(page: Page): Promise<boolean> {
-  if ((await page.locator(NARRATIVE_OVERLAY).count()) === 0) return false;
-  const button = page.getByRole("button", { name: /^continue$/i });
-  if ((await button.count()) === 0) return false;
-  return button
-    .first()
-    .click({ timeout: 5000 })
-    .then(() => true)
-    .catch(() => false);
-}
-
 export async function stableClick(target: Locator, attempts = 4): Promise<boolean> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
@@ -174,6 +219,7 @@ export async function answerCurrentQuestion(
   // Retried for the same reason `chooseTopic` is: a stage narrative arriving over SSE
   // replaces the exam screen mid-interaction, including between selecting an option and
   // clicking Submit (AUD-F-05). Every journey would otherwise carry that flake.
+  trackLadderPauses(page);
   for (let attempt = 0; attempt < 3; attempt += 1) {
     await dismissNarrativeIfPresent(page);
     // AUD-F-27: wait out an in-flight submission before concluding there is nothing to
@@ -334,12 +380,35 @@ export async function clearInterventionIfPresent(
   // ends the wait.
   const options = page.locator(".option-text");
   const startedAt = Date.now();
-  await firstPause
-    .or(content)
-    .or(options)
-    .first()
-    .waitFor({ state: "visible", timeout: 15_000 })
-    .catch(() => undefined);
+
+  // **Wait only when the server said a pause is coming (D-324).** `pauseOpenedByLastAnswer`'s
+  // docstring has the measurement that retired the old `.or(options)` race: it resolved in 2-4 ms
+  // every time because the answered question's options are still mounted, so this never waited for
+  // anything and caught the pause only when it had already arrived. `undefined` means no graded
+  // answer has been seen on this page yet - fall back to the bounded wait rather than assume, since
+  // "not observed" and "no pause" are different claims.
+  const expectPause = pauseOpenedByLastAnswer.get(page);
+  if (expectPause === false) {
+    // A correct answer opens no pause, so there is nothing to wait for and the old race's one real
+    // virtue - costing nothing on this path - is kept.
+    if (note) note("ladder wait: skipped, server opened no pause on the last answer");
+    return false;
+  }
+  if (expectPause === undefined) {
+    // Nothing has been graded on this page yet - this is the first turn of a walk's loop, before
+    // any answer - so no *answer-driven* pause can possibly be in flight. Falling through to the
+    // count check rather than returning early, because a pause belonging to a **resumed** session
+    // arrives in the initial snapshot and is already on screen; what is not needed is a wait for
+    // something that cannot arrive. Measured on a local suite before this branch existed: three
+    // such calls burned the full 15s timeout each, 45s for zero pauses found.
+    if (note) note("ladder wait: no answer graded on this page yet, checking without waiting");
+  } else {
+    await firstPause
+      .or(content)
+      .first()
+      .waitFor({ state: "visible", timeout: 15_000 })
+      .catch(() => undefined);
+  }
   const waitedMs = Date.now() - startedAt;
 
   const pauseCount = await firstPause.count();
@@ -363,13 +432,13 @@ export async function clearInterventionIfPresent(
         .isVisible()
         .catch(() => false),
     ]);
+    // `optionsVisible` is still recorded, but it can no longer *win*: it is the evidence that
+    // the answered question's options remain mounted, which is what made the old race a no-op.
     const wonBy = pauseVisible
       ? "first-pause"
       : panelVisible
         ? "panel"
-        : optionsVisible
-          ? "OPTIONS"
-          : "nothing(timeout)";
+        : `TIMED OUT after waiting (options still mounted: ${optionsVisible})`;
     note(
       `ladder wait: won by ${wonBy} after ${waitedMs}ms ` +
         `(pause=${pauseCount}, panel=${panelCount}, options=${await options.count()}) ` +
@@ -398,5 +467,14 @@ export async function clearInterventionIfPresent(
     .then(() => true)
     .catch(() => false);
   if (exitVisible) await stableClick((await tryAgain.count()) > 0 ? tryAgain : gotIt);
+
+  // **This pause is spent, so stop expecting it (D-324).** Found by the breadcrumb rather than by
+  // reading the code: the first version of this fix set the flag from `POST /answers` and never
+  // cleared it, so the caller's `continue` came straight back here with `expectPause` still true and
+  // waited the full 15s for a pause that had just been worked. Measured on a local suite: **3 such
+  // timeouts, 45s**, and they are exactly the 3 lines the breadcrumb reported as `TIMED OUT` while
+  // 7 real pauses were worked. The flag means "the last graded answer opened a pause that is still
+  // outstanding", and consuming it is what makes that true again.
+  pauseOpenedByLastAnswer.set(page, false);
   return true;
 }

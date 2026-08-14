@@ -23171,3 +23171,57 @@ Net: **39 declarations widened, 1 refused, 13 gates untouched**, residual mismat
 
 **C1's multi-tier clause, re-measured:** **83 of 96** spanning skills hold items at more than one
 tier; 13 remain single-tier. Previously recorded as 15 of 91.
+
+### D-324 addendum — the ladder wait never waited, and my replacement double-counted
+
+**Date:** 2026-08-14 · **Session:** U1, after the staging run · **Status:** item 2's clause now closed
+on a measured rate
+
+U1 shipped item 2 as an instrument on purpose and this file said the mechanism was still unproven.
+**The breadcrumb fired on its first staging run and named it, and the answer is not a subtle race.**
+
+**16 calls, every one resolved in 2–4 ms, with `options=4` present in all 16.** The options of the
+question just answered are still mounted when `clearInterventionIfPresent` runs, so the `.or(options)`
+branch of D-288's wait is satisfied immediately and the wait has no capacity to wait for anything. 12
+of the 16 returned false in ~3 ms; the 4 that worked a pause are the ones where the pause had
+*already* arrived on its own. D-288's comment — *"wait for the pause to ARRIVE, not merely test
+whether it has"* — described an intent the code did not implement.
+
+**So "1 in 12 staging walks" was never the rate of the defect.** It was the rate at which the defect
+reddened a walk. The underlying miss was happening on three quarters of the calls, and every prior
+session's yardstick was measuring the symptom's visibility rather than the fault.
+
+**The fix stops guessing from the DOM and uses the server's word.** `POST /answers` already carries
+`pending_interrupt.interrupt_type`, which D-318 was built to read; a page-scoped `WeakMap` records it,
+so the helper waits **only when a pause is known to be coming** and returns instantly otherwise. That
+keeps the one sound instinct in D-288's design — no fixed timeout on the common path — without
+depending on a race that a permanently-mounted locator always wins.
+
+#### The first version of that fix was wrong, and the same breadcrumb caught it
+
+It set the flag from the response and never cleared it. The caller works a pause, `continue`s, and
+arrives back with `expectPause` still true — so it waited the full 15 s for a pause it had just
+consumed. **3 timeouts, 45 s**, and worse than the waste: with the panel sometimes still on screen it
+counted the *same* pause again, reporting **7 pauses worked against the 3 the server had opened**. A
+harness that over-reports the thing it exists to verify is the D-318 failure shape exactly, one level
+in. Clearing the flag when the pause is spent fixed both.
+
+Also recorded: the `expectPause === undefined` branch is, in these walks, dead. The pre-exam is
+answered first and that installs the listener, so by the study loop the flag is always set. It is kept
+as a correctness guard for a page whose first graded answer has not happened yet — a resumed session's
+pause arrives in the initial snapshot and the count check still sees it — but it should not be
+described as load-bearing.
+
+#### The measured rate, which is what closes the clause
+
+| | before | after |
+|---|---|---|
+| staging suite | 61 / 4 / 7, then 65 / 7 / 0 | **65 / 7 / 0** |
+| pauses the server opened / the walk worked | 3 opened, **0 worked** on the failing walk (D-321) | **3 opened, 3 worked** |
+| waits that timed out | n/a — it never waited | **0** |
+| local suite wall clock | 6.2 min | **4.5 min** |
+
+**One caution against over-reading the two clean staging runs today.** They are not two runs of the
+same system: the second carries this harness change. C1's Phase 6 clause counts clean *whole* runs and
+the honest count for "this harness, on staging" is **one**. That is the same discipline as the D-317
+addendum, where a clause was marked ✅ off a single run and the next run disagreed.

@@ -117,12 +117,14 @@ pyright's `pythonVersion` and ruff's `target-version` stay 3.12. Since `requires
 already permits 3.14, **nothing errors** — staging would just run an interpreter that lint, typecheck
 and all 1514 tests never touched.
 
-**✅ U1 IS ALSO DONE (2026-08-14, D-324).** All five items closed: dates render the org's day with the
+**✅ U1 IS ALSO DONE (2026-08-14, D-324 + addendum).** All five items closed, item 2 on a measured
+post-fix rate after the breadcrumb overturned its premise — **D-288's ladder wait had never waited**,
+so "1 in 12" was the rate it reddened a walk, not the rate of the defect. Post-fix on staging: **3
+pauses opened, 3 worked, 0 timeouts.** The rest: dates render the org's day with the
 zone **served** rather than copied, `_accuracy_trend`'s UTC-day bucketing fixed (a values bug, not a
 label one), the date-axis formatter made index-free — which is what D-323 could not name — and the
 harness stopped treating `.phase-chip` as proof of interactivity. The ladder pause race is
-**instrumented and deliberately not fixed**, because D-311's refusal to add another guess stands and
-**1 in 12 is still the yardstick**.
+fixed on evidence rather than on a guess, which is what D-311 was holding out for.
 
 **Two of U1's items were different problems than the plan described, and a test found one of them.**
 Widening every `difficulty_tiers` to match the judge broke
@@ -9797,9 +9799,26 @@ retires the caveat D-323 recorded against my own test.
 click for 30 s, and `settleToInteractiveScreen` no longer returns while a modal is up. The modal is
 *expected product behaviour*; every locator the fixture called "interactive" renders behind it.
 
-**5. The ladder pause race is instrumented and deliberately not fixed** (D-311 still stands). The
-breadcrumb records which locator won the wait and the two `count()` reads that *are* the decision.
-Adds no waiting, so it cannot become the fix by accident. **1 in 12 remains the yardstick.**
+**5. The ladder pause race: the breadcrumb fired on its first staging run and the answer is not a
+subtle race.** **16 calls, every one resolved in 2–4 ms, `options=4` in all 16** — the answered
+question's options are still mounted, so `.or(options)` is satisfied instantly and D-288's *"wait for
+the pause to ARRIVE"* never waited at all. 12 of 16 returned false in ~3 ms; the 4 that worked a pause
+had it already on screen. **So "1 in 12" was the rate this reddened a walk, not the rate of the
+defect** — every prior yardstick measured the symptom's visibility.
+
+Fixed by using the server's word rather than racing the DOM: `POST /answers` carries
+`pending_interrupt`, so the helper waits only when a pause is known to be coming and skips instantly
+otherwise — keeping D-288's one sound instinct (no fixed timeout on the common path).
+
+**The first version of that fix was wrong and the same breadcrumb caught it.** It never cleared the
+flag, so after working a pause the caller's `continue` came back and waited the full 15 s for a pause
+already consumed — 3 timeouts, 45 s — and with the panel still on screen it counted the *same* pause
+again, reporting **7 worked against the 3 the server opened**. A harness over-reporting the thing it
+exists to verify is the D-318 shape one level in.
+
+**Post-fix, measured:** staging **65 / 7 / 0**, **3 pauses opened and 3 worked, 0 timeouts**; local
+suite 6.2 min → **4.5 min**. Both clean staging runs today are *not* two runs of the same system — the
+second carries this harness change — so the honest count for this harness on staging is **one**.
 
 **6. `difficulty_tiers`: the item's premise held for 2 of 40 skills, and a test said so.** Freshly
 measured, 232 items / 53 skills sit outside their declaration — but 13 of those skills declare

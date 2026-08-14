@@ -2223,15 +2223,21 @@ staging run, and a failure would not name its cause.
 **Done when:** D-322 recorded · 24 PRs merged with CI green · the two Python-base PRs left open with
 a comment saying why · `make lint typecheck test` green on the merged result.
 
-### Session U1 — The three small, fully specified fixes ✅ *(done 2026-08-14, D-324)*
+### Session U1 — The three small, fully specified fixes ✅ *(done 2026-08-14, D-324 + addendum)*
 
-**Outcome:** four items fixed, one left as an instrument on purpose, and two of the five turned out
-to be different problems than they were written as.
+**Outcome:** all five items closed. Two of them turned out to be different problems than they were
+written as, and a third — item 2 — turned out to be a *bigger* one: D-288's fix had never waited for
+anything, which no amount of rereading the code had established and one breadcrumb did.
+
+*Marked ✅ once before the staging run came back, then corrected to ⏸, then closed properly on a
+measured rate. Item 2's criterion reads "a recorded mechanism (not a theory) **and a measured post-fix
+rate**"; the first ✅ had only the first half. Recorded rather than quietly amended, because this is the
+same premature-✅ shape as C1's Phase 6 clause and the D-317 addendum.*
 
 | item | outcome |
 |---|---|
 | 1. CDT dates | done, and the zone is **served** (`org_time_zone`) rather than copied into the client — plus a correctness bug found alongside: `_accuracy_trend` bucketed on the **UTC** day, so evening work was counted against the next morning |
-| 2. ladder pause race | **instrument only**, per D-311. Breadcrumb records which locator won the wait; 1 in 12 remains the yardstick |
+| 2. ladder pause race | ✅ **mechanism recorded *and* post-fix rate measured.** The breadcrumb fired on its first staging run and overturned the framing: **16 calls, every one resolved in 2–4 ms, `options=4` in all 16** — `.or(options)` is satisfied instantly by the still-mounted options of the question just answered, so D-288's "wait for the pause to ARRIVE" never waited. 12 of 16 returned false in ~3 ms; the 4 successes are cases where the pause was *already* on screen. **"1 in 12" was the rate this reddened a walk, not the rate of the defect.** Fixed by using the server's word (`pending_interrupt` off `POST /answers`) instead of racing the DOM. **Post-fix on staging: 65 / 7 / 0, 3 pauses opened and 3 worked, 0 timeouts.** The first version of the fix double-counted (7 worked against 3 opened) and the same breadcrumb caught that too — see the D-324 addendum |
 | 3. `difficulty_tiers` | 39 widened, **1 refused** (`linear_both_sides` — the ±1 invariant test caught it), 13 empty declarations left as the generation gate. **C1's multi-tier clause re-measured: 83 of 96** spanning skills hold items at more than one tier (was 15 of 91 single-tier; now 13) |
 | 4. date axis repeating | fixed by making the formatter **index-free**; the old fix's index dependency *was* the mechanism D-323 could not name |
 | 5. `.phase-chip` race | `stableClick` now closes a blocking modal instead of retrying a doomed click; `settleToInteractiveScreen` no longer returns while an overlay is up |
