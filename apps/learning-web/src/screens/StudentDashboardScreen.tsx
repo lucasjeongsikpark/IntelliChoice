@@ -49,8 +49,35 @@ function formatPercent(value: unknown): string {
   return `${Math.round(Number(value) * 100)}%`;
 }
 
-function formatDateLabel(value: unknown): string {
-  return typeof value === "string" ? new Date(value).toLocaleDateString() : "";
+/**
+ * The zone to display in when the server did not say (an older server, mid-deploy).
+ *
+ * `UTC`, matching `DashboardResponse.org_time_zone`'s own Pydantic default, and
+ * deliberately **not** `America/Chicago`: a second copy of the org's zone in the client is
+ * exactly the skew that serving the field removes, and it would go stale silently the day
+ * `ORG_TIMEZONE` is confirmed to something else. UTC is an honest "not told".
+ */
+const UNKNOWN_TIME_ZONE = "UTC";
+
+/**
+ * Formats a UTC instant as the **organization's** calendar day (D-324).
+ *
+ * Every date on this screen came from `toLocaleDateString()` with no arguments, which reads
+ * two things off the *viewer's* machine: the zone and the locale. Both were wrong to depend
+ * on. A parent opening the same dashboard from another country saw the org's days shifted,
+ * and any attempt after ~7pm Central - already tomorrow in UTC - could be drawn on a day
+ * the student did not work. The zone is now served (`org_time_zone`, resolved from
+ * `ORG_TIMEZONE` by `intellichoice_shared.org_time`), so client and server cannot disagree
+ * about which day a number belongs to.
+ *
+ * The locale is pinned to `en-US` for the same reason rather than left to the browser: the
+ * organization reads `M/D/YYYY`, and an axis that silently switches to `D/M/YYYY` for some
+ * readers is a different label for the same day. It also makes the rendered form assertable
+ * - `dashboard-chart-labels.spec.ts` matches on `\d{1,2}/\d{1,2}/\d{4}`.
+ */
+function buildDateLabelFormatter(timeZone: string): (value: unknown) => string {
+  return (value) =>
+    typeof value === "string" ? new Date(value).toLocaleDateString("en-US", { timeZone }) : "";
 }
 
 // Skill names are curriculum-authored free text with no length cap - truncating to a
@@ -163,26 +190,46 @@ export function buildSkillLabelFormatter(names: string[]): (value: unknown) => s
 }
 
 /**
- * A date tick that is printed **only when it changes**.
+ * A date tick printed **once per distinct day**, guaranteed, whatever recharts passes.
  *
  * `difficulty_progression` and `gains_over_time` are per-*attempt* series, so a student who
  * works one afternoon produces several points on one date — and every tick then read the same
  * thing. Measured in a browser 2026-08-13: the difficulty axis printed `8/13/2026` five
  * times, which tells a parent nothing and reads as a broken chart rather than as a dense one.
  *
- * Blanking the repeats keeps the axis honest (the points are still there, still in order) and
- * makes the one thing it can say — which day this run of points belongs to — legible.
+ * **The first version of this fix depended on the tick's `index` and that dependency is what
+ * broke (D-323 → D-324).** It blanked a repeat only when `labels[index]` matched the tick's
+ * own value, and otherwise fell back to printing — a fallback its own comment described as
+ * degrading "to always print rather than to silence". On the fixture data that condition
+ * always held, so local runs passed and the axis looked fixed. On staging it did not: the
+ * first staging execution of `dashboard-chart-labels.spec.ts` read ~70 labels off one date
+ * axis with `8/7/2026` appearing **fifteen** times. Which index recharts hands a tick on a
+ * dense category axis was never established, and this version no longer needs to know.
+ *
+ * **Index-free, and correct by construction instead.** Each *distinct label* is claimed by
+ * the first data value that produces it; every other value formats to `""`. So the axis can
+ * print at most one tick per day no matter how many points share it, how recharts indexes
+ * them, or what order it calls this in — the property `dashboard-chart-labels.spec.ts`
+ * actually asserts. Dates arrive sorted (`accuracy_trend` is `sorted(buckets)` server-side,
+ * the attempt series are in response order), so the claimed value is also the leftmost; were
+ * they ever unsorted the guarantee would still hold and only which tick carries the label
+ * would move, which is cosmetic rather than misleading.
  */
-export function buildDateTickFormatter(dates: unknown[]): (value: unknown, index: number) => string {
-  const labels = dates.map((date) => formatDateLabel(date));
-  return (value, index) => {
-    const label = formatDateLabel(value);
-    // Index-addressed when it lines up with the data, value-addressed otherwise, so a
-    // recharts version that skips ticks degrades to "always print" rather than to silence.
-    if (index > 0 && index < labels.length && labels[index] === label) {
-      return labels[index - 1] === label ? "" : label;
-    }
-    return label;
+export function buildDateTickFormatter(dates: unknown[], timeZone: string): (value: unknown) => string {
+  const format = buildDateLabelFormatter(timeZone);
+  // Raw values allowed to print, one per distinct rendered label.
+  const printable = new Set<string>();
+  const claimed = new Set<string>();
+  for (const date of dates) {
+    if (typeof date !== "string") continue;
+    const label = format(date);
+    if (label === "" || claimed.has(label)) continue;
+    claimed.add(label);
+    printable.add(date);
+  }
+  return (value) => {
+    if (typeof value !== "string") return "";
+    return printable.has(value) ? format(value) : "";
   };
 }
 
@@ -373,6 +420,11 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
     return splitByTarget(dashboard.mastery_by_skill, unresolvedCounts);
   }, [dashboard, history]);
 
+  // D-324: one place the zone is read, so no date on this screen can be formatted in the
+  // viewer's zone by accident. `formatOrgDate` is the only date formatter below.
+  const orgTimeZone = dashboard?.org_time_zone ?? UNKNOWN_TIME_ZONE;
+  const formatOrgDate = useMemo(() => buildDateLabelFormatter(orgTimeZone), [orgTimeZone]);
+
   // Independence as a share, not a count. "12 independent correct" is unreadable without
   // the denominator - 12 of 14 and 12 of 90 are different students.
   const independenceRate =
@@ -558,10 +610,13 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
                     dataKey="date"
                     stroke={colors.ink}
                     fontSize={12}
-                    tickFormatter={buildDateTickFormatter(dashboard.gains_over_time.map((p) => p.date))}
+                    tickFormatter={buildDateTickFormatter(
+                      dashboard.gains_over_time.map((p) => p.date),
+                      orgTimeZone,
+                    )}
                   />
                   <YAxis stroke={colors.ink} fontSize={12} />
-                  <Tooltip labelFormatter={formatDateLabel} />
+                  <Tooltip labelFormatter={formatOrgDate} />
                   <Legend />
                   <Line type="monotone" dataKey="raw_gain" name="Raw gain" stroke={colors.series1} strokeWidth={2} dot={{ r: 4 }} />
                   <Line type="monotone" dataKey="weighted_gain" name="Weighted gain" stroke={colors.series2} strokeWidth={2} dot={{ r: 4 }} />
@@ -614,10 +669,13 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
                     dataKey="date"
                     stroke={colors.ink}
                     fontSize={12}
-                    tickFormatter={buildDateTickFormatter(dashboard.difficulty_progression.map((p) => p.date))}
+                    tickFormatter={buildDateTickFormatter(
+                      dashboard.difficulty_progression.map((p) => p.date),
+                      orgTimeZone,
+                    )}
                   />
                   <YAxis stroke={colors.ink} fontSize={12} allowDecimals={false} />
-                  <Tooltip labelFormatter={formatDateLabel} formatter={formatDifficultyTooltip} />
+                  <Tooltip labelFormatter={formatOrgDate} formatter={formatDifficultyTooltip} />
                   <Line
                     type="stepAfter"
                     dataKey="difficulty"
@@ -673,7 +731,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
               <tbody>
                 {history.completed_sessions.map((s) => (
                   <tr key={s.learning_gain_id}>
-                    <td>{new Date(s.completed_at).toLocaleDateString()}</td>
+                    <td>{formatOrgDate(s.completed_at)}</td>
                     <td>{topicLabel(s.topic_id)}</td>
                     <td className="numeric">
                       {s.pre_raw_score} → {s.post_raw_score}
@@ -701,7 +759,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
             {groupBlockedSessions(history.blocked_sessions).map((b) => (
               <li key={b.key}>
                 Week {b.week_id} — {b.blocked_reason} (
-                {new Date(b.latest_blocked_at).toLocaleDateString()})
+                {formatOrgDate(b.latest_blocked_at)})
                 {b.attempts > 1 && <span className="dim"> · {b.attempts} attempts</span>}
               </li>
             ))}

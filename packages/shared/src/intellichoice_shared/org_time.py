@@ -101,6 +101,43 @@ class OrgTimeConfig:
         iso = self.local(instant).isocalendar()
         return f"{iso.year}-W{iso.week:02d}"
 
+    def display_time_zone(self) -> str:
+        """An IANA id a **browser** can pass to `Intl`/`toLocaleDateString`.
+
+        Exists so the frontend never holds its own copy of the zone. Before this, every
+        date on the student dashboard was formatted with `toLocaleDateString()` and no
+        `timeZone`, i.e. in *the viewer's* zone — so a parent reading the same chart from
+        another country saw the org's days shifted, and a late-evening session could show
+        on the wrong date entirely. The value is served from here (D-324), which keeps this
+        module's own rule intact: one variable, both apps, **no way to skew them**.
+
+        **Not simply `timezone_name`,** and that is the whole reason this is a method.
+        Under the legacy convention the effective zone is a fixed UTC−6 and
+        `timezone_name` is unused, so returning it would silently display DST-aware
+        Chicago time while every server-side calculation used the fixed offset — the two
+        conventions disagreeing by an hour for eight months of the year, which is the
+        exact bug `legacy_fixed_utc_minus_6` exists to reproduce faithfully.
+
+        The `Etc/GMT` sign is **inverted** by POSIX convention: `Etc/GMT+6` is UTC−6, not
+        UTC+6. Derived from `LEGACY_FIXED_OFFSET_HOURS` rather than written as a literal,
+        so the sign flip happens once, here, next to the comment explaining it.
+        """
+        if self.convention is OrgTimeConvention.LEGACY_FIXED_UTC_MINUS_6:
+            return f"Etc/GMT{-LEGACY_FIXED_OFFSET_HOURS:+d}"
+        return self.timezone_name
+
+    def local_date_key(self, instant: datetime) -> str:
+        """`YYYY-MM-DD` for the org's **local** calendar day, for bucketing by day.
+
+        Bucketing on `instant.date()` buckets on the *UTC* day, which is a different day
+        for every session that runs after 7pm Central. Measured on the dashboard's
+        accuracy trend: an attempt at 02:00 UTC is 21:00 the previous evening in Chicago,
+        so a student's Thursday-evening work landed in Friday's bucket and both days'
+        accuracy numbers were wrong (D-324). Any per-day aggregate a human reads has to
+        agree with the day that human was in.
+        """
+        return self.local(instant).date().isoformat()
+
     def describe(self) -> str:
         state = "confirmed with the org" if self.confirmed else "PROVISIONAL, unconfirmed"
         if self.convention is OrgTimeConvention.LEGACY_FIXED_UTC_MINUS_6:

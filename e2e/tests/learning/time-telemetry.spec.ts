@@ -28,7 +28,12 @@
 import { FIXTURES, LEARNING_WEB } from "../../config";
 import { expect, test } from "../../fixtures/capture";
 import { signInViaUi } from "../../fixtures/session";
-import { chooseTopic, settleToInteractiveScreen, startSession } from "../../fixtures/learning-flow";
+import {
+  chooseTopic,
+  settleToInteractiveScreen,
+  stableClick,
+  startSession,
+} from "../../fixtures/learning-flow";
 
 test.describe.configure({ timeout: 180_000 });
 
@@ -70,7 +75,17 @@ test("reported item time reflects how long the student actually spent", async ({
   await page.waitForTimeout(DWELL_MS);
   // Navigating away is what flushes the view-time for the item being left.
   const nav = page.locator(".question-nav button, .exam-nav button");
-  if ((await nav.count()) > 1) await nav.nth(1).click();
+  // `stableClick`, not a bare `click()`, because entering the pre-exam raises a stage
+  // narrative and that modal intercepts pointer events until an explicit Continue (D-324).
+  // A bare click retried into the dialog for its full 30s timeout and failed the test twice
+  // running on staging; `stableClick` closes a blocking overlay and retries.
+  if ((await nav.count()) > 1) {
+    expect(
+      await stableClick(nav.nth(1)),
+      "could not reach the exam navigator to leave question 1 - without that click no " +
+        "view-time flush happens and the measurement below would be of nothing",
+    ).toBe(true);
+  }
   await page.waitForTimeout(1000);
 
   const total = reported.reduce((sum, value) => sum + value, 0);

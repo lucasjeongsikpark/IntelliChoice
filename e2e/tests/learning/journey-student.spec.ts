@@ -117,7 +117,11 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
     if (phase && /post-exam/i.test(phase)) break;
     // A wrong answer pauses the graph on `intervention_choice`; the ladder must be
     // worked before the next question is reachable (SPEC §5.11.3).
-    if (await clearInterventionIfPresent(page)) {
+    // The second argument is U1's breadcrumb (D-324): it records which locator won the
+    // wait, so the next occurrence of the 1-in-12 miss names its mechanism instead of
+    // leaving it to inference. Pairs with the `pending_interrupt` listener above, which
+    // already knows independently whether the server opened a pause.
+    if (await clearInterventionIfPresent(page, (m) => audit.note(m))) {
       interventions += 1;
       continue;
     }

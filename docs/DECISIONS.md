@@ -23038,3 +23038,136 @@ mechanism is the formatter's own documented escape hatch: it blanks only when `l
 up with the tick's value and otherwise "degrades to always print". Staging's ~70-point axes reach a
 density local fixtures never do. **Symptom reproduced, mechanism not yet proven** — the same standard
 D-321 applied to the ladder race. Both go to U1, which already opens `formatDateLabel` for CDT.
+
+### D-324 — The org's day, and a premise that a test refused
+
+**Date:** 2026-08-14 · **Session:** U1 · **Status:** four items done, one deliberately left as an
+instrument, one narrowed on evidence
+
+U1's five items. Two of them turned out to be different problems than they were written as, and both
+corrections came from something checkable rather than from rereading the plan.
+
+#### 1. Dates now render the organization's day, and the zone is served rather than copied
+
+Every date on the student dashboard was formatted with a bare `toLocaleDateString()`, which reads
+**two** things off the viewer's machine: the zone and the locale. So a parent opening the same
+dashboard from another country saw the org's days shifted, and `M/D/YYYY` could silently become
+`D/M/YYYY`. D-322 §11 asked for CDT.
+
+The zone is now served — `DashboardResponse.org_time_zone`, from `resolve_org_time()`. The
+alternative was a `America/Chicago` constant in the client, which is what "just make it CDT" most
+directly means and is what this **did not** do: `org_time.py`'s own rule is *one variable, both apps,
+no way to skew them*, and a third copy in the frontend would silently keep Chicago the day
+`ORG_TIMEZONE` is confirmed to anything else. The precedent is already in the same response model —
+`mastery_window_label` is served for exactly this reason.
+
+Two details that are easy to get wrong and are therefore pinned by tests:
+
+- **`display_time_zone()` is a method, not the `timezone_name` field.** Under
+  `legacy_fixed_utc_minus_6` the effective zone is a fixed UTC−6 and `timezone_name` is unused, so
+  handing the browser `America/Chicago` would render DST-aware Central while every server-side
+  calculation used the fixed offset — the two disagreeing by an hour for the eight months Chicago is
+  on CDT, which is the display bug that convention exists to reproduce faithfully. Note the POSIX
+  sign inversion: `Etc/GMT+6` *is* UTC−6.
+- **The client's fallback is `UTC`, not Chicago.** A hard-coded zone in the client is the skew being
+  removed; UTC is an honest "not told" and is still viewer-independent, which is the actual defect.
+
+#### 2. A correctness bug found while looking at the formatting one
+
+`_accuracy_trend` bucketed attempts on `attempt.responded_at.date()` — the **UTC** day. 02:00 UTC is
+21:00 the previous evening in Central, so a student's evening work was counted against the next
+morning and *neither* day's accuracy described anything that happened. That is the number being
+wrong, not its label. Fixed to bucket on `org_time.local_date_key()`, and the emitted dates are now
+timezone-aware rather than naive midnight, because a naive datetime on the wire is re-read by
+`new Date(...)` as the *viewer's* local time.
+
+Three tests, and **two of them were confirmed to fail against the old implementation before being
+kept** (D-107 §1). The third is the control that would catch a "fix" that collapsed every day into
+one bucket, which a one-point assertion alone would have accepted.
+
+#### 3. D-323's date-axis symptom is explained, and the previous fix was the cause
+
+D-323 recorded the symptom (~70 labels on one axis, `8/7/2026` fifteen times) with the mechanism
+unproven. The mechanism was the fix itself: it blanked a repeat only when `labels[index]` addressed
+the tick's own value, and its own comment described the else-branch as degrading *"to always print
+rather than to silence"*. On fixture data the condition always held, so local runs passed; on
+staging's dense axes it did not, and the fallback printed everything.
+
+The replacement **needs no index at all**: each distinct label is claimed by the first data value
+that produces it and every other value formats to `""`, so the axis prints at most one tick per day
+regardless of how recharts indexes or orders its calls. That is the property the test asserts, so the
+assertion was strengthened to match — from "no two adjacent labels are equal" to "no label appears
+twice anywhere". That also retires the caveat D-323 recorded against my own test: comparing the
+*filtered* array could not distinguish "twice in a row" from "twice, separated by blanks", and the
+duplicate check does not care.
+
+#### 4. The harness stops treating `.phase-chip` as proof of interactivity
+
+`time-telemetry` failed twice running on staging because a `StageTransitionScreen` modal — *expected
+product behaviour*, closed only by an explicit Continue — was up when the test clicked the exam
+navigator. Playwright reported `narrative-overlay intercepts pointer events` and burned 30 s
+retrying a click that could never land.
+
+Two changes, both at the level where the mistake actually is:
+
+- `stableClick` now closes a blocking narrative between retries. Its loop already existed; it was
+  retrying a *doomed* click four times. Scoped to the overlay being present, and using a raw
+  `click()` rather than `stableClick`, because otherwise the dismissal and the click recurse.
+- `settleToInteractiveScreen` no longer returns while an overlay is up. Every locator it treats as
+  "interactive" — `.card-list`, `.phase-chip`, `.intervention-panel` — renders *behind* the modal.
+
+**This is the third time this harness has read `.phase-chip` and been wrong**; D-321's walk counted a
+whole post-exam as study work on the same signal. The chip reports a phase. It has never reported
+that anything can be clicked.
+
+#### 5. The ladder pause race is instrumented, and deliberately not fixed
+
+D-311's refusal to add another guess stands, so `clearInterventionIfPresent` gained a breadcrumb
+recording which locator won its wait, how long it took, and the two `count()` reads — which **are**
+the decision, so capturing them captures the reason it returned false. Paired with D-318's listener,
+which knows independently from `pending_interrupt` whether the server opened a pause, a failing run
+states both halves at once instead of leaving the join to inference.
+
+It adds no waiting on purpose. A version that waited to see whether the pause arrived late would slow
+every no-pause question *and* risk becoming the fix by accident, spending the failure it exists to
+explain. **1 in 12 staging walks remains the yardstick.**
+
+#### 6. `difficulty_tiers`: the item's premise held for 2 of 40 skills, and a test said so
+
+ROADMAP U1 said *"where the judge disagrees with the declaration, the honest fix is the
+declaration"*, over "106 items across 39 skills". Three things turned out to be true instead.
+
+**The figure was stale and had two populations in it.** Freshly measured: **232 items across 53
+skills** sit outside their skill's declaration. But 13 of those skills declare **nothing at all**, and
+an empty `difficulty_tiers` is not a disagreement — `content.py` calls it "not authorable yet" and
+`test_figures.py` is explicit that figure skills "carry no `difficulty_tiers` on purpose, so no paid
+run can schedule them - this is what stands in for a generation gate." Filling those in would delete
+the only thing stopping paid generation from scheduling hand-authored content. They were left alone.
+The remaining 40 skills / 109 items are what the old 39 / 106 was counting, grown by C1's new items.
+
+**Widening all 40 broke a test, and the test was right.**
+`test_the_plan_keeps_every_tier_inside_what_a_student_can_be_recommended` holds that a declaration
+must stay within **±1 of the skill's native tier**, because `recommended_difficulty` anchors on the
+student's modal assessed tier ±1 — *"content nothing can serve is worse than no content."*
+`linear_both_sides` (native 4) holds 2 items the judge rated 2, and planning there would author items
+the selector can never reach. That one is refused and the 2 items stand as a **content** finding
+rather than a declaration one.
+
+**And widening buys less than it appears to.** `difficulty_tiers` is read by **no serving code** —
+grep finds zero references in `apps/learning-api/src` or `packages/db/src`. It steers the generation
+planner and nothing else, so widening cannot make an existing item servable; it only says where
+future paid runs should author.
+
+**Where this went against my recommendation, and the user's call is recorded as theirs.** 38 of the
+40 skills have no native tier in `TOPIC_DIFFICULTY_SKILLS` at all, so their reachability cannot be
+computed and the ±1 guard does not cover them. I recommended leaving those and recording the finding,
+because widening schedules future Bedrock spend on cells nobody has checked students are routed to.
+The user chose to widen all 38. Done, with the consequence stated once: **the next generation batch
+treats those newly declared cells as authoring targets.** The guard covering only ~21 of 112 skills
+is the underlying gap, and extending `TOPIC_DIFFICULTY_SKILLS` to the whole taxonomy is the thing
+that would make this checkable rather than assumed.
+
+Net: **39 declarations widened, 1 refused, 13 gates untouched**, residual mismatch 1 skill / 2 items.
+
+**C1's multi-tier clause, re-measured:** **83 of 96** spanning skills hold items at more than one
+tier; 13 remain single-tier. Previously recorded as 15 of 91.

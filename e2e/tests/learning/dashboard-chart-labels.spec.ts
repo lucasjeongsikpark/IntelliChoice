@@ -9,6 +9,14 @@
  * logs anything, and both make the chart say something false to the one person the dashboard
  * exists for.
  *
+ * **It earned its keep on its first staging run, and against the date axis rather than the
+ * skill axis (D-323 → D-324).** Local fixtures never reach the density that breaks the date
+ * formatter; staging's ~70-point axes do. It read `8/7/2026` fifteen times off one axis,
+ * which killed the first version of the fix — one that blanked a repeat only when the tick's
+ * `index` happened to address the data array, and printed everything when it did not. The
+ * replacement claims each distinct label for exactly one value and needs no index at all.
+ * The paragraph below still applies to the *skill* axis, which remains forward-looking.
+ *
  * **This asserts the invariant, not the fix.** `buildSkillLabelFormatter`'s collision case
  * needs two skills whose names differ only in the middle, and the fixture students study
  * `linear_equations`, whose five skill names already separate. So on today's data this test
@@ -105,15 +113,24 @@ test("no chart axis renders two identical labels", async ({ page, audit }) => {
   }
 
   // A date axis may legitimately repeat a *value* (several attempts in one afternoon); what
-  // it must not do is print the same label twice in a row, which is what made it read as
-  // broken rather than dense.
+  // it must not do is print that day more than once.
+  //
+  // **This assertion was weaker and its failure message was wrong (D-323 → D-324).** It read
+  // `dates.some((t, i) => dates[i - 1] === t)` over the array *after* blanks were filtered
+  // out, so it could not distinguish "8/7 twice in a row" from "8/7, a blank, 8/7" - and it
+  // reported the former either way. It also only ever looked at adjacent pairs, which was
+  // the wrong invariant: `buildDateTickFormatter` now claims each distinct label for exactly
+  // one value, so **one printed tick per day** is the property, not "no two neighbours
+  // match". Checking for duplicates anywhere is both stronger and unambiguous, and needs no
+  // reasoning about what the blanks between them mean.
   for (const ticks of axes.x) {
     const dates = ticks.filter((t) => /\d{1,2}\/\d{1,2}\/\d{4}/.test(t));
-    const repeatedRun = dates.some((t, i) => i > 0 && dates[i - 1] === t);
+    const duplicates = [...new Set(dates.filter((t, i) => dates.indexOf(t) !== i))];
     expect(
-      repeatedRun,
-      `a date axis printed the same label twice in a row (${JSON.stringify(dates)}) - repeats ` +
-        "are meant to be blanked so the axis says which day a run of points belongs to",
-    ).toBe(false);
+      duplicates,
+      `a date axis printed ${JSON.stringify(duplicates)} more than once out of ` +
+        `${dates.length} labels - each day is meant to be printed exactly once, so the axis ` +
+        "says which day a run of points belongs to instead of repeating itself",
+    ).toEqual([]);
   }
 });

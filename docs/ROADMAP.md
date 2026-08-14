@@ -2223,7 +2223,26 @@ staging run, and a failure would not name its cause.
 **Done when:** D-322 recorded · 24 PRs merged with CI green · the two Python-base PRs left open with
 a comment saying why · `make lint typecheck test` green on the merged result.
 
-### Session U1 — The three small, fully specified fixes
+### Session U1 — The three small, fully specified fixes ✅ *(done 2026-08-14, D-324)*
+
+**Outcome:** four items fixed, one left as an instrument on purpose, and two of the five turned out
+to be different problems than they were written as.
+
+| item | outcome |
+|---|---|
+| 1. CDT dates | done, and the zone is **served** (`org_time_zone`) rather than copied into the client — plus a correctness bug found alongside: `_accuracy_trend` bucketed on the **UTC** day, so evening work was counted against the next morning |
+| 2. ladder pause race | **instrument only**, per D-311. Breadcrumb records which locator won the wait; 1 in 12 remains the yardstick |
+| 3. `difficulty_tiers` | 39 widened, **1 refused** (`linear_both_sides` — the ±1 invariant test caught it), 13 empty declarations left as the generation gate. **C1's multi-tier clause re-measured: 83 of 96** spanning skills hold items at more than one tier (was 15 of 91 single-tier; now 13) |
+| 4. date axis repeating | fixed by making the formatter **index-free**; the old fix's index dependency *was* the mechanism D-323 could not name |
+| 5. `.phase-chip` race | `stableClick` now closes a blocking modal instead of retrying a doomed click; `settleToInteractiveScreen` no longer returns while an overlay is up |
+
+**What the session changed about the plan itself:** item 3's premise — "where the judge disagrees, fix
+the declaration" — holds only inside the servable band, and `difficulty_tiers` is read by **no serving
+code**, so widening steers future generation spend and nothing else. The user chose to widen the 38
+skills that have no native tier recorded, against my recommendation; the underlying gap is that the
+±1 guard covers ~21 of 112 skills. See D-324 §6.
+
+### Session U1 (as planned) — The three small, fully specified fixes
 1. **`formatDateLabel` in CDT.** Format in `America/Chicago`, the org's own zone. Reference
    `intellichoice_shared.org_time`'s convention rather than introducing a second source of truth for
    the timezone — `ORG_TIME_CONFIRMED` is still `false` and that provisional state must stay visible.

@@ -223,6 +223,15 @@ class DashboardResponse(BaseModel):
     usage: UsageBreakdownResponse
     attempts_count: int
     time_spent_minutes: float
+    # D-324, and the same argument as `mastery_window_label` two fields up: the server
+    # sends it so the client cannot drift from it. Every date on this payload is a UTC
+    # instant, and the dashboard used to render them with a bare `toLocaleDateString()` -
+    # i.e. in *the viewer's* zone - so a parent abroad read the org's days shifted, and an
+    # evening session could show on the wrong date. Serving the zone rather than letting
+    # the frontend hold a second copy keeps `org_time.py`'s own rule: one variable, both
+    # apps, no way to skew them. Optional with a safe default so an older client that
+    # ignores it, and an older *server* a newer client meets mid-deploy, both still work.
+    org_time_zone: str = "UTC"
 
     @classmethod
     def from_data(cls, student_id: str, data: DashboardData) -> "DashboardResponse":
@@ -271,6 +280,7 @@ class DashboardResponse(BaseModel):
             ),
             attempts_count=data.attempts_count,
             time_spent_minutes=data.time_spent_minutes,
+            org_time_zone=data.org_time_zone,
             mastery_window_label=MASTERY_WINDOW_LABEL,
             pre_post_window_label=PRE_POST_WINDOW_LABEL,
         )

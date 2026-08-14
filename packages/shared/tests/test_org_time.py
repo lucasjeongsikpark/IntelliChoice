@@ -8,7 +8,8 @@ week off UTC therefore filed a Sunday session into the *next* week, and with fai
 gating ("unknown attendance is not present") that blocks a student who actually attended.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from intellichoice_shared.org_time import (
@@ -153,3 +154,55 @@ def test_confirmed_convention_drops_to_info(caplog):
     with caplog.at_level("INFO"):
         log_org_time_convention(config)
     assert [r.levelname for r in caplog.records] == ["INFO"]
+
+
+# --- What the browser is told, and what a day is bucketed as (D-324) --------------------
+
+
+def test_display_time_zone_is_the_iana_zone_under_the_dst_aware_default():
+    """The frontend formats dates with this, so it has to be something `Intl` accepts."""
+    assert resolve_org_time(env={}).display_time_zone() == DEFAULT_TIMEZONE
+
+
+def test_display_time_zone_under_legacy_is_the_fixed_offset_not_the_named_zone():
+    """**The reason `display_time_zone()` is a method and not the `timezone_name` field.**
+
+    Under the legacy convention every server-side calculation uses a fixed UTC-6, and
+    `timezone_name` is unused. Handing the frontend `America/Chicago` anyway would render
+    DST-aware Central while the server bucketed on the fixed offset - the two disagreeing by
+    an hour for the eight months Chicago is on CDT, which is precisely the display bug the
+    legacy convention exists to reproduce faithfully.
+
+    Note the POSIX sign inversion: `Etc/GMT+6` *is* UTC-6.
+    """
+    config = resolve_org_time(env={CONVENTION_ENV: LEGACY, TIMEZONE_ENV: "America/Chicago"})
+    assert config.display_time_zone() == "Etc/GMT+6"
+    # The claim above, checked rather than asserted in prose: the id the browser gets and
+    # the tzinfo the server computes with agree on the offset.
+    assert config.local(datetime(2026, 8, 7, 12, 0, tzinfo=UTC)).utcoffset() == timedelta(hours=-6)
+
+
+def test_display_time_zone_is_resolvable_by_zoneinfo_under_both_conventions():
+    """Guards the one way this can fail silently: a zone id the browser rejects would make
+    every date on the dashboard render as an empty string, which no server-side test would
+    notice. `ZoneInfo` accepting it is the closest proxy available here for `Intl` doing so."""
+    for env in ({}, {CONVENTION_ENV: LEGACY}):
+        assert ZoneInfo(resolve_org_time(env=env).display_time_zone()) is not None
+
+
+def test_local_date_key_files_a_late_evening_attempt_under_the_day_it_happened():
+    """The defect this fixes (D-324): the dashboard's accuracy trend bucketed on
+    `instant.date()`, the UTC day. 02:00 UTC on the 8th is 21:00 Central on the **7th**, so
+    a student's Friday-evening work was counted against Saturday morning and neither day's
+    accuracy described anything that happened."""
+    config = resolve_org_time(env={})
+    late_evening = datetime(2026, 8, 8, 2, 0, tzinfo=UTC)
+    assert late_evening.date().isoformat() == "2026-08-08"  # what the old code bucketed on
+    assert config.local_date_key(late_evening) == "2026-08-07"
+
+
+def test_local_date_key_agrees_with_utc_when_the_org_day_has_not_turned_over():
+    """The other half of the pair - a midday instant must not move, or the fix would be
+    trading one off-by-one for another."""
+    config = resolve_org_time(env={})
+    assert config.local_date_key(datetime(2026, 8, 7, 17, 0, tzinfo=UTC)) == "2026-08-07"

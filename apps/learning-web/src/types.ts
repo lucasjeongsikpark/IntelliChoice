@@ -281,6 +281,15 @@ export interface DashboardData {
   // The server sends each caption so the wording cannot drift from the computation.
   mastery_window_label: string;
   pre_post_window_label: string;
+  // D-324: the IANA zone every date on this payload must be *displayed* in. Served rather
+  // than held here, so `ORG_TIMEZONE` stays one switch for both apps and this cannot skew
+  // from the zone the server buckets by. Optional because a client can meet an older
+  // server mid-deploy; the render then falls back to `UTC`, matching the server's own
+  // default. Deliberately **not** a hard-coded `America/Chicago` fallback: a second copy
+  // of the zone in the client is the skew this field exists to remove, and UTC is an
+  // honest "not told" rather than a claim about the org. Either way the label no longer
+  // depends on where the *viewer* is, which is the defect being fixed.
+  org_time_zone?: string;
 }
 
 export interface StudentReport {
