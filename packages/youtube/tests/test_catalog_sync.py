@@ -312,3 +312,99 @@ def test_verification_pass_marks_gone_video_inactive_and_reverses() -> None:
             assert recovered.transcript_language == recovered.language
 
     asyncio.run(run())
+
+
+# --- D-326 addendum: a partial run must not deactivate what it did not look for -----------
+
+
+def test_a_partial_run_does_not_deactivate_what_it_never_searched() -> None:
+    """**The defect this prevents was measured on staging, not imagined.**
+
+    D-326 made runs resumable by searching only the *uncovered* skills, so a quota-capped run's
+    `seen_ids` excludes every previously-covered video by construction. `mark_inactive_except`
+    then deactivated them: a 90-of-112-term staging run reported **62 marked inactive** and **5
+    skills lost their only servable video**. Net coverage still rose 10 -> 72 skills, which is
+    exactly why it was easy to miss - the headline number improved while a subset regressed - and
+    the next day's run would have deactivated that run's 200 the same way, so successive runs
+    would thrash rather than accumulate.
+
+    `provider.videos.pop()` stands in for "this run did not search for that video", which is
+    indistinguishable from "it is gone from the channel" *from the run's own point of view*. The
+    difference is entirely in whether the run saw the whole channel, which is why that has to be
+    passed in rather than inferred.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = YoutubeRepository(session)
+            provider = FakeYoutubeProvider()
+            curriculum = load_curriculum()
+
+            await sync_channel(
+                repo,
+                provider=provider,
+                gateway=_gateway(),
+                curriculum=curriculum,
+                channel_id=CHANNEL_ID,
+                run_budget_cents=1000.0,
+            )
+
+            unsearched_id = provider.videos.pop().youtube_video_id
+            summary = await sync_channel(
+                repo,
+                provider=provider,
+                gateway=_gateway(),
+                curriculum=curriculum,
+                channel_id=CHANNEL_ID,
+                run_budget_cents=1000.0,
+                saw_whole_channel=False,
+            )
+
+            assert summary.videos_marked_inactive == 0
+            still_there = await repo.get_video(unsearched_id)
+            assert still_there is not None
+            assert still_there.active_status == "active", (
+                "a run that searched a subset of terms has no basis for deciding a video it "
+                "never looked for is gone from the channel"
+            )
+
+    asyncio.run(run())
+
+
+def test_a_whole_channel_run_still_deactivates_what_is_gone() -> None:
+    """The control, and the reason the guard is conditional rather than a removal: skipping
+    deactivation unconditionally would leave a video pulled from the channel servable forever.
+    Without this, deleting the `mark_inactive_except` call entirely would pass the test above."""
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = YoutubeRepository(session)
+            provider = FakeYoutubeProvider()
+            curriculum = load_curriculum()
+
+            await sync_channel(
+                repo,
+                provider=provider,
+                gateway=_gateway(),
+                curriculum=curriculum,
+                channel_id=CHANNEL_ID,
+                run_budget_cents=1000.0,
+            )
+
+            removed_id = provider.videos.pop().youtube_video_id
+            summary = await sync_channel(
+                repo,
+                provider=provider,
+                gateway=_gateway(),
+                curriculum=curriculum,
+                channel_id=CHANNEL_ID,
+                run_budget_cents=1000.0,
+                saw_whole_channel=True,
+            )
+
+            assert summary.videos_marked_inactive == 1
+            removed = await repo.get_video(removed_id)
+            assert removed is not None
+            assert removed.active_status == "inactive"
+
+    asyncio.run(run())

@@ -144,6 +144,10 @@ async def main() -> None:
                     curriculum=curriculum,
                     channel_id=settings.channel_id,
                     run_budget_cents=settings.bedrock_run_budget_cents,
+                    # D-326 addendum: only a run that searched every pending term may
+                    # deactivate what it did not see. `deferred > 0` means the quota cap cut
+                    # the term list, so this run's `seen_ids` is not the whole channel.
+                    saw_whole_channel=deferred == 0,
                 )
             except YoutubeSyncError as exc:
                 print(f"sync failed, previous catalog left untouched: {exc}")
