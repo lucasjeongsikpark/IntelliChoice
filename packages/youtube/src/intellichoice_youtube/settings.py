@@ -56,6 +56,26 @@ class YoutubeSyncSettings(BaseSettings):
     # `bedrock_run_budget_cents` remain the hard ceilings on a run.
     search_results_per_skill: int = 8
 
+    # D-326: the quota ceiling, declared rather than discovered mid-run.
+    #
+    # `search.list` costs a flat 100 units per term against a 10,000/day default, and the
+    # search terms are the curriculum's own skill names. That was written when the taxonomy
+    # had **5** authorable skills - "Five terms is 500 units", as
+    # `YoutubeDataApiProvider.list_uploaded_videos` still says. The taxonomy is now **112**,
+    # so a full run costs **11,200 units** and dies about 89% of the way through with a 403
+    # that reads like an auth problem. Nothing noticed, because the cost scales with content
+    # and the affordability argument was made once, in a docstring, against a number that
+    # then moved.
+    #
+    # Both values are settings rather than constants because neither is ours to assert: the
+    # per-term cost is Google's, and the daily allowance is per-project and can be raised.
+    daily_quota_units: int = 10_000
+    search_unit_cost: int = 100
+    # 0 means "every skill", which is correct once the quota allows it. Set it to fit a day's
+    # allowance and the run covers the skills that have no video yet, so successive days
+    # advance through the remainder instead of redoing the same prefix.
+    max_search_terms: int = 0
+
 
 # A YouTube channel id: literal "UC" plus 22 characters of base64url. Checked by shape
 # only - whether the channel *exists* is the API's answer to give, not ours to guess.
@@ -93,6 +113,33 @@ def check_real_sync_preflight(settings: YoutubeSyncSettings) -> None:
             "The Data API resolves channels by their 'UC...' id (literal 'UC' plus 22 "
             "characters); the default here is the dev fake's own id and only works with "
             "YOUTUBE_YOUTUBE_PROVIDER=fake."
+        )
+
+
+def check_search_quota(settings: YoutubeSyncSettings, term_count: int) -> None:
+    """Refuse a run whose searches cannot fit the day's quota (D-326).
+
+    The same discipline the key and channel-id checks already apply, extended to the one
+    failure that is arithmetic rather than configuration. Without it the run spends ~9,900
+    units, dies on a 403 that reads like an auth failure, and leaves a partially-synced
+    catalog behind - the worst of the three outcomes, because it looks like a credentials
+    problem and is not.
+
+    Raised with the numbers and the knob, because "quota exceeded" without them sends the
+    reader to the Google console rather than to `YOUTUBE_MAX_SEARCH_TERMS`.
+    """
+    if settings.youtube_provider != "youtube":
+        return
+    cost = term_count * settings.search_unit_cost
+    if cost > settings.daily_quota_units:
+        raise YoutubeSyncConfigError(
+            f"{term_count} search terms x {settings.search_unit_cost} units = {cost:,} "
+            f"quota units, over the {settings.daily_quota_units:,} this run is allowed. "
+            f"Set YOUTUBE_MAX_SEARCH_TERMS to at most "
+            f"{settings.daily_quota_units // settings.search_unit_cost} and run again on a "
+            "later day for the rest - each run covers the skills that have no video yet, so "
+            "successive runs advance rather than repeat. Raise YOUTUBE_DAILY_QUOTA_UNITS "
+            "only if this project's real allowance has been raised."
         )
 
 

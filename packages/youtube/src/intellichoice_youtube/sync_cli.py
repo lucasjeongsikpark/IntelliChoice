@@ -26,6 +26,7 @@ from intellichoice_youtube.catalog_sync import YoutubeSyncError, sync_channel
 from intellichoice_youtube.settings import (
     YoutubeSyncSettings,
     check_real_sync_preflight,
+    check_search_quota,
     get_sync_settings,
 )
 
@@ -54,8 +55,41 @@ def _build_gateway(settings: YoutubeSyncSettings) -> ResilientBedrockGateway:
     )
 
 
+async def _pending_search_terms(
+    repo: YoutubeRepository, settings: YoutubeSyncSettings, curriculum: CurriculumContent
+) -> tuple[list[str], int, int]:
+    """The skill names to search this run: uncovered skills first, capped to the quota.
+
+    **Why the order matters (D-326).** A full run costs 112 x 100 = 11,200 quota units
+    against a 10,000/day default, so the catalog has to be built over several days. Taking
+    the first N skills each time would redo the same prefix every day and never reach the
+    tail. Asking the catalog which skills already have a servable video makes each run pick
+    up where the last one stopped, using the existence check `has_servable_video` already
+    performs for the serving path.
+
+    Returns `(terms, already_covered, skipped_for_quota)` so the caller can print what the
+    run is *not* doing - a cap that silently drops work reads as a completed sync.
+
+    One honest limitation: a skill whose search genuinely returns nothing stays "uncovered"
+    and will be retried on every later run. That is the right default (content appears over
+    time) but it means the pending list does not converge to empty on its own.
+    """
+    uncovered: list[str] = []
+    covered = 0
+    for skill in curriculum.skills:
+        if await repo.has_servable_video(skill.skill_id):
+            covered += 1
+        else:
+            uncovered.append(skill.name)
+    if settings.max_search_terms > 0:
+        selected = uncovered[: settings.max_search_terms]
+    else:
+        selected = uncovered
+    return selected, covered, len(uncovered) - len(selected)
+
+
 def _build_provider(
-    settings: YoutubeSyncSettings, curriculum: CurriculumContent
+    settings: YoutubeSyncSettings, search_terms: list[str]
 ) -> YoutubeProvider:
     if settings.youtube_provider == "youtube":
         # `fake` stays the dev default (D-002's posture, same footing as Gmail/Calendar/
@@ -71,7 +105,8 @@ def _build_provider(
         return YoutubeDataApiProvider(
             api_key=settings.youtube_api_key,
             max_videos=settings.max_videos,
-            search_terms=[skill.name for skill in curriculum.skills],
+            # D-326: the *pending* skills, not every skill - see `_pending_search_terms`.
+            search_terms=search_terms,
             per_term=settings.search_results_per_skill,
         )
     return FakeYoutubeProvider()
@@ -83,12 +118,24 @@ async def main() -> None:
     check_real_sync_preflight(settings)
     gateway = _build_gateway(settings)
     curriculum = load_curriculum()
-    provider = _build_provider(settings, curriculum)
     engine = create_engine()
     try:
         session_factory = create_session_factory(engine)
         async with session_scope(session_factory) as session:
             repo = YoutubeRepository(session)
+            # D-326: which terms this run owes depends on what the catalog already holds, so
+            # the provider is built here rather than before the session opens.
+            terms, covered, deferred = await _pending_search_terms(repo, settings, curriculum)
+            check_search_quota(settings, len(terms))
+            print(
+                f"{covered} of {len(curriculum.skills)} skills already have a servable video; "
+                f"searching {len(terms)} this run"
+                + (f", deferring {deferred} to a later run (quota cap)" if deferred else "")
+            )
+            if not terms:
+                print("nothing pending - every skill already has a servable video.")
+                return
+            provider = _build_provider(settings, terms)
             try:
                 summary = await sync_channel(
                     repo,

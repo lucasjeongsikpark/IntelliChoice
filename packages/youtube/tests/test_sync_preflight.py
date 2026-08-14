@@ -23,6 +23,7 @@ from intellichoice_youtube.settings import (
     YoutubeSyncConfigError,
     YoutubeSyncSettings,
     check_real_sync_preflight,
+    check_search_quota,
 )
 
 
@@ -93,3 +94,57 @@ def test_the_refusal_never_echoes_the_api_key() -> None:
         with pytest.raises(YoutubeSyncConfigError) as exc:
             check_real_sync_preflight(_settings(youtube_api_key=secret, **overrides))
         assert secret not in str(exc.value)
+
+
+# --- D-326: the quota check ---------------------------------------------------------------
+#
+# `search.list` costs a flat 100 units per term. The search terms are the curriculum's own
+# skill names, and that list grew from 5 to 112 while the affordability argument stayed in a
+# docstring - so a full run now costs 11,200 units against a 10,000/day default and dies ~89%
+# through with a 403 that reads like an auth failure.
+
+
+def test_quota_check_refuses_a_run_that_cannot_finish():
+    """The failure this exists to prevent is arithmetic, not configuration, and its symptom
+    (a 403 mid-run, catalog half-written) points at credentials rather than at the cause."""
+    settings = YoutubeSyncSettings(
+        youtube_provider="youtube",
+        youtube_api_key="k",
+        channel_id="UC4a-Gbdw7vOaccHmFo40b9g",
+    )
+    with pytest.raises(YoutubeSyncConfigError) as exc:
+        check_search_quota(settings, 112)
+    message = str(exc.value)
+    # The numbers and the knob, because "quota exceeded" alone sends the reader to Google's
+    # console rather than to the setting that fixes it.
+    assert "11,200" in message
+    assert "10,000" in message
+    assert "YOUTUBE_MAX_SEARCH_TERMS" in message
+    assert "100" in message
+
+
+def test_quota_check_allows_a_run_that_fits():
+    settings = YoutubeSyncSettings(
+        youtube_provider="youtube",
+        youtube_api_key="k",
+        channel_id="UC4a-Gbdw7vOaccHmFo40b9g",
+    )
+    check_search_quota(settings, 90)  # 9,000 units
+
+
+def test_quota_check_is_inert_for_the_fake_provider():
+    """The fake makes no HTTP request, so it has no quota to exceed. Without this the dev
+    default would start failing the moment the taxonomy passed 100 skills."""
+    check_search_quota(YoutubeSyncSettings(), 10_000)
+
+
+def test_a_raised_allowance_is_declared_rather_than_assumed():
+    """`daily_quota_units` is a setting because the per-project allowance can be raised; the
+    check must follow the declared value, not a constant."""
+    settings = YoutubeSyncSettings(
+        youtube_provider="youtube",
+        youtube_api_key="k",
+        channel_id="UC4a-Gbdw7vOaccHmFo40b9g",
+        daily_quota_units=50_000,
+    )
+    check_search_quota(settings, 112)
