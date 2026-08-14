@@ -95,15 +95,26 @@ def test_no_recommendation_leaves_selection_untouched() -> None:
     assert _closest_to_recommended(_MULTI_TIER, None) == _MULTI_TIER
 
 
-def test_difficulty_outranks_the_unused_template_rule() -> None:
-    """SPEC ranks rules 2-3 above rule 4, so a *used* template at the recommended tier beats
-    an unused one two tiers away. This is the assertion that would fail if the unused-first
-    filter were applied across the full pool instead of within the difficulty-matched one -
-    the ordering bug that is easy to write and invisible on 1:1 content.
+def test_difficulty_yields_rather_than_repeating_a_used_template() -> None:
+    """**This assertion was inverted on purpose (D-325), and the reason is measured.**
+
+    It used to read: "SPEC ranks rules 2-3 above rule 4, so a *used* template at the
+    recommended tier beats an unused one two tiers away." That is faithful to §5.11.2 and it
+    was wrong in practice, because `used_template_ids` is seeded from the session's own
+    pre-exam - so "prefer the used template at the right tier" meant serving the student the
+    exact question they were about to be re-scored on. Dev database, before the change: **57
+    of 201 study items repeated one of their own session's exam templates, 40 of them at the
+    first study item**, driven by tiers holding as little as one approved template.
+
+    **The concern this test was written to protect has not been dropped, only moved.** It
+    guarded against applying unused-first across the *whole* pool unconditionally - an easy
+    ordering bug, invisible on 1:1 content. That guard now lives in
+    `test_the_exact_tier_still_wins_when_it_has_something_unused`, which fails if widening
+    becomes the default rather than the fallback.
     """
     templates = [_template("exact-used", 3), _template("far-unused", 5)]
     chosen = _select(templates, 3, used={"exact-used"})
-    assert chosen.question_template_id == "exact-used"
+    assert chosen.question_template_id == "far-unused"
 
 
 def test_unused_first_still_applies_within_the_matched_tier() -> None:
@@ -138,3 +149,68 @@ def test_the_live_bank_shape_makes_the_narrowing_inert() -> None:
     one_tier = [_template("a", 2), _template("b", 2), _template("c", 2)]
     for recommended in (None, 1, 2, 3, 5):
         assert _closest_to_recommended(one_tier, recommended) == one_tier
+
+
+# --- D-325: the recommended tier yields rather than repeating the exam's question ---------
+#
+# `used_template_ids` is seeded from the session's own pre-exam, so "fall back to a used
+# template" meant handing the student the exact question they were about to be re-scored on.
+# Measured on the dev database before the change: **57 of 201 study items repeated one of
+# their own session's exam templates, 40 at the very first study item.** The cause is pool
+# size, not a missing filter - `g4_mult_by_one_digit` holds one approved template at tier 1.
+
+
+def test_an_exhausted_recommended_tier_widens_instead_of_repeating() -> None:
+    """**The defect, as a test.** One template at the recommended tier, and the exam already
+    used it. The old code returned that same template because `pool = unused or matched` had
+    narrowed `matched` to the exact tier; there is an unused template one tier away and it
+    should be served instead."""
+    templates = [_template("t-tier3-used", 3), _template("t-tier4-free", 4)]
+
+    chosen = _select(templates, recommended=3, used={"t-tier3-used"})
+
+    assert chosen.question_template_id == "t-tier4-free", (
+        "the recommended tier had nothing unused, so a different question one tier away "
+        "beats re-serving the question the student is scored on"
+    )
+
+
+def test_widening_picks_the_nearest_free_tier_not_merely_any_free_one() -> None:
+    """A recommendation is still a preference, so giving it up should cost as little as the
+    bank allows. Without the nearest-first sort this would be free to return tier 1."""
+    templates = [
+        _template("t-tier3-used", 3),
+        _template("t-tier1-free", 1),
+        _template("t-tier4-free", 4),
+    ]
+
+    chosen = _select(templates, recommended=3, used={"t-tier3-used"})
+
+    assert chosen.question_template_id == "t-tier4-free"
+
+
+def test_a_fully_used_skill_still_serves_rather_than_failing() -> None:
+    """Fail-closed has a limit: when every approved template has been used there is no
+    alternative to repeating, and serving nothing would be a 503 in the student's face. The
+    repeat is logged instead (`study_template_repeat_unavoidable`) because at that point the
+    fix is content, not code."""
+    templates = [_template("only-one", 3)]
+
+    chosen = _select(templates, recommended=3, used={"only-one"})
+
+    assert chosen.question_template_id == "only-one"
+
+
+def test_the_exact_tier_still_wins_when_it_has_something_unused() -> None:
+    """The control. Widening must not become the default - SPEC §5.11.2 ranks the difficulty
+    recommendation above novelty, and this change only lets it yield when the tier is empty.
+    Without this a "fix" that always widened would pass the three tests above."""
+    templates = [
+        _template("t-tier3-used", 3),
+        _template("t-tier3-free", 3),
+        _template("t-tier4-free", 4),
+    ]
+
+    chosen = _select(templates, recommended=3, used={"t-tier3-used"})
+
+    assert chosen.question_template_id == "t-tier3-free"

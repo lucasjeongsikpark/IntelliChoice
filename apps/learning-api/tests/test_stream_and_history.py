@@ -596,8 +596,9 @@ def test_stream_connect_rereads_state_after_the_narrative_call(
             reads.append(values["phase"])
             return _FakeSnapshot(values)
 
-    async def _fake_pre_intro(**_kwargs: object) -> tuple[str, list[str]]:
-        return "Welcome to math practice!", []
+    async def _fake_pre_intro(**_kwargs: object) -> tuple[str, list[str], str]:
+        # U3/D-325: the third element is the stage, so the snapshot can title the narrative.
+        return "Welcome to math practice!", [], "pre_intro"
 
     monkeypatch.setattr(
         "learning_api.routers.stream._maybe_fire_pre_intro", _fake_pre_intro

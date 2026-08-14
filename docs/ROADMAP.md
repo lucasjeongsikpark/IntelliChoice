@@ -2279,7 +2279,32 @@ recorded mechanism (not a theory) and a measured post-fix rate · C1's multi-tie
 and its number in ROADMAP · the date axis passes on staging, not only on fixtures · `time-telemetry`
 passes on staging twice running with the overlay handled rather than waited out.
 
-### Session U2 — Learning gain the parent report can stand behind
+### Session U2 — Learning gain the parent report can stand behind ✅ *(done 2026-08-14, D-325)*
+
+**Outcome:** fixed, and **the done-criterion as written could not fail.** It asked for "no study item's
+`question_variant_id` matches any exam item's" — but a fresh variant row is minted per serving, so
+that was true by construction and would have passed against the unfixed build. The repeat is in the
+*content*: `rendered_question` comes from the canonical variant every time, so two servings of one
+template are byte-identical. The e2e assertion therefore compares **stems**, bucketed by the server's
+`phase` rather than by `.phase-chip`.
+
+**Measured before fixing: 57 of 201 study items (28%) repeated one of their own session's exam
+templates, across 52 of 134 sessions.** Two causes, not one:
+
+| where | n | cause | fix |
+|---|---|---|---|
+| first study item | **40** | recommended tier exhausted, `pool = unused or matched` repeated | rule 4 now widens to the nearest free tier |
+| on-demand base + remediation | **17** | those paths never seeded the exam's templates | `flow._templates_to_avoid` unions study + exam |
+
+**A departure from SPEC, recorded not buried:** §5.11.2 ranks difficulty above novelty, and this module
+said so. But `used_template_ids` is seeded from the session's own exam, so preferring "the used
+template at the right tier" meant serving the exact question the student is re-scored on. The
+preference now yields. Remaining unavoidable repeats log `study_template_repeat_unavoidable`.
+
+**The content gap is now a number:** `g4_mult_by_one_digit` holds **1** approved template at tier 1,
+`time_read_clock` holds 2. Widening avoids the repeat; only content fixes the difficulty.
+
+### Session U2 (as planned) — Learning gain the parent report can stand behind
 Study must not serve the **same variant** as the session's own exam items. Re-render a different
 variant of the same item, so the study plan keeps its targeting and the student cannot practise the
 exact question they will be scored on.
@@ -2288,7 +2313,19 @@ exact question they will be scored on.
 the same session, failing before the fix and passing after (D-107 §1) · a walk confirms the study
 question is recognisably the same *skill* and not the same *item*.
 
-### Session U3 — The narrative header knows its stage *(rides with U2)*
+### Session U3 — The narrative header knows its stage ✅ *(done 2026-08-14, D-325)*
+
+**Outcome:** `stage_narrative_stage` rides the wire, optional in both directions. Threaded through all
+four places a narrative reaches state — **the first attempt missed two**, caught by the new `pre_outro`
+assertion: `finalize_exam` serves both outros through one pair of variables.
+
+**Its stated criterion cannot be met by an e2e walk, and that is a harness limit rather than a gap.**
+No walk reaches `post_outro` — the harness always picks the first option to stay deterministic, so
+study never reaches the mastery bar and the post-exam is never served. The wire half is pinned in
+`test_learning_flow.py`, which does reach post-exam through the API; the header is a lookup with a
+stage-neutral fallback.
+
+### Session U3 (as planned) — The narrative header knows its stage *(rides with U2)*
 The snapshot carries the narrative text but not its stage, so `StageTransitionScreen` prints "Why
 this is your next step" over a results context. Add the stage to the wire shape and vary the header.
 Grouped with U2 deliberately: both touch the session wire shape, and one API change is cheaper to

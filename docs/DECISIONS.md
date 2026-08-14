@@ -23225,3 +23225,93 @@ described as load-bearing.
 same system: the second carries this harness change. C1's Phase 6 clause counts clean *whole* runs and
 the honest count for "this harness, on staging" is **one**. That is the same discipline as the D-317
 addendum, where a clause was marked ✅ off a single run and the next run disagreed.
+
+### D-325 — Study was serving the exam's own questions, and the criterion for noticing could not fail
+
+**Date:** 2026-08-14 · **Session:** U2 + U3 · **Status:** done; two causes fixed, one departure from
+SPEC recorded, one content gap measured
+
+ROADMAP U2 said study "must not serve the same variant as the session's own exam items", and gave the
+done-criterion as *"an e2e assertion that no study item's `question_variant_id` matches any exam
+item's in the same session, failing before the fix and passing after"*.
+
+**That criterion cannot fail, and would have passed against the unfixed build.** A fresh
+`QuestionVariant` row is minted on every serving, so two servings of one template never share an id —
+the assertion is true by construction and always was. It is the AUD-F-12 false negative in the form
+of a plan item. What actually repeats is the *content*: `build_variant_row` sets `rendered_question`
+to the canonical variant's on every render, so two servings of one **template** are byte-identical
+including option order (only the post-exam path permutes, and only when `avoid_rendered_question`
+matches). The invariant worth asserting is therefore on the **stem**, which is what the e2e test now
+compares — bucketed by the *server's* `phase` field on each snapshot rather than by `.phase-chip`,
+whose lag burned D-321 and D-324.
+
+#### It was happening, and the distribution named two causes rather than one
+
+Measured on the dev database by pairing each study session with the `pre_exam` that preceded it for
+the same student and topic: **57 of 201 study items (28%) repeated one of their own session's exam
+templates, across 52 of 134 sessions.**
+
+| where | n | cause |
+|---|---|---|
+| first study item (`display_order = 0`) | **40** | pool exhaustion at the recommended tier |
+| on-demand base + remediation | **17** | the exam's templates were never in the avoid-set |
+
+**The 17 are a plain bug.** `build_study_plan` seeds `used_template_ids` from
+`assessment_repo.get_items(pre_assessment_session_id)`, so the *first* study item does avoid the exam.
+But `_serve_next_base_or_complete` and `advance_study` both seeded from `study_repo.get_items(...)`
+alone, so every item after the first could serve a template the student had just been examined on.
+These are the collisions that appear in skills with plenty of content — `linear_two_step` has **38**
+approved templates at the tier in question and still collided — which is what distinguishes them from
+the other cause. Fixed by `flow._templates_to_avoid`, which unions study and exam.
+
+**The 40 are content scarcity meeting an absolute preference, and they are the majority.**
+`_closest_to_recommended` returns only the *exact* recommended tier when one matches, and
+`_select_template` then did `pool = unused or matched` — so when the exam had taken that tier's
+templates, study re-served one of them. `g4_mult_by_one_digit` holds **one** approved template at tier
+1 and `time_read_clock` holds two, so for those skills a repeat was not unlucky, it was certain.
+
+#### The departure from SPEC, stated rather than buried
+
+`_select_template` now lets rule 4 (prefer unused) **widen the tier** before repeating: exact tier
+unused → nearest unused tier → only then a used one, which is logged as
+`study_template_repeat_unavoidable`. That contradicts this module's own docstring, which read *"a used
+template at the recommended tier beats an unused one two tiers away"* and cited SPEC's ranking of
+rules 2-3 above rule 4. The docstring was faithful and the behaviour was wrong, because
+`used_template_ids` is seeded from the session's own exam: "prefer the used template at the right
+tier" meant handing the student the exact question they were about to be re-scored on, which inflates
+the learning gain the parent report is built from. **One tier off is a worse question; the same
+question is a worse measurement.** `_closest_to_recommended` already called the recommendation "a
+preference", so the preference is what yields.
+
+The user chose this over fixing only the seeding bug or treating scarcity purely as a content target.
+
+**The test that pinned the old policy was inverted, not deleted**, and the concern it was written to
+protect — that unused-first must not be applied across the whole pool *unconditionally* — moved to a
+new control (`test_the_exact_tier_still_wins_when_it_has_something_unused`) that fails if widening
+becomes the default rather than the fallback.
+
+**The content gap stands and is now a number:** the honest fix for `g4_mult_by_one_digit` (1 template
+at tier 1) and `time_read_clock` (2) is more items, not more code. Widening avoids the repeat; it
+cannot conjure a question at the right difficulty.
+
+#### U3 — the narrative header, and a criterion no walk can reach
+
+The snapshot carried `stage_narrative` and its evidence but never *which stage produced them*, so
+`StageTransitionScreen` printed one fixed header, "Why this is your next step", over all five
+moments — including `post_outro`, which fires *after* the post-exam and is a summary of a session
+that has just ended. Right words, wrong tense, and the client had no way to tell.
+
+`stage_narrative_stage` now rides the wire, optional in both directions: an older server sends
+nothing and the header falls back to a stage-neutral wording rather than claiming a stage it was not
+told. Threaded through all four places a narrative reaches state — and **the first attempt missed
+two of them**, which the new `pre_outro` assertion caught: `finalize_exam` serves *both* outros
+through one pair of variables, so setting the stage only in the study-narrative node left both exam
+outros reporting `None`.
+
+**U3's stated criterion — "a `post_outro` narrative renders a results-appropriate header" — cannot be
+met by an e2e walk.** No walk reaches `post_outro`: the harness always picks the first option to stay
+deterministic, so it answers wrong nearly every time, study never reaches the mastery bar, and the
+post-exam is never served (`journey-student.spec.ts` documents this as a harness limitation). The wire
+half is therefore pinned in `test_learning_flow.py`, which does reach post-exam through the API, and
+that is the half that was actually missing. The header itself is a lookup with a documented fallback.
+Recorded here rather than asserted in a walk that never gets there.

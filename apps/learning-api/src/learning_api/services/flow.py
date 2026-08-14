@@ -248,6 +248,41 @@ async def _used_template_ids(question_repo: QuestionRepository, items: list) -> 
     return {variant.question_template_id for variant in variants.values()}
 
 
+async def _templates_to_avoid(
+    *,
+    question_repo: QuestionRepository,
+    assessment_repo: AssessmentRepository,
+    study_items: list,
+    pre_assessment_session_id: str | None,
+) -> set[str]:
+    """Every template this session has already shown the student — study **and exam** (D-325).
+
+    **The exam half was missing on the two on-demand paths and that is a real defect.** The
+    first study item is built by `build_study_plan`, which is seeded from
+    `assessment_repo.get_items(pre_assessment_session_id)` and therefore does avoid the exam.
+    But `_serve_next_base_or_complete` and `advance_study` both seeded from
+    `study_repo.get_items(...)` alone, so every item after the first could serve a template the
+    student had just been examined on — and since a rendering is byte-identical for the same
+    template, that is the *same question*, not a similar one.
+
+    Measured on the dev database: **57 of 201 study items repeated one of their own session's
+    exam templates**, of which **17 came through these two paths** (11 base, 6 remediation).
+    They are the ones that show up in skills with plenty of content — `linear_two_step` has 38
+    approved templates at the tier in question and still collided — which is what distinguishes
+    this cause from the pool-exhaustion one that D-325's `_select_template` change addresses.
+
+    The post-exam is deliberately not consulted: it does not exist yet while study is running,
+    and §5.13.2's pre/post parallel-form rule is `assessment_builder`'s job, not this one's.
+    """
+    used = await _used_template_ids(question_repo, study_items)
+    if pre_assessment_session_id is None:
+        # A blocked attendance gate builds no exam (see `_build_or_replay`), so there is
+        # nothing to avoid and this is a normal path rather than a missing precondition.
+        return used
+    exam_items = await assessment_repo.get_items(pre_assessment_session_id)
+    return used | await _used_template_ids(question_repo, exam_items)
+
+
 def is_topic_selection_replay(
     *,
     requested_topic_id: str,
@@ -651,7 +686,12 @@ async def _serve_next_base_or_complete(
         None,
     )
     if next_target is not None:
-        used = await _used_template_ids(question_repo, items)
+        used = await _templates_to_avoid(
+            question_repo=question_repo,
+            assessment_repo=assessment_repo,
+            study_items=items,
+            pre_assessment_session_id=learning_session.pre_assessment_session_id,
+        )
         next_mastery = await mastery_repo.get_mastery(
             learning_session.student_external_id or "", next_target
         )
@@ -784,7 +824,12 @@ async def advance_study(
             # otherwise there's nothing easier to serve, so retry the same skill.
             if prereq is not None and await question_repo.get_active_questions_for_skill(prereq):
                 skill_for_item = prereq
-        used = await _used_template_ids(question_repo, items)
+        used = await _templates_to_avoid(
+            question_repo=question_repo,
+            assessment_repo=assessment_repo,
+            study_items=items,
+            pre_assessment_session_id=learning_session.pre_assessment_session_id,
+        )
         item = await create_study_item(
             question_repo=question_repo,
             study_repo=study_repo,

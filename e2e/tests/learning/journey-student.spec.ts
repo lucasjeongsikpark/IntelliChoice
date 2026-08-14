@@ -51,6 +51,47 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
   // console error. Allowed by path here so this journey still enforces "zero console
   // errors" for everything else - otherwise one known defect would mask every new one.
   audit.allow({ statuses: [409], consoleErrors: ["Failed to load resource"] });
+  // **D-325: the study phase must not re-serve a question the exam already asked.**
+  //
+  // **Attached here, before the pre-exam, and that placement is the whole point (D-325).**
+  // The first version sat next to `studyVerdicts` below - i.e. after `answerWholeExam` and
+  // `finalizeExam` - so it never saw a pre-exam snapshot and collected `0 pre_exam, 6 study`.
+  // The run did not fail: it *skipped*, because the positive control refuses to conclude
+  // anything from one empty side. That is the control earning its place, and the reason the two
+  // listeners in this file sit deliberately far apart rather than tidied together:
+  // `studyVerdicts` must attach LATE so it only ever sees study answers, this one must attach
+  // EARLY so it sees both phases. Moving either to match the other breaks it silently.
+  //
+  // Bucketed by the **server's** `phase` on each snapshot, never by `.phase-chip` - the chip
+  // lags and renders behind a modal, which is the signal D-321 and D-324 were both burned by.
+  //
+  // **And asserted on the rendered stem, not on `question_variant_id`, because the id-based
+  // form cannot fail.** ROADMAP U2 asked for "no study item's `question_variant_id` matches
+  // any exam item's". A fresh variant row is minted on every serving, so that has always been
+  // true and always will be - it would pass against the unfixed build, which is the AUD-F-12
+  // false negative this suite refuses everywhere else. What repeats is the *content*:
+  // `build_variant_row` sets `rendered_question` to the canonical variant's every time, so two
+  // servings of one template are byte-identical. The stem is therefore the only thing worth
+  // comparing.
+  const stemsByPhase = new Map<string, Set<string>>();
+  page.on("response", async (response) => {
+    if (response.status() >= 300) return;
+    try {
+      const body = (await response.json()) as {
+        phase?: unknown;
+        items?: { rendered_question?: unknown }[] | null;
+      };
+      if (typeof body.phase !== "string" || !Array.isArray(body.items)) return;
+      const bucket = stemsByPhase.get(body.phase) ?? new Set<string>();
+      for (const item of body.items) {
+        if (typeof item?.rendered_question === "string") bucket.add(item.rendered_question);
+      }
+      stemsByPhase.set(body.phase, bucket);
+    } catch {
+      // Not a JSON snapshot - nothing to collect.
+    }
+  });
+
   await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
   await expectNotBlank(page);
 
@@ -200,6 +241,32 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
       `${interventions} of them - the pauses happened and the harness missed them, which is ` +
       "D-288 §4's class (a `count()` read with no wait), so the ladder is still unexercised",
   ).toBeGreaterThan(0);
+
+  // D-325: no question the exam asked may be re-served as study practice.
+  const examStems = stemsByPhase.get("pre_exam") ?? new Set<string>();
+  const studyStems = stemsByPhase.get("study") ?? new Set<string>();
+  const repeated = [...studyStems].filter((stem) => examStems.has(stem));
+  audit.note(
+    `stems seen: ${examStems.size} pre_exam, ${studyStems.size} study, ` +
+      `${repeated.length} repeated`,
+  );
+  // The positive control, on this suite's standing rule: both loops below iterate over what
+  // was collected, so a run that captured no stems on either side would assert nothing and
+  // report a pass. Skipping with the counts in hand says "this run did not look", which is a
+  // different claim from "this run looked and found nothing".
+  test.skip(
+    examStems.size === 0 || studyStems.size === 0,
+    `collected ${examStems.size} pre-exam and ${studyStems.size} study stems, so there was ` +
+      "no pair of phases to compare and this run says nothing either way",
+  );
+  expect(
+    repeated,
+    `${repeated.length} study question(s) are byte-identical to a question this session's ` +
+      "own pre-exam already asked, so the student practised exactly what they are re-scored " +
+      "on and the learning gain the parent report is built from is inflated (D-325). First: " +
+      JSON.stringify(repeated[0]?.slice(0, 120) ?? null),
+  ).toEqual([]);
+
   await expectNotBlank(page);
 });
 

@@ -529,6 +529,9 @@ def test_full_deterministic_learning_flow() -> None:
         # claim made about it moved.
         assert body["stage_narrative"]
         assert body["stage_narrative_evidence"]
+        # U3/D-325: the snapshot must say *which* moment produced the prose. Without this the
+        # client had one fixed header for all five stages.
+        assert body["stage_narrative_stage"] == "pre_outro"
         pre_outro_evidence = " ".join(body["stage_narrative_evidence"])
         assert "Study plan, weakest first" in pre_outro_evidence
         assert "Skills to strengthen" not in pre_outro_evidence
@@ -683,6 +686,13 @@ def test_full_deterministic_learning_flow() -> None:
         # beside integers everywhere else in the app.
         assert body["stage_narrative"]
         assert body["stage_narrative_evidence"]
+        # **U3/D-325, and this is the assertion the item exists for.** `post_outro` fires
+        # *after* the post-exam, so the client's fixed "Why this is your next step" header was
+        # printed over a summary of a session that had just ended - right words, wrong tense,
+        # and no way for the client to tell. No e2e walk can reach here (a browser cannot pick
+        # the correct answer, so study never completes - see `journey-student.spec.ts`'s own
+        # note), which is why the wire half is pinned here rather than in a walk.
+        assert body["stage_narrative_stage"] == "post_outro"
         post_outro_evidence = " ".join(body["stage_narrative_evidence"])
         assert "Pre-exam score: 8" in post_outro_evidence
         assert "Post-exam score: 10" in post_outro_evidence

@@ -160,6 +160,11 @@ export interface SessionSnapshot {
   stage_narrative?: string | null;
   // Plain-language "How we personalized this" lines accompanying stage_narrative.
   stage_narrative_evidence?: string[] | null;
+  // U3/D-325: which of the five narrative moments produced the text - `pre_intro`,
+  // `pre_outro`, `study_step`, `study_outro`, `post_outro`. Optional both ways: an older
+  // server never sends it, and the header falls back to a stage-neutral wording rather than
+  // claiming a stage it was not told.
+  stage_narrative_stage?: string | null;
 }
 
 // Mirrors `routers/sessions.py`'s `ExamItemStatusResponse`/`ExamOverviewResponse` (S23).
