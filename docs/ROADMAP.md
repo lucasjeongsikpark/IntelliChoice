@@ -2202,7 +2202,16 @@ that produced them) so they do not collide with the C-track's numbering.
 (YouTube) is blocked on a credential and nothing else — it jumps the queue the moment the key
 exists. U7 needs a design review and a *staging* measurement before any code.
 
-### Session U0 — Bookkeeping and the dependency backlog
+### Session U0 — Bookkeeping and the dependency backlog ✅ *(done 2026-08-14, D-323)*
+
+**Outcome:** all four criteria hold. D-322 recorded (`d2c64f7`) · **24 PRs merged** as three batches
+(#263 `6b719fd`, #264 `63e9ea6`, #265 `950ec2b`), CI 9/9 on each · #1 and #8 left open with a comment
+· `make lint typecheck test` green on the merged result (**1514 passed**, unchanged from baseline).
+Two staging deploys, each verified three ways; staging serves `gha-950ec2be605f`.
+
+**What the session added to the plan that was not in it:** the "merge on green" half of the policy
+turned out inapplicable to #4/#5/#6, whose only changed file no PR check executes. See D-323.
+
 Record D-322, reduce `OPEN_DECISIONS.md` to what is still open, and clear **26 dependabot PRs**
 (10 npm, 10 uv, 4 GitHub Actions, 2 Docker) under the agreed policy: patch and minor merge on green;
 majors are read individually.
@@ -2225,10 +2234,25 @@ a comment saying why · `make lint typecheck test` green on the merged result.
 3. **`difficulty_tiers` follows the judge.** 106 items across 39 skills carry a stored tier outside
    their skill's declaration. Edit the declarations, then re-measure C1's multi-tier clause against a
    span that is true.
+4. **The date axis still repeats itself on real data (D-323), and this rides with item 1 because both
+   open `formatDateLabel`.** `dashboard-chart-labels.spec.ts` reproduced it on its first-ever staging
+   run: a date axis printed ~70 labels with `8/7/2026` appearing 15 times. The mechanism is
+   `buildDateTickFormatter`'s own documented escape hatch — it blanks a repeat only when
+   `labels[index]` lines up with the tick's value, and otherwise "degrades to always print". Staging's
+   ~70-point axes reach a density local fixtures never do. **Symptom reproduced, mechanism unproven.**
+   Fix the test's assertion too: it compares the *filtered* array, so it cannot distinguish "twice in
+   a row" from "twice, separated by blanks".
+5. **The harness has now trusted `.phase-chip` and been wrong three times (D-323).**
+   `time-telemetry` fails on staging because a `StageTransitionScreen` overlay — *expected* product
+   behaviour, dismissed only by an explicit Continue — is up when the test clicks the exam nav.
+   `chooseTopic` dismisses a narrative only at the top of each attempt, so one arriving after the
+   topic click survives, and `.phase-chip` renders **behind** the overlay. D-321's walk failed on the
+   same signal. The fix is a harness one: an interactivity check that a modal cannot satisfy.
 
 **Done when:** a date renders the same day in CDT that the server recorded · the pause race has a
 recorded mechanism (not a theory) and a measured post-fix rate · C1's multi-tier clause re-measured
-and its number in ROADMAP.
+and its number in ROADMAP · the date axis passes on staging, not only on fixtures · `time-telemetry`
+passes on staging twice running with the overlay handled rather than waited out.
 
 ### Session U2 — Learning gain the parent report can stand behind
 Study must not serve the **same variant** as the session's own exam items. Re-render a different

@@ -22946,3 +22946,95 @@ secret only the user can provide, and nothing else.**
 **Correction carried in from the same conversation:** I reported "7 dependency PRs". There are
 **26, all dependabot** — 10 npm, 10 uv, 4 GitHub Actions, 2 Docker. The 7 came from a jq filter that
 excluded `build(deps): bump…` titles, so it counted the ones it was meant to exclude.
+
+### D-323 — Three batches, not 24 merges, and three green ticks that had examined nothing
+
+**Date:** 2026-08-14 · **Session:** U0 · **Status:** done; 24 PRs merged and deployed, 2 held open
+
+D-322 §8 said "batch-merge the dependency PRs". This records *how*, because two facts found while
+doing it changed the shape of the answer.
+
+**Sequential merging was never available.** All ten Python PRs rewrite `uv.lock`; each app's five npm
+PRs rewrite that app's `package-lock.json`. Merging the first makes the rest conflict, so the
+one-at-a-time path is 24 dependabot rebase cycles, each re-running nine checks. The work was done
+locally instead, one branch per ecosystem: **#263** (10 Python, `6b719fd`), **#264** (10 npm,
+`63e9ea6`), **#265** (4 GitHub Actions majors, `950ec2b`).
+
+**The reason #265 is separate is the more interesting finding: for three of those PRs, the green
+tick was vacuous.** #4, #5 and #6 change *only* `deploy-staging.yml`, and that workflow is
+`workflow_dispatch:` only — **no PR check has ever executed it.** Their seven passing checks ran
+ordinary CI over unchanged code. The tick was real; it had simply never looked at what the PR
+changed. That is this project's own AUD-F-12 shape, so *"patch and minor merge on green; majors are
+read individually"* could not be applied to them at all — their only possible test is a deploy.
+
+So the order was: deploy the two dependency batches first, verify, then merge #265 and deploy again.
+**The second deploy changes no application code**, so it rebuilds identical source through the new
+actions and a failure there can only name the actions. That is a clean discriminator, and it is the
+same argument already accepted for holding `python 3.12→3.14`.
+
+Each major was read against *this repo's* usage rather than in the abstract:
+
+| action | the v-major change | exposure here |
+|---|---|---|
+| `actions/checkout` v7 | blocks fork-PR checkout for `pull_request_target`/`workflow_run` | neither trigger is used |
+| `setup-buildx-action` v4 | Node 24; deprecated inputs removed | the step passes **no inputs at all** |
+| `build-push-action` v7 | Node 24; drops `DOCKER_BUILD_NO_SUMMARY`, `DOCKER_BUILD_EXPORT_RETENTION_DAYS` | neither env is set anywhere |
+| `configure-aws-credentials` v6 | v5 changed invalid-**boolean** input handling; v6 Node 24 | the step passes two strings, no booleans |
+| `@types/node` 24→26 (npm) | major | **chat-web already ran `^26.1.1` under the same `typescript ~7.0.2`** — proven in the sibling app before it touched learning-web |
+
+**Two things were checked rather than waved through, and both came back benign.**
+`httpx2` 2.10.0 adds a new 6.8 KB transitive package, `httpx2-jsfetch` — which carries
+`marker = "sys_platform == 'emscripten'"`, the Pyodide/WASM transport, so it is never installed on
+Linux or macOS. And two `react(only-export-components)` oxlint warnings appeared: **oxlint 1.75.0 and
+1.77.0 emit the identical pair** on the same tree, so they pre-date the bump. A CI-log grep that
+found nothing had looked like evidence for the opposite and was not — running both versions settled
+it.
+
+**Recorded rather than described as "exactly the ten": resolution drifted past three requested
+versions.** `>=` floors let uv take the newest patch available *now*, later than when the PRs were
+opened — langgraph **1.2.11** (asked 1.2.10), ruff **0.16.3** (asked 0.16.2), uvicorn **0.52.3**
+(asked 0.52.1), botocore 1.43.71. Each strictly satisfies its PR.
+
+**The hold on `python 3.12→3.14` (#1, #8) turned out to rest on something stronger than batching.**
+The interpreter is pinned in **four** places and those PRs move one: the Dockerfiles go to 3.14 while
+`ci.yml`'s `python-version`, pyright's `pythonVersion` and ruff's `target-version` all stay 3.12.
+Because `requires-python = ">=3.12"` already permits 3.14, **nothing errors** — staging would simply
+run an interpreter that lint, typecheck and all 1514 tests never touched. Both PRs were left open
+with that written on them. A correct 3.14 PR moves all four pins together, covers both APIs at once,
+and gets its own deploy.
+
+#### What the staging run then found, and what it does not implicate
+
+`61 passed / 4 failed / 7 skipped` against a 64/7/0 baseline. Re-running the four separated them:
+
+| failure | verdict |
+|---|---|
+| `journey-chat` guest + tutor | **environment.** `net::ERR_NETWORK_IO_SUSPENDED` on `/chat/meta` — Chrome emits that when the *host* suspends network IO. Both passed on re-run |
+| `dashboard-chart-labels` | **reproducible, and its first-ever staging run** — see below |
+| `time-telemetry` | **reproducible; a harness race, not the batch** — see below |
+
+**Neither reproducible failure is attributable to the dependency bumps, and the evidence is
+countable.** The chart test totals **72 specs this run against 70–71 in every prior staging run**: it
+landed in `7379edb` (#261) *after* the `2c78601` run, so it had never executed against staging
+before. And `time-telemetry`'s failure is a modal overlay intercepting a click, which no dependency
+in either batch touches — the merged code passes that same test locally 72/72. What the bumps could
+have done is shift which side of a race the run lands on; **that is unestablished and is not being
+claimed either way.**
+
+**`time-telemetry` is the third time the harness has trusted `.phase-chip` and been wrong.** The
+overlay is *expected product behaviour* — entering pre-exam is a stage transition and
+`StageTransitionScreen` requires an explicit Continue by design. `chooseTopic` dismisses a narrative
+only at the top of each attempt, so one arriving *after* the topic click is never dismissed; the test
+then waits for `.phase-chip`, which renders **behind** the overlay, and clicks into a modal that is
+deliberately up. D-321's walk failed on the same signal (it counted post-exam answers as study work).
+**The chip proves a phase; it never proved interactivity.**
+
+**A correction about the chart test, which I wrote:** its assertion compares the *filtered* tick
+array, so it proves `buildDateTickFormatter` printed duplicates it should have blanked — it does
+**not** prove those duplicates were visually adjacent, because blanks are removed before the
+comparison. The finding stands (a correct formatter turns a run of 15 into one label and 14 blanks,
+which cannot survive the filter as a repeat), but its severity is overstated by the message. The
+mechanism is the formatter's own documented escape hatch: it blanks only when `labels[index]` lines
+up with the tick's value and otherwise "degrades to always print". Staging's ~70-point axes reach a
+density local fixtures never do. **Symptom reproduced, mechanism not yet proven** — the same standard
+D-321 applied to the ladder race. Both go to U1, which already opens `formatDateLabel` for CDT.

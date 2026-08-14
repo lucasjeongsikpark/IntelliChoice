@@ -101,11 +101,27 @@ by delaying `/exam/overview` — confirmed failing with the gate disabled before
 new Milestone 10 — Sessions U0-U7.** The reasoning behind each option is kept in
 [OPEN_DECISIONS.md](OPEN_DECISIONS.md), marked with its outcome.
 
-**The next session is U0:** record-keeping plus clearing **26 dependabot PRs** (10 npm, 10 uv, 4
-GitHub Actions, 2 Docker) under the agreed batch policy — **holding `python 3.12→3.14` back for its
-own PR and its own deploy**, because a base-image swap behind twenty other bumps produces a staging
-failure that cannot name its cause. Then U1's three small fixes (CDT dates, the ladder pause race,
-`difficulty_tiers` following the judge), then U2 (learning-gain integrity).
+**✅ U0 IS DONE (2026-08-14, D-323).** 24 of 26 dependabot PRs cleared as three batches — **#263**
+(10 Python, `6b719fd`), **#264** (10 npm, `63e9ea6`), **#265** (4 GitHub Actions majors, `950ec2b`) —
+and both `python 3.12→3.14` PRs left open carrying their reason. Two staging deploys, each verified
+three ways; staging now serves **`gha-950ec2be605f`**.
+
+**The batch policy needed changing, because for three PRs the green tick was vacuous.** #4, #5 and #6
+change only `deploy-staging.yml`, which is `workflow_dispatch:`-only — **no PR check has ever executed
+it**, so their passing checks ran ordinary CI over unchanged code. They were merged apart and tested by
+a deploy that changes no application code, so a failure could only name the actions. It passed.
+
+**The hold on python 3.14 rests on something stronger than batching.** The interpreter is pinned in
+**four** places and those PRs move one: the Dockerfiles go to 3.14 while `ci.yml`'s `python-version`,
+pyright's `pythonVersion` and ruff's `target-version` stay 3.12. Since `requires-python = ">=3.12"`
+already permits 3.14, **nothing errors** — staging would just run an interpreter that lint, typecheck
+and all 1514 tests never touched.
+
+**The next session is U1**, which now has five items rather than three: CDT dates, the ladder pause
+race, `difficulty_tiers` following the judge, plus two reproducible staging findings U0 surfaced and
+did **not** cause — the date axis repeating itself on real data, and `time-telemetry` losing a race to
+an expected modal because the harness trusted `.phase-chip` for the third time. Then U2
+(learning-gain integrity).
 
 **Two things the plan is waiting on the user for:**
 
@@ -9730,6 +9746,49 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### Session U0 — the dependency backlog, and three green ticks that had examined nothing (2026-08-14, D-323) ✅
+
+**Verification at close:** ruff clean (on the new **0.16.3**), pyright **0 errors**, pytest **1514
+passed / 2 skipped / 1 xfailed** — identical to the pre-batch baseline — local **e2e 72 passed**,
+CI **9/9 on all three PRs**, two staging deploys each verified three ways. **$0 directed spend.**
+
+**24 of 26 dependabot PRs cleared; the two held ones now carry their reason.** Merged as three
+batches: **#263** (10 Python, `6b719fd`), **#264** (10 npm, `63e9ea6`), **#265** (4 GitHub Actions
+majors, `950ec2b`). Sequential merging was never available — all ten Python PRs rewrite `uv.lock` and
+each app's five npm PRs rewrite that app's `package-lock.json`, so one-at-a-time is 24 rebase cycles.
+
+**The finding that reshaped the policy: for #4, #5 and #6 the green tick was vacuous.** They change
+only `deploy-staging.yml`, which is `workflow_dispatch:` only — no PR check has ever executed it, so
+their seven passing checks ran ordinary CI over unchanged code. "Merge on green" could not apply.
+They were merged separately and tested by a deploy that **changes no application code**, so a failure
+could only name the actions. It passed, and the Build-and-push steps genuinely ran rather than being
+skipped, so `build-push-action@v7` did real ARM64 work. Both services on `gha-950ec2be605f`.
+
+**Two things checked rather than waved through, both benign:** `httpx2-jsfetch`, a new 6.8 KB
+transitive package, is gated behind `sys_platform == 'emscripten'` and is never installed here; and
+two new oxlint warnings turned out **identical under 1.75.0 and 1.77.0**, so they pre-date the bump —
+a CI-log grep had suggested otherwise and was not evidence.
+
+**Recorded rather than called "exactly the ten":** `>=` floors let uv resolve past three requested
+versions — langgraph **1.2.11**, ruff **0.16.3**, uvicorn **0.52.3**. Each satisfies its PR.
+
+**Staging came back `61 / 4 / 7` and the re-run separated the four.** Two `journey-chat` failures were
+**environment** (`net::ERR_NETWORK_IO_SUSPENDED` — the host suspending network IO) and passed on
+re-run. Two reproduced, and **neither is attributable to the batches**:
+
+- **`dashboard-chart-labels`** — its **first-ever staging run** (72 specs this run against 70–71 in
+  every prior one; it landed in `7379edb` after the `2c78601` run). A date axis printed ~70 labels
+  with `8/7/2026` fifteen times. Mechanism is `buildDateTickFormatter`'s documented fallback, which
+  "degrades to always print" when the tick index stops addressing the data. **Symptom reproduced,
+  mechanism unproven.** My own test also overstates it — it compares the *filtered* array, so it
+  cannot tell "twice in a row" from "twice, separated by blanks".
+- **`time-telemetry`** — a `StageTransitionScreen` overlay, which is *expected* behaviour and needs an
+  explicit Continue, is up when the test clicks the exam nav. **The third time the harness has trusted
+  `.phase-chip` and been wrong** (D-321's walk failed on the same signal): the chip renders *behind*
+  the overlay, so it proves a phase and never interactivity.
+
+Both go to U1, which already opens `formatDateLabel`. Carry-over, not a detour.
 
 ### Session C1 — close-out (2026-08-13, D-307 → D-313)
 
