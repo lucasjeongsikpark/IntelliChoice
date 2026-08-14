@@ -63,6 +63,7 @@ async def sync_channel(
     curriculum: CurriculumContent,
     channel_id: str,
     run_budget_cents: float,
+    saw_whole_channel: bool = True,
 ) -> SyncSummary:
     try:
         fetched_videos = await provider.list_uploaded_videos(channel_id)
@@ -142,7 +143,26 @@ async def sync_channel(
             summary.videos_updated += 1
 
     summary.total_cost_cents = spend
-    summary.videos_marked_inactive = await repo.mark_inactive_except(channel_id, seen_ids)
+
+    # **`mark_inactive_except` is only sound when this run could have seen everything, and a
+    # quota-capped run cannot (D-326 addendum).** It deactivates every catalog row this run did
+    # not encounter, which is right for "the channel no longer publishes it" and catastrophic
+    # for "we did not search for it today": the resumable term selection added in D-326 searches
+    # only the *uncovered* skills, so the previously-covered ones are absent from `seen_ids` by
+    # construction.
+    #
+    # Measured on staging before this guard existed: a 90-of-112-term run reported **62 marked
+    # inactive**, and **5 skills lost their only servable video**. Net coverage still rose 10 ->
+    # 72 skills, which is exactly why this was easy to miss - the headline number improved while
+    # a subset silently regressed. Worse, the next day's run would deactivate today's 200 in the
+    # same way, so successive runs would thrash rather than accumulate.
+    #
+    # Skipping is the safe direction: a video removed from the channel lingers as active until a
+    # full run happens, which the S27 verification pass below independently catches (it marks
+    # unavailable videos regardless of this flag). Deactivating good content has no such
+    # backstop.
+    if saw_whole_channel:
+        summary.videos_marked_inactive = await repo.mark_inactive_except(channel_id, seen_ids)
 
     # S27 verification pass: a real YouTube Data API call, not a paid Bedrock one, so
     # it isn't subject to `run_budget_cents` - but a failure here must not undo the
