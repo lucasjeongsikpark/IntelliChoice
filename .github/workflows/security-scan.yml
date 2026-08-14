@@ -18,7 +18,7 @@ jobs:
   python-dependency-audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -44,7 +44,7 @@ jobs:
       run:
         working-directory: apps/learning-web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
@@ -65,7 +65,7 @@ jobs:
   learning-api-container-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build image
         run: docker build -f apps/learning-api/Dockerfile -t learning-api:scan .
@@ -99,7 +99,7 @@ jobs:
   chat-api-container-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build image
         run: docker build -f apps/chat-api/Dockerfile -t chat-api:scan .
@@ -119,7 +119,7 @@ jobs:
       run:
         working-directory: apps/chat-web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:

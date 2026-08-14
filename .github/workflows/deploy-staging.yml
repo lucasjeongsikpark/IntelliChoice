@@ -42,10 +42,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Configure AWS credentials (OIDC, no long-lived keys)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::320503430250:role/intellichoice-staging-github-deploy
           aws-region: ${{ env.AWS_REGION }}
@@ -58,7 +58,7 @@ jobs:
         run: echo "tag=gha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # S35: the image tag is derived from the commit SHA, and the ECR repositories have
       # immutable tags on purpose (S32 hardening - an already-deployed tag can never be
@@ -117,7 +117,7 @@ jobs:
       # this deployment intentionally runs Graviton).
       - name: Build and push learning-api
         if: steps.images.outputs.learning_api_exists == 'false'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/learning-api/Dockerfile
@@ -134,7 +134,7 @@ jobs:
 
       - name: Build and push chat-api
         if: steps.images.outputs.chat_api_exists == 'false'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/chat-api/Dockerfile
