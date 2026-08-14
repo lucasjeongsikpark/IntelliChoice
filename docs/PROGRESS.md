@@ -82,14 +82,23 @@ by delaying `/exam/overview` — confirmed failing with the gate disabled before
    chance). The frontend bundle was confirmed fresh at the edge, not inferred from the API image
    tag.
 
-   **The open question this leaves is the ladder walk, and it is not "flaky" until someone shows it
-   is.** `study: answered 11 items` with `worked 0 retry-ladder pauses` is not chance — the walk
-   cycles `optionIndex`, so ~3 in 4 answers should be wrong and each should open the ladder. Either
-   the walk answered correctly eleven times for an unnamed reason, or **SPEC §5.11.3's retry ladder
-   did not engage on wrong answers**, which would be a real defect in the study phase's centrepiece.
-   4-of-4 before today, 3-of-5 after: far too small to separate the two. **Next step: make the walk
-   record each answer and whether it was correct**, so the next occurrence decides instead of
-   re-opening the question.
+   **The ladder walk is now instrumented rather than argued about (D-318).** Its assertion was one
+   bit wide and three mutually exclusive causes shared it: the walk answering correctly every time
+   (test), the graph not opening the ladder on a wrong answer (a **§5.11.3 product defect**), or the
+   pauses opening and the walk missing them (harness, D-288 §4's class). Each `POST /answers`
+   response is now read for `is_correct` and `pending_interrupt.interrupt_type`, so `wrong` and
+   `ladderOffered` sit beside the walk's own count and each failure message names its own cause. A
+   run with no wrong answer **skips** rather than passes, because a green tick there is a claim the
+   run did not earn.
+
+   **Verified to record, not yet seen to classify:** a local walk reported `6 graded, 3 wrong, 3
+   ladder pauses opened by the server`. The failure did not recur — 5 further staging walks and 1
+   local all passed in the ~55 s "real pauses" profile against the failure's 10.0 s. By D-107 §1
+   that is an assertion not yet seen to fire, and it is recorded as such.
+
+   **Staging then produced a second clean whole run: `64 passed / 7 skipped / 0 failed`.** Today's
+   record for the Phase 6 clause is 3 runs — `64/6/0`, `63/7/1`, `64/7/0` — so it stays ⏸ at 2 of 3.
+   It closes when that walk can no longer redden a run.
 2. **Decide whether to spend on depth.** The only substantial thing left in C1 and it is sized:
    ~$13-16 and ~3.5 hours of generation. Nothing is blocked; this is a budget call.
 3. **Decide whether the two exposed staging secrets get rotated after all.** Declined once with a

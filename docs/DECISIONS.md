@@ -22689,3 +22689,47 @@ small to separate "known-fragile test" from "intermittent product defect", and D
 declined to add another guess to this area. The honest next step is to make the walk *record* the
 answers it gave and whether each was correct, so the next occurrence distinguishes the two readings
 instead of re-opening the question.
+
+### D-318 — The ladder assertion was one bit wide, and three different defects were sharing it
+
+**Date:** 2026-08-14 · **Session:** same · **Status:** instrumented; the classification itself is
+unobserved and says so
+
+`expect(interventions).toBeGreaterThan(0)` — "the retry ladder never engaged" — carried three
+mutually exclusive causes on one boolean, and D-311 could only guess which it had:
+
+| reading | whose defect |
+|---|---|
+| the walk answered correctly every time | the **test's** option ordering, which it does not control |
+| the graph never opened the ladder on a wrong answer | a **product** defect in SPEC §5.11.3, the study phase's centrepiece |
+| the pauses opened and the walk missed them | the **harness**, D-288 §4's class (`count()` read with no wait) |
+
+The 2026-08-14 failure read `study: answered 11 items` / `0 retry-ladder pauses`. At a cycled
+`optionIndex` roughly three answers in four should be wrong, so eleven clean answers is not chance —
+and nothing recorded could say which of the three had happened. That is the same shape as D-288
+itself: a symptom with several fixes attached and no instrument to choose between them.
+
+**The fix is to record what the server said, not what the DOM looked like.** Each `POST /answers`
+response is now read for `is_correct` and `pending_interrupt.interrupt_type`, giving `wrong` and
+`ladderOffered` beside the walk's own `interventions`. The three readings then separate cleanly, and
+each failure message names *its own* cause rather than the shared one.
+
+**`is_correct` doubles as the phase filter, which is why this needs no phase plumbing.** SPEC
+§5.9.2's `feedback_visibility="hidden_until_finalize"` makes it `null` for every pre/post-exam answer
+and a real bool for every study answer, so reading the field selects the phase.
+
+**A run with no wrong answer now skips rather than passes.** A green tick on a walk that never gave
+the ladder anything to react to is a claim the run did not earn — the vacuous pass D-171 §2 and
+`narrative-refresh.spec.ts`'s rewrite are both about. The counts sit in the audit notes, so this is a
+stated skip, not AUD-F-23's condition that silently never fires.
+
+**What is verified and what is not.** Verified that the instrument *records*: a local walk reported
+`6 graded, 3 wrong, 3 ladder pauses opened by the server` beside `worked 4`. **Not** verified that it
+*classifies*, because the failure did not recur — 5 further staging walks and 1 local all passed in
+the ~55 s "real pauses" profile, against the 10.0 s profile the failure showed. By this repo's own
+D-107 §1 standard that is an assertion not yet seen to fail, and it is recorded as such rather than
+counted as a fix.
+
+**Second clean whole staging run** in the same sitting: `64 passed / 7 skipped / 0 failed`. The
+clause stays ⏸ — 2 of 3 today — because a walk that can redden any given run has not stopped being
+able to.
