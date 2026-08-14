@@ -23362,3 +23362,87 @@ real signal for a flaky one, which is D-311's argument in the other direction.
 clause counts clean *whole* runs, and these are not three runs of the same thing — the harness changed
 between the first two and the app between the last two. The clause stays ⏸ on that basis, as it did
 after the D-317 addendum for the same reason.
+
+### D-326 — The YouTube sync's quota argument expired when the curriculum grew
+
+**Date:** 2026-08-14 · **Session:** U6 · **Status:** done; code merged (`cc1b013`), staging sync
+pending the deploy
+
+The catalog sync searches YouTube once per curriculum skill name.
+`YoutubeDataApiProvider.list_uploaded_videos` justifies the cost in its own docstring: *"`search.list`
+costs 100 units against a 10 000/day default, versus 1 for `playlistItems.list`. **Five terms is 500
+units** — affordable precisely because"* the list was small.
+
+**The taxonomy is now 112 skills, so a full run costs 11,200 units.** It would spend ~9,900 of them,
+die on a 403 that reads like an auth failure, and leave a half-written catalog — the worst of the
+available outcomes, because the symptom points at credentials and the cause is arithmetic.
+
+**Why nothing caught it, and this is the transferable part: the cost scales with *content* while the
+affordability argument was made once, in prose, against a number that then moved.** The same shape as
+`_closest_to_recommended`'s "provably inert on the current curriculum" (true when every skill had one
+tier, stale since U1 widened 39 declarations) and as D-323's vacuous green tick. A claim about the
+present tense, written in a docstring, aging silently.
+
+**`check_search_quota` refuses before the first request**, with the arithmetic and the knob, because
+"quota exceeded" alone sends the reader to Google's console rather than to `YOUTUBE_MAX_SEARCH_TERMS`.
+It joins the two checks the preflight already made — a missing key and a wrong-shaped channel id — both
+chosen for the same reason: failures whose symptoms "do not say what to fix". `daily_quota_units` and
+`search_unit_cost` are settings rather than constants, since the per-term cost is Google's and the
+allowance is per-project and raisable.
+
+**Runs are resumable, which is what makes a multi-day build work.** `_pending_search_terms` asks the
+catalog which skills already have a servable video — reusing `has_servable_video`, the existence check
+the serving path already performs — and searches the uncovered ones. Taking the first N each day would
+redo the same prefix forever and never reach the tail. The run prints what it defers, because a cap
+that silently drops work reads as a completed sync.
+
+**One limitation, stated rather than discovered later:** a skill whose search genuinely returns nothing
+stays "uncovered" and is retried every run. That is the right default — content appears over time — but
+the pending list does not converge to empty on its own.
+
+**Measured against the real API** (3 terms, 300 quota units, real Bedrock classification and
+embedding): **16 videos created, 0 rejected off-channel, 0 failed verification, 6.08 cents.** Dev
+catalog 4 → 20 videos, all active/embedded/approved, distinct skills covered 4 → **12** — three terms
+bought eight newly-covered skills, because the classifier tags one video to several. **0.38 cents per
+video**, so ~90 terms is roughly 170 cents and the default 200-cent run budget is *tight* rather than
+comfortable for a full sync.
+
+**On the channel id.** The code refuses to hard-code one: *"a wrong one sends a K-12 student to someone
+else's videos."* The user supplied `UC4a-Gbdw7vOaccHmFo40b9g`, and the staging ops-task was **already**
+configured with that same id — an independent corroboration of a value this codebase deliberately
+declines to assert. Worth recording because it is the rare case where infra state can verify a content
+decision.
+
+### D-327 — URL routing, and the criterion that needs an endpoint that does not exist
+
+**Date:** 2026-08-14 · **Session:** U4 · **Status:** done for three of four criteria; the fourth
+recorded as blocked
+
+The app lived at one URL with the destination in a `useState<View>`, so a reload on the dashboard
+returned the student to the session flow and Back left the site.
+
+**The view is now derived from the URL, and only at the top level.** `/session` vs `/dashboard`,
+nothing finer. **Phases are deliberately not in the URL**: the session's screen is chosen by the
+server's `phase`, and a bookmarkable `/exam` could send a student to an exam the graph has already
+finalized. The address bar disagreeing with session state is a worse defect than the one being fixed,
+so the URL owns the destination and `phase` keeps owning everything inside it. D-317's render gate sits
+downstream and is untouched — confirmed by both `exam-position-refresh` specs staying green.
+
+`/` canonicalises to `/session` with `replace`. Two reasons, and the second is the point of U4: Back
+from the dashboard should land on a URL that *says* session, and §5.1.2's first-visit disclosures are
+keyed by route — a notice attached to "the session route" cannot fire on a path that is sometimes `/`.
+
+**The criterion that cannot be met: "results are bookmarkable".** `ResultsScreen` is handed
+`gain`/`hintCount`/`solutionCount`/`videoCount` off the live snapshot, and no endpoint serves a
+completed session's results by id, so a `/results` route would work only while that session happened to
+still be live. **A URL that breaks when bookmarked is worse than no URL**, so it is recorded in
+`routing.spec.ts`'s header rather than shipped looking finished. Closing it needs
+`GET /learning/sessions/{id}/results` — new API surface and a separate decision.
+
+**Two things checked rather than assumed.** CloudFront needed no change: `CustomErrorResponses` is
+empty, yet `/dashboard` returns 200 `text/html` from S3, so the SPA fallback already worked. Assuming
+it did not would have proposed unnecessary infrastructure; assuming it did without looking could have
+left a parent's bookmark 404ing, which is invisible to everyone who clicks through instead. And the
+Back assertion **failed first**, against `/` rather than `/session` — which is what surfaced the need
+for a canonical redirect. The alternative was loosening the assertion to accept both paths, which would
+have left the address bar ambiguous for exactly the §5.1.2 work this session exists to unblock.

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./App.css";
 import * as api from "./api/client";
 import { friendlyError } from "./api/errors";
@@ -29,6 +30,25 @@ const TOKEN_KEY = "intellichoice.token";
 const SUB_KEY = "intellichoice.sub";
 const ROLE_KEY = "intellichoice.role";
 
+/** U4/D-327: the two URLs the app owns. `/` resolves to the session flow. */
+const SESSION_PATH = "/session";
+const DASHBOARD_PATH = "/dashboard";
+
+/**
+ * The two top-level destinations, now **derived from the URL** rather than held in state
+ * (U4/D-327).
+ *
+ * Why this is a derivation and not a second source of truth: the session's *screen* is chosen
+ * by the server's `phase`, and putting phases in the URL would let the address bar disagree
+ * with the graph - a student could bookmark `/exam` and be sent there after the exam was
+ * finalized. So the URL owns only the choice between "the session flow" and "the dashboard",
+ * and the phase keeps owning everything inside the former. D-317's render gate is downstream
+ * of that and is untouched.
+ *
+ * What this buys, and it is the reason U4 exists: `/dashboard` is bookmarkable, the browser's
+ * back button works, a reload lands where the student was instead of resetting to the session,
+ * and §5.1.2's first-visit disclosures have a route to key off.
+ */
 type View = "session" | "dashboard";
 
 function App() {
@@ -37,7 +57,28 @@ function App() {
   const [role, setRole] = useState<string | null>(() => localStorage.getItem(ROLE_KEY));
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [view, setView] = useState<View>("session");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const view: View = location.pathname.startsWith(DASHBOARD_PATH) ? "dashboard" : "session";
+  // Kept named `setView` so every existing call site reads unchanged; it now pushes a history
+  // entry, which is what makes Back work.
+  const setView = useCallback(
+    (next: View) => {
+      navigate(next === "dashboard" ? DASHBOARD_PATH : SESSION_PATH);
+    },
+    [navigate],
+  );
+
+  // Canonicalise `/` to `/session` (U4/D-327). Two reasons, and the second is the point of U4:
+  // Back from the dashboard should land on a URL that *says* session rather than on the bare
+  // entry path, and §5.1.2's first-visit disclosures are keyed by route - a notice attached to
+  // "the session route" cannot fire on a path that is sometimes `/` and sometimes `/session`.
+  //
+  // `replace` rather than `push`, so this does not insert a history entry the student has to
+  // press Back through twice to leave the app.
+  useEffect(() => {
+    if (location.pathname === "/") navigate(SESSION_PATH, { replace: true });
+  }, [location.pathname, navigate]);
 
   // `sub` is passed so the hook can drop a `sessionStorage` session belonging to a previous
   // sign-in in this tab - see `clearSessionIfOwnedByAnotherSubject`.
