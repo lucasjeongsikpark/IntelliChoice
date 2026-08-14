@@ -22854,3 +22854,46 @@ measured against the shipped function through the Vite dev server (D-319 addendu
 different and stronger check than this file performs.
 
 **Verification:** e2e `tsc` clean · **local e2e 72 passed** (71 + this one).
+
+### D-321 — The ladder question is answered: the graph opened it, the harness missed it
+
+**Date:** 2026-08-14 · **Session:** same · **Status:** classified; the walk's accounting fixed; the
+pause race itself left diagnosed-next-time rather than guessed at
+
+D-318 built an instrument to split three readings of `the retry ladder never engaged`. The failure
+was then made to recur — **1 of 12 staging walks**, caught at 20.5 s against the 55 s–1.3 m profile
+of a walk that works real pauses — and the instrument classified it on its first firing:
+
+> the server opened **1** retry-ladder pauses and this walk worked **0** of them — the pauses
+> happened and the harness missed them, which is D-288 §4's class
+
+**So SPEC §5.11.3's retry ladder is not broken.** That was the reading worth being afraid of, it is
+now excluded on evidence, and PROGRESS carried it as the session's top open question for exactly one
+day. The cost of finding out was twelve walks.
+
+**The audit note carried a second finding the counts prove outright.**
+
+```
+study: answered 11 items
+study verdicts: 1 graded, 1 wrong, 1 ladder pauses opened by the server
+```
+
+The response listener is attached *after* `answerWholeExam`, so all eleven submissions came from the
+study loop — yet the server graded **one** of them as a study answer. `is_correct` is `null` for
+pre/post-exam answers by design (§5.9.2's `hidden_until_finalize`), so the other ten were **exam**
+answers: the walk left the study phase without noticing and answered the whole post-exam while
+reporting it as study work. Every count it published about the ladder was measured over the wrong
+set of questions.
+
+The guard that should have caught it reads the **phase chip** — a screen-derived signal that lags a
+phase change. The server's grading does not lag, so the walk now reconciles the two and fails when
+they disagree by more than one in-flight answer. That assertion would have caught this on the first
+staging run rather than on the twentieth.
+
+**What is deliberately not fixed here.** *Why* `clearInterventionIfPresent` misses the pause. Its
+wait races the pause against `.option-text`, and whether the options are already on screen when it
+runs decides the race — but I have no measurement of what the helper actually saw, and D-311's
+standing refusal ("I am not adding a fifth client-side guess") applies to harness code too. The
+honest next step is a breadcrumb recording which locator won, so the next occurrence names the
+mechanism instead of inviting a fifth theory. **The 1-in-12 rate is now the yardstick**, and it is
+the number a fix has to beat.
