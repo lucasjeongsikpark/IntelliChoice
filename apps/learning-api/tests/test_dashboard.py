@@ -8,6 +8,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 from intellichoice_db.engine import create_engine
@@ -32,7 +33,8 @@ from intellichoice_db.repositories.dashboard import DashboardRepository
 from intellichoice_db.repositories.mastery import MasteryRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_db.repositories.study import StudyRepository
-from learning_api.services.dashboard import build_dashboard
+from intellichoice_shared.org_time import resolve_org_time
+from learning_api.services.dashboard import _accuracy_trend, build_dashboard
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -318,3 +320,63 @@ def test_dashboard_with_no_range_includes_everything() -> None:
             assert data.time_spent_minutes == 15.0
 
     asyncio.run(run())
+
+
+# --- Which day an attempt is counted against (D-324) ------------------------------------
+#
+# Pure-function tests, deliberately not seeded ones: the defect is entirely in how an
+# instant becomes a date key, and a rollback-session test would need real rows on both
+# sides of a timezone boundary to say the same thing at fifty times the cost.
+
+
+def _study_row(responded_at: datetime, *, is_correct: bool) -> tuple:
+    """`_accuracy_trend` reads exactly two attributes off a study row."""
+    return (SimpleNamespace(responded_at=responded_at, is_correct=is_correct), object())
+
+
+def test_accuracy_trend_buckets_a_late_evening_attempt_under_the_org_day() -> None:
+    """**The bug, stated as a test.** 02:00 UTC on the 8th is 21:00 Central on the 7th. The
+    previous version bucketed on `.date()` - the UTC day - so a student who worked Friday
+    evening saw that work counted against Saturday, and *both* days' accuracy described
+    something that never happened. The two attempts here are on the same Central evening and
+    must therefore form **one** point, not two."""
+    org_time = resolve_org_time(env={})
+    rows = [
+        _study_row(datetime(2026, 8, 8, 1, 30, tzinfo=UTC), is_correct=True),  # 20:30 CDT 8/7
+        _study_row(datetime(2026, 8, 8, 2, 30, tzinfo=UTC), is_correct=False),  # 21:30 CDT 8/7
+    ]
+
+    points = _accuracy_trend(rows, [], org_time)
+
+    assert len(points) == 1, "one Central evening is one day"
+    assert points[0].date.date().isoformat() == "2026-08-07"
+    assert points[0].attempts == 2
+    assert points[0].accuracy == 0.5
+
+
+def test_accuracy_trend_dates_carry_a_timezone_so_the_client_cannot_reread_them_locally() -> None:
+    """A naive datetime on the wire is re-interpreted by `new Date(...)` as the *viewer's*
+    local time, which shifts the label by the viewer's offset - the same class of defect as
+    formatting with a bare `toLocaleDateString()`. Emitting an aware value removes the
+    ambiguity rather than relying on every consumer to guess right."""
+    points = _accuracy_trend(
+        [_study_row(datetime(2026, 8, 7, 15, 0, tzinfo=UTC), is_correct=True)],
+        [],
+        resolve_org_time(env={}),
+    )
+    assert points[0].date.tzinfo is not None
+    assert points[0].date.utcoffset() is not None
+
+
+def test_accuracy_trend_separates_two_genuinely_different_org_days() -> None:
+    """The other direction, so the fix cannot pass by collapsing everything into one bucket
+    (the failure mode a "one point" assertion alone would accept)."""
+    points = _accuracy_trend(
+        [
+            _study_row(datetime(2026, 8, 7, 15, 0, tzinfo=UTC), is_correct=True),
+            _study_row(datetime(2026, 8, 9, 15, 0, tzinfo=UTC), is_correct=True),
+        ],
+        [],
+        resolve_org_time(env={}),
+    )
+    assert [p.date.date().isoformat() for p in points] == ["2026-08-07", "2026-08-09"]

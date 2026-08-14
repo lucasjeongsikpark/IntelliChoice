@@ -117,11 +117,29 @@ pyright's `pythonVersion` and ruff's `target-version` stay 3.12. Since `requires
 already permits 3.14, **nothing errors** — staging would just run an interpreter that lint, typecheck
 and all 1514 tests never touched.
 
-**The next session is U1**, which now has five items rather than three: CDT dates, the ladder pause
-race, `difficulty_tiers` following the judge, plus two reproducible staging findings U0 surfaced and
-did **not** cause — the date axis repeating itself on real data, and `time-telemetry` losing a race to
-an expected modal because the harness trusted `.phase-chip` for the third time. Then U2
-(learning-gain integrity).
+**✅ U1 IS ALSO DONE (2026-08-14, D-324).** All five items closed: dates render the org's day with the
+zone **served** rather than copied, `_accuracy_trend`'s UTC-day bucketing fixed (a values bug, not a
+label one), the date-axis formatter made index-free — which is what D-323 could not name — and the
+harness stopped treating `.phase-chip` as proof of interactivity. The ladder pause race is
+**instrumented and deliberately not fixed**, because D-311's refusal to add another guess stands and
+**1 in 12 is still the yardstick**.
+
+**Two of U1's items were different problems than the plan described, and a test found one of them.**
+Widening every `difficulty_tiers` to match the judge broke
+`test_the_plan_keeps_every_tier_inside_what_a_student_can_be_recommended`: a declaration must stay
+within ±1 of the skill's native tier, because *"content nothing can serve is worse than no content"*.
+Net 39 widened, 1 refused, 13 empty declarations left alone as the generation gate they are.
+
+**The next session is U2** — learning-gain integrity: study must not re-serve the session's own exam
+**variant**. U3 (the narrative header's stage) rides with it, since both touch the session wire shape.
+
+**Two carry-over items U1 surfaced and did not do:**
+
+1. **`linear_both_sides` holds 2 items the judge rated 2 tiers below its native 4.** They are content
+   the selector can never route to, so this is an item-quality finding, not a declaration one.
+2. **The ±1 reachability guard covers ~21 of 112 skills.** `TOPIC_DIFFICULTY_SKILLS` has no native
+   tier for the other 91, so nothing checks whether a declared cell is reachable. That is why widening
+   38 of them could only be a judgement call rather than a checkable one.
 
 **Two things the plan is waiting on the user for:**
 
@@ -9746,6 +9764,55 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### Session U1 — the org's day, and a premise a test refused (2026-08-14, D-324) ✅
+
+**Five items: four fixed, one left as an instrument on purpose.** Two of the five turned out to be
+different problems than they were written as, and both corrections came from something checkable.
+
+**1. Dates render the org's day, and the zone is served rather than copied.** Every date used a bare
+`toLocaleDateString()`, which reads *two* things off the viewer's machine — zone and locale — so a
+parent abroad saw the org's days shifted. `DashboardResponse.org_time_zone` now carries it from
+`resolve_org_time()`. Deliberately not an `America/Chicago` constant in the client: that is a third
+copy of the zone, and `org_time.py`'s own rule is *one variable, both apps, no way to skew them*.
+`display_time_zone()` is a method because under the legacy convention the effective zone is a fixed
+UTC−6 and `timezone_name` is unused — handing the browser Chicago there would disagree with every
+server-side calculation by an hour for eight months of the year.
+
+**2. A correctness bug found while looking at the formatting one.** `_accuracy_trend` bucketed on
+`responded_at.date()`, the **UTC** day: 02:00 UTC is 21:00 the previous evening in Central, so a
+student's evening work was counted against the next morning and *neither* day's accuracy described
+anything real. Three tests; **two confirmed to fail against the old code before being kept**, the
+third a control against a "fix" that collapsed every day into one bucket.
+
+**3. D-323's date-axis symptom is explained — and the previous fix was the cause.** It blanked a
+repeat only when the tick's `index` addressed the data array, and its own comment described the
+else-branch as degrading *"to always print"*. Fixture data always satisfied the condition; staging's
+dense axes did not. The replacement needs **no index at all**, so at most one tick per day prints
+whatever recharts does. The test's assertion was strengthened to "no label twice anywhere", which also
+retires the caveat D-323 recorded against my own test.
+
+**4. The harness stops treating `.phase-chip` as proof of interactivity — the third such instance.**
+`stableClick` now closes a blocking `narrative-overlay` between retries rather than retrying a doomed
+click for 30 s, and `settleToInteractiveScreen` no longer returns while a modal is up. The modal is
+*expected product behaviour*; every locator the fixture called "interactive" renders behind it.
+
+**5. The ladder pause race is instrumented and deliberately not fixed** (D-311 still stands). The
+breadcrumb records which locator won the wait and the two `count()` reads that *are* the decision.
+Adds no waiting, so it cannot become the fix by accident. **1 in 12 remains the yardstick.**
+
+**6. `difficulty_tiers`: the item's premise held for 2 of 40 skills, and a test said so.** Freshly
+measured, 232 items / 53 skills sit outside their declaration — but 13 of those skills declare
+**nothing**, which `test_figures.py` states is a deliberate generation gate ("no paid run can schedule
+them"), so filling them would remove a guard. Widening the rest broke
+`test_the_plan_keeps_every_tier_inside_what_a_student_can_be_recommended`: declarations must stay
+within **±1 of native**, because *"content nothing can serve is worse than no content"*. Net **39
+widened, 1 refused, 13 untouched**. **C1's multi-tier clause re-measured: 83 of 96.**
+
+**Recorded because it went against my recommendation:** 38 of those skills have no native tier at all,
+so reachability is uncomputable and the ±1 guard does not cover them. I recommended leaving them; the
+user chose to widen. The consequence, stated once: the next generation batch treats those cells as
+authoring targets. The real gap is that the guard covers ~21 of 112 skills.
 
 ### Session U0 — the dependency backlog, and three green ticks that had examined nothing (2026-08-14, D-323) ✅
 

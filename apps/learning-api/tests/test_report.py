@@ -120,6 +120,7 @@ def _dashboard() -> DashboardData:
         latest_post_raw_score=6.0,
         latest_raw_gain=2.0,
         tutor_review_flagged=True,
+        org_time_zone="America/Chicago",
     )
 
 
@@ -672,6 +673,7 @@ def _empty_dashboard() -> DashboardData:
         latest_post_raw_score=None,
         latest_raw_gain=None,
         tutor_review_flagged=False,
+        org_time_zone="America/Chicago",
     )
 
 

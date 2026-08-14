@@ -127,7 +127,7 @@ for (const { band, student, topic, expectFigure } of BANDS) {
       .toMatch(/study|post-exam/i);
     for (let i = 0; i < 4; i += 1) {
       await settleToInteractiveScreen(page);
-      if (await clearInterventionIfPresent(page)) continue;
+      if (await clearInterventionIfPresent(page, (m) => audit.note(`${band}: ${m}`))) continue;
       await expectStudentReadableMath(page);
       if (await answerCurrentQuestion(page)) break;
       await page.waitForTimeout(500);

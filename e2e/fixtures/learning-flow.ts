@@ -33,6 +33,29 @@ export const PHASE_CHIP = ".phase-chip";
  * swap screens, and a retry that is no longer needed costs one extra locator call while a
  * missing one costs a flaky primary journey.
  */
+/** The stage-narrative modal. `aria-modal`, and only an explicit Continue closes it. */
+export const NARRATIVE_OVERLAY = ".narrative-overlay";
+
+/**
+ * Closes a stage-narrative modal **only when one is actually covering the page**.
+ *
+ * Deliberately not `dismissNarrativeIfPresent`, for two reasons. It clicks with a raw
+ * `click()` rather than `stableClick`, because `stableClick` calls *this* on failure and the
+ * pair would recurse without bound. And it is gated on the overlay being present rather than
+ * on a `^continue$` button existing anywhere, so it cannot consume a Continue that belongs
+ * to some other screen.
+ */
+async function dismissBlockingNarrative(page: Page): Promise<boolean> {
+  if ((await page.locator(NARRATIVE_OVERLAY).count()) === 0) return false;
+  const button = page.getByRole("button", { name: /^continue$/i });
+  if ((await button.count()) === 0) return false;
+  return button
+    .first()
+    .click({ timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+}
+
 export async function stableClick(target: Locator, attempts = 4): Promise<boolean> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
@@ -40,6 +63,15 @@ export async function stableClick(target: Locator, attempts = 4): Promise<boolea
       return true;
     } catch {
       // Detached or unstable: the app re-rendered under the cursor. Retry.
+      //
+      // **Or a stage-narrative modal arrived over the top, in which case retrying the same
+      // click cannot ever work (D-324).** The overlay is `aria-modal` and closes only on an
+      // explicit Continue, so Playwright kept reporting `<div class="narrative-overlay">
+      // intercepts pointer events` and burned the whole timeout. Measured on staging
+      // 2026-08-14: `time-telemetry` failed twice in a row this way, at 47s, having spent
+      // 30s retrying a click into a dialog. The modal is *expected product behaviour* - the
+      // harness's job is to close it, not to wait it out.
+      await dismissBlockingNarrative(target.page());
     }
   }
   return false;
@@ -90,7 +122,16 @@ export async function settleToInteractiveScreen(page: Page, timeoutMs = 30_000):
     // is what pushed the full walk past even a 10-minute budget.
     const interactive = page.locator(".card-list, .phase-chip, .intervention-panel, .email-preview");
     const firstPause = page.getByRole("heading", { name: /want a hand/i });
-    if ((await interactive.count()) > 0 || (await firstPause.count()) > 0) return dismissed;
+    // **Present is not the same as reachable, and `.phase-chip` cannot tell them apart
+    // (D-324).** Every locator above renders *behind* the stage-narrative modal, so this
+    // returned "settled" on a screen whose every control was intercepted. That is the third
+    // time this harness has read `.phase-chip` and been wrong - D-321's walk counted a whole
+    // post-exam as study work on the same signal. The chip reports a phase; it has never
+    // reported interactivity.
+    const blocked = (await page.locator(NARRATIVE_OVERLAY).count()) > 0;
+    if (!blocked && ((await interactive.count()) > 0 || (await firstPause.count()) > 0)) {
+      return dismissed;
+    }
     await page.waitForTimeout(250);
   }
   return dismissed;
@@ -247,7 +288,31 @@ export async function dismissNarrativeIfPresent(page: Page): Promise<boolean> {
  * pick one. This takes a hint, then leaves the ladder: "I'll try again now" resumes the
  * graph, "Got it — next question" is the terminal dismiss. False if no pause is up.
  */
-export async function clearInterventionIfPresent(page: Page): Promise<boolean> {
+export async function clearInterventionIfPresent(
+  page: Page,
+  /**
+   * Breadcrumb sink (U1, D-324). **Instrument only — this function's behaviour is
+   * deliberately unchanged.**
+   *
+   * D-321 closed the question of *whether* SPEC §5.11.3 works: on the one staging walk in
+   * twelve that failed, the server had opened one ladder pause and the walk worked zero of
+   * them. What was never established is *why* the wait below misses it, and D-311's standing
+   * refusal to add another guess applies — so this records what the wait saw rather than
+   * changing what it does.
+   *
+   * What makes the recording sufficient: the `if` further down decides purely on those two
+   * `count()` reads, so capturing them **is** capturing the reason it returned false. Paired
+   * with `journey-student.spec.ts`'s D-318 listener — which reads `pending_interrupt` off the
+   * `POST /answers` response and therefore knows independently that the server *did* open a
+   * pause — a failing run says both halves at once: the graph offered the ladder, and the
+   * harness's race was won by something else. That is a mechanism, not a theory.
+   *
+   * Costs nothing and adds no waiting, on purpose. A version that waited a few seconds to see
+   * whether the pause showed up late would both slow every no-pause question and risk
+   * becoming the fix by accident, which would spend the failure this is meant to explain.
+   */
+  note?: (message: string) => void,
+): Promise<boolean> {
   const firstPause = page.getByRole("heading", { name: /want a hand/i });
   const content = page.locator(".intervention-panel");
 
@@ -268,14 +333,51 @@ export async function clearInterventionIfPresent(page: Page): Promise<boolean> {
   // question with genuinely no pause costs nothing: whichever screen materialises first
   // ends the wait.
   const options = page.locator(".option-text");
+  const startedAt = Date.now();
   await firstPause
     .or(content)
     .or(options)
     .first()
     .waitFor({ state: "visible", timeout: 15_000 })
     .catch(() => undefined);
+  const waitedMs = Date.now() - startedAt;
 
-  if ((await firstPause.count()) === 0 && (await content.count()) === 0) return false;
+  const pauseCount = await firstPause.count();
+  const panelCount = await content.count();
+
+  if (note) {
+    // Visibility as well as presence: the race resolves on `visible`, so a locator that is
+    // attached-but-hidden did not win it. `.first()` on each because `.option-text` matches
+    // one per option and strict mode would throw on the bare locator.
+    const [pauseVisible, panelVisible, optionsVisible] = await Promise.all([
+      firstPause
+        .first()
+        .isVisible()
+        .catch(() => false),
+      content
+        .first()
+        .isVisible()
+        .catch(() => false),
+      options
+        .first()
+        .isVisible()
+        .catch(() => false),
+    ]);
+    const wonBy = pauseVisible
+      ? "first-pause"
+      : panelVisible
+        ? "panel"
+        : optionsVisible
+          ? "OPTIONS"
+          : "nothing(timeout)";
+    note(
+      `ladder wait: won by ${wonBy} after ${waitedMs}ms ` +
+        `(pause=${pauseCount}, panel=${panelCount}, options=${await options.count()}) ` +
+        `-> ${pauseCount === 0 && panelCount === 0 ? "RETURNED FALSE" : "worked the pause"}`,
+    );
+  }
+
+  if (pauseCount === 0 && panelCount === 0) return false;
 
   if ((await firstPause.count()) > 0) {
     await stableClick(page.getByRole("button", { name: /get a hint/i }));

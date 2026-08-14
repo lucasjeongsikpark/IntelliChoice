@@ -14,6 +14,7 @@ from intellichoice_db.models.mastery import Mastery
 from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.dashboard import DashboardRepository
 from intellichoice_db.repositories.mastery import MasteryRepository
+from intellichoice_shared.org_time import OrgTimeConfig, resolve_org_time
 
 # Placeholder target: mastery bars render against this band until a real per-skill
 # target (curriculum-authored, not yet built) exists.
@@ -106,6 +107,9 @@ class DashboardData:
     latest_post_raw_score: float | None
     latest_raw_gain: float | None
     tutor_review_flagged: bool
+    # D-324: the IANA zone the frontend must format every date with. Served rather than
+    # duplicated in the client, so `ORG_TIMEZONE` stays the single switch for both apps.
+    org_time_zone: str
 
 
 async def _skill_name(curriculum_repo: CurriculumRepository, skill_id: str) -> str:
@@ -161,20 +165,29 @@ def _gains_over_time(gains: list) -> list[GainPoint]:
 
 
 def _accuracy_trend(
-    study_rows: list[tuple], assessment_rows: list[tuple]
+    study_rows: list[tuple], assessment_rows: list[tuple], org_time: OrgTimeConfig
 ) -> list[AccuracyPoint]:
+    """One point per **org-local** calendar day.
+
+    D-324: this bucketed on `.date()`, the *UTC* day. Every attempt after 7pm Central is
+    already the next day in UTC, so a student's evening work was counted against the
+    following morning and neither day's accuracy was the accuracy of anything a human
+    experienced. The dates are also emitted timezone-aware rather than as naive midnight,
+    because a naive datetime on the wire is re-interpreted as *the viewer's* local time by
+    `new Date(...)` and shifts the label back by the viewer's offset.
+    """
     buckets: dict[str, list[bool]] = defaultdict(list)
     for attempt, _item in study_rows:
-        buckets[attempt.responded_at.date().isoformat()].append(attempt.is_correct)
+        buckets[org_time.local_date_key(attempt.responded_at)].append(attempt.is_correct)
     for attempt, _session in assessment_rows:
-        buckets[attempt.submitted_at.date().isoformat()].append(attempt.is_correct)
+        buckets[org_time.local_date_key(attempt.submitted_at)].append(attempt.is_correct)
 
     points = []
     for date_key in sorted(buckets):
         outcomes = buckets[date_key]
         points.append(
             AccuracyPoint(
-                date=datetime.fromisoformat(date_key),
+                date=datetime.fromisoformat(date_key).replace(tzinfo=org_time.tzinfo()),
                 accuracy=sum(outcomes) / len(outcomes),
                 attempts=len(outcomes),
             )
@@ -238,12 +251,13 @@ async def build_dashboard(
     # this figure and `attempts_count` can no longer disagree about which attempts exist.
     total_time_ms = sum(attempt.response_time_ms for attempt, _ in assessment_rows)
     latest_gain = gains[-1] if gains else None
+    org_time = resolve_org_time()
 
     return DashboardData(
         mastery_by_skill=await _mastery_by_skill(mastery_rows, curriculum_repo),
         pre_post_by_skill=await _pre_post_by_skill(gains, curriculum_repo),
         gains_over_time=_gains_over_time(gains),
-        accuracy_trend=_accuracy_trend(study_rows, assessment_rows),
+        accuracy_trend=_accuracy_trend(study_rows, assessment_rows, org_time),
         difficulty_progression=await _difficulty_progression(study_rows, curriculum_repo),
         usage=_usage_breakdown(study_rows),
         attempts_count=len(study_rows) + len(assessment_rows),
@@ -252,4 +266,5 @@ async def build_dashboard(
         latest_post_raw_score=latest_gain.post_raw_score if latest_gain else None,
         latest_raw_gain=latest_gain.raw_gain if latest_gain else None,
         tutor_review_flagged=any(a.tutor_review_flagged for a, _ in study_rows),
+        org_time_zone=org_time.display_time_zone(),
     )
