@@ -11,7 +11,7 @@ dependencies = [
     # it was simply unstructured, which is the difference between a log and a record.
     "intellichoice-observability",
     "pydantic>=2.9",
-    "pydantic-settings>=2.6",
+    "pydantic-settings>=2.15.0",
     "pyyaml>=6.0",
     "sympy>=1.13",
 ]

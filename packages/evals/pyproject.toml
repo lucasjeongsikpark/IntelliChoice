@@ -7,7 +7,7 @@ dependencies = [
     "intellichoice-adapters",
     "intellichoice-curriculum",
     "pydantic>=2.9",
-    "pydantic-settings>=2.6",
+    "pydantic-settings>=2.15.0",
 ]
 
 [build-system]
