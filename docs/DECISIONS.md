@@ -22815,3 +22815,42 @@ a day (`new Date("2026-08-13")` is UTC midnight, which is 8/12 in a US timezone)
 today because the API returns full timestamps — the dashboard renders the correct day — so this is
 recorded as a latent trap in the formatter rather than fixed blind against data that does not
 currently exercise it.
+
+### D-320 — A chart test that passed twice before it read anything
+
+**Date:** 2026-08-14 · **Session:** same · **Status:** test added; the invariant is guarded, the
+fix it was written for is not falsifiable on today's data and says so
+
+D-319 fixed two chart defects found by *looking* at the dashboard, and nothing in the suite reads
+a chart — which is precisely why they survived. `dashboard-chart-labels.spec.ts` guards the
+invariant: no axis may render two identical labels, and a date axis may not print the same label
+twice in a row.
+
+**It passed twice while examining nothing, and both times the pass was a lie.**
+
+1. The wait was `.recharts-cartesian-axis-tick-value` — **any** tick. It was satisfied by the
+   `0 / 0.25 / 0.5` numeric axis of a chart that had already rendered, so the read ran before the
+   skill chart existed. *A wait whose condition is not the thing you are about to measure is not a
+   wait.*
+2. The read was `.recharts-yAxis` — the axis **line**. In this recharts version the tick text is
+   not inside it; it lives in a sibling `.recharts-yAxis-tick-labels`. The query returned five
+   empty arrays while 35 tick values sat in the same document, so every assertion iterated over
+   nothing. Found by walking a real tick's parent chain in the browser rather than guessing a
+   second selector.
+
+**Only the positive control caught either.** Both loops iterate over what was found, so an empty
+read runs zero assertions and reports success — the AUD-F-12 false negative this suite refuses
+everywhere else. The control skips, with both axis counts in the message, when nothing labelled was
+read: *"this run did not look"* is a different claim from *"this run looked and found nothing
+wrong"*, and only the second one is a pass. Written after the first vacuous pass, it caught the
+second immediately.
+
+**What the test can and cannot say, stated in the file.** The collision case needs two skills whose
+names differ only in the middle, and the fixture students study `linear_equations`, whose five names
+already separate — so on today's data this passes against the *unfixed* build too. Its value is
+forward-looking: the day the seeded curriculum grows a colliding pair (the fractions skills already
+in the bank would do it), this fails instead of shipping an unreadable chart. The fix itself was
+measured against the shipped function through the Vite dev server (D-319 addendum), which is a
+different and stronger check than this file performs.
+
+**Verification:** e2e `tsc` clean · **local e2e 72 passed** (71 + this one).
