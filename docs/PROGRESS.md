@@ -30,11 +30,22 @@ tasks read the value at container start.
 (`7379edb`), which needs no deploy. **Four whole staging runs today, three of them clean:**
 `64/6/0` at `86fbe50`, `63/7/1` at `e26c4fa`, `64/7/0` at `e26c4fa`, `64/7/0` at `2c78601`.
 
-**⚠️ The one open question worth carrying:** the ladder walk's failure audit read
-`study: answered 11 items` with **`0 retry-ladder pauses`**, which is not chance. It is now
-instrumented (D-318) so its next occurrence classifies itself as test fragility, a harness miss, or
-**SPEC §5.11.3's retry ladder failing to engage** — but the instrument has been seen to *record*,
-not yet to *classify*, because the failure has not recurred in 6 walks since.
+**✅ RESOLVED the same day (D-321): SPEC §5.11.3's retry ladder is not broken.** The failure was
+made to recur — **1 of 12 staging walks**, caught at 20.5 s against the 55 s–1.3 m profile of a walk
+that works real pauses — and D-318's instrument classified it on its first firing: *"the server
+opened 1 retry-ladder pauses and this walk worked 0 of them"*. **The graph opened the ladder; the
+harness missed it.** That was the reading worth being afraid of and it is excluded on evidence.
+
+The same audit note proved a second defect outright: **11 answers submitted in the study loop, 1
+graded as a study answer**. The walk had left the study phase without noticing and answered the
+whole post-exam while reporting it as study work, so every count it published about the ladder was
+measured over the wrong questions. Its guard read the *phase chip*, which lags; the server's grading
+does not. Fixed by reconciling the two (#262).
+
+**Still open, and deliberately not guessed at:** *why* `clearInterventionIfPresent` misses the pause.
+Its wait races the pause against `.option-text` and there is no measurement of which locator won.
+The next step is a breadcrumb recording that, so the next occurrence names the mechanism. **1 in 12
+is the yardstick a fix has to beat.**
 
 **✅ PR #251 IS MERGED AND DEPLOYED (2026-08-14).** Squash-merged as `86fbe50`, deployed by run
 `31754496362` — success, every gate green, rollback skipped. Verified independently of the
