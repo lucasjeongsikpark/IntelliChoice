@@ -75,6 +75,16 @@ UNKNOWN_ATTENDANCE_MESSAGE = (
 )
 
 
+# The Bedrock tasks the *background* schedulers invoke through `_narrative_gateway`. Kept as a
+# constant so a test can compare it against what those schedulers actually call (D-329): a
+# background failure is swallowed by design, so a missing entry here is invisible in production
+# except as a log line, and it stayed invisible for exactly that reason.
+_BACKGROUND_TUTOR_TASKS = (
+    BedrockTask.STAGE_NARRATIVE,
+    BedrockTask.HINT_PERSONALIZATION,
+)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
@@ -182,16 +192,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             session_budget_cents=settings.bedrock_session_budget_cents,
         )
 
-    # D-217: a gateway for the deferred study-transition narrative, built as a factory for
-    # the same reason as `_consolidation_gateway` - each background run gets a fresh
-    # circuit breaker rather than sharing the request gateway's. Normal call timeout (a
-    # narrative is tutor-reply-sized, unlike consolidation).
+    # D-217: a gateway for the deferred background work, built as a factory for the same
+    # reason as `_consolidation_gateway` - each background run gets a fresh circuit breaker
+    # rather than sharing the request gateway's. Normal call timeout (both tasks below are
+    # tutor-reply-sized, unlike consolidation).
+    #
+    # **Both tasks, and the second one was missing for as long as S21's scheduler has
+    # existed (D-329).** This factory was written for `STAGE_NARRATIVE` alone and later
+    # handed to `BackgroundHintPersonalizationScheduler` as well - correct reuse, since the
+    # two are the same shape of background call, but the registry never grew to match. Every
+    # personalized hint therefore died in the scheduler with `no Bedrock model configured for
+    # task hint_personalization`, was swallowed as background-task failures are, and left a
+    # student with the generic authored hint. Measured on staging: **117 failures in 48
+    # hours**, the only ERROR the learning API was emitting at all.
+    #
+    # `_BACKGROUND_TUTOR_TASKS` is a module constant rather than an inline literal so
+    # `test_background_gateway_registry.py` can assert the set against the tasks the
+    # schedulers actually invoke - the check that would have caught this on the day it
+    # was introduced.
     def _narrative_gateway() -> ResilientBedrockGateway:
         return ResilientBedrockGateway(
             provider=chat_provider,
             embedding_provider=embedding_provider,
             model_registry={
-                BedrockTask.STAGE_NARRATIVE: settings.bedrock_tutor_model_id,
+                task: settings.bedrock_tutor_model_id for task in _BACKGROUND_TUTOR_TASKS
             },
             call_timeout_s=settings.bedrock_call_timeout_s,
             max_retries=settings.bedrock_max_retries,
