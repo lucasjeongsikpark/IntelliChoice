@@ -7,7 +7,7 @@ dependencies = [
     "intellichoice-shared",
     "intellichoice-adapters",
     "pydantic>=2.9",
-    "pydantic-settings>=2.6",
+    "pydantic-settings>=2.15.0",
     "pyyaml>=6.0",
     "jsonschema>=4.23",
     "llama-index-core>=0.12",
