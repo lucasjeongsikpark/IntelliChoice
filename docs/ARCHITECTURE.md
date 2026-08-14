@@ -942,11 +942,11 @@ flowchart TB
         GMAIL["Gmail MCP<br/>FakeEmailTransport (S7)<br/>via McpToolRegistry (S14)"]
         GCAL["Google Calendar MCP<br/>FakeCalendarTransport (S14)<br/>via McpToolRegistry"]
         GMAPS["Google Maps MCP<br/>FakeMapsProvider (S15)<br/>via McpToolRegistry"]
-        YTAPI["YouTube Data API<br/>FakeYoutubeProvider default;<br/>YoutubeDataApiProvider (S27,<br/>unexercised) - offline sync worker only"]
+        YTAPI["YouTube Data API<br/>FakeYoutubeProvider default;<br/>YoutubeDataApiProvider - offline sync<br/>worker only. EXERCISED 2026-08-14<br/>(D-326): 200 videos on staging,<br/>quota-capped + resumable"]
     end
 
     subgraph WEB["apps/learning-web :5173 (S11)"]
-        REACT["React + Vite, no state library<br/>useLearningSession hook<br/>REST actions + EventSource stream"]
+        REACT["React + Vite, no state library<br/>useLearningSession hook<br/>REST actions + EventSource stream<br/>react-router (U4, D-327): /session ·<br/>/dashboard; phases stay server-driven"]
     end
 
     subgraph CWEB["apps/chat-web :5173 (S16)<br/>(same default Vite port as<br/>learning-web - run one at a time,<br/>or override --port)"]
@@ -957,7 +957,7 @@ flowchart TB
 
     subgraph APPS["FastAPI apps (S1)"]
         subgraph LAPI["learning-api :8001"]
-            LROUTES["routers/sessions (S5–S7)<br/>routers/questions (S9)<br/>routers/stream, routers/students (S11)<br/>routers/parents (AUD-F-22, D-176)<br/>/healthz (liveness-only), /readyz<br/>(DB-aware, ALB target-group health<br/>check since S34) (S1/S34)"]
+            LROUTES["routers/sessions (S5–S7)<br/>routers/questions (S9)<br/>routers/stream, routers/students (S11)<br/>routers/parents (AUD-F-22, D-176)<br/>routers/client_errors (U5, D-328):<br/>browser crash sink, per-token<br/>rate limit, redact+truncate<br/>/healthz (liveness-only), /readyz<br/>(DB-aware, ALB target-group health<br/>check since S34) (S1/S34)"]
             LAUTH["auth deps<br/>audience=learning (S2)<br/>+ dev-only /dev/token (S11)"]
             GRAPH["LangGraph workflow (S6–S8)<br/>see diagram 2"]
             LSVC["services: attendance, grading,<br/>assessment_builder, mastery_bootstrap,<br/>study_plan, learning_gain, flow (S5)<br/>tutor, topic_resolver (S8)<br/>question_reports (S9)<br/>study_outcomes (S10)<br/>video_catalog: real Postgres+<br/>Bedrock catalog (S10 stub → S15)<br/>session_events, history (S11)<br/>tutor.generate_personalized_hint,<br/>topic_resolver.resolve_misconception_tag<br/>(S21)<br/>memory_events (6 emission points),<br/>tutor.py/tutor_chat.py/study_plan.py<br/>read `relevant_learning_fact`/<br/>weak_skill tie-break (S25)"]
@@ -972,7 +972,7 @@ flowchart TB
 
     subgraph PKGS["Workspace packages"]
         SHARED["packages/shared<br/>auth + profile DTOs (S2)<br/>bedrock schemas (S8/S9/S13/S14/S15/S21/S24)<br/>email schemas (S7)<br/>calendar schemas, mcp registry (S14)<br/>maps, youtube schemas (S15)<br/>HintPersonalizationPayload/Response (S21)<br/>LearningChatIntent/TutorChatPayload,<br/>pii_redaction (S24, D-072)"]
-        ADAPT["packages/adapters<br/>JwtTokenVerifier (S2)<br/>MySQLProfileAdapter (S2, D-083)<br/>ResilientBedrockGateway (S8)<br/>FakeEmailTransport (S7)<br/>FakeCalendarTransport, ics (S14)<br/>FakeMapsProvider,<br/>FakeYoutubeProvider (S15)<br/>YoutubeDataApiProvider,<br/>httpx-based (S27, unexercised)"]
+        ADAPT["packages/adapters<br/>JwtTokenVerifier (S2)<br/>MySQLProfileAdapter (S2, D-083)<br/>ResilientBedrockGateway (S8)<br/>FakeEmailTransport (S7)<br/>FakeCalendarTransport, ics (S14)<br/>FakeMapsProvider,<br/>FakeYoutubeProvider (S15)<br/>YoutubeDataApiProvider,<br/>httpx-based (S27; first real run<br/>2026-08-14, D-326)"]
         DB["packages/db (S3)<br/>28 SQLAlchemy models · repositories<br/>hybrid_search + RRF (S13)<br/>mcp_tool_calls (S14)<br/>youtube_videos + search_catalog (S15)<br/>question_validation_runs (S20)<br/>hint_events (S21)<br/>tutor_chat_messages (S24)<br/>learning_events, semantic_memory +<br/>superseded_by_id/contradicts_event_count<br/>(S25)<br/>youtube_videos: prerequisite_skill_ids,<br/>transcript/license/suitability_status,<br/>verification_failures (S27)<br/>async Alembic migrations"]
         CURR["packages/curriculum<br/>taxonomy · shape registry ·<br/>variant gen · §5.8.5 validation (S4)<br/>ai_pipeline · settings (S9)<br/>authored_validation · review_cli<br/>(S20, sympy independent solve)<br/>hint_ladders: 11 hand-authored<br/>canonical shape ladders (S21)<br/>· hint_solution_review (D-251-271):<br/>PASS/REPAIR/REJECT reviewer ·<br/>review_panel (2 reviewers, unanimity,<br/>fail-closed) · hint_solution_repair<br/>(schema-enforced targeting) ·<br/>review_loop (5 rounds, per-item cap).<br/>Measured; repaired 29 bank items;<br/>NO generation-pipeline caller"]
         KNOW["packages/knowledge<br/>manifest validation ·<br/>ContentStore · chunking ·<br/>ingest pipeline (S12)<br/>retrieval: embed→search→rerank<br/>→drop score≤0.35 (S13/S17, D-172)"]

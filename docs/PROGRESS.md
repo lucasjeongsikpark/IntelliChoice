@@ -146,14 +146,42 @@ that benign case.
 **Three clean staging runs today are three different systems** — `022d96d`, `022d96d`+harness fix, and
 `eadce76`. C1's Phase 6 clause counts clean *whole* runs of the same thing, so it stays ⏸.
 
-**✅ U2 AND U3 ARE DONE (2026-08-14, D-325).** Study no longer re-serves the exam's own questions, and
-the narrative header knows which stage produced it. **U2's stated criterion could not fail** — a fresh
-variant row per serving made it true by construction — so the assertion was rewritten onto rendered
-stems. Measured before the fix: **57 of 201 study items (28%) repeated an exam template**, from two
-distinct causes.
+**✅ MILESTONE 10 IS COMPLETE EXCEPT U7 (2026-08-14).** Ten PRs merged and seven staging deploys in
+one day, each verified against the deployed build rather than the workflow's own report:
+U0 (`6b719fd`/`63e9ea6`/`950ec2b`), U1 (`022d96d`/`f1f4054`), U2+U3 (`eadce76`), U4 (`1e9e252`),
+U6 (`cc1b013`/`6fd7d89`), U5 (`05f7069`), and the D-329 hint fix (`0deb31c`).
 
-**The next session is U4** — URL routing via `react-router`, which gates §5.1.2's route-aware
-first-visit disclosures and must not slip.
+**Three sessions are ⏸ rather than ✅, each for a stated reason:**
+
+| | why |
+|---|---|
+| **U4** | "results are bookmarkable" needs `GET /learning/sessions/{id}/results`; `ResultsScreen` reads the live snapshot, so a `/results` route would only work while that session is live |
+| **U6** | "a band walk sees a real video offered" is **unreachable by the harness** — `clearInterventionIfPresent` always clicks "Get a hint", so no walk has ever exercised the Video branch |
+| **U7** | not started; awaiting the four answers in [U7_CHECKPOINT_CONSOLIDATION.md](U7_CHECKPOINT_CONSOLIDATION.md) §9 |
+
+**The pattern this milestone produced, and the thing worth carrying forward.** Seven of eight
+sessions had a stated criterion that was **checking the wrong thing**, and in every case a
+*measurement* found it — never a re-reading. Three shared one mechanism: **a present-tense claim
+written in a docstring, aging silently** as the content around it grew ("Five terms is 500 units"
+at 5 skills, now 112; `_closest_to_recommended` "provably inert on the current curriculum" before
+U1 widened 39 declarations; `YoutubeDataApiProvider (S27, unexercised)` until it ran today). None
+had a test that would notice.
+
+**And one feature had never worked at all.** D-329: personalized hints raised
+`no Bedrock model configured` on every attempt — 117 failures in 48 hours, the only ERROR the
+learning API was emitting. Invisible because a background task swallows exceptions *and* its
+fallback is deliberately indistinguishable from success. Fixed and proven on staging (no failures,
+`bedrock_call` now fires). **Still unproven: that a student sees the personalized hint** — the walk
+clicks faster than anyone reads, so it always hits `hint_personalization_dropped_stale`.
+
+**Chat is in better shape than the record suggested.** Zero application errors, **AUD-C-16 is
+closed** (corpus is real Titan embeddings, 159/159), and with it **AUD-F-19's P1 resolved** —
+"Saturday hours" went from a `location_consent` interrupt 3/3 with a null answer to three real
+answers with citations. The recorded hypothesis that F-19 was downstream of C-16 **held**.
+
+**The next session is U7**, which is deliberately the one waiting on judgement rather than
+momentum: it is the only remaining item whose failure mode is silently deleting a K-12 student's
+learning history, and the staging measurement bought ~17 months of runway to get it right.
 
 **Two carry-over items U2 surfaced and did not close:**
 
