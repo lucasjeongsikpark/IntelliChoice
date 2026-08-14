@@ -46,6 +46,7 @@ from learning_api.authorization import resolve_target_student
 from learning_api.config import get_settings
 from learning_api.dependencies import get_current_claims, get_profile_adapter
 from learning_api.graph.build import build_graph
+from learning_api.routers.client_errors import router as client_errors_router
 from learning_api.routers.parents import router as parents_router
 from learning_api.routers.questions import router as questions_router
 from learning_api.routers.sessions import (
@@ -366,6 +367,7 @@ app.include_router(sessions_router)
 app.include_router(stream_router)
 app.include_router(students_router)
 app.include_router(questions_router)
+app.include_router(client_errors_router)
 app.include_router(parents_router)
 
 

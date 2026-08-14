@@ -8,6 +8,7 @@ import '../../../packages/ui-brand/tokens.css'
 import '../../../packages/ui-brand/base.css'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
+import { reportClientError } from './lib/reportClientError'
 
 // An error a boundary cannot see: one thrown outside React's render/commit cycle - an event
 // handler's async continuation, or a rejected promise nobody awaited. `useLearningSession`
@@ -17,9 +18,16 @@ import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 // see `ErrorBoundary`'s docstring.
 window.addEventListener('error', (event) => {
   console.error('uncaught_error', event.message, event.filename, event.lineno)
+  reportClientError({
+    message: `uncaught_error: ${event.message}`,
+    stack: `${event.filename}:${event.lineno}`,
+  })
 })
 window.addEventListener('unhandledrejection', (event) => {
   console.error('unhandled_rejection', event.reason)
+  // U5/D-328: `reportClientError` latches itself off after its own fetch fails, which is what
+  // stops this listener from re-entering when the API is the thing that is down.
+  reportClientError({ message: `unhandled_rejection: ${String(event.reason)}` })
 })
 
 createRoot(document.getElementById('root')!).render(
