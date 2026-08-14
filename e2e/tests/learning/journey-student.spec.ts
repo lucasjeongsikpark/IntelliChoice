@@ -137,7 +137,7 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
   // below already fail closed when they cannot see a wrong answer.
   await expect
     .poll(() => studyVerdicts.length, { timeout: 10_000 })
-    .toBeGreaterThanOrEqual(studyAnswers)
+    .toBeGreaterThanOrEqual(1)
     .catch(() => undefined);
 
   const wrong = studyVerdicts.filter((verdict) => !verdict.correct).length;
@@ -149,6 +149,28 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
       `pauses opened by the server`,
   );
   expect(studyAnswers, "the study phase served no questions at all").toBeGreaterThan(0);
+
+  // **The loop's own count is not the number of study answers, and believing it hid a defect
+  // for a whole session.** `studyAnswers` counts submissions this loop made; `studyVerdicts`
+  // counts the ones the *server* graded as study answers, and SPEC §5.9.2 withholds
+  // `is_correct` until finalize, so an exam answer never lands in the second list.
+  //
+  // Measured 2026-08-14 on a failing run: **11 answers submitted in this loop, 1 graded as a
+  // study answer.** The listener is attached after `answerWholeExam`, so all eleven came from
+  // here - meaning the walk left the study phase without noticing and answered ten *post-exam*
+  // questions while reporting them as study work. The `post-exam` guard at the top of the loop
+  // reads the phase chip, which is exactly the kind of screen-derived signal that lags a phase
+  // change; the server's own grading does not lag.
+  //
+  // Allowing a slack of 1 rather than demanding equality: the last submission's response can
+  // still be in flight, and the poll above is deliberately tolerant of that.
+  expect(
+    studyAnswers - studyVerdicts.length,
+    `${studyAnswers} answers were submitted in the study loop but the server graded only ` +
+      `${studyVerdicts.length} as study answers - the walk carried on past the end of the ` +
+      "study phase and counted exam answers as study work, so every count it reports about " +
+      "the retry ladder is measured over the wrong set of questions",
+  ).toBeLessThanOrEqual(1);
 
   // **A run with no wrong answer proves nothing about the ladder, and must not claim to.**
   // Skipping rather than passing is the point: a green tick here would say "§5.11.3 works"
