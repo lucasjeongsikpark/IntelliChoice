@@ -72,7 +72,9 @@ by delaying `/exam/overview` — confirmed failing with the gate disabled before
 
 **What the next session should pick up, in order:**
 
-1. **Deploy the D-317 fix and re-measure on staging.** It is verified locally in both directions and
+1. **Deploy the D-317 fix and re-measure on staging.** It sits on **PR #252**
+   (`fix/exam-position-render-gate`, `0637375`), **CI green on all nine checks**, read from CI
+   rather than inferred. It is verified locally in both directions and
    by the full local suite (71 passed); it is **not** verified where the defect lives. The pre-fix
    rate is **2 of 6 reloads (33%)** — re-run `-g "restores the exact position" --repeat-each=6` (or
    more; 6 runs cannot distinguish 33% from 20%). Note `uvicorn --reload` does not complete while an
