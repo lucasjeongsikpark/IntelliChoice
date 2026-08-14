@@ -555,6 +555,8 @@ async def _study_narrative_update(
     return {
         "stage_narrative": text,
         "stage_narrative_evidence": evidence,
+        # U3/D-325: from the payload that produced the text, so the two cannot disagree.
+        "stage_narrative_stage": payload.stage,
         "pending_study_narrative": None,
     }, spend
 
@@ -686,6 +688,11 @@ async def finalize_exam(state: LearningState, runtime: Runtime[TurnContext]) -> 
     grade = await _grade_for_narrative(ctx, state.student_external_id)
     narrative_text: str | None = None
     narrative_evidence: list[str] = []
+    # U3/D-325: set together with `narrative_text` at both fire sites below, never alone. This
+    # node serves two different stages - `pre_outro` after the pre-exam and `post_outro` after
+    # the post - through the same pair of variables, which is exactly why the client could not
+    # tell them apart and printed one forward-looking header over both.
+    narrative_stage: str | None = None
     pending_narrative: dict | None = None
 
     if result.session_type == "pre_exam":
@@ -709,6 +716,7 @@ async def finalize_exam(state: LearningState, runtime: Runtime[TurnContext]) -> 
             pending_narrative = {"stage": "pre_outro", "target_skill_ids": target_skill_ids}
         else:
             weak_skill_names = [await _skill_name(ctx, sid) for sid in target_skill_ids]
+            narrative_stage = "pre_outro"
             narrative_text, narrative_evidence, bedrock_spend_cents = (
                 await _fire_stage_narrative(
                     ctx,
@@ -775,6 +783,7 @@ async def finalize_exam(state: LearningState, runtime: Runtime[TurnContext]) -> 
             fact = await _resolve_relevant_fact(ctx, state.student_external_id, skill_id)
             if fact is not None:
                 relevant_facts.append(fact)
+        narrative_stage = "post_outro"
         narrative_text, narrative_evidence, bedrock_spend_cents = await _fire_stage_narrative(
             ctx,
             state,
@@ -813,6 +822,7 @@ async def finalize_exam(state: LearningState, runtime: Runtime[TurnContext]) -> 
     if narrative_text is not None:
         update["stage_narrative"] = narrative_text
         update["stage_narrative_evidence"] = narrative_evidence
+        update["stage_narrative_stage"] = narrative_stage
     if pending_narrative is not None:
         # Carried on the same key `submit_answer` uses, so the route's existing
         # `_schedule_deferred_narrative` handles both without learning a second shape.

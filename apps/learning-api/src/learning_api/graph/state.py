@@ -76,6 +76,8 @@ class LearningState(BaseModel):
     # (see `services/stage_narrative.py::_evidence_summary`) - always set together with
     # `stage_narrative`, never independently.
     stage_narrative_evidence: list[str] | None = None
+    # U3/D-325: the stage that produced `stage_narrative`, so the client can title it.
+    stage_narrative_stage: str | None = None
 
     # Running total of Bedrock spend for this session (SPEC §5.25.1 "per-session cost
     # budget") - persisted so the budget survives a process restart, unlike the gateway's

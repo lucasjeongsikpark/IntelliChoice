@@ -12,10 +12,21 @@ Priority rules (§5.11.2), applied in order:
    so a recommendation can narrow the choice but never empty it. Separately, the retry
    ladder's prerequisite step drops a skill line one tier via `curriculum.prerequisite_for`
    (see `flow._advance_study`).
-4. Template not yet used this session - tracked via `used_template_ids`, and applied
-   *within* the difficulty-filtered pool rather than across it, because SPEC ranks rules
-   2-3 above rule 4: a used template at the recommended tier beats an unused one two tiers
-   away.
+4. Template not yet used this session - tracked via `used_template_ids`. Applied *within* the
+   difficulty-filtered pool first, per SPEC's ranking of rules 2-3 above rule 4; but when that
+   pool is exhausted rule 4 now **widens the tier instead of repeating a template** (D-325).
+
+   **This is a deliberate departure from SPEC's stated ranking, and the reason is measured.**
+   This module used to read "a used template at the recommended tier beats an unused one two
+   tiers away", which is faithful to §5.11.2 and was wrong in practice: `used_template_ids` is
+   seeded from the session's own *exam*, so "repeat a used template" meant handing the student
+   the exact question they were about to be re-scored on. On the dev database **57 of 201 study
+   items did exactly that, 40 of them at the very first study item** - not from a missing
+   filter but because the recommended tier can hold as little as one template
+   (`g4_mult_by_one_digit` at tier 1) and the exam takes it first. A recommendation is a
+   preference, which `_closest_to_recommended`'s docstring already says; the learning gain a
+   parent report is built on is not. One tier off is a worse question, the same question is a
+   worse measurement, so the preference yields.
 5. Same skill as recent error - implied by #1 (weakest skills are served first).
 6. Prerequisite requirement - now honored: the 3rd-attempt remediation serves the skill's
    prerequisite (content-level, no Postgres table needed).
@@ -28,6 +39,7 @@ owns the base-plan build plus the shared `create_study_item` used by both the pl
 flow's ladder.
 """
 
+import logging
 import random
 
 from intellichoice_curriculum.content import load_curriculum
@@ -40,6 +52,8 @@ from intellichoice_db.repositories.study import StudyRepository
 
 from learning_api.services.study_outcomes import MAX_ATTEMPTS_PER_SKILL
 from learning_api.services.variant_persistence import generate_and_store_variant
+
+logger = logging.getLogger(__name__)
 
 BASE_PROBLEM_COUNT = 5
 
@@ -84,8 +98,14 @@ async def _select_template(
     recommended_difficulty: int | None,
 ):
     """Pick an approved template for `skill_id`: closest to `recommended_difficulty`
-    (§5.11.2 rules 2-3), then preferring one not yet used this session (rule 4), falling
-    back to the full approved pool if all have been used.
+    (§5.11.2 rules 2-3), then preferring one not yet used this session (rule 4).
+
+    When the recommended tier holds nothing unused, this **widens the tier to find an unused
+    template** rather than repeating one (D-325) - nearest tier first, so it stays as close to
+    the recommendation as the bank allows. Only when every approved template for the skill has
+    been used does it repeat, and that case is logged because by then the fix is content. See
+    the module docstring's rule 4 for the measurement behind the departure from SPEC's
+    ranking.
 
     `recommended_difficulty` is required rather than defaulted - a caller that does not
     want difficulty routing has to pass `None` and say why (the retry ladder does; see
@@ -96,8 +116,55 @@ async def _select_template(
         raise StudyPlanBuildError(f"no approved templates for skill {skill_id}")
     matched = _closest_to_recommended(candidates, recommended_difficulty)
     unused = [t for t in matched if t.question_template_id not in used_template_ids]
-    pool = unused or matched
-    return rng.choice(pool)
+    if unused:
+        return rng.choice(unused)
+
+    # **The recommended tier is exhausted, so widen the tier rather than repeat a question
+    # (D-325).** `pool = unused or matched` used to stop here and re-serve something already
+    # used this session - which, because `used_template_ids` is seeded from the *exam's*
+    # templates, meant serving the student the exact question they are about to be re-scored
+    # on. Measured on the dev database: **57 of 201 study items repeated one of their own
+    # session's exam templates, 40 of them at the first study item**, and the cause is pool
+    # size rather than a missing filter. `_closest_to_recommended` returns only the *exact*
+    # tier when one matches, and `g4_mult_by_one_digit` holds **one** approved template at tier
+    # 1 while `time_read_clock` holds two - so once the exam has taken them, the exact tier has
+    # nothing left and the old fallback had no choice but to repeat.
+    #
+    # Widening is the right thing to give up because §5.11.2's recommendation is explicitly a
+    # *preference* - `_closest_to_recommended`'s own docstring says so - while practising the
+    # question you are scored on inflates the learning gain the parent report is built from.
+    # One tier off is a worse question; the same question is a worse *measurement*.
+    unused_any_tier = [t for t in candidates if t.question_template_id not in used_template_ids]
+    if unused_any_tier:
+        # Nearest tier first, so this stays as close to the recommendation as the bank allows
+        # rather than jumping to whatever is free. Ties keep candidate order, so `rng.choice`
+        # below is still reproducible from the session seed (Phase 10).
+        if recommended_difficulty is not None:
+            unused_any_tier.sort(
+                key=lambda t: abs(t.difficulty_label - recommended_difficulty)
+            )
+            nearest = abs(unused_any_tier[0].difficulty_label - recommended_difficulty)
+            unused_any_tier = [
+                t
+                for t in unused_any_tier
+                if abs(t.difficulty_label - recommended_difficulty) == nearest
+            ]
+        return rng.choice(unused_any_tier)
+
+    # Every approved template for this skill has been used this session. Repeating is now the
+    # only alternative to serving nothing, so it is still done - but it is logged, because the
+    # honest fix at this point is content and nobody should have to re-derive that from a
+    # student's transcript.
+    logger.info(
+        "study_template_repeat_unavoidable",
+        extra={
+            "skill_id": skill_id,
+            "recommended_difficulty": recommended_difficulty,
+            "approved_templates_for_skill": len(candidates),
+            "already_used_this_session": len(used_template_ids),
+        },
+    )
+    return rng.choice(matched)
 
 
 async def create_study_item(

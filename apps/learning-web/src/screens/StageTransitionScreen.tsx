@@ -21,13 +21,38 @@ import { RichText } from "../components/RichText";
  * a good way to make sure nobody ever reads it.
  */
 
+/**
+ * What to call the evidence list, per narrative stage (U3/D-325).
+ *
+ * The header used to be the constant "Why this is your next step", which is true of the three
+ * narratives that precede work and false of the one that follows it: a `post_outro` fires
+ * after the post-exam, when there is no next step - it is a summary of what just happened.
+ * The snapshot carried the text and its evidence but never which stage produced them, so the
+ * client had no way to tell the two situations apart and printed the forward-looking wording
+ * over both.
+ *
+ * Unknown and absent stages fall back to the neutral wording rather than guessing, so an
+ * older server (which sends no stage) reads as it always did.
+ */
+const EVIDENCE_TITLE: Record<string, string> = {
+  pre_intro: "Why this is your next step",
+  pre_outro: "Why this is your next step",
+  study_step: "Why this is your next step",
+  study_outro: "Why this is your next step",
+  post_outro: "What this session showed",
+};
+
+const NEUTRAL_EVIDENCE_TITLE = "How we personalized this";
+
 interface Props {
   narrative: string;
   evidence: string[];
+  /** The stage that produced `narrative`; absent when the server did not say. */
+  stage?: string | null;
   onContinue: () => void;
 }
 
-export function StageTransitionScreen({ narrative, evidence, onContinue }: Props) {
+export function StageTransitionScreen({ narrative, evidence, stage, onContinue }: Props) {
   const continueRef = useRef<HTMLButtonElement>(null);
 
   // Focus the only action, so Enter/Space works without reaching for the mouse and a screen
@@ -68,7 +93,9 @@ export function StageTransitionScreen({ narrative, evidence, onContinue }: Props
 
         {evidence.length > 0 && (
           <section className="narrative-evidence">
-            <h2 className="narrative-evidence-title">Why this is your next step</h2>
+            <h2 className="narrative-evidence-title">
+              {(stage && EVIDENCE_TITLE[stage]) ?? NEUTRAL_EVIDENCE_TITLE}
+            </h2>
             <ul className="narrative-evidence-list">
               {evidence.map((line) => (
                 <li key={line}>{line}</li>

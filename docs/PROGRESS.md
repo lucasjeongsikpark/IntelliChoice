@@ -132,8 +132,26 @@ Widening every `difficulty_tiers` to match the judge broke
 within ±1 of the skill's native tier, because *"content nothing can serve is worse than no content"*.
 Net 39 widened, 1 refused, 13 empty declarations left alone as the generation gate they are.
 
-**The next session is U2** — learning-gain integrity: study must not re-serve the session's own exam
-**variant**. U3 (the narrative header's stage) rides with it, since both touch the session wire shape.
+**✅ U2 AND U3 ARE DONE (2026-08-14, D-325).** Study no longer re-serves the exam's own questions, and
+the narrative header knows which stage produced it. **U2's stated criterion could not fail** — a fresh
+variant row per serving made it true by construction — so the assertion was rewritten onto rendered
+stems. Measured before the fix: **57 of 201 study items (28%) repeated an exam template**, from two
+distinct causes.
+
+**The next session is U4** — URL routing via `react-router`, which gates §5.1.2's route-aware
+first-visit disclosures and must not slip.
+
+**Two carry-over items U2 surfaced and did not close:**
+
+1. **The content gap behind 40 of the 57 repeats is a number now, not an impression.**
+   `g4_mult_by_one_digit` holds **1** approved template at tier 1 and `time_read_clock` holds 2, so the
+   exam takes the tier and study has nothing left at the right difficulty. Widening the tier avoids the
+   repeat; only content fixes the difficulty. This is a generation-spend target, and it is the same
+   scarcity that makes the ±1 reachability question below matter.
+2. **`_closest_to_recommended` is still "provably inert on the current curriculum" by its own
+   docstring** — written when every skill had one tier. U1 widened 39 declarations, so that claim is now
+   stale and the function has started mattering. Its multi-tier behaviour is tested only against
+   synthetic templates.
 
 **Two carry-over items U1 surfaced and did not do:**
 
@@ -9766,6 +9784,48 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### Sessions U2 + U3 — study was serving the exam's own questions (2026-08-14, D-325) ✅
+
+**The done-criterion for U2 could not fail, which is why this needed measuring first.** It asked for
+"no study item's `question_variant_id` matches any exam item's" — but a fresh variant row is minted on
+every serving, so that was true by construction and would have passed against the unfixed build. The
+repeat is in the **content**: `build_variant_row` sets `rendered_question` from the canonical variant
+every time, so two servings of one template are byte-identical, option order included. The e2e
+assertion now compares **stems**, bucketed by the *server's* `phase` field rather than `.phase-chip`.
+
+**Measured on the dev database: 57 of 201 study items (28%) repeated one of their own session's exam
+templates, across 52 of 134 sessions.** The distribution named two causes rather than one:
+
+| where | n | cause |
+|---|---|---|
+| first study item | **40** | the recommended tier was exhausted and `pool = unused or matched` repeated |
+| on-demand base + remediation | **17** | those two paths never seeded the exam's templates at all |
+
+The 17 are a plain bug — `build_study_plan` does seed from the exam, but the two on-demand paths seeded
+from the study session alone, which is why `linear_two_step` (38 approved templates at that tier) still
+collided. The 40 are content scarcity: `g4_mult_by_one_digit` holds **one** approved template at tier 1,
+so once the exam took it a repeat was certain, not unlucky.
+
+**A departure from SPEC, recorded rather than buried.** §5.11.2 ranks difficulty above novelty and this
+module's docstring said so. It was faithful and the behaviour was wrong: because `used_template_ids` is
+seeded from the session's own exam, "prefer the used template at the right tier" meant handing the
+student the exact question they were about to be re-scored on. Rule 4 now widens the tier before
+repeating; the remaining unavoidable repeats log `study_template_repeat_unavoidable`, because by then
+the fix is content. **The test that pinned the old policy was inverted, not deleted**, and its original
+guard moved to a control that fails if widening becomes the default.
+
+**U3: the narrative header knows its stage.** The snapshot carried the text and evidence but never which
+of the five moments produced them, so one fixed header — "Why this is your next step" — printed over
+`post_outro`, which fires *after* the post-exam and summarises a session that has ended. **My first
+attempt missed two of the four paths** and the new `pre_outro` assertion caught it: `finalize_exam`
+serves both outros through one pair of variables.
+
+**U3's criterion cannot be met by an e2e walk, and that is a harness limit, not a gap.** No walk reaches
+`post_outro` — the harness always picks the first option to stay deterministic, so study never reaches
+the mastery bar and the post-exam is never served. The wire half is pinned in `test_learning_flow.py`,
+which does reach post-exam through the API. Said plainly rather than asserted in a walk that never gets
+there.
 
 ### Session U1 — the org's day, and a premise a test refused (2026-08-14, D-324) ✅
 

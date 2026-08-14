@@ -65,7 +65,7 @@ class BackgroundStudyNarrativeScheduler:
         events: SessionEventBus,
         profile_adapter: ProfileAdapter,
         snapshot_builder: Callable[
-            [AsyncSession, str, dict, str, list[str]], Awaitable[dict]
+            [AsyncSession, str, dict, str, list[str], str | None], Awaitable[dict]
         ],
     ) -> None:
         self._session_factory = session_factory
@@ -157,6 +157,9 @@ class BackgroundStudyNarrativeScheduler:
                         snapshot.values,
                         result.narrative_text,
                         result.evidence_summary,
+                        # U3/D-325: taken from the payload that produced this text, so a
+                        # deferred `study_step` frame is titled as one.
+                        payload.stage,
                     )
                 self._events.publish(learning_session_id, event)
         except Exception:

@@ -64,7 +64,7 @@ async def _maybe_fire_pre_intro(
     db: AsyncSession,
     profile_adapter: ProfileAdapter,
     bedrock_gateway: BedrockGateway,
-) -> tuple[str | None, list[str]]:
+) -> tuple[str | None, list[str], str | None]:
     """S26 (plan §18-L7): `pre_intro` fires on first SSE connect to a session, not from
     a graph turn - `stage_narrative.generate_stage_narrative`'s own idempotency check
     (a `stage_transitions` row already existing for this session's `pre_intro`) bounds
@@ -76,10 +76,10 @@ async def _maybe_fire_pre_intro(
     """
     student_external_id = state.get("student_external_id")
     if student_external_id is None:
-        return None, []
+        return None, [], None
     profile = await profile_adapter.get_student_profile(student_external_id)
     if profile is None:
-        return None, []
+        return None, [], None
     result = await stage_narrative.generate_stage_narrative(
         gateway=bedrock_gateway,
         repo=StageTransitionRepository(db),
@@ -98,7 +98,9 @@ async def _maybe_fire_pre_intro(
         # total is still strictly better than asserting zero.
         session_spend_cents=state.get("bedrock_spend_cents", 0.0),
     )
-    return result.narrative_text, result.evidence_summary
+    # U3/D-325: this call site is the one fixed-stage narrative - `pre_intro` is a
+    # literal a few lines up, so the stage is known rather than inferred.
+    return result.narrative_text, result.evidence_summary, "pre_intro"
 
 
 async def _initial_snapshot(
@@ -146,8 +148,9 @@ async def _initial_snapshot(
     # since it's the one moment with nothing else yet to show.
     narrative_text = state.get("stage_narrative")
     narrative_evidence = state.get("stage_narrative_evidence")
+    narrative_stage = state.get("stage_narrative_stage")
     if narrative_text is None:
-        narrative_text, narrative_evidence = await _maybe_fire_pre_intro(
+        narrative_text, narrative_evidence, narrative_stage = await _maybe_fire_pre_intro(
             learning_session_id=learning_session_id,
             state=state,
             db=db,
@@ -188,6 +191,10 @@ async def _initial_snapshot(
             if checkpoint_narrative is not None:
                 narrative_text = checkpoint_narrative
                 narrative_evidence = state.get("stage_narrative_evidence")
+                # Must move with the text: keeping the `pre_intro` stage from the fallback
+                # while serving the checkpoint's `post_outro` prose is exactly the mismatch
+                # this field exists to remove.
+                narrative_stage = state.get("stage_narrative_stage")
     return SessionSnapshotEvent(
         learning_session_id=learning_session_id,
         phase=state.get("phase", "created"),
@@ -227,6 +234,7 @@ async def _initial_snapshot(
         attendance_resolution=state.get("attendance_resolution"),
         stage_narrative=narrative_text,
         stage_narrative_evidence=narrative_evidence,
+        stage_narrative_stage=narrative_stage,
     )
 
 

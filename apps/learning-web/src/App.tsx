@@ -750,6 +750,7 @@ function App() {
           <StageTransitionScreen
             narrative={narrative}
             evidence={snapshot.stage_narrative_evidence ?? []}
+            stage={snapshot.stage_narrative_stage}
             onContinue={() => dismissNarrative(narrative)}
           />
         ) : null}

@@ -256,6 +256,7 @@ class AnswerResponse(BaseModel):
     # can have fired before `intervention_choice` even runs.
     stage_narrative: str | None = None
     stage_narrative_evidence: list[str] | None = None
+    stage_narrative_stage: str | None = None
 
 
 class FlagItemRequest(BaseModel):
@@ -300,6 +301,7 @@ class FinalizeExamResponse(BaseModel):
     # S26 (plan §18-L7): `pre_outro`/`post_outro`, whichever this finalize just fired.
     stage_narrative: str | None = None
     stage_narrative_evidence: list[str] | None = None
+    stage_narrative_stage: str | None = None
 
 
 class ChatMessageRequest(BaseModel):
@@ -331,6 +333,7 @@ class ResumeResponse(BaseModel):
     # verbatim on `/resume` like `message`, since it's just another `LastValue` field.
     stage_narrative: str | None = None
     stage_narrative_evidence: list[str] | None = None
+    stage_narrative_stage: str | None = None
 
 
 class ChildSelectionChoice(BaseModel):
@@ -412,6 +415,7 @@ class RespondResponse(BaseModel):
     # just fired this round.
     stage_narrative: str | None = None
     stage_narrative_evidence: list[str] | None = None
+    stage_narrative_stage: str | None = None
 
 
 class SessionSnapshotEvent(BaseModel):
@@ -436,6 +440,7 @@ class SessionSnapshotEvent(BaseModel):
     attendance_resolution: str | None = None
     stage_narrative: str | None = None
     stage_narrative_evidence: list[str] | None = None
+    stage_narrative_stage: str | None = None
 
 
 def _publish_snapshot(events: SessionEventBus, response: BaseModel) -> None:
@@ -449,6 +454,7 @@ async def build_deferred_narrative_snapshot(
     state: dict,
     narrative_text: str,
     narrative_evidence: list[str],
+    narrative_stage: str | None,
 ) -> dict:
     """D-217: the full session snapshot the background narrative scheduler publishes once
     a deferred `study_step`/`study_outro` narrative is ready. Built from the committed
@@ -476,6 +482,7 @@ async def build_deferred_narrative_snapshot(
         study_progress=await _study_progress(db, state),
         stage_narrative=narrative_text,
         stage_narrative_evidence=narrative_evidence,
+        stage_narrative_stage=narrative_stage,
     )
     return event.model_dump(mode="json")
 
@@ -1256,6 +1263,7 @@ async def submit_answer(
         ),
         study_progress=await _study_progress(db, result),
         stage_narrative=result.get("stage_narrative"),
+        stage_narrative_stage=result.get("stage_narrative_stage"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
     _publish_snapshot(events, response)
@@ -1625,6 +1633,7 @@ async def finalize_exam(
         ),
         study_progress=await _study_progress(db, result),
         stage_narrative=result.get("stage_narrative"),
+        stage_narrative_stage=result.get("stage_narrative_stage"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
     _publish_snapshot(events, response)
@@ -1845,6 +1854,7 @@ async def respond_to_interrupt(
         study_progress=await _study_progress(db, result),
         attendance_resolution=result.get("attendance_resolution"),
         stage_narrative=result.get("stage_narrative"),
+        stage_narrative_stage=result.get("stage_narrative_stage"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
     _publish_snapshot(events, response)
@@ -1941,6 +1951,7 @@ async def resume_session(
         ),
         study_progress=await _study_progress(db, result),
         stage_narrative=result.get("stage_narrative"),
+        stage_narrative_stage=result.get("stage_narrative_stage"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
     _publish_snapshot(events, response)
