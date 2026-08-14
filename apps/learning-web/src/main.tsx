@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 import '@fontsource/poppins/latin-600.css'
 import '@fontsource/open-sans/latin-400.css'
 import '@fontsource/open-sans/latin-700.css'
@@ -24,7 +25,13 @@ window.addEventListener('unhandledrejection', (event) => {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      {/* U4/D-327: the router wraps the boundary's child rather than the boundary itself, so a
+          render crash is still caught by `ErrorBoundary` and is not turned into a routing
+          error. §5.1.2's first-visit disclosures are route-aware, which is why this exists
+          before there is a second page worth navigating to. */}
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
     </ErrorBoundary>
   </StrictMode>,
 )
