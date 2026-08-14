@@ -23315,3 +23315,50 @@ post-exam is never served (`journey-student.spec.ts` documents this as a harness
 half is therefore pinned in `test_learning_flow.py`, which does reach post-exam through the API, and
 that is the half that was actually missing. The header itself is a lookup with a documented fallback.
 Recorded here rather than asserted in a walk that never gets there.
+
+### D-325 addendum — the U2/U3 staging run, and a ladder gap that is 2 of 3 rather than 3 of 3
+
+**Date:** 2026-08-14 · **Session:** U2 + U3, after the deploy · **Status:** shipped and green; one
+residual ladder gap recorded rather than rounded off
+
+`eadce76` deployed as `gha-eadce7626e6e`, verified three ways: both ECS services `COMPLETED` on that
+tag, and the edge bundle stamped **16:28:17** against a run that finished **16:28:29** — 12 seconds
+earlier, exactly when the sync step uploads — having moved from the previous deploy's 14:19:18. Two
+independent facts rather than "the bundle looks recent".
+
+**Staging: 65 passed / 7 skipped / 0 failed.** U2's assertion did real work on the data that made the
+defect measurable in the first place: `stems seen: 10 pre_exam, 5 study, 0 repeated`. The full
+ten-item exam and five study items compared, no repeats, on the bank whose scarcity produced 40 of
+the original 57 collisions.
+
+#### The ladder is much better and is not 3 of 3
+
+Aggregate breadcrumbs across all five walks read 14 skips, 2 pauses worked, **0 timeouts**. Attributed
+per walk, `journey-student` alone reports **3 pauses opened by the server and 2 worked**. Locally the
+same run was 3 of 3.
+
+**The likely explanation is that the third pause was opened by the final graded answer, with the study
+loop already finished — but that is a hypothesis and this data does not establish it.** Recorded as
+open rather than closed, because "the fix works, modulo an end-of-walk artifact" is precisely the kind
+of claim this project has had to retract before.
+
+What *is* established, against the pre-fix baseline:
+
+| | before | after (staging) |
+|---|---|---|
+| calls that returned false in ~3 ms without waiting | **12 of 16** | 0 — the fast path is now the server's word, not a lost race |
+| waits that timed out | n/a, it never waited | **0** |
+| double-counted pauses | 7 reported against 3 opened | **none** |
+| whole-walk failures | 1 in 12 | 0 in 2 runs |
+
+**Why the assertion is not tightened to equality.** `interventions > 0` would become
+`interventions === ladderOffered`, which would fail on exactly the benign case above — a pause opened
+by the last answer the loop ever grades. Tightening it before the mechanism is known would trade a
+real signal for a flaky one, which is D-311's argument in the other direction.
+
+#### Not over-read: three clean staging runs, three different systems
+
+`65/7/0` at `022d96d`, again at `022d96d` plus the ladder fix, and now at `eadce76`. C1's Phase 6
+clause counts clean *whole* runs, and these are not three runs of the same thing — the harness changed
+between the first two and the app between the last two. The clause stays ⏸ on that basis, as it did
+after the D-317 addendum for the same reason.

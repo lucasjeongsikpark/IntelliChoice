@@ -132,6 +132,20 @@ Widening every `difficulty_tiers` to match the judge broke
 within ±1 of the skill's native tier, because *"content nothing can serve is worse than no content"*.
 Net 39 widened, 1 refused, 13 empty declarations left alone as the generation gate they are.
 
+**Staging after the U2/U3 deploy: 65 / 7 / 0**, with the new assertion doing real work on the data
+that made the defect measurable — `stems seen: 10 pre_exam, 5 study, 0 repeated`. Deploy verified via
+the edge bundle's timestamp landing 12 s before the run finished, not by "it looks recent".
+
+**One residual gap, recorded rather than rounded off:** attributed per walk, `journey-student` reports
+**3 ladder pauses opened and 2 worked** on staging (locally the same run was 3 of 3). The likely cause
+is the third pause arriving on the final graded answer with the loop already finished — **a hypothesis,
+not an established fact.** Zero timeouts and no double-counting, so the U1 fix holds; the count does
+not, and the assertion is deliberately *not* tightened to equality because that would fail on exactly
+that benign case.
+
+**Three clean staging runs today are three different systems** — `022d96d`, `022d96d`+harness fix, and
+`eadce76`. C1's Phase 6 clause counts clean *whole* runs of the same thing, so it stays ⏸.
+
 **✅ U2 AND U3 ARE DONE (2026-08-14, D-325).** Study no longer re-serves the exam's own questions, and
 the narrative header knows which stage produced it. **U2's stated criterion could not fail** — a fresh
 variant row per serving made it true by construction — so the assertion was rewritten onto rendered
