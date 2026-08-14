@@ -23499,3 +23499,76 @@ skill has no video (D-314), so the cost of waiting is one day of no video option
 **Quota accounting for the day:** 300 units (3-term local validation) + ~9,000 (90-term staging run)
 ≈ 9,300 of 10,000, so the healing run is tomorrow's rather than today's. That is itself the
 constraint D-326 exists to make visible.
+
+### D-328 — The crash sink, and a rate-limit claim that was wrong on both counts
+
+**Date:** 2026-08-14 · **Session:** U5 · **Status:** done
+
+D-315 built both *ends* of the error telemetry and deliberately left the middle. `ErrorBoundary`
+catches a render crash, `main.tsx` catches uncaught errors and unhandled rejections, and all of it
+lands in a `console.error` in a browser nobody is watching. **A student's blank screen reached no
+one** — the one failure mode a parent notices and the server could not see.
+
+`ErrorBoundary`'s own docstring recorded why it stopped there: *"Sending one needs a decision this
+component should not make on its own — an authenticated endpoint, a rate limit, and a PII rule for
+message/stack text."* U5 is that decision, and the three requirements are the three properties the
+endpoint has.
+
+**Why an endpoint rather than Sentry** (D-322 §2): the alternative is a third-party processor of
+minors' data, and this project does not add one for convenience.
+
+#### The rate limit, and the claim I got wrong
+
+The first version of this router's docstring said it was *"rate-limited by the app's global
+per-token middleware"*. **That was wrong on both counts, and going to write the test the criterion
+asked for is what surfaced it.** `install_global_rate_limit_middleware` is keyed by
+`request.client.host` and capped at **6000/60s** — a figure chosen as roughly 3× a legitimate burst
+across *all* traffic.
+
+Both properties are wrong here, in opposite directions:
+
+- **6000/60s is no cap at all for a crash loop.** `ErrorBoundary` fires once per failed render, so a
+  looping component emits thousands of reports and stays far under the ceiling.
+- **Per-IP punishes the wrong people.** A classroom behind one school NAT shares a single key, so one
+  broken laptop would throttle its classmates' reports — suppressing exactly the evidence that would
+  have explained the others.
+
+Now keyed on `claims.sub` at **20/minute**, with a test in each direction: the loop gets 429s, and a
+second student's first report still gets a 202.
+
+#### What the two free-text fields go through, and why redaction alone is not enough
+
+`redact_free_text` catches emails, URLs and phone numbers. **A question stem is none of those**, so a
+regex screen passes it straight through — and a React error message can quote rendered content.
+Length is the only property that separates "a stack frame naming a component" from "a stack that has
+swallowed a whole question", so `message` and `stack` are **redacted and then truncated**, in that
+order. Truncating first could cut an email in half and leave a fragment the pattern no longer
+matches; a test pins the ordering.
+
+`PiiDenylistFilter` still screens the structured keys as it does everywhere, and is **key-based** —
+which is the whole reason the free-text fields need their own treatment. It would pass a stack
+containing an email through untouched, because the key is `stack` and not `email`.
+
+`extra="forbid"` on the request model, so a future client that starts sending `student_name` gets a
+422 rather than quiet acceptance. Pydantic's default would drop it silently, which is how a logging
+endpoint becomes a PII path.
+
+#### The client half has to be able to fail without looping
+
+`main.tsx` reports `unhandledrejection`. If `reportClientError`'s own `fetch` rejects — offline, API
+down, **exactly the conditions a crash happens in** — that rejection is itself an unhandled
+rejection, which fires the listener, which calls the reporter again. Unbounded, against a server that
+has already stopped answering.
+
+`reportClientError` latches itself off permanently after its first failure. A module-level boolean
+rather than a counter: once reporting has failed, nothing later in the page's life is likely to
+succeed, and a reload clears it, which is the right granularity.
+
+**The `console.error` in `ErrorBoundary` stays.** That file documents that §2.6 criterion 3 counts
+console errors and that a crash which destroyed the UI *should* fail that criterion loudly. The
+report adds server visibility; it does not buy silence.
+
+Verified: pytest **1543 passed** (from 1526), local e2e **74 passed** including
+`smoke.spec.ts`'s positive control — the test that deliberately triggers a console error, and
+therefore the one most likely to notice an unintended interaction with the new `window.onerror`
+listener.

@@ -24,6 +24,7 @@
  */
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { reportClientError } from "../lib/reportClientError";
 
 interface Props {
   children: ReactNode;
@@ -41,7 +42,16 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    // Both, deliberately. The `console.error` stays because §2.6 criterion 3 counts console
+    // errors and a crash that destroyed the UI *should* fail that criterion loudly - see this
+    // file's header. The report is what makes it visible to anyone not sitting at the browser,
+    // which is the gap U5/D-328 closes and which this component's docstring recorded as a
+    // decision it should not make alone.
     console.error("react_render_crash", error, info.componentStack);
+    reportClientError({
+      message: error.message,
+      stack: `${error.stack ?? ""}\n--- component stack ---${info.componentStack ?? ""}`,
+    });
   }
 
   private handleReload = (): void => {
