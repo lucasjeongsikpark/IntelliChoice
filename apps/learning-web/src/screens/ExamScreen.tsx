@@ -65,6 +65,15 @@ function difficultyLabel(difficulty: number | undefined): string {
 const OVERVIEW_POLL_MS = 20000;
 
 /**
+ * D-317: how long the exam waits to learn where the student is before rendering anything
+ * answerable. The window it closes was measured at up to **2.7 s** on staging (the gap
+ * between the SSE snapshot, which makes the screen interactive, and `GET /exam/overview`,
+ * which carries the position), so this has to comfortably exceed it. It is a deadline, not
+ * a delay: the gate opens the moment the overview lands, which locally is a few ms.
+ */
+const POSITION_WAIT_MS = 5000;
+
+/**
  * D-272: the question a hint, solution, video or chat is about - locked, complete, and with
  * the option the student actually chose marked.
  *
@@ -263,6 +272,23 @@ export function ExamScreen({
   // same property D-207 relies on) - so "this mount has made progress of its own" is known
   // without waiting for any request. A restore is only ever correct on arrival; after that
   // the local position is the better answer.
+  // **D-317: the position is *unknown* until this effect runs, and `0` is not "unknown".**
+  // `currentDisplayOrder` initialises to 0 and the screen rendered that guess as though it
+  // were an answer. That is what D-288 actually was, and it took a staging read plus a DOM
+  // probe to see: after a mid-exam reload the student was shown **Question 1, answerable,
+  // unlocked, with no navigator** for up to 2.7 s (measured on staging over six runs, 3 of
+  // which caught the window) before the restore below corrected it to Question 3.
+  //
+  // Every previous reading of D-288 asked why the restore failed. It never failed - it is
+  // late by exactly one round trip, because the position comes from `GET /exam/overview`
+  // while the screen becomes interactive on the SSE snapshot alone. Locally both land within
+  // milliseconds of each other, which is why five sessions of local runs never saw it.
+  //
+  // State rather than a ref, and that is load-bearing: the restore's own
+  // `setCurrentDisplayOrder(target)` is a no-op when `target` is already 0 (a fresh exam),
+  // React bails out of the re-render, and a ref flipped in the same effect would never reach
+  // the DOM. The gate would then stick shut on precisely the common path.
+  const [positionKnownFor, setPositionKnownFor] = useState<string | null>(null);
   const restoredPhaseRef = useRef<string | null>(null);
   useEffect(() => {
     if (!isExamPhase || !examOverview) return;
@@ -270,9 +296,11 @@ export function ExamScreen({
     if (Object.keys(answeredSelections).length > 0) {
       // Not a restore any more, and never will be for this phase.
       restoredPhaseRef.current = phase;
+      setPositionKnownFor(phase);
       return;
     }
     restoredPhaseRef.current = phase;
+    setPositionKnownFor(phase);
     if (examOverview.items.length === 0) return;
     const ordered = [...examOverview.items].sort((a, b) => a.display_order - b.display_order);
     // `skipped` and `flagged` are both still unanswered, and deliberately count as work
@@ -281,6 +309,19 @@ export function ExamScreen({
     const target = firstUnanswered ?? ordered[ordered.length - 1];
     if (target) setCurrentDisplayOrder(target.display_order);
   }, [isExamPhase, phase, examOverview, answeredSelections]);
+
+  // **The gate above must not be able to hold shut.** `fetchExamOverview` and
+  // `markExamViewed` both swallow their failures by design (a transient miss just leaves the
+  // nav bar stale until the next poll), so "the overview never arrived" is a silent state,
+  // and a render gate with no deadline would turn it into a permanently blank exam - a worse
+  // defect than the one this fixes. After `POSITION_WAIT_MS` the screen renders whatever it
+  // has, which is exactly today's behaviour, so the worst case of this change is the current
+  // behaviour delayed rather than anything new.
+  useEffect(() => {
+    if (!isExamPhase) return;
+    const id = window.setTimeout(() => setPositionKnownFor(phase), POSITION_WAIT_MS);
+    return () => window.clearTimeout(id);
+  }, [isExamPhase, phase]);
 
   // Gated on `isExamPhase`, which AUD-F-24 turned from a nicety into a correctness
   // requirement. `overview` is the *exam's* item list and App keeps holding it after the
@@ -499,7 +540,12 @@ export function ExamScreen({
     );
   }
 
-  if (!currentItem) {
+  // D-317: the same placeholder covers "no question yet" and "no *position* yet". The second
+  // one is new and is the fix: an exam question rendered before the overview lands is a
+  // question the student can answer at the wrong place in their own exam - and since the
+  // items they have already answered are exactly the ones whose locks have not arrived
+  // either, the reachable failure is re-answering an answered item and taking D-207's 409.
+  if (!currentItem || (isExamPhase && positionKnownFor !== phase)) {
     return (
       <div className="panel">
         <p>Loading the next question…</p>

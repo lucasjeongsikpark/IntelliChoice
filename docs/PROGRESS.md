@@ -25,11 +25,24 @@ no PII by design; the residual risk is Bedrock spend, which the gateway caps). S
 decision is ever revisited: rotate at the source, then re-run `deploy-staging.yml`, because ECS
 tasks read the value at container start.
 
-**⚠️ PR #251 IS OPEN AND UNMERGED — the one thing to resolve before anything else.** A UI/UX +
-observability audit ran on 2026-08-13 (D-314 → D-316) and its work sits on
-`fix/help-dead-end-and-error-visibility`: two commits, **CI green on all nine checks**, read from CI
-rather than inferred. Nothing is on `main` and **nothing is deployed**, so staging still serves
-`sha=ae41b7f2212f` and still has all four defects below.
+**✅ PR #251 IS MERGED AND DEPLOYED (2026-08-14).** Squash-merged as `86fbe50`, deployed by run
+`31754496362` — success, every gate green, rollback skipped. Verified independently of the
+workflow's own report: both ECS services run image tag `gha-86fbe50e0673`, rollout `COMPLETED`, and
+the e2e harness printed `sha=86fbe50e0673` for both APIs. The drain took ~3 min per service and did
+**not** stall — but no SSE client was connected during it, so the AUD-X-07 drain hazard stayed
+theoretical rather than being disproved.
+
+**The staging suite is green as a whole run for the first time: 64 passed / 6 skipped / 0 failed**,
+read from `artifacts/results.json` rather than terminal output. `time-telemetry` — the single
+failure carried since D-288 — passes. **C1's "Phase 6: staging e2e green as a whole run" clause is
+therefore ✅.** Which of #251's four fixes closed it was not A/B'd; D-314's `examOverview` gating is
+the plausible candidate and that is a hypothesis, not a finding.
+
+**A15 was deliberately not bundled, and that is why the green means something.** PROGRESS had
+recommended shipping it in the same deploy. It was held back because A15 was a *candidate*, not a
+diagnosis, and bundling would have spent the only chance to watch `time-telemetry` fail with the new
+logging underneath it. The suite came back green without it. **A15 is still worth doing** — a paid
+Bedrock call inside a connect path — but it is no longer attached to any known failure.
 
 Four things were fixed and verified in a browser and the database, not from the diff:
 
@@ -40,20 +53,33 @@ Four things were fixed and verified in a browser and the database, not from the 
 | error visibility, which did not exist at all (D-315) | boundary verified by crashing it; the 503 handler's test fails with the handler disabled |
 | **D-288 made investigable** (D-316) + every CORS preflight was logging a raw student path | fresh process: preflight and 404 both `<unmatched>`, **0** student ids in the log; a two-answer walk logged `answered: 2, first_unanswered: 2` and the client agreed |
 
-**The next step for D-288 is now mechanical rather than open-ended:** merge, deploy, re-run the D-311
-two-test invocation against staging, and read `exam_overview_read` for that session. `answered` short
-of the acknowledged POSTs puts the fault behind the endpoint; `answered` correct while the student
-still lands on question 1 puts it in the client — and means the four already-killed explanations were
-all looking on the wrong side. **A15** (`pre_intro` out of the SSE connect path) should ship in the
-same deploy, since it is the leading candidate for `time-telemetry`'s staging-only failure and one
-run would then answer both.
+**D-288 IS DIAGNOSED AND FIXED, AND THE FIX IS NOT DEPLOYED (D-317).** The pre-registered decision
+rule fired cleanly: on the failing run the server logged `answered=2, first_unanswered=2` both
+before *and* after the reload, so the fault is client-side and the four already-killed explanations
+were all looking behind the endpoint.
+
+**It was never a failed restore.** A DOM probe over six staging reloads caught the window 3 times:
+`immediate(+2719ms)` reads "Question 1 of 10" with `navPresent=false`, and three seconds later
+"Question 3 of 10" with `navPresent=true`. The screen becomes interactive on the SSE snapshot while
+the position rides on `GET /exam/overview`, so for up to **2.7 s** the student sees **Question 1,
+unlocked, with a working Submit and no navigator**. The reachable harm is re-answering an already
+answered item and taking D-207's 409. The defect is that `currentDisplayOrder` starts at `0` and the
+screen renders that guess as though it were an answer.
+
+Fixed by gating the render on knowing the position (`positionKnownFor`, state not a ref, with a
+5 s deadline so it can never hold shut), plus a local regression test that manufactures the window
+by delaying `/exam/overview` — confirmed failing with the gate disabled before being kept (D-107 §1).
 
 **What the next session should pick up, in order:**
 
-1. **Merge PR #251 and deploy it, then read staging.** Everything above is worthless until it runs
-   where the defects are. Note `uvicorn --reload` does not complete while an SSE client is connected
-   (23+ min measured) — the ECS analogue is a task that will not drain, so watch the deploy's drain
-   step rather than assuming it.
+1. **Deploy the D-317 fix and re-measure on staging.** It sits on **PR #252**
+   (`fix/exam-position-render-gate`, `0637375`), **CI green on all nine checks**, read from CI
+   rather than inferred. It is verified locally in both directions and
+   by the full local suite (71 passed); it is **not** verified where the defect lives. The pre-fix
+   rate is **2 of 6 reloads (33%)** — re-run `-g "restores the exact position" --repeat-each=6` (or
+   more; 6 runs cannot distinguish 33% from 20%). Note `uvicorn --reload` does not complete while an
+   SSE client is connected (23+ min measured); the ECS analogue is a task that will not drain, so
+   watch the deploy's drain step rather than assuming it.
 2. **Decide whether to spend on depth.** The only substantial thing left in C1 and it is sized:
    ~$13-16 and ~3.5 hours of generation. Nothing is blocked; this is a budget call.
 3. **Decide whether the two exposed staging secrets get rotated after all.** Declined once with a
@@ -739,6 +765,57 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — deploy, then read: D-288 was never a failed restore (2026-08-14, D-317)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **pytest** run before merging on the exact
+tree (**1512 passed**, 2 skipped, 1 xfailed) and again after the change · learning-web `tsc` 0
+errors and `oxlint` clean · e2e `tsc` clean · **local e2e 71 passed** (70 + the new D-317 test) ·
+**staging e2e 64 passed / 6 skipped / 0 failed**. **$0 of Bedrock spend directed by this session**;
+the staging runs pay staging's own inference, which is the cost of measuring there at all.
+
+**The sequencing decision, recorded because it is the reason the result is readable.** PROGRESS
+recommended merging #251 *and* A15 in one deploy so a single staging run answered both open defects.
+That was deliberately not done: A15 was a candidate, not a diagnosis, and #251 is the instrument
+that could test it, so bundling would have spent the only chance to watch `time-telemetry` fail with
+the new logging beneath it. The suite came back green **without** A15. Bundled, this green would now
+be A15's.
+
+**Merged and deployed.** #251 → `86fbe50`, deploy run `31754496362` success, every gate green,
+rollback skipped. Build identity confirmed three independent ways: the workflow's own gate, an ECS
+`describe-task-definition` read (`gha-86fbe50e0673`, rollout `COMPLETED`), and the harness printing
+`sha=86fbe50e0673`. The drain took ~3 min per service without stalling — with no SSE client
+attached, so the AUD-X-07 hazard was not exercised.
+
+**D-316's contract verified on staging, both directions.** Every session-scoped route carries the id
+(71/71 `/answers`, 70/70 `/exam/overview`, 52/52 `/time`); `/readyz`, `/metrics`, `/dev/token` and
+`POST /learning/sessions` carry none — absent, not null. **Zero** raw student paths. The query
+itself was positive-controlled against the *pre-deploy* build first, so an empty later result could
+not be misread as a clean one. **Correction worth carrying:** the CORS-preflight leak D-316 fixed
+never existed on staging — staging is same-origin, so there are no preflights (2 `<unmatched>` lines
+in the window, both `POST`). That exposure was local-dev-only; D-316's staging value is the session
+id.
+
+**D-288, open since 2026-08-07 with four killed explanations, is diagnosed (D-317).** The
+pre-registered rule fired: the server logged `answered=2, first_unanswered=2` before *and* after the
+reload while the client showed Question 1 — client-side, and every prior explanation was looking
+behind the endpoint. Then a DOM probe (`.exam-nav` renders iff `examOverview` is non-null, so its
+presence *is* that variable) caught the window 3 times in 6: Question 1 with `navPresent=false`, and
+three seconds later Question 3 with the navigator and both locks. **The restore never failed — it is
+late by one round trip**, and the screen renders `currentDisplayOrder`'s initial `0` as though it
+were an answer. Fixed with a render gate on knowing the position, deadline-bounded so it cannot hold
+shut.
+
+**Two of my own readings were killed by measurement and are kept.** I proposed the test "asserts too
+early" — three probe runs refuted it, one of them reading the correct heading 37 ms *before* any
+`GET /exam/overview` landed (the position also arrives on `POST /exam/viewed`'s response; those are
+two unordered writers to one state). And I treated a lone `400` on the time endpoint as the
+discriminator between failing and passing runs; the two-hour distribution is 94 × 204, 2 × 401,
+**1 × 400**, 1 × 422 — n=1, and nothing was built on it.
+
+**Carry-over:** the D-317 fix is **not deployed**; the pre-fix staging rate is 2 of 6 reloads and
+that is the number a post-deploy re-run has to beat. A15 drops in priority but stays open. Items
+2–9 of the audit list are untouched.
 
 ### Session log — the help system's dead end, found by walking to the end (2026-08-13, D-314 → D-316)
 

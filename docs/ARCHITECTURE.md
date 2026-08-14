@@ -47,6 +47,25 @@ to rot, because nothing fails when it does.)*
 
 ## Cross-cutting invariants the diagrams encode
 
+- **A screen must not render an *interactive* control before the state that control depends on
+  has arrived — an initial value is a guess, not an answer** (D-317). The exam's position lives
+  in two places that arrive on two different transports: the questions ride the **SSE snapshot**,
+  the student's *position* rides `GET /exam/overview` (§2). `ExamScreen` became interactive on the
+  first and rendered `currentDisplayOrder`'s initial `0` while waiting for the second, so for up to
+  **2.7 s** after a mid-exam reload a student was shown Question 1 — unlocked, submittable, no
+  navigator — when they were on Question 3. That is D-288, and it read as a *failed* restore for
+  six days; the restore was simply one round trip behind. The general shape is that a React
+  `useState` initial value is indistinguishable in the DOM from a settled one, so anything derived
+  from a server read needs an explicit "not known yet" state and a render gate. Two properties keep
+  the gate from becoming the worse defect: it is **deadline-bounded** (`POSITION_WAIT_MS`), because
+  both fetches that could open it swallow their failures by design; and it is keyed on **state, not
+  a ref**, because the restore's own `setCurrentDisplayOrder(0)` is a no-op React bails out of, so
+  a ref flipped beside it would never reach the DOM and the gate would stick shut on the common
+  path. **Local runs cannot see this class**: the mock answers in milliseconds, so the window does
+  not exist — the same blindness AUD-C-02, AUD-F-19 and AUD-F-21 each cost a session, which is why
+  its regression test manufactures the window with `route.continue()` rather than waiting to be
+  lucky.
+
 - **Every gate that judges an authored item must apply the *same* predicate, and "same" means
   one function — not one intention** (D-312, and it has now cost content six times). Four places
   decide whether an item's answer is acceptable: the **design** pre-check (§3b stage 1), the

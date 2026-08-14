@@ -2078,7 +2078,7 @@ at close, not recalled:
 | auto-approval decision recorded with its numbers | ✅ D-289 |
 | spend within per-run caps | ✅ every run behind a green preflight and an explicit cap |
 | Phase 6: per-band walks green on staging | ✅ 4 of 4, against the deployed build |
-| Phase 6: staging e2e green as a whole run | ⛔ **63 / 1** (`time-telemetry`, open since D-288) |
+| Phase 6: staging e2e green as a whole run | ✅ **64 passed / 6 skipped / 0 failed** at `86fbe50` (2026-08-14) — was ⛔ 63 / 1 |
 | Phase 6: staging serves the seeded bank | ✅ verified at `sha=ae41b7f2212f`, 958 items |
 | Phase 4: video catalog | ⛔ blocked on a real `YOUTUBE_API_KEY`, not on work |
 
@@ -2152,3 +2152,29 @@ team-member-names schema question (S17) — see plan §19.
 - S29 (multimodal) is independent — it can slot anywhere after S8; it sits in M7 to keep the expansion track uninterrupted.
 - S30–S31 touch everything; do them after the features they instrument exist. S32–S34 are last.
 - Real-credential caveat: S20/S21/S24/S26 LLM quality and S27's live sync are only *calibratable* once real Bedrock/YouTube credentials exist (D-025 posture) — every session stays buildable and testable against the mocks regardless.
+
+### Amendment 2 — the 2026-08-14 deploy-and-read: one clause closed, and D-288 diagnosed (D-317)
+
+**`Phase 6: staging e2e green as a whole run` moved ⛔ → ✅**, verified from the JSON reporter at
+`86fbe50`: **64 passed / 6 skipped / 0 failed**, `time-telemetry` among the passes. It had been
+63 / 1 since D-288. I did **not** A/B which of #251's four fixes closed it; the plausible candidate
+is D-314's `examOverview` gating, which removed a stale-overview-driven effect churn on the exam
+screen, and that is a hypothesis, not a finding.
+
+**A15 was never needed, and the ordering is why we know.** PROGRESS recommended shipping A15
+(`pre_intro` out of the SSE connect path) in the same deploy so one staging run answered both open
+defects. It was deliberately **not** bundled, on the grounds that A15 was a candidate rather than a
+diagnosis and that deploying it alongside the instrument would spend the only chance to watch
+`time-telemetry` fail *with* the new logging. The suite then came back green without it. Had the two
+shipped together, this green would now be attributed to A15. **A15 remains an open item on its own
+merits** — a paid Bedrock call inside a connect path is worth removing — but it is no longer tied to
+any known failure, and its priority drops accordingly.
+
+**D-288 is diagnosed, fixed, and not yet verified where it lives (D-317).** It was never a failed
+restore: the restore is late by one round trip, and for up to 2.7 s after a mid-exam reload the
+student is shown an *answerable* Question 1. Fixed by gating the render on knowing the position.
+The remaining work is one deploy and a re-measure against the pre-fix rate of **2 of 6 reloads**.
+
+**One clause did not move and its wording is now the blocker, not the content:** `multi-tier where
+the skill spans` still reads ⛔ 76 of 91 and D-313 already established it is measured against a span
+the content no longer respects. Nothing this session changed that.
