@@ -8,6 +8,7 @@ from intellichoice_db.engine import (
     database_url_from_component_env_vars,
     ssl_connect_args,
 )
+from intellichoice_db.migration_filters import include_object
 from intellichoice_db.models import Base
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
@@ -34,10 +35,10 @@ config.set_main_option(
 
 target_metadata = Base.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+# D-332: `include_object` keeps autogenerate from proposing `drop_table` for LangGraph's four
+# checkpoint tables, which hold every live session and are absent from `Base.metadata`. Defined in
+# `intellichoice_db.migration_filters` rather than here so it is importable and unit-tested - see
+# `packages/db/tests/test_autogenerate_never_drops_the_checkpoint_tables.py`.
 
 
 def run_migrations_offline() -> None:
@@ -58,6 +59,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -65,7 +67,11 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        include_object=include_object,
+    )
 
     with context.begin_transaction():
         context.run_migrations()

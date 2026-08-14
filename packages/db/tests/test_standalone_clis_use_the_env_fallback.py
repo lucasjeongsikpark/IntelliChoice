@@ -37,6 +37,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 # i.e. anything that runs in the ops task rather than inside a FastAPI process.
 STANDALONE_CLIS = [
     "apps/learning-api/src/learning_api/services/retention_purge_cli.py",
+    "apps/learning-api/src/learning_api/services/session_consolidation_cli.py",
     "apps/learning-api/src/learning_api/services/tutor_chat_purge_cli.py",
     "packages/memory/src/intellichoice_memory/consolidate_cli.py",
     "packages/youtube/src/intellichoice_youtube/sync_cli.py",
