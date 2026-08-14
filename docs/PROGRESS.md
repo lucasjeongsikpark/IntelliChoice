@@ -32,11 +32,16 @@ the e2e harness printed `sha=86fbe50e0673` for both APIs. The drain took ~3 min 
 **not** stall — but no SSE client was connected during it, so the AUD-X-07 drain hazard stayed
 theoretical rather than being disproved.
 
-**The staging suite is green as a whole run for the first time: 64 passed / 6 skipped / 0 failed**,
-read from `artifacts/results.json` rather than terminal output. `time-telemetry` — the single
-failure carried since D-288 — passes. **C1's "Phase 6: staging e2e green as a whole run" clause is
-therefore ✅.** Which of #251's four fixes closed it was not A/B'd; D-314's `examOverview` gating is
-the plausible candidate and that is a hypothesis, not a finding.
+**The staging suite produced its first clean whole run ever — 64 passed / 6 skipped / 0 failed** at
+`86fbe50`, read from `artifacts/results.json`. `time-telemetry`, the single failure carried since
+D-288, passes and has stayed green in every run since.
+
+**I marked C1's clause ✅ off that one run, and the next full run was 63 / 7 / 1. Corrected to ⏸.**
+One clean run is not "green as a whole run", and this is the same shape the project already recorded
+four times over. The `e26c4fa` failure is a *different* test — D-311's ladder assertion, re-measured
+at 3 of 4 passing — not `time-telemetry` and not the D-317 fix (see the D-317 addendum for why
+inspection *and* re-measure were both needed). Which of #251's four fixes closed `time-telemetry`
+was not A/B'd; D-314's `examOverview` gating is the plausible candidate and that is a hypothesis.
 
 **A15 was deliberately not bundled, and that is why the green means something.** PROGRESS had
 recommended shipping it in the same deploy. It was held back because A15 was a *candidate*, not a
@@ -72,14 +77,19 @@ by delaying `/exam/overview` — confirmed failing with the gate disabled before
 
 **What the next session should pick up, in order:**
 
-1. **Deploy the D-317 fix and re-measure on staging.** It sits on **PR #252**
-   (`fix/exam-position-render-gate`, `0637375`), **CI green on all nine checks**, read from CI
-   rather than inferred. It is verified locally in both directions and
-   by the full local suite (71 passed); it is **not** verified where the defect lives. The pre-fix
-   rate is **2 of 6 reloads (33%)** — re-run `-g "restores the exact position" --repeat-each=6` (or
-   more; 6 runs cannot distinguish 33% from 20%). Note `uvicorn --reload` does not complete while an
-   SSE client is connected (23+ min measured); the ECS analogue is a task that will not drain, so
-   watch the deploy's drain step rather than assuming it.
+1. **DONE this session — D-317 is merged (#252, `e26c4fa`), deployed, and verified on staging: 10 of
+   10 reloads restored the position** against a pre-fix 2 of 6 taken the same hour (P ≈ 1.8% by
+   chance). The frontend bundle was confirmed fresh at the edge, not inferred from the API image
+   tag.
+
+   **The open question this leaves is the ladder walk, and it is not "flaky" until someone shows it
+   is.** `study: answered 11 items` with `worked 0 retry-ladder pauses` is not chance — the walk
+   cycles `optionIndex`, so ~3 in 4 answers should be wrong and each should open the ladder. Either
+   the walk answered correctly eleven times for an unnamed reason, or **SPEC §5.11.3's retry ladder
+   did not engage on wrong answers**, which would be a real defect in the study phase's centrepiece.
+   4-of-4 before today, 3-of-5 after: far too small to separate the two. **Next step: make the walk
+   record each answer and whether it was correct**, so the next occurrence decides instead of
+   re-opening the question.
 2. **Decide whether to spend on depth.** The only substantial thing left in C1 and it is sized:
    ~$13-16 and ~3.5 hours of generation. Nothing is blocked; this is a budget call.
 3. **Decide whether the two exposed staging secrets get rotated after all.** Declined once with a
@@ -813,9 +823,17 @@ two unordered writers to one state). And I treated a lone `400` on the time endp
 discriminator between failing and passing runs; the two-hour distribution is 94 × 204, 2 × 401,
 **1 × 400**, 1 × 422 — n=1, and nothing was built on it.
 
-**Carry-over:** the D-317 fix is **not deployed**; the pre-fix staging rate is 2 of 6 reloads and
-that is the number a post-deploy re-run has to beat. A15 drops in priority but stays open. Items
-2–9 of the audit list are untouched.
+**The fix shipped and was measured where the defect lives.** #252 → `e26c4fa`, deploy run
+`31759061104`, every gate green. **10 of 10 reloads restored the position** against the pre-fix
+2 of 6 taken the same hour (P ≈ 1.8% by chance). Because the fix is frontend, the *bundle* was
+verified at the edge (`last-modified` 100 s old on `index.html` and its hashed asset) rather than
+inferred from the API image tag — and my first attempt at that check was wrong: a local rebuild's
+content hash cannot match CI's, which bakes staging `VITE_*` values in.
+
+**Carry-over, in priority order:** (1) the **ladder walk** — `study: answered 11 items` with
+`0 retry-ladder pauses` is not chance, and until the walk records its own answers nobody can say
+whether that is D-311's fragile test or SPEC §5.11.3's retry ladder failing to engage; (2) A15 drops
+in priority but stays open; (3) items 2–9 of the audit list are untouched.
 
 ### Session log — the help system's dead end, found by walking to the end (2026-08-13, D-314 → D-316)
 

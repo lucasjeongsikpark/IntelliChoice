@@ -2078,7 +2078,7 @@ at close, not recalled:
 | auto-approval decision recorded with its numbers | ✅ D-289 |
 | spend within per-run caps | ✅ every run behind a green preflight and an explicit cap |
 | Phase 6: per-band walks green on staging | ✅ 4 of 4, against the deployed build |
-| Phase 6: staging e2e green as a whole run | ✅ **64 passed / 6 skipped / 0 failed** at `86fbe50` (2026-08-14) — was ⛔ 63 / 1 |
+| Phase 6: staging e2e green as a whole run | ⏸ **met once, not stably.** 64 / 6 / **0** at `86fbe50` — the first clean whole run ever — then 63 / 7 / **1** at `e26c4fa` on a different, known-intermittent test (D-311's ladder assertion, measured 3-of-4 on re-run). `time-telemetry`, the failure this clause carried since D-288, is fixed and stayed green in both |
 | Phase 6: staging serves the seeded bank | ✅ verified at `sha=ae41b7f2212f`, 958 items |
 | Phase 4: video catalog | ⛔ blocked on a real `YOUTUBE_API_KEY`, not on work |
 
@@ -2155,11 +2155,22 @@ team-member-names schema question (S17) — see plan §19.
 
 ### Amendment 2 — the 2026-08-14 deploy-and-read: one clause closed, and D-288 diagnosed (D-317)
 
-**`Phase 6: staging e2e green as a whole run` moved ⛔ → ✅**, verified from the JSON reporter at
-`86fbe50`: **64 passed / 6 skipped / 0 failed**, `time-telemetry` among the passes. It had been
-63 / 1 since D-288. I did **not** A/B which of #251's four fixes closed it; the plausible candidate
-is D-314's `examOverview` gating, which removed a stale-overview-driven effect churn on the exam
-screen, and that is a hypothesis, not a finding.
+**`Phase 6: staging e2e green as a whole run` reached ⛔ → ⏸, and the correction is mine.** The run
+at `86fbe50` was **64 passed / 6 skipped / 0 failed** — the first clean whole run this suite has ever
+produced — and I marked the clause ✅ off it. **The very next full run, at `e26c4fa`, was 63 / 7 / 1.**
+Once is not "green as a whole run", and a clause reported met before it was stably true is the exact
+failure this file already records four times over ("Every skill stocked" was reported met four times
+before it was). Downgraded to ⏸ with both numbers kept.
+
+What *is* durable: `time-telemetry` — the failure this clause carried since D-288 — passed in both
+runs and in every repeat since. The `e26c4fa` failure is a **different** test, D-311's ladder
+assertion (`the retry ladder never engaged`), which that decision already records as depending on
+stored option order the walk does not control; re-measured immediately at **3 of 4 passing**, with
+the failing run finishing in 10.0 s against 55.6 s–1.3 m for the passes and its own audit reading
+`study: answered 11 items` / `worked 0 retry-ladder pauses`.
+
+I did **not** A/B which of #251's four fixes made `time-telemetry` pass; D-314's `examOverview`
+gating is the plausible candidate, and that is a hypothesis, not a finding.
 
 **A15 was never needed, and the ordering is why we know.** PROGRESS recommended shipping A15
 (`pre_intro` out of the SSE connect path) in the same deploy so one staging run answered both open

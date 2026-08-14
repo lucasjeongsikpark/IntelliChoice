@@ -22648,3 +22648,44 @@ the time endpoint as a discriminator between failing and passing runs; over two 
 suite (71 passed), and *not* on staging, because it is not deployed. The staging rate before the
 fix was **2 of 6** reloads (33%), which is the number the post-deploy re-run has to beat, and 6 runs
 cannot distinguish 33% from 20%. Re-measure with `--repeat-each` at the same count or higher.
+
+### D-317 addendum — verified on staging, and a clause I marked ✅ one run too early
+
+**Date:** 2026-08-14 · **Session:** same · **Status:** fix verified on staging; one correction; one
+new carry-over
+
+**The fix works where the defect lives.** Deployed as `e26c4fa` (run `31759061104`, every gate green,
+rollback skipped; both services on `gha-e26c4fab64c5`). Because the fix is *frontend*, an API image
+tag proves nothing about the bundle CloudFront serves — checked directly: `last-modified` on both
+`index.html` and its hashed asset read 100 s old, i.e. this deploy's sync. **A local rebuild's
+content hash is not a valid identity check here** and my first attempt at one was wrong: CI bakes
+staging `VITE_*` values into the bundle, so the hashes differ by construction.
+
+Measured: **10 of 10 reloads restored the position**, against a pre-fix **2 of 6 (33%)** taken the
+same hour on the same build. If nothing had changed, P(0 failures in 10 | p=0.33) = 0.67¹⁰ ≈ **1.8%**.
+Strong; not proof, and stated that way.
+
+**The correction.** I marked C1's `Phase 6: staging e2e green as a whole run` ✅ from a single
+64 / 6 / 0 run. The next full run was **63 / 7 / 1**. One clean run is not the clause, and this is
+the same shape D-307→D-313 already recorded four times ("every skill stocked", reported met four
+times before it was true, because each wave counted only its own skills). Downgraded to ⏸ with both
+numbers on the record rather than the flattering one.
+
+**The new failure is not this fix, and the evidence is inspection plus a re-measure, not either
+alone.** It is D-311's ladder assertion. By inspection the render gate cannot reach it: the gate is
+keyed on `isExamPhase`, which is **false** throughout the study phase where the ladder lives.
+Re-measured immediately at **3 of 4 passing**. The failing run finished in **10.0 s** against
+55.6 s–1.3 m for the passes, and its own audit reads `pre-exam: answered 10 items` /
+`study: answered 11 items` / `study: worked 0 retry-ladder pauses`.
+
+**That last line is the carry-over, and it deserves better than "flaky".** Eleven study answers with
+zero pauses is not chance: the walk cycles `optionIndex` across questions (D-311's fix), so roughly
+three in four answers should be wrong and each wrong answer should open the ladder. Zero is a
+systematic outcome, and SPEC §5.11.3's retry ladder is the study phase's centrepiece. Either the walk
+answered correctly eleven times for a reason nobody has named, or **the ladder did not engage on
+wrong answers in that run** — and the second reading is a product defect that today's numbers cannot
+rule out. Before today the walk passed 4 of 4 on `86fbe50`; after, 3 of 5. Those counts are far too
+small to separate "known-fragile test" from "intermittent product defect", and D-311 explicitly
+declined to add another guess to this area. The honest next step is to make the walk *record* the
+answers it gave and whether each was correct, so the next occurrence distinguishes the two readings
+instead of re-opening the question.
