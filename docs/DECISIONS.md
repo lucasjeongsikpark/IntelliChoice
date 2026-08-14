@@ -23572,3 +23572,65 @@ Verified: pytest **1543 passed** (from 1526), local e2e **74 passed** including
 `smoke.spec.ts`'s positive control — the test that deliberately triggers a console error, and
 therefore the one most likely to notice an unintended interaction with the new `window.onerror`
 listener.
+
+### D-330 — The learning/chat sweep: one dead feature, and F-19's P1 is resolved
+
+**Date:** 2026-08-14 · **Status:** learning bug fixed (`0deb31c`); chat measured, one residual recorded
+
+A deliberate sweep of both apps' staging logs and behaviour, rather than of their code.
+
+#### Learning: personalized hints had never worked (D-329, fixed)
+
+`background_hint_personalization_failed` × **117 in 48 hours**, and the *only* ERROR the learning
+API was emitting. See D-329. The property worth carrying forward is why it was invisible: a
+background task swallows exceptions by design, and a failed personalization is *deliberately*
+indistinguishable from the canonical hint. **A feature whose failure mode is "the good version
+silently never happens" cannot be caught by a test that only checks the output is reasonable.**
+
+Everything else in learning's 4xx surface is documented test traffic: 44 × 409 on `/answers` is
+D-207's already-answered case, the 20 `<unmatched>` 404s are D-316's deliberate path redaction, and
+the 401s are unauthenticated probes.
+
+#### Chat: no application errors, and two observability notes
+
+Zero application-level errors in 48 hours. Two infrastructure findings, neither student-facing:
+
+- **OTel spans are being dropped.** ~30 failures in 7 days exporting to the collector sidecar at
+  `localhost:4318` — `Connection refused` during startup, then read timeouts. The app begins
+  exporting before the sidecar is ready and eventually gives up on a batch. Degrades D-242's
+  OTel↔LangSmith correlation; costs nothing else.
+- **The LangSmith 403s are historical, not live.** 282 `403 Forbidden` on
+  `api.smith.langchain.com/runs/multipart`, but clustered on **08-08 (254), 08-09 (20), 08-10 (8)**
+  and **none since**. Tracing is still enabled (`LANGSMITH_TRACING=true`, key wired as a secret) and
+  today's traffic produced no 403s. Recorded as "no errors during recent traffic" rather than
+  positively confirmed — confirming would mean querying LangSmith with the key. **This was nearly
+  reported as a live outage; the date histogram is what prevented that.**
+
+#### AUD-F-19: the P1 is resolved, and the recorded hypothesis was right
+
+AUD-C-16 was recorded as *"a prerequisite for judging C-02 and F-19"* because staging's corpus was
+159/159 mock hash vectors, making retrieval noise. **C-16 is now closed**: the corpus is
+`('bedrock', 'amazon.titan-embed-text-v2:0', 159)`, 159/159 embedded, re-embedded by the deploy's
+own `reembed_cli` step.
+
+So F-19 became judgeable, and re-running the original probe against the current build:
+
+| probe | recorded finding | measured now |
+|---|---|---|
+| "What are the Saturday hours?" | `location_consent` interrupt **3/3**, `answer: null`, "Thinking…" forever | **0 interrupts, 3 answers, 1 citation each**, all agreeing on 10am–12noon varying by branch |
+| "How do I enroll a student?" | scope refusal → no-approved-source refusal → `email_approval` interrupt | **0 interrupts, 3 answers, 1 citation each** |
+
+**The routing non-determinism is gone, and it went with C-16 exactly as predicted.** That is worth
+recording as a hypothesis that held, because most of this milestone's recorded explanations did not.
+
+**The residual is milder and real.** On "enroll", runs 1–2 give the branch-manager answer and run 3
+says *"IntelliChoice doesn't have detailed enrollment instructions available here"* — it **declines
+where the others answer**. Same route, same citation count, variable helpfulness. That is an
+answer-quality inconsistency rather than a routing defect, and it belongs with D-115's answer-brevity
+item, which already needs product sign-off.
+
+**A false reading caught on the way.** The first probe reported `answer=None` three times, which
+looked exactly like the original `answer: null` finding. It was a **422**: the request field is
+`query`, not `text`, and the parser defaulted a missing key to `None`. Looking at the raw bytes is
+what separated "the bug reproduced" from "my probe was malformed" — the two are indistinguishable
+from a parsed field alone.

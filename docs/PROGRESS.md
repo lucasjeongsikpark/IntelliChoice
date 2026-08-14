@@ -9799,6 +9799,45 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
 
 ## Session log
 
+### Sweep — one dead feature in learning, and F-19's P1 resolved in chat (2026-08-14, D-329/D-330)
+
+**Learning: personalized hints had never worked in production.**
+`background_hint_personalization_failed` × **117 in 48 hours**, the only ERROR the learning API was
+emitting. `_narrative_gateway` was written for `STAGE_NARRATIVE` and later handed to the hint
+scheduler too — correct reuse, registry never updated — so every personalized hint raised
+`no Bedrock model configured for task hint_personalization`. **Invisible by construction:** a
+background task swallows exceptions by design and a failed personalization is *deliberately*
+indistinguishable from the canonical hint. Fixed (`0deb31c`) with a registry constant a test compares
+against the tasks the schedulers actually invoke.
+
+**The rest of learning's 4xx surface is documented test traffic** — 44 × 409 is D-207, the
+`<unmatched>` 404s are D-316's path redaction, the 401s are unauthenticated probes.
+
+**Chat has zero application errors.** Two infrastructure notes: OTel drops ~30 span batches per week
+to the collector sidecar (startup race, then read timeouts), and the 282 LangSmith 403s are
+**historical** — clustered 08-08 to 08-10, none since. **That one was nearly reported as a live
+outage; the date histogram prevented it.**
+
+**AUD-C-16 is closed, and it closed F-19's P1 with it.** The corpus is now
+`('bedrock','amazon.titan-embed-text-v2:0', 159)`, 159/159 embedded — not the mock hash vectors that
+made retrieval noise. C-16 was recorded as *"a prerequisite for judging F-19"*, so re-running the
+original probe:
+
+| probe | then | now |
+|---|---|---|
+| "Saturday hours?" | `location_consent` 3/3, `answer: null`, stuck on "Thinking…" | **0 interrupts, 3 answers**, 1 citation each, all agreeing |
+| "How do I enroll a student?" | scope refusal → no-source refusal → `email_approval` | **0 interrupts, 3 answers**, 1 citation each |
+
+**A recorded hypothesis that held** — most of this milestone's did not.
+
+**Residual, milder and real:** on "enroll", runs 1–2 answer and run 3 declines
+(*"doesn't have detailed enrollment instructions available here"*). Same route, same citations,
+variable helpfulness — an answer-quality issue belonging with D-115's brevity item, not a routing bug.
+
+**A false reading caught on the way:** the first probe reported `answer=None` three times, which
+looked exactly like the original finding. It was a **422** — the field is `query`, not `text`. Reading
+raw bytes is what separated "reproduced" from "my probe was malformed".
+
 ### Session U5 — the crash sink, and a rate-limit claim wrong in both directions (2026-08-14, D-328) ✅
 
 **A student's blank screen reached no one.** D-315 built both *ends* of the error telemetry —
