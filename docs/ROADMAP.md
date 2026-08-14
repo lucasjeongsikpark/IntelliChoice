@@ -2394,6 +2394,20 @@ successive days advance instead of redoing the same prefix.
 dev catalog 4 → 20 videos, skills covered 4 → **12**. At 0.38¢/video a ~90-term run is ~170¢, so the
 default 200¢ budget is tight rather than comfortable.
 
+**Staging, after the 90-term run:** **200 active videos, 72 of 112 skills tagged**, 79.9¢. The serving
+path is confirmed working against it — `has_servable_video("linear_one_step")` is **True**, i.e. a
+video passes all three gates serving applies (active, approved, embedded). Coverage is partial:
+`linear_two_step` and `time_read_clock` are still False.
+
+**⏸ One criterion is NOT met and cannot be met by the current harness.** U6 asks that "a band walk
+sees a real video offered and the counter still says suggested". `clearInterventionIfPresent` always
+clicks **"Get a hint"** — SPEC §5.11.3 offers Hint / Solution / Video and the harness takes the first
+every time — so **no walk has ever exercised the Video branch.** Four band walks passed against the
+new catalog and verified nothing about video; that is recorded rather than counted. Closing it needs
+a dedicated spec that picks "Watch a video" at a pause and asserts a real link plus the honest
+counter, *not* a change to the shared helper, which would alter the ladder coverage D-321
+established.
+
 ### Session U6 (as planned) — YouTube catalog *(blocked on a credential, ~1 hour once unblocked)*
 **Not a build.** The video intervention already works end to end (D-314): the link renders, the pause
 reopens, and the counters say "suggested" rather than "watched". What is missing is content — **4
