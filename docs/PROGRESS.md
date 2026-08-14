@@ -7,6 +7,46 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**⏸ U7 IS MEASURED, NOT BUILT (2026-08-14, D-331).** The design review and the staging dry-run are
+done; **no deletion code was written, deliberately**. The measurement changed the recommendation.
+
+**The number that reframes it: the job as scoped addresses 1.7% of checkpoint storage.** Staging's
+checkpoint tables are **285 MB** — not the 3.27 GB the design doc had been reasoning against, which
+was the whole instance. By phase: **`pre_exam` (abandoned) 64.7% · chat 19.3% · `study` 12.4% ·
+`completed` 1.7%**. And **0% is eligible today** — the oldest staging thread is 22 days old, so
+nothing clears a 30-day floor. Abandoned sessions are 77% of the bytes and are out of scope by the
+user's decision; that decision stands, but it now has a measured cost attached to it.
+
+**The user's design shape caught something my recommendation would have missed.** They restated it
+as *extract → store separately → delete*, against my weaker *"verify it is already extracted, then
+delete"*. Enumerating all **31** `LearningState` fields (my earlier count of 27 was wrong) found
+**five with no durable home**: `week_id`, `parent_external_id`, `bedrock_spend_cents`,
+`attendance_status`, `attendance_resolution`. Under "verify then delete" those would have gone
+silently. The extraction target is a small **`learning_sessions`** table that has never existed —
+which also fixes a live orphan, since `stage_transitions.learning_session_id` and
+`tutor_chat_messages.learning_session_id` point at nothing but a checkpoint.
+
+**Two constraints the design doc had missed.** The checkpoint tables are **shared with chat** —
+`QAState` has no `phase` channel, so a `phase == 'completed'` job silently skips every chat thread
+and chat checkpoints grow forever under no policy at all. And three of the "durable" homes are
+themselves on a retention clock (`stage_transitions` 90d, `semantic_memory` 90d, `learning_events`
+365d), so "store it separately" must land in the permanent set or it only moves the deletion date.
+
+**Verified, with its caveat stated:** 9 of 9 completed staging threads carry a full durable trace,
+and `learning_events.session_id` is the learning-session id (5,718 of 5,718 dev rows match a live
+thread). But all 9 belong to **one** e2e student, so the per-student columns are one observation
+repeated. **Dev disagreed at 6 of 4,023 and dev was wrong to trust** — its completed threads come
+from pytest runs against fakes that never emit events.
+
+**Recommended next, in order:** build `learning_sessions` (valuable independent of retention);
+re-scope deletion around abandoned + chat threads, which are 96% of the growth; and only then the
+completed-session job, gated by the still-owed **restore test** and **idempotency check**. Four
+questions are open in [U7_CHECKPOINT_CONSOLIDATION.md](U7_CHECKPOINT_CONSOLIDATION.md) §9.
+
+**New carry-over, logged not chased:** one completed staging thread (`98abc0f0…`) has **two**
+`learning_gain` rows for a single `pre_assessment_session_id`; the other eight have one. Either a
+re-finalize legitimately writes a second row or gain is computed twice per cycle. Out of U7's scope.
+
 **Session C1 remains ⏸ partial, deployed, and coverage is now COMPLETE at 99 of 99 authorable
 skills.** #247 (`14085ca`), #248 (`4c5b7e8`) and #249 (`72e7c04`) merged, CI green on all nine
 checks each. Staging deployed from `4c5b7e8` — run `31708283258`, every gate green. Bank 936 →

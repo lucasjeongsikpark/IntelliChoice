@@ -23634,3 +23634,86 @@ looked exactly like the original `answer: null` finding. It was a **422**: the r
 `query`, not `text`, and the parser defaulted a missing key to `None`. Looking at the raw bytes is
 what separated "the bug reproduced" from "my probe was malformed" — the two are indistinguishable
 from a parsed field alone.
+
+### D-331 — U7 measured: the enumeration found five orphan fields, and the scoped job addresses 1.7% of the bytes
+
+**Date:** 2026-08-14 · **Status:** design review complete (§8 steps 1–2), **no deletion code written**
+· **Document:** [U7_CHECKPOINT_CONSOLIDATION.md](U7_CHECKPOINT_CONSOLIDATION.md)
+
+ROADMAP U7 required a design review and a *staging* measurement before any code. Both are done. The
+measurement changed the recommendation, so this entry records what moved and why.
+
+### 1. The user's reframing earned its keep, twice
+
+D-322 §4 turned retention from *pruning* into *consolidation*. On 2026-08-14 the user restated the
+shape precisely: **extract the permanently-needed domain state → store it separately → delete the
+checkpoint.** My own §2 recommendation had been the weaker *"verify it is already extracted, then
+delete"*, on the argument that everything durable already lives outside the checkpoint.
+
+**Keeping extraction as a real step is what found the gap.** The enumeration of all **31**
+`LearningState` fields (an earlier count of 27 in the same session was wrong) turned up **five with
+no durable home anywhere**: `week_id`, `parent_external_id`, `bedrock_spend_cents`,
+`attendance_status`, `attendance_resolution`. Under "verify then delete" those five would have been
+deleted silently, because the verification was framed to confirm a claim rather than to enumerate
+against it. Two of them are product- and audit-relevant: a non-blocked session's *week* is recorded
+nowhere, and `attendance_resolution` is named by SPEC §5.6.5 while `blocked_sessions` stores only
+`blocked_reason`.
+
+**What that makes the extraction target:** a small `learning_sessions` summary table, which has
+never existed. It also fixes a live orphan — `stage_transitions.learning_session_id` and
+`tutor_chat_messages.learning_session_id` are bare strings pointing at nothing but a checkpoint.
+
+### 2. The measurement, and the number that reframes the session
+
+Read from staging via read-only `ops-task` `run-task` (three runs, all exit 0). Checkpoint tables
+are **285 MB** — not the 3.27 GB this document previously reasoned against, which was the whole
+instance. Bytes by phase:
+
+| `pre_exam` (abandoned) | 64.7% | `(chat)` 19.3% | `study` 12.4% | **`completed` 1.7%** |
+|---|---|---|---|---|
+
+**U7 as scoped addresses 1.7% of checkpoint storage, and 0% today** — the oldest staging thread is
+22 days old, so nothing is eligible at any floor of 30 days or more. **Abandoned sessions are 77%**
+and are explicitly out of scope by the user's (correct) reasoning that mixing retention windows is
+how the wrong policy gets applied to the longer case. The measurement does not overturn that
+decision; it says the decision leaves the growth unaddressed, which is a different thing and is now
+on the record.
+
+### 3. Two constraints the first draft had missed
+
+- **The checkpoint tables are shared with chat.** `QAState` and `LearningState` both write to
+  `checkpoints`/`checkpoint_writes`/`checkpoint_blobs`. Dev: 31,416 learning-only threads, 12,638
+  chat-only, **0 overlap**. A job keyed on `phase == 'completed'` silently skips every chat thread,
+  because `QAState` has no `phase` channel — so chat checkpoints grow forever and no policy
+  addresses them. The job must classify thread kind explicitly, never infer it from a missing field.
+- **Three of the "durable" homes are themselves on a retention clock** (`retention_purge_cli.py`,
+  D-114/D-153): `stage_transitions` 90 days, `semantic_memory` 90 days, `learning_events` 365 days.
+  "Store it separately" must land in the *permanent* set or consolidation only moves the deletion
+  date closer.
+
+### 4. What was verified rather than assumed, including a reading that would have misled
+
+**9 of 9** completed staging threads carry a complete durable trace — events, narratives, 10/10 pre
+and post attempts, learning gain, mastery, semantic facts, hints. `learning_events.session_id` *is*
+the learning-session id, verified at **5,718 of 5,718** dev rows matching a live thread.
+
+Stated rather than buried: those 9 sessions belong to **one** e2e student, so the per-student
+columns are one observation repeated nine times.
+
+**Dev said 6 of 4,023 and dev was wrong to trust.** Taken at face value that falsifies the whole
+design. Dev's completed threads come from pytest runs against fakes that never emit events — its
+event-bearing sessions sit in `pre_exam` (633 of 771). This is the same shape as the session's
+recurring lesson: the disagreeing measurement was the one that needed explaining, not the one that
+needed reporting.
+
+### 5. The recommendation that changed
+
+Before measuring: enumerate, dry-run, then write the deletion behind a 30-day floor.
+
+After: **do not write the completed-session deletion yet** — it reclaims 1.7% of bytes and zero
+today. **Build `learning_sessions` regardless**, because it is the "store it separately" half of the
+user's design and every day it does not exist is a day the five orphan fields are recorded nowhere.
+**Re-scope deletion around abandoned and chat threads**, which are 96% of the growth.
+
+Still owed before any deletion ships: the **restore test** and the **idempotency check** (§7.3–7.4).
+§2.2's read-only trace check is evidence, not a substitute for either.
