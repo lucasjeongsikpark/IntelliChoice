@@ -31,6 +31,9 @@ deployed apps sharing auth from the existing `go.intellichoice.org` system:
   stays deterministic, and the five falsification checks that gate it. Read before adding any
   hint- or solution-quality scoring — two such scorers already exist and §1 explains why neither
   worked.
+- [docs/OPEN_DECISIONS.md](docs/OPEN_DECISIONS.md) — everything still open that needs a **judgement** rather
+  than more code: ten decisions with options, a recommendation, and what deferring each one costs.
+  Read before asking "what should I work on next" — the answer is often "ask the user".
 - [docs/S42_DISCOVERY.md](docs/S42_DISCOVERY.md) — what the **existing** `go.intellichoice.org`
   system actually does, read from its own source (D-151). Read this before assuming anything about
   production's schema, roles, attendance, or login contract.

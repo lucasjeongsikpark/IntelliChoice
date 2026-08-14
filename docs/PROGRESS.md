@@ -97,6 +97,12 @@ Fixed by gating the render on knowing the position (`positionKnownFor`, state no
 5 s deadline so it can never hold shut), plus a local regression test that manufactures the window
 by delaying `/exam/overview` — confirmed failing with the gate disabled before being kept (D-107 §1).
 
+**Everything still open that needs a person rather than more code is now in one place:**
+[OPEN_DECISIONS.md](OPEN_DECISIONS.md) — ten decisions, each with options, a recommendation and its
+reason, ordered by what deferring costs. The top three: the study phase re-serving the session's own
+exam items (inflates the gain the parent report is built on), no sink for client-side errors, and no
+URL routing (which also gates §5.1.2's first-visit disclosures).
+
 **What the next session should pick up, in order:**
 
 1. **DONE this session — D-317 is merged (#252, `e26c4fa`), deployed, and verified on staging: 10 of
@@ -180,10 +186,14 @@ by delaying `/exam/overview` — confirmed failing with the gate disabled before
   reads it twice — `rendered_question` is `context_block + "\n\n" + stem` and the model writes
   the setup into both. Concentrated in new content (**6 of 8** in this half's first batch against
   9 of 84 pre-existing), cosmetic rather than wrong, and there is no gate check for it.
-- **`question_variants` holds 338,778 `runtime` rows against 1,055 `canonical` ones** after four
-  weeks of dev and load-test use. Per-showing minting is designed and correct (D-189); what does
-  not exist is any retention or pruning policy, and this is the fastest-growing table in the
-  product.
+- **RETENTION — and this entry named the wrong table.** It read "`question_variants` … is the
+  fastest-growing table in the product". Measured 2026-08-14 on the dev DB: `question_variants` is
+  **352,198 rows / 127 MB**, while the LangGraph checkpointer is **`checkpoint_writes` 5,290,217
+  rows / 2557 MB** plus **`checkpoints` 1,245,390 rows / 1872 MB** plus 339 MB of blobs — **~4.8 GB
+  across 6.5 M rows, roughly 37×**. Per-showing minting is still designed and correct (D-189); what
+  does not exist is any retention or pruning policy, and the thing it needs to prune is the
+  checkpointer. Dev data including load tests, **not a staging measurement** — read staging before
+  sizing anything. See [OPEN_DECISIONS.md](OPEN_DECISIONS.md) §4.
 
 **Superseded status text below, kept for its measurements.** Session C1, continued — 2026-08-12,
 D-294/D-295. Two carry-over defects closed, and the rubric question re-ordered rather than
