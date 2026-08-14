@@ -25,6 +25,17 @@ no PII by design; the residual risk is Bedrock spend, which the gateway caps). S
 decision is ever revisited: rotate at the source, then re-run `deploy-staging.yml`, because ECS
 tasks read the value at container start.
 
+**Four PRs merged and deployed on 2026-08-14: #251, #252 (D-317), #253 (D-318), #254 (D-319), plus
+#261 (D-320, test-only).** Staging serves `2c78601`; `main` is one test-only commit ahead
+(`7379edb`), which needs no deploy. **Four whole staging runs today, three of them clean:**
+`64/6/0` at `86fbe50`, `63/7/1` at `e26c4fa`, `64/7/0` at `e26c4fa`, `64/7/0` at `2c78601`.
+
+**⚠️ The one open question worth carrying:** the ladder walk's failure audit read
+`study: answered 11 items` with **`0 retry-ladder pauses`**, which is not chance. It is now
+instrumented (D-318) so its next occurrence classifies itself as test fragility, a harness miss, or
+**SPEC §5.11.3's retry ladder failing to engage** — but the instrument has been seen to *record*,
+not yet to *classify*, because the failure has not recurred in 6 walks since.
+
 **✅ PR #251 IS MERGED AND DEPLOYED (2026-08-14).** Squash-merged as `86fbe50`, deployed by run
 `31754496362` — success, every gate green, rollback skipped. Verified independently of the
 workflow's own report: both ECS services run image tag `gha-86fbe50e0673`, rollout `COMPLETED`, and
@@ -784,6 +795,52 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — what a student and a parent actually read (2026-08-14, D-319, D-320)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **pytest 1514 passed** · learning-web `tsc`
+and `oxlint` clean · **local e2e 72 passed** · **staging e2e 64 passed / 7 skipped / 0 failed** at
+`2c78601`. **$0 directed spend.**
+
+**Audit items 5, 6, 7 and 9 are closed (D-319).** Seven defects, several of them *wrong* rather than
+merely plain: `"You used 1 hints and viewed 1 solutions"` (the fallback every gateway failure lands
+on); `"You went from 2.0 to 10.0"`; a student-visible report printing `Overall accuracy: 0.24`
+directly above `88%`; `"You completed 7 of 10"` where it meant *scored*; the exam's live region
+carrying `"Answer submitted for question 10."` into the study phase; a mastery axis rendering
+`"Add and subtract…denominators"` **twice**; a difficulty axis printing `8/13/2026` five times.
+Topics are now grouped **"For you" first** instead of scattering the badge through 33 cards, and
+`langsmith_config.py` no longer claims no LangSmith account exists — false since D-242.
+
+**Number formatting was checked against numeric grounding before it was changed**, not after:
+`_matches` accepts a value rounded to the nearest integer, so `2.0` still grounds `"2"`. Fractions
+keep one decimal and `_quantity` formats the figure with its noun, because splitting them is how
+`"1.5 point"` ships.
+
+**Two pre-existing tests had to change** because they pinned the old rendering (`"from 4.0 to 6.0"`,
+`"8.0"`) — the clearest evidence the fix is real: the suite failed the moment the behaviour changed.
+The label formatters were then exercised **against the shipped code** through the Vite dev server,
+not a copy of their logic: the audit's own pair separated into `"…like denominators"` /
+`"…unlike denominators"`, a three-way collision separated, and names that already separate were
+untouched.
+
+**The topic grouping broke a strict-mode locator, and the test was right to break.** `.card-list`
+resolves to two nodes now, so `narrative-displacement.spec.ts` failed **on the count rather than on
+its subject** — it read as a narrative-overlay regression and was neither. The assertion was fixed,
+not the DOM.
+
+**A chart test passed twice before it read anything (D-320).** The wait was for *any* tick and was
+satisfied by a numeric axis; then the read used `.recharts-yAxis`, the axis *line*, while the tick
+text lives in a sibling `.recharts-yAxis-tick-labels` — five empty arrays beside 35 tick values in
+the same document. **Only the positive control caught either**, and it caught the second
+immediately. The file states what it cannot say: the fixture students' skill names already separate,
+so on today's data it passes against the unfixed build too, and its value is forward-looking.
+
+**Carry-over:** audit items **2, 3 and 4 are decisions, not patches** — an error sink (endpoint +
+rate limit + a PII rule for stack text), URL routing, and the study/exam item overlap that inflates
+measured gain. The narrative modal's `"Why this is your next step"` header on a results context needs
+a **new API field** (the snapshot carries the text, not the stage) and was recorded rather than
+half-done. `formatDateLabel` shifts a *date-only* string back a day; harmless today because the API
+sends full timestamps, recorded as a latent trap rather than fixed blind.
 
 ### Session log — deploy, then read: D-288 was never a failed restore (2026-08-14, D-317)
 
