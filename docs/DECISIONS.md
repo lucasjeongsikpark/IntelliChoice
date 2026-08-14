@@ -22578,3 +22578,73 @@ mirrors the shipped order, and says why in its docstring.
 logged `answered: 2, first_unanswered: 2` and the client restored to question 3 — agreeing, which is
 the *non*-defective case and therefore also the control that shows the instrument reads correctly
 when nothing is wrong. What it does on staging is now a question with an answer.
+
+### D-317 — D-288 was never a failed restore: the exam answered before it knew where the student was
+
+**Date:** 2026-08-14 · **Session:** C1 continuation (audit follow-through) · **Status:** fixed,
+verified locally both directions; **not yet measured on staging, where the defect lives**
+
+D-288 has been open since 2026-08-07 with four killed explanations, three attempted fixes and a
+recorded next step — "server-side logs for that session" — that was *impossible* rather than
+merely undone, because no log line could name a session. D-316 made it possible. This is what it
+said.
+
+**1. The server was never wrong, and that is a measurement now rather than a belief.** On the
+failing run, session `e566d3c3`:
+
+| time (UTC) | line |
+|---|---|
+| 00:11:57.362 | `exam_overview_read answered=2 first_unanswered=2` |
+| 00:11:59.190 | `GET /stream` — the reload |
+| **00:11:59.300** | `exam_overview_read answered=2 first_unanswered=2` — **after** the reload |
+
+The pre-registered decision rule (PROGRESS, written before the reading) was: `answered` correct
+while the student still lands on question 1 puts the fault in the client. It fired cleanly. Every
+one of the four killed explanations — session sharing, answer durability, CloudFront caching, the
+D-272 restore guard — was looking behind the endpoint.
+
+**2. The restore does not fail. It is late by exactly one round trip.** A DOM probe over six
+staging reloads (`.exam-nav` renders iff `examOverview` is non-null, so its presence *is* the state
+of that variable) caught the window 3 times:
+
+```
+immediate(+2719ms): "Question 1 of 10"  navPresent=false  difficultyBadge=false
+settled  (+3s more): "Question 3 of 10" navPresent=true   answered,answered,unseen,...
+```
+
+The screen becomes interactive on the SSE snapshot; the position rides on `GET /exam/overview`.
+Between the two the student is shown **Question 1, unlocked, with a working Submit and no
+navigator** — measured at up to **2.7 s**. The reachable harm is not cosmetic: the items already
+answered are exactly the ones whose locks have not arrived either, so a fast student re-answers an
+answered item and takes D-207's 409.
+
+**3. The defect is `0`.** `currentDisplayOrder` initialises to `0` and the screen rendered that
+guess as though it were an answer. Fixed by gating the render on *knowing* the position:
+`positionKnownFor`, set where the restore effect already decides it is finished. **State, not a
+ref** — the restore's own `setCurrentDisplayOrder(target)` is a no-op when the target is already 0
+(a fresh exam), React bails out of the re-render, and a ref flipped in the same effect would never
+reach the DOM; the gate would stick shut on the common path. A `POSITION_WAIT_MS = 5000` deadline
+keeps it from holding: `fetchExamOverview` and `markExamViewed` both swallow failures by design, so
+"the overview never arrived" is silent, and a gate without a deadline would trade a 2.7 s window
+for a permanently blank exam.
+
+**Why five sessions of green local runs never saw it.** Locally the overview lands within
+milliseconds of the snapshot, so the window does not exist — the same blindness
+`narrative-displacement.spec.ts` documents for the ~26 ms mock narrative, and the third finding in
+that shape (AUD-C-02, AUD-F-19, AUD-F-21). The regression test therefore *manufactures* the window
+by delaying `/exam/overview` and `/exam/viewed` with `route.continue()`, and samples across it
+rather than checking once, so a run that never opened the window cannot report a pass. Confirmed to
+fail with the gate disabled and pass with it, before being kept (D-107 §1).
+
+**Corrections to my own reading, kept because they ran against it.** I first proposed that the test
+merely *asserts too early*; three probe runs killed it — the heading was correct immediately,
+including once when it was read 37 ms *before* any `GET /exam/overview` landed for the new page
+(the position can also arrive on `POST /exam/viewed`'s response, since `markExamViewed` and
+`fetchExamOverview` are two unordered writers to the same state). I also treated a lone `400` on
+the time endpoint as a discriminator between failing and passing runs; over two hours staging shows
+**94 × 204, 2 × 401, 1 × 400, 1 × 422**, so it is n=1 and nothing was built on it.
+
+**What is not yet known.** The fix is verified locally in both directions and by the full local
+suite (71 passed), and *not* on staging, because it is not deployed. The staging rate before the
+fix was **2 of 6** reloads (33%), which is the number the post-deploy re-run has to beat, and 6 runs
+cannot distinguish 33% from 20%. Re-measure with `--repeat-each` at the same count or higher.
