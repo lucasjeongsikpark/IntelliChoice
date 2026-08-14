@@ -249,8 +249,14 @@ test("when a narrative shows before the student has acted, the screen beneath it
     .catch(() => false);
   expect(shown, "no stage narrative appeared at the start of the session").toBe(true);
 
+  // A *topic button*, not the `.card-list` container. The container assertion was written
+  // when the topic screen rendered one list; D-319 groups it into "For you" / "All topics",
+  // so `.card-list` legitimately resolves to two nodes and a strict-mode `toBeVisible()`
+  // fails on the count rather than on the subject. What this test means by "the topic list
+  // is rendered" is that the student can still see a topic, which is what this asserts and
+  // what survives any future regrouping.
   await expect(
-    page.locator(".card-list"),
+    page.locator(".card-list button").first(),
     "the topic list is not rendered beneath the narrative - the narrative replaced it",
   ).toBeVisible();
 
@@ -258,6 +264,6 @@ test("when a narrative shows before the student has acted, the screen beneath it
   // revealing it for the first time.
   await narrativeContinue(page).first().click();
   await expect(narrativeContinue(page)).toHaveCount(0);
-  await expect(page.locator(".card-list")).toBeVisible();
+  await expect(page.locator(".card-list button").first()).toBeVisible();
   audit.note("narrative and topic list coexisted, and dismissal left the topic list in place");
 });

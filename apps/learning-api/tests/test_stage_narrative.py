@@ -19,7 +19,7 @@ from intellichoice_shared.bedrock import (
     StageNarrativePayload,
     StageNarrativeResponse,
 )
-from learning_api.services.stage_narrative import generate_stage_narrative
+from learning_api.services.stage_narrative import _fallback_text, generate_stage_narrative
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -187,7 +187,11 @@ def test_an_inverted_score_pair_falls_back_to_the_template() -> None:
 
             assert result.generated is False
             assert "slipped" not in result.narrative_text
-            assert "from 4.0 to 6.0" in result.narrative_text
+            # `4`, not `4.0`: the payload field is a float because the schema is shared, but
+            # a raw score is a whole number of questions and the student is shown a score,
+            # not a measurement. Grounding still holds - `_matches` accepts a value rounded
+            # to the nearest integer, so the payload's `4.0` grounds the text `4`.
+            assert "from 4 to 6" in result.narrative_text
 
     asyncio.run(run())
 
@@ -330,3 +334,48 @@ def test_study_step_calls_are_scoped_by_related_skill_id() -> None:
             assert {r.related_skill_id for r in rows} == {"skill-a", "skill-b"}
 
     asyncio.run(run())
+
+
+def test_the_fallback_counts_one_hint_as_a_hint_and_not_as_hints() -> None:
+    """The copy defect a student actually reads. `study_outro`'s fallback said "You used 1
+    hints and viewed 1 solutions", which is the kind of small wrongness that teaches a reader
+    the rest of the sentence is boilerplate - and this fallback is not a rare path: any
+    gateway failure or grounding rejection lands on it.
+
+    Both counts and both directions in one test, because "1 hint" alone would still pass with
+    the plural branch broken.
+    """
+    one = _fallback_text(
+        _payload(stage="study_outro", hint_count=1, solution_count=1, video_count=0)
+    )
+    assert "You used 1 hint and viewed 1 solution" in one
+
+    many = _fallback_text(
+        _payload(stage="study_outro", hint_count=3, solution_count=2, video_count=0)
+    )
+    assert "3 hints" in many
+    assert "2 solutions" in many
+
+
+def test_the_fallback_shows_whole_scores_as_integers() -> None:
+    """`post_outro` read "You went from 2.0 to 10.0. That's a gain of 8.0 points." beside a
+    UI that prints integers everywhere else. The payload fields are floats because one schema
+    serves every stage, which is a wire concern and not something a K-12 student should be
+    shown.
+
+    A fractional value keeps one decimal rather than being rounded away - the guard against
+    "fix the display, lose the number".
+    """
+    whole = _fallback_text(
+        _payload(stage="post_outro", pre_raw_score=2.0, post_raw_score=10.0, raw_gain=8.0)
+    )
+    assert "from 2 to 10" in whole
+    assert "8 points" in whole
+    assert "2.0" not in whole and "10.0" not in whole and "8.0" not in whole
+
+    assert "1 point." in _fallback_text(
+        _payload(stage="post_outro", pre_raw_score=9.0, post_raw_score=10.0, raw_gain=1.0)
+    )
+    assert "1.5 points" in _fallback_text(
+        _payload(stage="post_outro", pre_raw_score=8.5, post_raw_score=10.0, raw_gain=1.5)
+    )

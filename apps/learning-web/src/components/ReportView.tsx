@@ -27,18 +27,44 @@ const _FACT_LABELS: Record<string, string> = {
   tutor_review_flagged: "Tutor review recommended",
 };
 
-function formatFactValue(value: unknown): string | null {
+/**
+ * Facts whose value is a proportion in [0, 1] and must be read as a percentage.
+ *
+ * **This is a correctness fix, not formatting.** `formatFactValue` rendered every number the
+ * same way, so a student opened their own report and read `Overall accuracy: 0.24` directly
+ * above `Solved independently: 88%` — two renderings of the same kind of quantity, one of
+ * them a number no child has a use for. Worse, `0.24` invites being read as 24 *of
+ * something*, and the report is the artefact a parent trusts (SPEC §5.10.3 asks for
+ * age-appropriate, growth-oriented language, which starts with the number being legible).
+ *
+ * Keyed by fact name rather than sniffed from the value: `raw_gain` of `0.5` is half a
+ * question, not 50%, and a range check would silently convert it.
+ */
+const _RATE_FACTS = new Set(["overall_accuracy", "independent_correct_rate"]);
+
+function formatFactValue(key: string, value: unknown): string | null {
   if (value === null || value === undefined) return null;
   if (Array.isArray(value)) return value.length > 0 ? value.join(", ") : null;
   if (typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>);
+    // Nested values here are `mastery_by_skill`-shaped: skill name -> weighted score in
+    // [0, 1], so the same percentage rule applies and for the same reason.
     return entries.length > 0
-      ? entries.map(([k, v]) => `${k}: ${typeof v === "number" ? v.toFixed(2) : v}`).join("; ")
+      ? entries
+          .map(([k, v]) => `${k}: ${typeof v === "number" ? formatRate(v) : v}`)
+          .join("; ")
       : null;
   }
-  if (typeof value === "number") return Number.isInteger(value) ? String(value) : value.toFixed(2);
+  if (typeof value === "number") {
+    if (_RATE_FACTS.has(key)) return formatRate(value);
+    return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  }
   if (typeof value === "boolean") return value ? "Yes" : "No";
   return String(value);
+}
+
+function formatRate(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }
 
 export function ReportView({ report, busy, error, onGenerate }: Props) {
@@ -56,7 +82,7 @@ export function ReportView({ report, busy, error, onGenerate }: Props) {
             <h3>Verified</h3>
             <ul>
               {Object.entries(_FACT_LABELS).map(([key, label]) => {
-                const formatted = formatFactValue(report.verified_facts[key]);
+                const formatted = formatFactValue(key, report.verified_facts[key]);
                 if (formatted === null) return null;
                 return (
                   <li key={key}>

@@ -4,12 +4,18 @@ automatically (no code-level client to construct or pass through `ainvoke`) - th
 only decides *whether* to turn that on and, if so, forces the masking SPEC §5.32.1
 requires for the Cloud option ("complete PII masking").
 
-**No real LangSmith account exists for this project** (D-002's posture, same as every
-other external dependency) - `LANGSMITH_API_KEY` is unset in dev/tests, so
-`configure_langsmith()` is a no-op and this path is wired but unexercised, same footing as
-D-025 (`AnthropicBedrockProvider`)/D-035 (`TitanEmbeddingProvider`). SPEC §5.32.1's
-self-hosted-vs-cloud choice itself needs contractual review before real minor data ever
-reaches either option - not decided here, and not something a code change can decide.
+**A real LangSmith account exists and staging traces to it (D-242).** Runs are joined to
+OpenTelemetry by `metadata.otel_trace_id`, and the `langsmith-ingest-failed` alarm has been
+read with a positive control rather than an empty store. `LANGSMITH_API_KEY` is still unset
+in dev and tests, so `configure_langsmith()` is a no-op there and local runs trace to Jaeger
+only - which is the intended split, not a gap.
+
+*This paragraph said "No real LangSmith account exists for this project" until 2026-08-14.
+It had been false since D-242 and would have sent the next person to wire up something that
+was already running - the same cost as the `config.ts` paragraph corrected on 2026-08-07.*
+
+SPEC §5.32.1's self-hosted-vs-cloud choice still needs contractual review before real minor
+data reaches either option - not decided here, and not something a code change can decide.
 """
 
 import os
