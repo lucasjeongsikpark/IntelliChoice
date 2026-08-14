@@ -47,6 +47,31 @@ questions are open in [U7_CHECKPOINT_CONSOLIDATION.md](U7_CHECKPOINT_CONSOLIDATI
 `learning_gain` rows for a single `pre_assessment_session_id`; the other eight have one. Either a
 re-finalize legitimately writes a second row or gain is computed twice per cycle. Out of U7's scope.
 
+**✅ THE EXTRACTION HALF IS BUILT (2026-08-14, D-332).** `learning_sessions` — the table a learning
+session never had — plus a reconciler, a migration, and 23 tests. Nothing deletes a checkpoint yet;
+that stays deliberate per D-331.
+
+**Run end to end against dev's 49,601 threads, not just unit-tested:** 36,929 learning sessions
+consolidated, 12,672 correctly skipped as chat threads, no remainder. **A second run wrote 0 rows**
+(36,929 already current) in 40s against the first run's 4m00s — falsification check #4 satisfied on
+real data, and the incremental filter measured at 6×. **26,476 rows now carry a `week_id`**, a field
+that until today existed nowhere outside a checkpoint.
+
+**⚠️ The hazard found while building it, and it is the more important finding.**
+`alembic revision --autogenerate` generated the new table **and `drop_table` for all four LangGraph
+checkpoint tables**, against a dev database holding 1,275,766 checkpoint rows. LangGraph's saver
+creates its own schema, so those tables are load-bearing and absent from `Base.metadata`, and
+autogenerate reads that as "should be dropped". **Running it unedited would have deleted every
+learning and chat session.** It was caught by reading the draft — which is not a control, since
+every migration in this repo was generated the same way. Fixed with an `include_object` predicate in
+`intellichoice_db.migration_filters`, verified by regenerating a throwaway migration (zero
+checkpoint references remain), and unit-tested. **The index half is a stated gap:** four hand-built
+indexes are still proposed for dropping, so *read every generated migration before running it*.
+
+**Second carry-over, logged not chased:** every `aget_tuple` warns
+`Deserializing unregistered type learning_api.graph.build.EntryInput ... will be blocked in a future
+version`. Harmless today, a real future break for the running app as much as for this job.
+
 **Session C1 remains ⏸ partial, deployed, and coverage is now COMPLETE at 99 of 99 authorable
 skills.** #247 (`14085ca`), #248 (`4c5b7e8`) and #249 (`72e7c04`) merged, CI green on all nine
 checks each. Staging deployed from `4c5b7e8` — run `31708283258`, every gate green. Bank 936 →

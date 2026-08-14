@@ -99,6 +99,9 @@ retention-purge:
 memory-consolidate:
 	uv run python -m intellichoice_memory.consolidate_cli
 
+session-consolidate:
+	uv run python -m learning_api.services.session_consolidation_cli
+
 db-upgrade:
 	cd packages/db && uv run alembic upgrade head
 

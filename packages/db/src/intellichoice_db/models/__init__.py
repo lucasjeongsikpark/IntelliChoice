@@ -11,6 +11,7 @@ from intellichoice_db.models.curriculum import Skill, Topic
 from intellichoice_db.models.evaluation import EvaluationResult
 from intellichoice_db.models.hints import HintEvent
 from intellichoice_db.models.interrupts import InterruptApproval
+from intellichoice_db.models.learning_session import LearningSession
 from intellichoice_db.models.mastery import (
     LearningGain,
     Mastery,
@@ -47,6 +48,7 @@ __all__ = [
     "InterruptApproval",
     "LearningEvent",
     "LearningGain",
+    "LearningSession",
     "Mastery",
     "McpToolCall",
     "OrgBranch",
