@@ -2334,7 +2334,22 @@ review than two.
 **Done when:** a `post_outro` narrative renders a results-appropriate header · the field is optional
 so an older client cannot break on it.
 
-### Session U4 — URL routing *(gates §5.1.2)*
+### Session U4 — URL routing ⏸ *(2026-08-14, D-327; three of four criteria)*
+
+**Done:** a reload lands on the same screen · the dashboard is bookmarkable (deep link verified
+against the real CloudFront edge — no distribution change was needed) · Back works · **§5.1.2's
+route-aware gate is now possible**, which is why this session existed. Local e2e **74 passed**, both
+`exam-position-refresh` specs green so D-317's gate did not regress.
+
+**⏸ "results are bookmarkable" cannot be met yet.** `ResultsScreen` reads the live snapshot and no
+endpoint serves a completed session's results by id, so a `/results` route would work only while that
+session was still live. Needs `GET /learning/sessions/{id}/results` — new API surface, separate
+decision. Recorded in `routing.spec.ts`'s header rather than shipped looking finished.
+
+**Phases are deliberately not in the URL:** a bookmarkable `/exam` could send a student to an exam the
+graph already finalized. The URL owns session-vs-dashboard; `phase` owns the rest.
+
+### Session U4 (as planned) — URL routing *(gates §5.1.2)*
 `react-router`: sign-in, session, dashboard, results. Session restore must keep working — the id
 lives in `sessionStorage` and D-317's render gate must not regress.
 
@@ -2350,7 +2365,21 @@ telemetry and deliberately left this gap; this closes it without adding a proces
 **Done when:** a render crash reaches the server log with its `trace_id` · a stack containing a
 question stem is truncated, with a test · the endpoint is rate-limited, with a test.
 
-### Session U6 — YouTube catalog *(blocked on a credential, ~1 hour once unblocked)*
+### Session U6 — YouTube catalog ✅ *(code done 2026-08-14, D-326; staging sync is a multi-day build)*
+
+**Unblocked** — the key was already in Secrets Manager and the ops-task already carried the channel id.
+
+**The "~1 hour" estimate was from the 5-skill era and is wrong.** The sync searches once per curriculum
+skill name at 100 quota units per term; at **112 skills that is 11,200 units against a 10,000/day
+allowance**, so the catalog is a **multi-day build**, not a single run. `check_search_quota` now refuses
+before the first request, and runs are resumable — each covers the skills with no video yet, so
+successive days advance instead of redoing the same prefix.
+
+**Measured on a real 3-term run:** 16 videos created, 0 rejected, 0 failed verification, **6.08¢**;
+dev catalog 4 → 20 videos, skills covered 4 → **12**. At 0.38¢/video a ~90-term run is ~170¢, so the
+default 200¢ budget is tight rather than comfortable.
+
+### Session U6 (as planned) — YouTube catalog *(blocked on a credential, ~1 hour once unblocked)*
 **Not a build.** The video intervention already works end to end (D-314): the link renders, the pause
 reopens, and the counters say "suggested" rather than "watched". What is missing is content — **4
 videos across 112 skills and 1 of 33 topics**.
