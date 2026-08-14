@@ -23446,3 +23446,56 @@ left a parent's bookmark 404ing, which is invisible to everyone who clicks throu
 Back assertion **failed first**, against `/` rather than `/session` — which is what surfaced the need
 for a canonical redirect. The alternative was loosening the assertion to accept both paths, which would
 have left the address bar ambiguous for exactly the §5.1.2 work this session exists to unblock.
+
+### D-326 addendum — the resumable run deactivated what it never searched for
+
+**Date:** 2026-08-14 · **Session:** U6, after the first real staging run · **Status:** fixed
+(`6fd7d89`); the 5 affected skills heal on the next run by design
+
+**A defect D-326 itself introduced, caught by reading the run's own output rather than by a test.**
+
+D-326 made runs resumable by searching only the *uncovered* skills. `mark_inactive_except`
+deactivates every catalog row the run did not encounter — correct for "the channel no longer
+publishes it", **catastrophic for "we did not search for it today"** — and a partial run's
+`seen_ids` excludes every previously-covered video by construction. The two changes are individually
+sound and jointly wrong, which is why neither review nor the existing tests noticed: nothing
+exercised a run that deliberately saw a subset.
+
+**Measured on the first real staging run** (90 of 112 terms, `UC4a-Gbdw7vOaccHmFo40b9g`):
+
+| | |
+|---|---|
+| created / updated | 197 / 3 |
+| **marked inactive** | **62** |
+| rejected off-channel / failed verification | 0 / 0 |
+| Bedrock spend | 79.91¢ |
+| skill coverage | 10 → **72** |
+| **skills that lost their only servable video** | **5** |
+
+**The headline number improved while a subset regressed, and that is the transferable lesson.**
+Coverage going 10 → 72 is exactly the shape that makes a regression invisible — "the catalog got
+much better" is true and was also hiding five skills getting worse. It only surfaced because the
+sync *prints what it deactivates*; a summary reporting only creations would have concealed it
+indefinitely.
+
+**And it would not have stayed a one-off.** The next day's run searches the *then*-uncovered skills,
+so it would have deactivated that day's 200 the same way. Successive runs would have thrashed rather
+than accumulated — the precise opposite of the multi-day build the resumability was added to enable.
+
+**Fix:** `sync_channel` takes `saw_whole_channel`, and `sync_cli` passes `deferred == 0`. Skipping
+is the safe direction: a video pulled from the channel lingers as active until a full run happens,
+and the S27 verification pass marks unavailable videos independently of this flag. Deactivating good
+content has no such backstop.
+
+Two tests, the first confirmed to fail against the pre-fix code (D-107 §1); the second is the
+control, without which deleting the `mark_inactive_except` call outright would satisfy the first.
+
+**The 5 skills were deliberately not repaired by hand.** They are now "uncovered", so the next run
+re-finds them first. Re-activating 62 rows on an inference about why each was deactivated would be a
+data mutation papering over a code bug, and the S27 pass could not tell which of the 62 are
+genuinely gone. Staging has no real students and the video intervention degrades correctly when a
+skill has no video (D-314), so the cost of waiting is one day of no video option on five skills.
+
+**Quota accounting for the day:** 300 units (3-term local validation) + ~9,000 (90-term staging run)
+≈ 9,300 of 10,000, so the healing run is tomorrow's rather than today's. That is itself the
+constraint D-326 exists to make visible.

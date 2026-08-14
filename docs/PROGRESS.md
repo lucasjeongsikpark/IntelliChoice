@@ -9799,6 +9799,41 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
 
 ## Session log
 
+### Sessions U4 + U6 — routing, the catalog, and a regression hiding inside an improvement (2026-08-14, D-326/D-327) ✅⏸
+
+**U6 is live on staging: 200 active videos covering 72 of 112 skills**, up from 4 videos / 10 skills.
+Real API, real Bedrock classification and embedding, 79.91¢, 0 rejected off-channel, 0 failed
+verification.
+
+**The sync's quota argument had expired without anyone noticing.** Its docstring justifies the cost as
+*"Five terms is 500 units — affordable precisely because"* the list was small. The search terms are the
+curriculum's skill names, now **112**, so a full run costs **11,200 units against a 10,000/day
+allowance** and would die ~89% through on a 403 that reads like an auth failure. `check_search_quota`
+now refuses before the first request, with the arithmetic and the knob. **The roadmap's "~1 hour"
+estimate came from the same era** — the catalog is a multi-day build.
+
+**Then my own fix broke something, and the way it broke is the lesson.** Resumability searches only
+the uncovered skills, but `mark_inactive_except` deactivates everything a run did not encounter. The
+first staging run marked **62 videos inactive** and **5 skills lost their only servable video** —
+while coverage rose 10 → 72. **A regression hiding inside an improvement**, visible only because the
+sync prints what it deactivates. Worse, the next run would have deactivated that run's 200 the same
+way: successive runs thrashing rather than accumulating, the opposite of what resumability was for.
+Fixed (`6fd7d89`) with the partial-run test confirmed to fail against the pre-fix code. The 5 skills
+are **not repaired by hand** — they are uncovered now, so the next run re-finds them first.
+
+**U4 is ⏸ at three of four criteria.** Reload lands on the same screen, the dashboard is bookmarkable
+(deep link verified against the real CloudFront edge — no distribution change needed), Back works, and
+**§5.1.2's route-aware gate is now possible**, which is why the session existed. Local e2e 74 passed
+with both `exam-position-refresh` specs green, so D-317's render gate did not regress.
+
+**"Results are bookmarkable" cannot be met.** `ResultsScreen` reads the live snapshot and no endpoint
+serves a completed session's results by id, so a `/results` route would work only while that session
+was still live. **A URL that breaks when bookmarked is worse than no URL**, so it is recorded in
+`routing.spec.ts`'s header instead. Needs `GET /learning/sessions/{id}/results`.
+
+**Phases are deliberately not in the URL:** a bookmarkable `/exam` could send a student to an exam the
+graph already finalized. The URL owns session-vs-dashboard; `phase` owns everything inside.
+
 ### Sessions U2 + U3 — study was serving the exam's own questions (2026-08-14, D-325) ✅
 
 **The done-criterion for U2 could not fail, which is why this needed measuring first.** It asked for
