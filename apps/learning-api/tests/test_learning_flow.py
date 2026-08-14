@@ -674,12 +674,20 @@ def test_full_deterministic_learning_flow() -> None:
             assert 0.0 < gain["normalized_gain"] <= 1.0
 
         # S26: `post_outro` fires on this same finalize turn, grounded in the real
-        # SPEC §5.13.3 gain just computed above (8.0 -> 10.0, a real gain of 2.0).
+        # SPEC §5.13.3 gain just computed above (8 -> 10, a real gain of 2).
+        #
+        # Asserted as whole labelled phrases rather than as the bare substrings "8"/"10",
+        # which would match inside any other number on the line. It read `"8.0"`/`"10.0"`
+        # until 2026-08-14: the payload fields are floats because one schema serves every
+        # stage, and printing the float repr put "Growth: 2.0 points" in front of a student
+        # beside integers everywhere else in the app.
         assert body["stage_narrative"]
         assert body["stage_narrative_evidence"]
         post_outro_evidence = " ".join(body["stage_narrative_evidence"])
-        assert "8.0" in post_outro_evidence
-        assert "10.0" in post_outro_evidence
+        assert "Pre-exam score: 8" in post_outro_evidence
+        assert "Post-exam score: 10" in post_outro_evidence
+        assert "Growth: 2 points" in post_outro_evidence
+        assert ".0" not in post_outro_evidence
 
         # S26: every in-graph narrative moment fired at least once across this one full
         # pre->study->post cycle, including `study_step` - proving a genuine skill

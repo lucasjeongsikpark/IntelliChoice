@@ -146,6 +146,36 @@ class StageNarrativeResult:
     evidence_summary: list[str]
 
 
+def _count(count: int, noun: str) -> str:
+    """`"1 hints"` is small, and small wrongness is how a student learns to read the rest of
+    the sentence as boilerplate. The same "1 skill/2 skills" form is already used a few lines
+    below in `_fallback_text`; this makes it the rule rather than one place that remembered.
+    """
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
+def _number(value: float) -> str:
+    """`2.0` reads as a measurement; `2` reads as a score. Raw scores and gains are whole
+    numbers of questions, and the float repr put "You went from 2.0 to 10.0" in front of a
+    student while every other number in the app is an integer.
+
+    **Grounding-safe by construction, which is the part worth checking before changing any
+    number a model is shown.** `numeric_grounding._matches` accepts a value rounded to the
+    nearest integer (its docstring's own example is "2.6666… as about 2.7"), so a payload
+    carrying `2.0` still grounds the text `2`. One decimal is kept for genuine fractions -
+    `normalized_gain` is a ratio and rounding it to an integer would destroy it.
+    """
+    return str(int(value)) if float(value).is_integer() else f"{value:.1f}"
+
+
+def _quantity(value: float, noun: str) -> str:
+    """`_number` for the figure and `_count`'s rule for the noun, kept in one place because
+    they have to agree: a gain of `1.0` must read "1 point" and a gain of `1.5` must read
+    "1.5 points". Splitting them is how "1.5 point" gets shipped.
+    """
+    return f"{_number(value)} {noun}" if value == 1 else f"{_number(value)} {noun}s"
+
+
 def _evidence_summary(payload: StageNarrativePayload) -> list[str]:
     """Plain-language "How we personalized this" lines for `StageTransitionScreen` -
     built from the exact same already-resolved fields (names, never ids) used for the
@@ -155,11 +185,11 @@ def _evidence_summary(payload: StageNarrativePayload) -> list[str]:
     if payload.attendance_status is not None:
         lines.append(f"Attendance: {payload.attendance_status}")
     if payload.pre_raw_score is not None:
-        lines.append(f"Pre-exam score: {payload.pre_raw_score}")
+        lines.append(f"Pre-exam score: {_number(payload.pre_raw_score)}")
     if payload.post_raw_score is not None:
-        lines.append(f"Post-exam score: {payload.post_raw_score}")
+        lines.append(f"Post-exam score: {_number(payload.post_raw_score)}")
     if payload.raw_gain is not None:
-        lines.append(f"Growth: {payload.raw_gain} points")
+        lines.append(f"Growth: {_quantity(payload.raw_gain, 'point')}")
     if payload.weak_skill_names:
         # "Your study plan, weakest first", not "skills to strengthen".
         #
@@ -202,7 +232,7 @@ def _fallback_text(payload: StageNarrativePayload) -> str:
     if payload.stage == "pre_outro":
         parts = []
         if payload.pre_raw_score is not None:
-            parts.append(f"You scored {payload.pre_raw_score} on the pre-exam.")
+            parts.append(f"You scored {_number(payload.pre_raw_score)} on the pre-exam.")
         # D-272: the full list is gone from here. It said the same thing as the line
         # below it - "your plan starts with A, B, C, D, E" immediately followed by "your
         # plan starts with A" - and the count is the part a student can act on.
@@ -222,9 +252,9 @@ def _fallback_text(payload: StageNarrativePayload) -> str:
     if payload.stage == "study_outro":
         parts = []
         if payload.hint_count is not None:
-            parts.append(f"You used {payload.hint_count} hints")
+            parts.append(f"You used {_count(payload.hint_count, 'hint')}")
         if payload.solution_count is not None:
-            parts.append(f"viewed {payload.solution_count} solutions")
+            parts.append(f"viewed {_count(payload.solution_count, 'solution')}")
         summary = " and ".join(parts)
         if summary:
             return f"{summary} this session. Time for your post-exam!"
@@ -232,9 +262,12 @@ def _fallback_text(payload: StageNarrativePayload) -> str:
     if payload.stage == "post_outro":
         parts = []
         if payload.pre_raw_score is not None and payload.post_raw_score is not None:
-            parts.append(f"You went from {payload.pre_raw_score} to {payload.post_raw_score}.")
+            parts.append(
+                f"You went from {_number(payload.pre_raw_score)} "
+                f"to {_number(payload.post_raw_score)}."
+            )
         if payload.raw_gain is not None:
-            parts.append(f"That's a gain of {payload.raw_gain} points.")
+            parts.append(f"That's a gain of {_quantity(payload.raw_gain, 'point')}.")
         return " ".join(parts) or "Great work completing your post-exam!"
     return "Keep up the great work!"
 

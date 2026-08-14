@@ -603,10 +603,16 @@ def _stage_narrative_json(payload: dict) -> dict:
         text = " ".join(parts) or "Let's keep going."
     elif stage == "study_outro":
         parts = []
+        # Pluralised to match `stage_narrative._fallback_text` exactly. Not cosmetic here:
+        # if the mock says "1 hints" while the deployed fallback says "1 hint", local dev
+        # shows copy that does not exist in production, which is the same local/staging
+        # divergence AUD-C-02, AUD-F-19 and AUD-F-21 each cost a session.
         if payload.get("hint_count") is not None:
-            parts.append(f"You used {payload['hint_count']} hints")
+            count = payload["hint_count"]
+            parts.append(f"You used {count} hint{'' if count == 1 else 's'}")
         if payload.get("solution_count") is not None:
-            parts.append(f"viewed {payload['solution_count']} solutions")
+            count = payload["solution_count"]
+            parts.append(f"viewed {count} solution{'' if count == 1 else 's'}")
         summary = " and ".join(parts)
         text = (
             f"{summary} this session. Time for your post-exam!"

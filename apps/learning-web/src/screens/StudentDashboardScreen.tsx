@@ -81,12 +81,15 @@ const SKILL_LABEL_MAX_CHARS = 26;
  */
 const SKILL_LABEL_HEAD_OVERFLOW = 8;
 
-function truncateSkillLabel(value: unknown): string {
+function truncateSkillLabel(value: unknown, extraTail = 0): string {
   const label = typeof value === "string" ? value : String(value);
-  if (label.length <= SKILL_LABEL_MAX_CHARS) return label;
+  // `+ extraTail` is what keeps a grown tail from overlapping the head: once the budget
+  // reaches the name's length the whole name is returned, so `head…tail` can never repeat
+  // words it has already printed ("Add and subtract…and subtract fractions with…").
+  if (label.length <= SKILL_LABEL_MAX_CHARS + extraTail) return label;
   const budget = SKILL_LABEL_MAX_CHARS - 1; // the ellipsis itself
   const headBudget = Math.ceil(budget / 2);
-  const tailBudget = budget - headBudget;
+  const tailBudget = budget - headBudget + extraTail;
 
   // Finish the word the head budget lands inside, unless doing so costs more than
   // `SKILL_LABEL_HEAD_OVERFLOW` characters - a single very long word then falls back to the
@@ -104,6 +107,83 @@ function truncateSkillLabel(value: unknown): string {
   const tail = (firstSpace === -1 ? tailRaw : tailRaw.slice(firstSpace + 1)).trimStart();
 
   return `${head}…${tail}`;
+}
+
+/** How far the tail may grow while separating two names that collide. */
+const SKILL_LABEL_MAX_EXTRA_TAIL = 24;
+
+/**
+ * A tick formatter that guarantees **every label on this axis is distinct**.
+ *
+ * `truncateSkillLabel`'s own docstring already admitted the residual: "two skills differing
+ * only in the middle would still collide, which the tooltip's full value still resolves."
+ * That case is not hypothetical and the tooltip is not an answer — measured in a browser
+ * 2026-08-13, the mastery axis rendered **"Add and subtract…denominators" twice**, for
+ * "…with like denominators" and "…with unlike denominators". Two bars, two masteries, and a
+ * parent scanning the chart cannot tell which is which without hovering each one. The chart's
+ * only job is to say which skill needs work.
+ *
+ * Grows the *tail* rather than the whole budget, because a collision means head and tail are
+ * already equal and the distinguishing words are in the middle — widening the tail reaches
+ * them ("…like denominators" vs "…unlike denominators") for a few characters, where widening
+ * both would spend twice the width to say the same thing. Only colliding names grow, so a
+ * chart whose names already separate is unchanged.
+ *
+ * Falls back to the full name if the tail cannot separate them within
+ * `SKILL_LABEL_MAX_EXTRA_TAIL`: an over-long label is legible and an ambiguous one is not.
+ *
+ * **Exported for verification, since this app has no test runner.** Against the Vite dev
+ * server, `await import("/src/screens/StudentDashboardScreen.tsx")` in the browser console
+ * calls the *shipped* function rather than a copy of its logic - which is how the three cases
+ * below were measured on 2026-08-14 rather than reasoned about:
+ *   the colliding pair -> "Add and subtract…like denominators" / "…unlike denominators"
+ *   a three-way collision -> "…conversion" / "…speed" / "…interest"
+ *   names that already separate -> unchanged
+ */
+export function buildSkillLabelFormatter(names: string[]): (value: unknown) => string {
+  const unique = [...new Set(names)];
+  const labels = new Map(unique.map((name) => [name, truncateSkillLabel(name)]));
+
+  for (let extra = 4; extra <= SKILL_LABEL_MAX_EXTRA_TAIL; extra += 4) {
+    const byLabel = new Map<string, string[]>();
+    for (const name of unique) {
+      const label = labels.get(name) ?? name;
+      byLabel.set(label, [...(byLabel.get(label) ?? []), name]);
+    }
+    const colliding = [...byLabel.values()].filter((group) => group.length > 1).flat();
+    if (colliding.length === 0) return (value) => labels.get(String(value)) ?? String(value);
+    for (const name of colliding) labels.set(name, truncateSkillLabel(name, extra));
+  }
+
+  for (const [name, label] of labels) {
+    const stillColliding = [...labels.values()].filter((other) => other === label).length > 1;
+    if (stillColliding) labels.set(name, name);
+  }
+  return (value) => labels.get(String(value)) ?? String(value);
+}
+
+/**
+ * A date tick that is printed **only when it changes**.
+ *
+ * `difficulty_progression` and `gains_over_time` are per-*attempt* series, so a student who
+ * works one afternoon produces several points on one date — and every tick then read the same
+ * thing. Measured in a browser 2026-08-13: the difficulty axis printed `8/13/2026` five
+ * times, which tells a parent nothing and reads as a broken chart rather than as a dense one.
+ *
+ * Blanking the repeats keeps the axis honest (the points are still there, still in order) and
+ * makes the one thing it can say — which day this run of points belongs to — legible.
+ */
+export function buildDateTickFormatter(dates: unknown[]): (value: unknown, index: number) => string {
+  const labels = dates.map((date) => formatDateLabel(date));
+  return (value, index) => {
+    const label = formatDateLabel(value);
+    // Index-addressed when it lines up with the data, value-addressed otherwise, so a
+    // recharts version that skips ticks degrades to "always print" rather than to silence.
+    if (index > 0 && index < labels.length && labels[index] === label) {
+      return labels[index - 1] === label ? "" : label;
+    }
+    return label;
+  };
 }
 
 interface GroupedBlock {
@@ -415,7 +495,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
                     stroke={colors.ink}
                     fontSize={12}
                     width={168}
-                    tickFormatter={truncateSkillLabel}
+                    tickFormatter={buildSkillLabelFormatter(dashboard.mastery_by_skill.map((p) => p.skill_name))}
                     interval={0}
                   />
                   <Tooltip formatter={formatPercent} />
@@ -454,7 +534,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
                     stroke={colors.ink}
                     fontSize={12}
                     width={168}
-                    tickFormatter={truncateSkillLabel}
+                    tickFormatter={buildSkillLabelFormatter(dashboard.pre_post_by_skill.map((p) => p.skill_name))}
                     interval={0}
                   />
                   <Tooltip formatter={formatPercent} />
@@ -478,7 +558,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
                     dataKey="date"
                     stroke={colors.ink}
                     fontSize={12}
-                    tickFormatter={formatDateLabel}
+                    tickFormatter={buildDateTickFormatter(dashboard.gains_over_time.map((p) => p.date))}
                   />
                   <YAxis stroke={colors.ink} fontSize={12} />
                   <Tooltip labelFormatter={formatDateLabel} />
@@ -534,7 +614,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
                     dataKey="date"
                     stroke={colors.ink}
                     fontSize={12}
-                    tickFormatter={formatDateLabel}
+                    tickFormatter={buildDateTickFormatter(dashboard.difficulty_progression.map((p) => p.date))}
                   />
                   <YAxis stroke={colors.ink} fontSize={12} allowDecimals={false} />
                   <Tooltip labelFormatter={formatDateLabel} formatter={formatDifficultyTooltip} />

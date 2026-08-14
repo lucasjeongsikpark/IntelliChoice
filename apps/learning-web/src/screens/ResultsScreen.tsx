@@ -23,8 +23,12 @@ export function ResultsScreen({
     <div className="panel">
       <div className="gradient-bar" aria-hidden="true" />
       <h1>Nice work today!</h1>
+      {/* "scored", not "completed". `post_raw_score` is how many were *right*; every
+          student completes all 10, so "You completed 7 of 10" reads as three questions
+          left unanswered - the one number on this screen a parent is most likely to
+          repeat back, and it was describing the wrong thing. */}
       <p className="subtitle">
-        You completed {gain.post_raw_score} of 10 on your post-exam
+        You scored {gain.post_raw_score} out of 10 on your post-exam
         {improved && ` — up from ${gain.pre_raw_score} on the pre-exam.`}
       </p>
 

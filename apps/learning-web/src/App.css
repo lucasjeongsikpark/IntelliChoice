@@ -205,6 +205,20 @@ button.link {
   margin-bottom: 10px;
 }
 
+/* The topic list's group headings ("For you" / "All topics"). Deliberately quiet - it is a
+   divider, not a section title competing with the screen's own h1. */
+.topic-group-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 18px 0 8px;
+  text-transform: none;
+}
+
+.topic-group-heading:first-of-type {
+  margin-top: 8px;
+}
+
 .card {
   display: flex;
   flex-direction: column;

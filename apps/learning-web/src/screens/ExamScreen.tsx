@@ -197,6 +197,12 @@ export function ExamScreen({
     setAnsweredSelections({});
     setSelected(null);
     setModalOpen(false);
+    // The live region is per-phase state too, and it was the one thing this effect forgot.
+    // `role="status"` text is not re-announced on its own, but it *is* what a screen-reader
+    // user finds on the next navigation - so a student arriving at the study phase met
+    // "Answer submitted for question 10." from the exam they had just finished. Measured in
+    // a browser 2026-08-13.
+    setStatusMessage("");
     // React runs every cleanup before any effect body, so the autosave cleanup for the
     // outgoing phase has already read the old value by the time this clears it.
     finalizedRef.current = false;

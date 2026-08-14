@@ -22733,3 +22733,85 @@ counted as a fix.
 **Second clean whole staging run** in the same sitting: `64 passed / 7 skipped / 0 failed`. The
 clause stays ⏸ — 2 of 3 today — because a walk that can redden any given run has not stopped being
 able to.
+
+### D-319 — What a student and a parent actually read: seven copy and chart defects
+
+**Date:** 2026-08-14 · **Session:** same · **Status:** fixed; verified locally, not yet on staging
+
+Items 5, 6, 7 and 9 of the 2026-08-13 audit list. Individually each is small; together they are
+the entire text and imagery of the product, and several are *wrong* rather than merely plain.
+
+| # | defect | why it is not cosmetic |
+|---|---|---|
+| 1 | `"You used 1 hints and viewed 1 solutions"` (`_fallback_text`, mirrored in the mock) | not a rare path — every gateway failure and every grounding rejection lands on it |
+| 2 | `"You went from 2.0 to 10.0. That's a gain of 8.0 points."` | the payload fields are floats because **one schema serves every stage**; a raw score is a whole number of questions, and every other number on screen is an integer |
+| 3 | student-visible report printed `Overall accuracy: 0.24` directly above `88%` | two renderings of the same kind of quantity, one of them a number no child has a use for — and `0.24` invites being read as "24 of something" |
+| 4 | `"You completed 7 of 10 on your post-exam"` | it is the **score**, not a completion count; every student completes all ten, so this read as three questions left blank — and it is the number a parent repeats back |
+| 5 | the exam's live region kept `"Answer submitted for question 10."` into the study phase | `role="status"` text is not re-announced, but it *is* what a screen-reader user finds on the next navigation |
+| 6 | the mastery axis rendered `"Add and subtract…denominators"` **twice** | `truncateSkillLabel`'s own docstring admitted this residual and offered the tooltip as the answer; a parent scanning a chart to find which skill needs work cannot hover every bar |
+| 7 | the difficulty axis printed `8/13/2026` five times | per-*attempt* series on one afternoon; it reads as a broken chart rather than a dense one |
+
+**The two non-obvious fixes.**
+
+*Labels are now unique by construction, not by luck.* `buildSkillLabelFormatter` grows only the
+**tail** of colliding names, because a middle-truncation collision means head and tail already
+match and the distinguishing words are in the middle — "…like denominators" vs "…unlike
+denominators" costs a few characters where widening both ends would spend twice the width to say
+the same thing. Falls back to the full name if 24 extra characters cannot separate them: an
+over-long label is legible, an ambiguous one is not. `truncateSkillLabel`'s early return now
+includes `extraTail`, which is what stops a grown tail from overlapping its own head.
+
+*Number formatting was checked against numeric grounding before it was changed.* Rendering `2.0`
+as `2` is safe because `numeric_grounding._matches` accepts a value rounded to the nearest integer
+— its own docstring's example is "2.6666… as about 2.7". A fractional value keeps one decimal, so
+`_quantity` renders "1.5 points" and never "1.5 point": the figure and its noun have to agree, and
+splitting them across two helpers is how "1.5 point" gets shipped.
+
+**The topic screen is grouped rather than sorted (item 7).** 33 topics in a ~5,000 px scroll with
+"Suggested for your grade" scattered mid-list meant the two or three topics chosen *for* this
+student were the hardest to find. "For you" first, "All topics" after, order preserved inside each
+group so the curriculum's own sequence still reads top to bottom, and an empty group renders
+nothing rather than a heading promising something absent.
+
+**That change broke a test, and the test was right to break.** `.card-list` now resolves to two
+nodes, so a strict-mode `toBeVisible()` in `narrative-displacement.spec.ts` failed **on the count
+rather than on its subject**. The assertion was fixed, not the DOM: what that test means by "the
+topic list is rendered" is that the student can still see a topic, so it now asserts a topic
+button. Worth recording because the failure looked like a regression in the narrative overlay and
+was neither.
+
+**Item 9's stale docstring, which is the cheapest fix on the list.**
+`langsmith_config.py` still said "**No real LangSmith account exists for this project**". That has
+been false since D-242 — staging traces to a real account, joined to OTel by
+`metadata.otel_trace_id`, with `langsmith-ingest-failed` read under a positive control. The
+paragraph would have sent the next person to wire up something already running. `.env.example`
+also gained the observability block: until now the only way to discover `OTEL_*`/`LANGSMITH_*`
+were configurable was to read `packages/observability`. `LANGSMITH_API_KEY` is deliberately
+**listed as belonging in Secrets Manager and not given a value**.
+
+**Verification.** `ruff` clean · `pyright` 0 errors · **pytest 1514 passed** (two new tests on the
+fallback copy) · learning-web `tsc` + `oxlint` clean · **local e2e 71 passed**. Two pre-existing
+tests had to change because they pinned the old rendering (`"from 4.0 to 6.0"`, `"8.0"`), which is
+the clearest evidence the fix is real: the suite failed the moment the behaviour changed.
+
+**Not verified on staging, and the charts are the reason to care.** Items 6 and 7 were *found* in a
+browser and are fixed against local data; the collision case that motivated item 6 came from
+staging's own skill names. A staging read should confirm the axis separates there too.
+
+**Addendum — how the label fix was actually checked, since this app has no test runner.**
+The date fix is visible on the deployed-shape data (the difficulty axis printed `8/13/2026`
+**once**, where the audit measured five). The *collision* fix is not: that student's five skills
+already separate, so the dashboard only shows it did not regress. To measure the fix itself, both
+formatters were exported and called through the Vite dev server —
+`await import("/src/screens/StudentDashboardScreen.tsx")` in the browser console runs the shipped
+function, not a re-implementation of its logic. Results: the audit's own pair became
+`"Add and subtract…like denominators"` / `"…unlike denominators"`, a three-way collision separated
+into `"…conversion"`/`"…speed"`/`"…interest"`, and names that already separate were untouched. The
+exports are kept, with that recipe in the docstring, so the next person can repeat it — and so
+these two functions are unit-testable the day a runner exists.
+
+*One thing seen and deliberately not fixed:* `formatDateLabel` shifts a **date-only** string back
+a day (`new Date("2026-08-13")` is UTC midnight, which is 8/12 in a US timezone). It does not bite
+today because the API returns full timestamps — the dashboard renders the correct day — so this is
+recorded as a latent trap in the formatter rather than fixed blind against data that does not
+currently exercise it.
