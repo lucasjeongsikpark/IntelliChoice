@@ -2357,7 +2357,22 @@ lives in `sessionStorage` and D-317's render gate must not regress.
 button works · local and staging e2e green · **§5.1.2's route-aware first-visit gate is possible**,
 which is the reason this session exists.
 
-### Session U5 — A sink for client-side errors
+### Session U5 — A sink for client-side errors ✅ *(done 2026-08-14, D-328)*
+
+**Done when, all four:** a render crash reaches the server log with its `trace_id` · a stack
+containing a question stem is truncated, with a test · the endpoint is rate-limited, with a test ·
+plus `extra="forbid"` so an unknown field is refused rather than silently dropped.
+
+**The rate-limit criterion is the one that earned its keep.** Writing the test it asked for surfaced
+that my own docstring was wrong on both counts: the app's global middleware is keyed by **IP**, not
+token, and capped at 6000/60s — no cap at all for a loop that fires once per failed render, and a
+classroom behind one school NAT shares a key, so one broken laptop would throttle its classmates'
+reports. Now keyed on `claims.sub` at 20/minute, tested in both directions.
+
+**Redaction alone does not cover a question stem** — it is not email-shaped, so the regex passes it
+through. Truncation is the defence, and the redact-then-truncate order is pinned by a test.
+
+### Session U5 (as planned) — A sink for client-side errors
 `POST /client-errors`: authenticated, rate-limited per token, body capped, `message`/`stack`/
 `trace_id` only, written through the existing `PiiDenylistFilter`. D-315 built both ends of the
 telemetry and deliberately left this gap; this closes it without adding a processor of minors' data.

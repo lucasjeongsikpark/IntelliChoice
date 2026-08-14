@@ -9799,6 +9799,40 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
 
 ## Session log
 
+### Session U5 — the crash sink, and a rate-limit claim wrong in both directions (2026-08-14, D-328) ✅
+
+**A student's blank screen reached no one.** D-315 built both *ends* of the error telemetry —
+`ErrorBoundary` catches a render crash, `main.tsx` catches uncaught errors — and left the middle, so
+all of it landed in a `console.error` in a browser nobody watches. `ErrorBoundary`'s docstring had
+recorded exactly why it stopped: sending a report *"needs a decision this component should not make
+on its own — an authenticated endpoint, a rate limit, and a PII rule for message/stack text."*
+
+**Writing the test the criterion asked for caught my own wrong claim.** I documented the endpoint as
+"rate-limited by the app's global per-token middleware". It is per-**IP** at 6000/60s, and both
+properties fail here in *opposite* directions: 6000/60s is no cap for a loop firing once per failed
+render, and a classroom behind one school NAT shares a key — so one broken laptop would suppress the
+very reports that would have explained its classmates' problem. Keyed on `claims.sub` at 20/minute,
+tested both ways.
+
+**Redaction alone does not cover a question stem.** It is not email-shaped, so `redact_free_text`
+passes it straight through, and a React error message can quote rendered content. Truncation is the
+actual defence; the redact-*then*-truncate order is pinned by a test, because truncating first could
+cut an email in half and leave a fragment the pattern no longer matches. `PiiDenylistFilter` still
+screens the structured keys and is key-based — which is precisely why the free-text fields need
+their own treatment.
+
+**The client half has to be able to fail without looping.** `main.tsx` reports
+`unhandledrejection`; if the reporter's own `fetch` rejects — offline, API down, exactly the
+conditions a crash happens in — that rejection re-enters the listener. `reportClientError` latches
+off after its first failure.
+
+**The `console.error` stays.** §2.6 criterion 3 counts console errors on purpose: a crash that
+destroyed the UI should fail it loudly. The report adds server visibility, not silence.
+
+Verified: pytest **1543 passed** (from 1526), local e2e **74 passed** including `smoke.spec.ts`'s
+positive control — the test that deliberately triggers a console error, and so the one most likely
+to notice an unintended interaction with the new `window.onerror` listener.
+
 ### Sessions U4 + U6 — routing, the catalog, and a regression hiding inside an improvement (2026-08-14, D-326/D-327) ✅⏸
 
 **U6 is live on staging: 200 active videos covering 72 of 112 skills**, up from 4 videos / 10 skills.
