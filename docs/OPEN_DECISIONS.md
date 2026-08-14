@@ -1,18 +1,25 @@
 # Open decisions — what needs a person, not more code
 
-Written 2026-08-14, after the UI/UX + observability audit (D-314 → D-321) closed everything that
-could be closed by working. What remains below is blocked on a **judgement**, not on effort: each
-one has options that are all defensible, and picking wrong is cheaper to undo than picking late.
+**Every decision in this file was answered on 2026-08-14 (D-322).** The execution plan is
+ROADMAP.md's **Milestone 10 (Sessions U0–U7)**. This file is kept because the *reasoning* behind
+each option is worth having when the work starts, and because two of the answers went against the
+recommendation and that is worth being able to re-read.
 
-Each entry states the decision, why it matters, the options, a **recommendation with its reason**,
-and what it costs. Decisions taken go to [DECISIONS.md](DECISIONS.md); this file only holds what is
-still open. Delete an entry when it moves there.
+**What is still genuinely open:**
 
-Ordered by what it costs to defer, not by effort.
+1. **`YOUTUBE_YOUTUBE_API_KEY`** — U6 is blocked on a credential only the user can provide, into
+   Secrets Manager. Nothing else about it is unresolved.
+2. **The consolidation criteria for U7** — the *direction* is decided (consolidate into durable
+   memory, then prune); *what in a finished session is worth remembering* is a design review, and
+   the staging numbers have not been read yet.
+3. **Depth generation timing** — decided in principle, parked in practice ("the near future").
+
+Everything below is the record of how each was decided, marked with its outcome. Do not re-open one
+without a reason that is new.
 
 ---
 
-## 1. The study phase re-serves the session's own exam questions
+## 1. ✅ DECIDED — study re-serves the session's own exam questions → **re-render a different variant** (B)
 
 **Status:** open since 2026-08-13 (D-314 amendment). Product decision, §5.9/§5.12.
 
@@ -43,7 +50,7 @@ stays open is a day of gain numbers nobody should quote.
 
 ---
 
-## 2. There is no sink for client-side errors
+## 2. ✅ DECIDED — no sink for client-side errors → **own authenticated endpoint** (A), not Sentry
 
 **Status:** open since 2026-08-13 (D-315 stated it as a deliberate boundary).
 
@@ -72,7 +79,7 @@ truncated. Half a session.
 
 ---
 
-## 3. No URL routing — the whole app lives at `/`
+## 3. ✅ DECIDED — no URL routing → **`react-router`** (A)
 
 **Status:** open since 2026-08-13 (audit item 3).
 
@@ -95,7 +102,7 @@ retrofitted.
 
 ---
 
-## 4. Retention: the checkpointer, not `question_variants`
+## 4. ✅ DECIDED, and the answer improved on the question — **consolidate checkpoints into durable memory, then prune**
 
 **Status:** open; **and the recorded framing of it is wrong** — corrected here.
 
@@ -128,13 +135,22 @@ holds the session's working state.
 **Recommendation: C, with A sized first.** Read the staging numbers before choosing N; align N with
 the retention windows already promised in the Privacy Notice rather than inventing a second number.
 
+**DECISION — option D, which was not on this list.** *"Consolidate the checkpoint into long-term
+durable memory according to some criteria, then keep it there."* Every option above deletes; this
+one **keeps what is worth keeping first**. It is strictly better and it is not a new mechanism:
+`packages/memory` (S25) already consolidates learning memory and already has a scheduled entrypoint.
+Pruning discards a finished session's only durable trace; consolidating keeps the part the student's
+next session can use. The design question moves from "how long do we hold the working state" to
+**"what in a finished session is worth remembering"** — a better question, and the one the memory
+system exists to answer. Design review before code; staging numbers before sizing. ROADMAP U7.
+
 **Cost:** one scheduled task next to the existing `retention-purge`, plus a staging measurement
 first. **Not urgent at today's volumes; it becomes urgent the moment real students arrive**, which
 is the wrong time to design it.
 
 ---
 
-## 5. Depth: spend ~$13–16, or ship the bank as it is
+## 5. ✅ DECIDED — spend it, **but later** ("the near future"); parked, nothing blocked
 
 **Status:** open since C1 close (D-313). Pure budget call, nothing blocked.
 
@@ -149,7 +165,7 @@ stopping part-way is safe (D-193's per-candidate commit). The alternative is car
 
 ---
 
-## 6. `YOUTUBE_API_KEY` — Phase 4 is blocked on a credential, not on work
+## 6. ✅ DECIDED — **as soon as possible**, against the recommendation to wait for §5.1.2. ⛔ still blocked on the key
 
 **Status:** open. The catalog holds **4 videos covering 4 of 112 skills and 1 of 33 topics**.
 
@@ -165,7 +181,7 @@ order.
 
 ---
 
-## 7. `difficulty_tiers` declarations disagree with the judge
+## 7. ✅ DECIDED — **edit the declarations to match the judge**
 
 **Status:** open since D-313.
 
@@ -184,7 +200,7 @@ enforces. This makes the multi-tier clause measurable against something true.
 
 ---
 
-## 8. The two exposed staging secrets: rotate, or not
+## 8. ⏸ UNCHANGED — not raised; D-310 stands until staging stops being synthetic
 
 **Status:** declined once, with a reason (D-310, 2026-08-13).
 
@@ -198,7 +214,7 @@ tasks read the value at container start.
 
 ---
 
-## 9. Dependency PRs — a batch policy, not seven judgements
+## 9. ✅ DECIDED — **batch merge**. (There are **26**, not 7 — my count was a filter bug)
 
 **Status:** 7 non-noise PRs open, the oldest from 2026-07-24.
 
@@ -211,7 +227,7 @@ clear the backlog in one pass.
 
 ---
 
-## 10. Smaller scope calls, listed so they stop being rediscovered
+## 10. ✅ ALL DECIDED — narrative header: yes (new API field) · ladder pause: investigate · `formatDateLabel`: **CDT** · `push` trigger: unchanged, stays manual · repeated context sentence: not raised
 
 - **The narrative modal reuses "Why this is your next step" on a results context.** Fixing it needs
   a **new API field** — the snapshot carries the narrative *text*, not its stage. Small, but it is a

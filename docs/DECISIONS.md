@@ -22897,3 +22897,52 @@ standing refusal ("I am not adding a fifth client-side guess") applies to harnes
 honest next step is a breadcrumb recording which locator won, so the next occurrence names the
 mechanism instead of inviting a fifth theory. **The 1-in-12 rate is now the yardstick**, and it is
 the number a fix has to beat.
+
+### D-322 — Eleven decisions taken, two of them against my recommendation
+
+**Date:** 2026-08-14 · **Session:** audit follow-through, close · **Status:** decided; execution
+plan in ROADMAP.md's "Sessions U1–U7" block
+
+`OPEN_DECISIONS.md` was written because the audit (D-314 → D-321) had closed everything closable by
+working. The user answered all ten the same day. Recorded here because a decision that lives only in
+a chat log gets re-litigated.
+
+| # | decision | notes |
+|---|---|---|
+| 1 | **Study must not re-serve the session's own exam variant** — re-render a different variant | as recommended. Protects the learning-gain number the parent report is built on |
+| 2 | **Own authenticated, rate-limited error endpoint**, not Sentry | as recommended. No new processor of minors' data before launch |
+| 3 | **`react-router`** | as recommended. Unblocks §5.1.2's route-aware first-visit gate |
+| 4 | **Consolidate checkpoints into long-term durable memory, then prune** | **against my recommendation, and better than it.** See below |
+| 5 | **Depth generation deferred** to the near future | the ~$13–16 stays parked |
+| 6 | **YouTube as soon as possible** | **against my recommendation** — see below |
+| 7 | **Edit `difficulty_tiers` to match the judge** | as recommended |
+| 8 | **Batch-merge the dependency PRs** | as recommended |
+| 9 | **Narrative header gets its stage** (new API field) | as recommended |
+| 10 | **Investigate the ladder pause race** | as recommended |
+| 11 | **`formatDateLabel` formats in CDT** | the org's own zone, `America/Chicago` |
+
+**§4 is the one that improved on the proposal.** I framed retention as *pruning* — delete completed
+sessions' checkpoints after N days. The user's framing is *consolidation*: extract what is worth
+keeping into the long-term memory store first, then delete. That is strictly better and it is not a
+new mechanism — `packages/memory` (S25) already consolidates learning memory and already has a
+scheduled entrypoint. Pruning throws away a completed session's only durable trace; consolidating
+keeps the part a student's next session can actually use. The design question moves from "how long
+do we keep the working state" to **"what in a finished session is worth remembering"**, which is a
+better question and the one the memory system was built to answer.
+
+**§6 is a sequencing risk the user is accepting knowingly, and I stated it once.** YouTube
+recommendations are one of §5.1.2's eleven first-visit disclosures, so stocking the catalog before
+the notice ships means the product recommends third-party video to minors before telling them it
+will. My recommendation was to do it after §5.1.2; the decision is to do it as soon as the key
+exists. Recorded, not re-argued.
+
+**The good news §6 carries:** this is not a build. The video intervention already works end to end —
+D-314 fixed the no-video dead end, the link renders, and the counters are honest ("Videos
+*suggested*", never "watched"). What is missing is catalog **content**: 4 videos across 112 skills.
+So the whole of Phase 6 is a credential, a quota budget, `make youtube-sync`, and a deploy —
+roughly an hour once `YOUTUBE_YOUTUBE_API_KEY` exists in Secrets Manager. **It is blocked on a
+secret only the user can provide, and nothing else.**
+
+**Correction carried in from the same conversation:** I reported "7 dependency PRs". There are
+**26, all dependabot** — 10 npm, 10 uv, 4 GitHub Actions, 2 Docker. The 7 came from a jq filter that
+excluded `build(deps): bump…` titles, so it counted the ones it was meant to exclude.

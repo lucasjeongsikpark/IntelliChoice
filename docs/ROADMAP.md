@@ -2189,3 +2189,115 @@ The remaining work is one deploy and a re-measure against the pre-fix rate of **
 **One clause did not move and its wording is now the blocker, not the content:** `multi-tier where
 the skill spans` still reads ⛔ 76 of 91 and D-313 already established it is measured against a span
 the content no longer respects. Nothing this session changed that.
+
+---
+
+## Milestone 10 — The audit's decisions, executed *(D-322, planned 2026-08-14)*
+
+Everything in `OPEN_DECISIONS.md` was answered on 2026-08-14. This milestone is the execution plan,
+ordered by **what deferring costs**, not by effort. Sessions are labelled U (for the UI/UX audit
+that produced them) so they do not collide with the C-track's numbering.
+
+**Dependency notes:** U4 (routing) gates §5.1.2's first-visit disclosures, so it must not slip. U6
+(YouTube) is blocked on a credential and nothing else — it jumps the queue the moment the key
+exists. U7 needs a design review and a *staging* measurement before any code.
+
+### Session U0 — Bookkeeping and the dependency backlog
+Record D-322, reduce `OPEN_DECISIONS.md` to what is still open, and clear **26 dependabot PRs**
+(10 npm, 10 uv, 4 GitHub Actions, 2 Docker) under the agreed policy: patch and minor merge on green;
+majors are read individually.
+
+**Hold `python 3.12→3.14` (×2) back for its own PR and its own deploy.** It is a runtime change on
+both API images; batching it would put a base-image swap and twenty dependency bumps behind one
+staging run, and a failure would not name its cause.
+
+**Done when:** D-322 recorded · 24 PRs merged with CI green · the two Python-base PRs left open with
+a comment saying why · `make lint typecheck test` green on the merged result.
+
+### Session U1 — The three small, fully specified fixes
+1. **`formatDateLabel` in CDT.** Format in `America/Chicago`, the org's own zone. Reference
+   `intellichoice_shared.org_time`'s convention rather than introducing a second source of truth for
+   the timezone — `ORG_TIME_CONFIRMED` is still `false` and that provisional state must stay visible.
+2. **The ladder pause race (D-321).** A breadcrumb recording *which locator won* the wait in
+   `clearInterventionIfPresent`, then repeat-runs until it fires, then a fix built on what it says.
+   **1 in 12 staging walks is the yardstick a fix has to beat** — it is the first number this defect
+   has ever had, and D-311's refusal to add another guess still stands.
+3. **`difficulty_tiers` follows the judge.** 106 items across 39 skills carry a stored tier outside
+   their skill's declaration. Edit the declarations, then re-measure C1's multi-tier clause against a
+   span that is true.
+
+**Done when:** a date renders the same day in CDT that the server recorded · the pause race has a
+recorded mechanism (not a theory) and a measured post-fix rate · C1's multi-tier clause re-measured
+and its number in ROADMAP.
+
+### Session U2 — Learning gain the parent report can stand behind
+Study must not serve the **same variant** as the session's own exam items. Re-render a different
+variant of the same item, so the study plan keeps its targeting and the student cannot practise the
+exact question they will be scored on.
+
+**Done when:** an e2e assertion that no study item's `question_variant_id` matches any exam item's in
+the same session, failing before the fix and passing after (D-107 §1) · a walk confirms the study
+question is recognisably the same *skill* and not the same *item*.
+
+### Session U3 — The narrative header knows its stage *(rides with U2)*
+The snapshot carries the narrative text but not its stage, so `StageTransitionScreen` prints "Why
+this is your next step" over a results context. Add the stage to the wire shape and vary the header.
+Grouped with U2 deliberately: both touch the session wire shape, and one API change is cheaper to
+review than two.
+
+**Done when:** a `post_outro` narrative renders a results-appropriate header · the field is optional
+so an older client cannot break on it.
+
+### Session U4 — URL routing *(gates §5.1.2)*
+`react-router`: sign-in, session, dashboard, results. Session restore must keep working — the id
+lives in `sessionStorage` and D-317's render gate must not regress.
+
+**Done when:** a reload lands on the same screen · dashboard and results are bookmarkable · the back
+button works · local and staging e2e green · **§5.1.2's route-aware first-visit gate is possible**,
+which is the reason this session exists.
+
+### Session U5 — A sink for client-side errors
+`POST /client-errors`: authenticated, rate-limited per token, body capped, `message`/`stack`/
+`trace_id` only, written through the existing `PiiDenylistFilter`. D-315 built both ends of the
+telemetry and deliberately left this gap; this closes it without adding a processor of minors' data.
+
+**Done when:** a render crash reaches the server log with its `trace_id` · a stack containing a
+question stem is truncated, with a test · the endpoint is rate-limited, with a test.
+
+### Session U6 — YouTube catalog *(blocked on a credential, ~1 hour once unblocked)*
+**Not a build.** The video intervention already works end to end (D-314): the link renders, the pause
+reopens, and the counters say "suggested" rather than "watched". What is missing is content — **4
+videos across 112 skills and 1 of 33 topics**.
+
+**Blocked on exactly one thing:** a real key at `YOUTUBE_YOUTUBE_API_KEY` in Secrets Manager (and a
+local `.env` for a dry run). Then: quota budget → `make youtube-sync` → verify coverage → deploy.
+
+**Stated once and not re-argued (D-322 §6):** YouTube recommendations are one of §5.1.2's eleven
+first-visit disclosures, so stocking the catalog ahead of the notice ships a third-party
+recommendation to minors before the product says it will. The user has accepted that sequencing.
+
+**Done when:** coverage measured before and after · the sync ran behind a quota budget · a band walk
+sees a real video offered and the counter still says "suggested".
+
+### Session U7 — Checkpoints consolidated into durable memory *(design first)*
+**The user's reframing, and it is better than the pruning this file used to imply.** Measured on the
+dev DB 2026-08-14: `checkpoint_writes` **5,290,217 rows / 2557 MB**, `checkpoints` **1,245,390 rows /
+1872 MB**, `checkpoint_blobs` 339 MB — **~4.8 GB across 6.5 M rows, ~37× `question_variants`**. Dev
+data including load tests, **not a staging measurement**.
+
+Pruning throws away a finished session's only durable trace. Consolidating keeps the part the
+student's next session can use, and the machinery exists: `packages/memory` (S25) already
+consolidates learning memory and already has a scheduled entrypoint.
+
+**Design review before any code**, covering: what in a finished session is worth remembering; the
+trigger (session `completed`, plus an age floor); where it lands (the existing memory store, so
+there is one durable record and not two); what becomes safe to delete; and how the answer squares
+with the Privacy Notice's 90/90/365 windows. **Read the staging numbers first** — sizing a retention
+job from dev data that includes load tests is how you get the wrong N.
+
+**Done when:** the design is recorded in DECISIONS.md and agreed · a scheduled job consolidates then
+prunes · a restore test proves a consolidated session's memory survives its checkpoint being deleted.
+
+### Parked on the user's word
+**Depth generation** — D-223's 5-per-occupied-cell target, 189 items ≈ **$13–16** and ~3.5 h.
+Deferred to "the near future" (D-322 §5). Nothing is blocked on it.

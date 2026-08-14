@@ -97,11 +97,24 @@ Fixed by gating the render on knowing the position (`positionKnownFor`, state no
 5 s deadline so it can never hold shut), plus a local regression test that manufactures the window
 by delaying `/exam/overview` — confirmed failing with the gate disabled before being kept (D-107 §1).
 
-**Everything still open that needs a person rather than more code is now in one place:**
-[OPEN_DECISIONS.md](OPEN_DECISIONS.md) — ten decisions, each with options, a recommendation and its
-reason, ordered by what deferring costs. The top three: the study phase re-serving the session's own
-exam items (inflates the gain the parent report is built on), no sink for client-side errors, and no
-URL routing (which also gates §5.1.2's first-visit disclosures).
+**All ten open decisions were answered the same day (D-322), and the execution plan is ROADMAP.md's
+new Milestone 10 — Sessions U0-U7.** The reasoning behind each option is kept in
+[OPEN_DECISIONS.md](OPEN_DECISIONS.md), marked with its outcome.
+
+**The next session is U0:** record-keeping plus clearing **26 dependabot PRs** (10 npm, 10 uv, 4
+GitHub Actions, 2 Docker) under the agreed batch policy — **holding `python 3.12→3.14` back for its
+own PR and its own deploy**, because a base-image swap behind twenty other bumps produces a staging
+failure that cannot name its cause. Then U1's three small fixes (CDT dates, the ladder pause race,
+`difficulty_tiers` following the judge), then U2 (learning-gain integrity).
+
+**Two things the plan is waiting on the user for:**
+
+1. **`YOUTUBE_YOUTUBE_API_KEY` in Secrets Manager.** U6 is blocked on that credential and on nothing
+   else — the video intervention already works end to end (D-314); what is missing is catalog
+   *content*, 4 videos across 112 skills. Once the key exists it is a quota budget, `make
+   youtube-sync`, and a deploy: **about an hour, not a session.**
+2. **The U7 design review** — what in a finished session is worth remembering, before any
+   consolidation code is written, and the **staging** checkpoint numbers before sizing anything.
 
 **What the next session should pick up, in order:**
 
@@ -816,6 +829,54 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — the ladder was never broken, and ten decisions came back (2026-08-14, D-321, D-322)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **pytest 1514 passed**, 2 skipped ·
+**local e2e 72 passed** · **staging e2e 64 passed / 7 skipped / 0 failed** at `2c78601`. **$0
+directed spend** beyond staging's own inference on the walks below.
+
+*One run reported `1 xpassed` where the next reported `1 xfailed`, and it is benign.*
+`test_identical_inputs_reproduce_identical_routing_and_scores` is xfail-marked because each session
+builds its **own random exam** (D-206), so a coincidental draw occasionally makes it pass - which is
+exactly what its own xfail reason predicts ("it passed for years because the pool was small enough…
+a larger pool ended the coincidence"). Not a regression and not a fix; recorded so the next person
+who sees it flip does not chase it.
+
+**The ladder question is closed, and the answer is the good one (D-321).** The failure was *made* to
+recur - **1 of 12 staging walks**, caught at 20.5 s against the 55 s-1.3 m profile of a walk that
+works real pauses - and D-318's instrument classified it on its first firing: *"the server opened 1
+retry-ladder pauses and this walk worked 0 of them"*. **SPEC §5.11.3's retry ladder is not broken;
+the harness missed the pause.** That was the reading worth being afraid of, and it was excluded on
+evidence one day after it was raised. Cost: twelve walks.
+
+**The same audit note proved a second defect outright.** `11 answers submitted in the study loop, 1
+graded as a study answer` - and the listener attaches *after* `answerWholeExam`, so all eleven came
+from the study loop. `is_correct` is `null` only for exam answers, so **the walk had left the study
+phase without noticing and answered the whole post-exam while reporting it as study work**. Every
+count it published about the ladder was measured over the wrong questions. Its guard read the *phase
+chip*, which lags a phase change; the server's grading does not. Fixed by reconciling the two (#262).
+
+**Ten decisions were put to the user and all ten came back the same day (D-322).** Two went against
+the recommendation: retention became **consolidation into durable memory** rather than pruning
+(better than the proposal, and it reuses S25's machinery), and **YouTube goes as soon as the key
+exists** rather than after §5.1.2's disclosures - a sequencing risk stated once and accepted. The
+plan is ROADMAP.md's Milestone 10.
+
+**A carry-over named the wrong table, and it was measured before anything was built on it.** PROGRESS
+called `question_variants` "the fastest-growing table in the product". Dev DB: `question_variants`
+**352,198 rows / 127 MB** against the checkpointer's **5,290,217 + 1,245,390 rows / ~4.8 GB** -
+roughly **37×**. Acting on the old note would have pruned 2.5% of the problem. Dev data including
+load tests, **not staging**, and said so.
+
+**Corrections to my own reporting this half:** I reported "7 dependency PRs"; there are **26**, and
+the 7 came from a jq filter that excluded the titles it was meant to include. And a chart regression
+test I wrote **passed twice while reading nothing** (D-320) - a wait satisfied by the wrong axis,
+then a selector pointing at the axis line rather than the tick labels - caught only by its own
+positive control.
+
+**Carry-over:** the pause race's *mechanism* is still unmeasured (**1 in 12 is the yardstick**); U6
+is blocked on a credential; U7 needs a design review and staging numbers.
 
 ### Session log — what a student and a parent actually read (2026-08-14, D-319, D-320)
 
