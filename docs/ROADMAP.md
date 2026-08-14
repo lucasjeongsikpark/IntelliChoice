@@ -2078,7 +2078,7 @@ at close, not recalled:
 | auto-approval decision recorded with its numbers | ✅ D-289 |
 | spend within per-run caps | ✅ every run behind a green preflight and an explicit cap |
 | Phase 6: per-band walks green on staging | ✅ 4 of 4, against the deployed build |
-| Phase 6: staging e2e green as a whole run | ⏸ **met once, not stably.** 64 / 6 / **0** at `86fbe50` — the first clean whole run ever — then 63 / 7 / **1** at `e26c4fa` on a different, known-intermittent test (D-311's ladder assertion, measured 3-of-4 on re-run). `time-telemetry`, the failure this clause carried since D-288, is fixed and stayed green in both |
+| Phase 6: staging e2e green as a whole run | ⏸ **2 clean whole runs of 3, same day.** `64/6/0` at `86fbe50` (the first ever), `63/7/1` at `e26c4fa`, `64/7/0` at `e26c4fa`. `time-telemetry` — the failure this clause carried since D-288 — is fixed and green in all three. The single red was D-311's ladder assertion, ~2 of 16 walks today, now **instrumented** so its next occurrence classifies itself (D-317 addendum). **Closes when that walk stops being able to redden a run** — either its option ordering is made deterministic or its failure is classified as the §5.11.3 defect it might be |
 | Phase 6: staging serves the seeded bank | ✅ verified at `sha=ae41b7f2212f`, 958 items |
 | Phase 4: video catalog | ⛔ blocked on a real `YOUTUBE_API_KEY`, not on work |
 

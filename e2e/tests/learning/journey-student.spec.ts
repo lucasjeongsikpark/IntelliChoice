@@ -76,6 +76,39 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
     .poll(async () => currentPhase(page), { timeout: 60_000 })
     .toMatch(/study|post-exam/i);
 
+  // **D-317 addendum: record what the *server* said about each study answer.**
+  //
+  // This assertion used to be one bit wide - "interventions > 0" - so a failure could mean
+  // three unrelated things and D-311 could only guess which: the walk answered correctly
+  // every time (its own option ordering, which it does not control), the graph did not open
+  // the ladder on a wrong answer (a real §5.11.3 defect), or the pauses happened and this
+  // walk missed them (D-288 §4's class, where `clearInterventionIfPresent` read `count()`
+  // with no wait). The 2026-08-14 failure showed `11 study answers / 0 pauses`, which is not
+  // chance at ~3-in-4 wrong, and nothing recorded could say which of the three it was.
+  //
+  // `is_correct` is the phase filter, not just the verdict: SPEC §5.9.2's
+  // `feedback_visibility="hidden_until_finalize"` makes it `null` for every pre/post-exam
+  // answer and a real bool for every study answer, so reading the field selects the phase.
+  const studyVerdicts: { correct: boolean; ladderOpened: boolean }[] = [];
+  page.on("response", async (response) => {
+    if (response.request().method() !== "POST" || !response.url().endsWith("/answers")) return;
+    if (response.status() >= 300) return;
+    try {
+      const body = (await response.json()) as {
+        is_correct?: unknown;
+        pending_interrupt?: { interrupt_type?: string } | null;
+      };
+      if (typeof body.is_correct !== "boolean") return;
+      studyVerdicts.push({
+        correct: body.is_correct,
+        ladderOpened: body.pending_interrupt?.interrupt_type === "intervention_choice",
+      });
+    } catch {
+      // A body that will not parse says nothing. Omission keeps the counters honest; it
+      // cannot invent a verdict.
+    }
+  });
+
   let studyAnswers = 0;
   let interventions = 0;
   for (let i = 0; i < 12; i += 1) {
@@ -99,10 +132,48 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
     }
     studyAnswers += 1;
   }
+  // The walk clicks Submit and moves on, so the last verdict can still be in flight. Bounded
+  // and tolerant: a missing verdict must not become a failure of its own, since the counters
+  // below already fail closed when they cannot see a wrong answer.
+  await expect
+    .poll(() => studyVerdicts.length, { timeout: 10_000 })
+    .toBeGreaterThanOrEqual(studyAnswers)
+    .catch(() => undefined);
+
+  const wrong = studyVerdicts.filter((verdict) => !verdict.correct).length;
+  const ladderOffered = studyVerdicts.filter((verdict) => verdict.ladderOpened).length;
   audit.note(`study: worked ${interventions} retry-ladder pauses`);
   audit.note(`study: answered ${studyAnswers} items`);
+  audit.note(
+    `study verdicts: ${studyVerdicts.length} graded, ${wrong} wrong, ${ladderOffered} ladder ` +
+      `pauses opened by the server`,
+  );
   expect(studyAnswers, "the study phase served no questions at all").toBeGreaterThan(0);
-  expect(interventions, "the retry ladder never engaged, so it went unexercised").toBeGreaterThan(0);
+
+  // **A run with no wrong answer proves nothing about the ladder, and must not claim to.**
+  // Skipping rather than passing is the point: a green tick here would say "§5.11.3 works"
+  // on a run that never asked it to. The counts are in the audit notes above, so this is a
+  // stated skip and not the silent never-fires condition AUD-F-23 was about.
+  test.skip(
+    studyVerdicts.length > 0 && wrong === 0,
+    `all ${studyVerdicts.length} study answers happened to be correct, so nothing could open ` +
+      "the retry ladder - this run says nothing about SPEC §5.11.3 either way (D-317 addendum)",
+  );
+
+  expect(
+    ladderOffered,
+    `${wrong} of ${studyVerdicts.length} study answers were WRONG and the server opened the ` +
+      "retry ladder 0 times - SPEC §5.11.3's ladder did not engage. This is a product defect, " +
+      "not this walk's option ordering, and the distinction is the whole reason these counts " +
+      "are recorded (D-317 addendum)",
+  ).toBeGreaterThan(0);
+
+  expect(
+    interventions,
+    `the server opened ${ladderOffered} retry-ladder pauses and this walk worked ` +
+      `${interventions} of them - the pauses happened and the harness missed them, which is ` +
+      "D-288 §4's class (a `count()` read with no wait), so the ladder is still unexercised",
+  ).toBeGreaterThan(0);
   await expectNotBlank(page);
 });
 
