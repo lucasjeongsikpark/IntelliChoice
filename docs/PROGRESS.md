@@ -88,6 +88,27 @@ The 2,178 chat count matches the independent phase census exactly, which is a se
 that the classifier agrees with the data rather than with itself. And 9/9 completed sessions being
 fully answerable without their checkpoint is the precondition the deletion job needed.
 
+**✅ STAGING RE-VERIFIED AFTER FIVE DEPLOYS (2026-08-15).** Both services on `gha-104510b57eff`.
+Two full staging e2e runs at that one build: **66/8/0 and 67/7/0, zero failures in either**, run
+record `build_sha=104510b57eff` read from the harness rather than assumed.
+
+**C1's Phase 4 clause is closed** — the video catalog was ⛔ "blocked on a real `YOUTUBE_API_KEY`",
+and it is now **102 of 112 skills** with a servable video. 10 skills have no video at all and 3 hold
+only inactive ones: a *content* question about what the pinned channel publishes, not a key, quota
+or code question.
+
+**C1's Phase 6 clause is NOT closed, deliberately.** Two clean runs of one build is the best
+evidence it has had, and the second even *exercised* the ladder (`hint-displacement` ran instead of
+skipping, and passed). But the flake ran ~1-2 of 16 walks, so at ~8 walks a run a clean run is a
+coin flip and two in a row is ~25% by luck. Closing on that would repeat the premature-✅ recorded
+in the D-317 addendum. **4-5 consecutive clean runs, or deterministic option ordering.**
+
+**Two honest gaps in what that green covers.** `narrative-displacement.spec.ts` is
+`test.skip(TARGET !== "local")` — **local-only by design**, so the tests closest to D-335's SSE
+relay never run on staging at all. And `hint-displacement` skipped in run 1 on "no retry-ladder
+pause occurred (every answer was correct)". The relay is verified — 11 unit tests plus 8-of-8 live
+delivery via `scripts/measure_hint_delivery.py` — just not by this suite.
+
 **✅ THE PERSONALIZED HINT IS PROVEN, AND PROVING IT FOUND A REAL DEFECT (2026-08-15, D-334/D-335).**
 D-329's carry-over — *"still unproven: that a student sees the personalized hint"* — is closed.
 
