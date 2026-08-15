@@ -24496,3 +24496,70 @@ the mechanism instead of prompting a third guess (D-311's standing rule).
 
 **C1's Phase 6 clause stays ⏸.** It closes when the walk stops being able to redden a run, and
 nothing here establishes that.
+
+### D-341 — The multi-tier gap is content backlog, not a taxonomy error. Stop re-flagging it.
+
+**Date:** 2026-08-15 · **Status:** decided by the user; recorded so audits stop reopening it
+
+C1's *"multi-tier where the skill spans"* clause has been ⛔ across several sessions. Measured
+skill by skill rather than as a count:
+
+| | |
+|---|---|
+| spanning skills (declare >1 tier) | **96** |
+| holding approved items at >1 tier | **81** |
+| holding items at exactly one tier | **15** |
+| holding no items at all | 0 |
+
+The 15 split cleanly by evidence: **10 have 5-11 approved items all judged at a single tier**
+(`g68_wp_equations` declares `[1,2,3]` and holds 11 items every one at tier 2;
+`g6_factors_multiples` declares `[1,2]` with 9 items all at tier 2), and **5 have 1-3 items**, too
+thin to say anything.
+
+### The decision, and it goes against the recommendation I offered
+
+I proposed narrowing the ten well-stocked declarations to match their content, on the reasoning
+that nine or eleven items all reading as one difficulty is the content telling us the skill does
+not span. **The user declined, and the reasoning is recorded because it is the part that matters:**
+
+> The current single-tier coverage is **temporary** because we plan to generate and approve more
+> problems across the missing difficulty tiers later. Treat these as **expected content gaps, not
+> taxonomy/declaration errors.** Keep the existing `difficulty_tiers` declarations unchanged. Do
+> not modify the taxonomy solely because the current bank is thin or concentrated in one tier.
+
+So `difficulty_tiers` is an **authoring target**, not a description of the current bank. A
+mismatch between the two is the backlog showing through, and narrowing the declaration would erase
+the record of what still needs generating — trading a visible gap for an invisible one.
+
+**This is written down to stop the loop.** The mismatch has now been re-derived at least three
+times (D-313, U1/D-324, here), each time as though it were a fresh defect. It is not a defect. Any
+future audit finding "N skills declare tiers they do not stock" should cite this entry and check
+the *generation* backlog, not the taxonomy.
+
+### The one thing the decision does depend on, now tested
+
+The user's ruling keeps the current fallback "unless there is a separate correctness issue with
+it". There is not — and it is now asserted rather than assumed.
+
+`_closest_to_recommended` narrows to the exact tier, then ±1, then **returns everything rather than
+empty**. That last branch is what makes a declared-but-unstocked tier servable: `adv_vectors`
+declares `[2, 4, 5]` and holds only tier 2, so a recommendation of 5 falls outside ±1 of anything
+approved. Returning empty there would turn the decision above into a dead end for real students.
+
+`test_every_declared_tier_of_every_spanning_skill_is_servable` drives **the real declarations** —
+every spanning skill, every declared tier, against a bank holding only its furthest single tier —
+and a sibling test asserts the exact-match branch still narrows, so "never empty" cannot be
+satisfied by a function that always returns everything.
+
+### Two stale claims corrected on the way
+
+Both said, in effect, *this cannot be exercised by real content*:
+
+- `_closest_to_recommended`'s docstring: *"Provably inert on the current curriculum … the live bank
+  is 5 skills x 10 templates, one tier each … there is no content that can exercise it."*
+- `test_study_plan_difficulty_routing.py`'s header: *"no end-to-end test on real content can
+  distinguish the wired implementation from the unwired one."*
+
+True when the bank was 50 items. Against 958 items with 81 spanning skills at multiple tiers, both
+are false, and the second was the reason nobody had written the real-content test. U1 flagged the
+first as a carry-over; this closes it. Fifteenth instance of a present-tense claim aging silently.

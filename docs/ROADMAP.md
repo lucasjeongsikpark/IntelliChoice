@@ -2072,7 +2072,7 @@ at close, not recalled:
 |---|---|
 | every A/B topic has ≥10 approved items | ✅ **33 of 33** |
 | every authorable skill stocked ≥1 item | ✅ **99 of 99** — *first time true*, see below |
-| multi-tier where the skill spans | ⛔ **76 of 91** spanning skills at >1 tier |
+| multi-tier where the skill spans | 📋 **81 of 96 — content backlog by decision, not a defect (D-341).** The 15 remaining split by evidence: 10 hold 5-11 approved items all judged at one tier, 5 hold 1-3 items. I proposed narrowing those 10 declarations to match their content; **the user declined** — `difficulty_tiers` is an *authoring target*, the gaps are temporary and close by generating content, and narrowing would erase the record of what still needs generating. **Any future audit finding "N skills declare tiers they do not stock" should cite D-341 and check the generation backlog, not the taxonomy** — this has now been re-derived three times as though fresh. The fallback the decision depends on is tested against the real declarations (`_closest_to_recommended` never returns empty, so a declared-but-unstocked tier is still servable) |
 | depth: D-223's 5 per occupied (topic, tier) cell | ⛔ **84 of 153** cells; 189 items short |
 | judge dispersion real per topic | ✅ (26 of 26 generated topics, D-289) |
 | auto-approval decision recorded with its numbers | ✅ D-289 |
