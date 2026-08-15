@@ -1,13 +1,30 @@
 """D-329: every Bedrock task a background scheduler invokes must be in the gateway it is given.
 
-**The bug this exists to prevent ran in production for as long as the feature had existed, and
-its only symptom was a log line.** `_narrative_gateway` was written for `STAGE_NARRATIVE` and
-later handed to `BackgroundHintPersonalizationScheduler` too — correct reuse, since the two are
-the same shape of background call. The registry never grew to match, so every personalized hint
-raised `no Bedrock model configured for task hint_personalization` inside the scheduler, was
-swallowed exactly as background-task failures are meant to be, and the student silently received
-the generic authored hint. **Measured on staging: 117 failures in 48 hours** — the only ERROR the
-learning API was emitting at all.
+**The bug this exists to prevent was a regression, and its only symptom was a log line.**
+`_narrative_gateway` was written for `STAGE_NARRATIVE` and later handed to
+`BackgroundHintPersonalizationScheduler` too — correct reuse, since the two are the same shape of
+background call. The registry never grew to match, so every personalized hint raised
+`no Bedrock model configured for task hint_personalization` inside the scheduler, was swallowed
+exactly as background-task failures are meant to be, and the student silently received the generic
+authored hint. **Measured on staging: 117 failures in 48 hours** — the only ERROR the learning API
+was emitting at all.
+
+**Correction (D-334).** This docstring originally said the bug "ran in production for as long as the
+feature had existed". **That was false, and it was written as settled fact without being measured.**
+The staging record disagrees:
+
+| window | hint events | personalized |
+|---|---|---|
+| 2026-07-30 → 08-08 | 60 | **50** — the feature worked |
+| 2026-08-11 | 38 | 8 — degrading |
+| 2026-08-12 → 08-14 20:00 UTC | 134 | **0** |
+| 2026-08-14 21:00 UTC, post-fix | 2 | **2** |
+
+So personalization worked for over a week, regressed around 2026-08-11/12 when the scheduler was
+pointed at `_narrative_gateway`, and the fix restored it — **0 of 99 before, 2 of 2 after, the same
+day**. The fix is real; the history in the original sentence was invented. Recorded here rather
+than quietly edited, because "a present-tense claim in a docstring, aging silently" is the exact
+failure mode this project has now caught nine times.
 
 **Why no existing test caught it.** The unit tests give the scheduler a stub gateway, so they
 exercise the scheduler's logic and never the wiring. The e2e walks hit the real one, but a
