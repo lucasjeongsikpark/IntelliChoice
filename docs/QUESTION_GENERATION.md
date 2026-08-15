@@ -7,6 +7,18 @@ why, is at the end.
 Scope right now: **one topic** (`linear_equations`), **multiple-choice only**, solo-maintained.
 Everything below is sized for that and is expected to grow when there is evidence it should.
 
+> ### ⛔ Running this pipeline is parked (D-342)
+>
+> **Do not start a generation run to close a coverage gap.** Depth (189 items short), missing tiers
+> (15 spanning skills at one tier), thin banks and skills with no video are all **parked until the
+> user explicitly asks for new problems**. They are backlog, not defects — `difficulty_tiers` and
+> D-223's targets are *authoring targets*, so a mismatch with the current bank is the backlog
+> showing through and is supposed to be visible.
+>
+> **Do not narrow a declaration or target to make a gap disappear** — that trades a tracked backlog
+> for an untracked one. Generation costs real money and hours of wall clock; when to spend it is the
+> user's call. This doc still describes how a run works, for when that call is made.
+
 ---
 
 ## 1. What this is

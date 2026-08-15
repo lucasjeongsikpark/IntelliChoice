@@ -24563,3 +24563,60 @@ Both said, in effect, *this cannot be exercised by real content*:
 True when the bank was 50 items. Against 958 items with 81 spanning skills at multiple tiers, both
 are false, and the second was the reason nobody had written the real-content test. U1 flagged the
 first as a carry-over; this closes it. Fifteenth instance of a present-tense claim aging silently.
+
+### D-342 — ⛔ ALL question-bank coverage work is parked. Do not reopen it.
+
+**Date:** 2026-08-15 · **Status:** standing instruction from the user · **Supersedes the "open" framing in** D-223, D-313, D-322 §5, D-341
+
+**The rule, in one sentence: every finding of the form "the bank is thin / a tier is unstocked / a
+skill does not span / a cell is under-filled" is parked, and stays parked until the user explicitly
+asks for new problems to be generated.**
+
+### What this covers
+
+Everything that resolves by *generating and approving more questions*:
+
+- **Depth** — D-223's 5-per-occupied-(topic, tier) cell target. **84 of 153 cells, 189 items short,
+  ≈ $13-16 and ~3.5 h.**
+- **Missing tiers** — the 15 spanning skills holding items at one tier (D-341).
+- **Thin banks** — any skill with few approved items, including the 5 with 1-3 (D-341) and the
+  content scarcity behind U2's 57 study/exam repeats.
+- **Skills with no video** — 10 of 112, plus 3 holding only inactive ones (D-337). Same shape: the
+  fix is content, and the content is a third party's.
+- Any future measurement of the same kind, however it is phrased.
+
+### Why it is parked, and why that is not a defect
+
+`difficulty_tiers` and D-223's targets are **authoring targets** — a description of the bank the
+product is *aiming at*, not of the bank it has. A mismatch between target and reality is the
+backlog showing through. It is *supposed* to be visible.
+
+The user's reasoning (D-341), which generalises to all of the above:
+
+> The current single-tier coverage is **temporary** because we plan to generate and approve more
+> problems across the missing difficulty tiers later. Treat these as **expected content gaps, not
+> taxonomy/declaration errors.**
+
+### What must not happen
+
+- **Do not narrow declarations, targets or thresholds to make a gap disappear.** That converts a
+  tracked backlog into an untracked one, which is strictly worse than the gap.
+- **Do not open a session, spend, or generation run** for any of it without the user asking first.
+  Generation costs real money and real wall clock; it is the user's call when to spend it.
+- **Do not re-derive it as a new finding.** It has been re-measured as though fresh at least four
+  times — D-313, U1/D-324, D-341, and the C1 clause tables before them. Each pass produced the same
+  number and the same conclusion.
+
+### What an audit should do instead
+
+Cite this entry, state the current number as **backlog**, and stop. A finding is only *new* if it
+is about something other than quantity of content — a wrong answer key, a mis-tiered item that
+contradicts its own judge rating, an unservable path. **Those are still defects and should still be
+reported.** The distinction is: *is the fix "write more questions"?* If yes, it is parked.
+
+### The correctness question this leaves open, already answered
+
+Parking the content does not park the **behaviour** under thin content. That was the one thing the
+user did not defer, and D-341 tested it: `_closest_to_recommended` never returns empty, so a
+declared-but-unstocked tier stays servable rather than becoming a dead end. If a future change makes
+an unstocked tier unservable, **that is a real defect and is not covered by this entry.**

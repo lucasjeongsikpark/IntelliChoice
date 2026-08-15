@@ -2073,7 +2073,7 @@ at close, not recalled:
 | every A/B topic has ≥10 approved items | ✅ **33 of 33** |
 | every authorable skill stocked ≥1 item | ✅ **99 of 99** — *first time true*, see below |
 | multi-tier where the skill spans | 📋 **81 of 96 — content backlog by decision, not a defect (D-341).** The 15 remaining split by evidence: 10 hold 5-11 approved items all judged at one tier, 5 hold 1-3 items. I proposed narrowing those 10 declarations to match their content; **the user declined** — `difficulty_tiers` is an *authoring target*, the gaps are temporary and close by generating content, and narrowing would erase the record of what still needs generating. **Any future audit finding "N skills declare tiers they do not stock" should cite D-341 and check the generation backlog, not the taxonomy** — this has now been re-derived three times as though fresh. The fallback the decision depends on is tested against the real declarations (`_closest_to_recommended` never returns empty, so a declared-but-unstocked tier is still servable) |
-| depth: D-223's 5 per occupied (topic, tier) cell | ⛔ **84 of 153** cells; 189 items short |
+| depth: D-223's 5 per occupied (topic, tier) cell | 📋 **84 of 153 cells, 189 items short — parked (D-342), not a defect.** Reopens only when the user asks for generation. Do not cite this as an open finding |
 | judge dispersion real per topic | ✅ (26 of 26 generated topics, D-289) |
 | auto-approval decision recorded with its numbers | ✅ D-289 |
 | spend within per-run caps | ✅ every run behind a green preflight and an explicit cap |
@@ -2460,6 +2460,27 @@ job from dev data that includes load tests is how you get the wrong N.
 **Done when:** the design is recorded in DECISIONS.md and agreed · a scheduled job consolidates then
 prunes · a restore test proves a consolidated session's memory survives its checkpoint being deleted.
 
-### Parked on the user's word
-**Depth generation** — D-223's 5-per-occupied-cell target, 189 items ≈ **$13–16** and ~3.5 h.
-Deferred to "the near future" (D-322 §5). Nothing is blocked on it.
+### ⛔ Parked on the user's word — do not reopen (D-342)
+
+**Every question-bank coverage item is parked until the user explicitly asks for new problems to be
+generated.** This is a standing instruction, not a per-session deferral.
+
+| parked item | current number |
+|---|---|
+| **Depth** — D-223's 5-per-occupied-cell target | 84 of 153 cells, **189 items short**, ≈ **$13–16**, ~3.5 h |
+| **Missing tiers** — spanning skills at one tier (D-341) | 15 of 96 |
+| **Thin banks** — few approved items per skill | 5 skills at 1–3 items; the scarcity behind U2's repeats |
+| **Skills with no video** (D-337) | 10 of 112, plus 3 holding only inactive |
+
+**The test for whether something is parked: is the fix "write more questions"?** If yes, cite D-342
+and stop. `difficulty_tiers` and D-223's targets are *authoring targets* — a mismatch with the
+current bank is the backlog showing through, and it is supposed to be visible.
+
+**Do not narrow a declaration, target or threshold to close one of these.** That turns a tracked
+backlog into an untracked one. This has been re-derived as a fresh finding at least four times
+(D-313, U1/D-324, D-341, and the C1 clause tables); each pass reached the same number.
+
+**Still in scope, and still defects:** anything that is *not* about quantity of content — a wrong
+answer key, an item contradicting its own judge rating, an unservable path. D-341 tested the one
+behaviour the parking depends on (`_closest_to_recommended` never returns empty, so an unstocked
+tier stays servable); if that ever breaks it is a real defect and D-342 does not cover it.

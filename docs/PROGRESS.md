@@ -88,6 +88,22 @@ The 2,178 chat count matches the independent phase census exactly, which is a se
 that the classifier agrees with the data rather than with itself. And 9/9 completed sessions being
 fully answerable without their checkpoint is the precondition the deletion job needed.
 
+**⛔ STANDING INSTRUCTION (2026-08-15, D-342): ALL QUESTION-BANK COVERAGE WORK IS PARKED.**
+Depth (189 items, ≈$13–16), missing tiers (15 of 96 spanning skills), thin banks, and the 10 skills
+with no video are **backlog, not defects**, and must not be reopened until the user explicitly asks
+for new problems to be generated.
+
+**The test: is the fix "write more questions"?** If yes, cite D-342 and stop. `difficulty_tiers` and
+D-223's targets are *authoring targets* — a mismatch with the current bank is the backlog showing
+through and is supposed to be visible. **Do not narrow a declaration or target to close one**; that
+trades a tracked backlog for an untracked one. It has been re-derived as a fresh finding four times.
+
+**Still defects, still report them:** anything not about quantity of content — a wrong answer key, an
+item contradicting its own judge rating, an unservable path. D-341 tested the one behaviour the
+parking depends on (`_closest_to_recommended` never returns empty, so a declared-but-unstocked tier
+stays servable). Written into DECISIONS (D-342), ROADMAP's parked section and depth clause, and
+QUESTION_GENERATION.md's header.
+
 **✅ U4 AND U6 ARE CLOSED; C1 PHASE 6 IS NOT (2026-08-15, D-338/D-339).** Merged as `7d1bf67`
 (#281), deployed, both services on `gha-7d1bf6794b09` with rollout `COMPLETED`. pytest **1604**.
 
@@ -1148,6 +1164,43 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — U7 built, a 50%-delivery defect found, and content work parked (2026-08-15, D-331 → D-342)
+
+**Built.** U7 end to end: measured (D-331), `learning_sessions` + reconciler (D-332), retention job
+with three windows and consolidation as a gate (D-333). Then U4's results endpoint (D-338) and U6's
+video criterion (D-339) — the last two ⏸ items in Milestone 10.
+
+**Found by measuring, not by reading.** A background-published SSE event reached the student **2 of
+4 times**: `SessionEventBus` is per-process and `learning-api` runs 2 replicas, so a publish on the
+other one reached nobody (D-334). It affected every background event, deferred narratives included,
+and the failure rate *rises* with replica count. Fixed with Postgres `LISTEN`/`NOTIFY` (D-335) —
+**8 of 8 after**. SQS was evaluated at the user's request and declined on structure: competing
+consumers would reproduce the bug with a queue to operate.
+
+**Also found:** a duplicate `learning_gain` showing a parent the same session twice (D-336, fixed and
+constrained); and my own D-326 guard deactivating 182 videos it was written to protect (D-337, fixed,
+182 → 0, coverage 72 → **102 of 112**).
+
+**Decided.** All question-bank coverage work is **parked** (D-342) — depth, missing tiers, thin
+banks, missing videos — until the user asks for generation. The user declined my recommendation to
+narrow ten over-broad `difficulty_tiers` declarations, on the reasoning that they are authoring
+targets and narrowing would erase the backlog (D-341).
+
+**Verification.** pytest **1547 → 1606**. Nine PRs merged, six staging deploys, each verified from
+ECS rather than the workflow's report. Staging e2e at the final build: 68/7/0, 68/7/0, 67/7/1,
+68/7/0.
+
+**Carry-over.** C1 Phase 6 (3 clean of 4; the red is harness drift, D-340's breadcrumb will name it
+next time) · chat-api relay (low value, request-path publisher only) · the `EntryInput` msgpack
+warning · U7's reconciler is not scheduled.
+
+**The pattern, and it did not stop.** Fifteen instances of a claim that was never measured — five of
+them mine, from this session. Three worth naming: the relay that **deployed green and started on
+zero of two replicas** while its test passed (it asserted the transformation my code performed, not
+the property that mattered); the U6 spec that **could not fail** because it matched the intervention
+menu and called it the no-video fallback; and the restore test that passed while never reaching
+`completed`. Each was caught by reading an artifact, never by re-reading code.
 
 ### Session log — the ladder was never broken, and ten decisions came back (2026-08-14, D-321, D-322)
 

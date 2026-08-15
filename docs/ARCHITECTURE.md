@@ -461,6 +461,24 @@ to rot, because nothing fails when it does.)*
   inventing rows; `learning_checkpoint_repairs_total` counts it, so a flat zero is the evidence the
   unfixed ordering is not being hit. **Partial: only the mid-finalize seam. The mid-interrupt seam
   and the commit ordering itself are still open** (S42, D-110 §3).
+- **SSE events cross replicas via Postgres `LISTEN`/`NOTIFY`, because the bus is per-process**
+  (U7-adjacent, D-334/D-335) — `SessionEventBus` is an in-process `dict[str, list[asyncio.Queue]]`
+  and `learning-api` runs **2 ECS tasks**. An SSE connection is pinned to whichever replica the ALB
+  gave it while the request that spawns a background task is routed independently, so a publish on
+  the other replica reached nobody. **Measured: personalized hints arrived in 2 of 4 staging runs;
+  after the relay, 8 of 8.** It affected every background-published event, D-217's deferred
+  narratives included, and the failure rate *rises* with replica count.
+  `SessionEventRelay` fans each publish out over one dedicated listening connection per process
+  (`LISTEN` binds to a session, so a pooled connection would silently stop listening). A **queue**
+  would have been the wrong shape: SQS has competing-consumer semantics — one message to exactly one
+  poller — so two replicas polling would land it on the wrong one about half the time. Local
+  delivery still happens directly and is never conditional on the relay, so a relay failure degrades
+  to the pre-D-335 behaviour rather than breaking what already worked; the sender drops the echo of
+  its own `NOTIFY` by origin id, else every local publish would deliver twice. Payload is the whole
+  event (real frames measured at 1160–2291 bytes against the 8000-byte cap) and an oversized one is
+  **dropped from the fan-out rather than truncated** — a half-snapshot renders as though it were
+  whole. `chat-api`'s bus has the same shape but only a request-path publisher, where the client
+  already has the data in the HTTP response.
 - **An SSE stream subscribes before it reads its initial snapshot, never after** (AUD-F-36, D-145) —
   both apps' `routers/stream.py` register on the in-process event bus *first*, then build the frame,
   and unsubscribe if that build fails. Reversed, an action completing during the read publishes to
@@ -957,7 +975,7 @@ flowchart TB
 
     subgraph APPS["FastAPI apps (S1)"]
         subgraph LAPI["learning-api :8001"]
-            LROUTES["routers/sessions (S5–S7)<br/>routers/questions (S9)<br/>routers/stream, routers/students (S11)<br/>routers/parents (AUD-F-22, D-176)<br/>routers/client_errors (U5, D-328):<br/>browser crash sink, per-token<br/>rate limit, redact+truncate<br/>/healthz (liveness-only), /readyz<br/>(DB-aware, ALB target-group health<br/>check since S34) (S1/S34)"]
+            LROUTES["routers/sessions (S5–S7)<br/>+ GET /sessions/{id}/results (U4, D-338):<br/>bookmarkable after the session ends;<br/>learning_sessions row, then checkpoint<br/>routers/questions (S9)<br/>routers/stream, routers/students (S11)<br/>routers/parents (AUD-F-22, D-176)<br/>routers/client_errors (U5, D-328):<br/>browser crash sink, per-token<br/>rate limit, redact+truncate<br/>/healthz (liveness-only), /readyz<br/>(DB-aware, ALB target-group health<br/>check since S34) (S1/S34)"]
             LAUTH["auth deps<br/>audience=learning (S2)<br/>+ dev-only /dev/token (S11)"]
             GRAPH["LangGraph workflow (S6–S8)<br/>see diagram 2"]
             LSVC["services: attendance, grading,<br/>assessment_builder, mastery_bootstrap,<br/>study_plan, learning_gain, flow (S5)<br/>tutor, topic_resolver (S8)<br/>question_reports (S9)<br/>study_outcomes (S10)<br/>video_catalog: real Postgres+<br/>Bedrock catalog (S10 stub → S15)<br/>session_events, history (S11)<br/>tutor.generate_personalized_hint,<br/>topic_resolver.resolve_misconception_tag<br/>(S21)<br/>memory_events (6 emission points),<br/>tutor.py/tutor_chat.py/study_plan.py<br/>read `relevant_learning_fact`/<br/>weak_skill tie-break (S25)"]
