@@ -21,6 +21,7 @@ import pytest
 from intellichoice_db.models.assessment import AssessmentSession
 from intellichoice_db.models.mastery import LearningGain
 from intellichoice_db.repositories.mastery import MasteryRepository
+from sqlalchemy.exc import IntegrityError
 
 from .conftest import postgres_skip_reason, rollback_session
 
@@ -163,3 +164,32 @@ def test_a_different_post_form_against_the_same_pre_is_a_different_cycle() -> No
             return len(rows)
 
     assert asyncio.run(run()) == 2
+
+
+def test_the_database_refuses_a_second_row_for_one_cycle() -> None:
+    """**What the repository guard cannot do on its own.**
+
+    `record_learning_gain` reads then writes, so two truly concurrent finalizes can both find
+    nothing and both insert. The unique constraint added by `ecee04921753` is what makes that
+    impossible rather than merely unlikely - and it is asserted by *bypassing* the guard, because a
+    test that went through `record_learning_gain` would be re-testing the guard and would pass with
+    no constraint at all.
+    """
+
+    async def run() -> bool:
+        async with rollback_session() as session:
+            await _seed_sessions(session, PRE, POST)
+            session.add(_gain())
+            await session.flush()
+            # Straight to the table, as a second process would arrive.
+            session.add(_gain())
+            try:
+                await session.flush()
+            except IntegrityError:
+                return True
+            return False
+
+    assert asyncio.run(run()), (
+        "a second gain row for one (pre, post) cycle was accepted - the unique constraint is "
+        "missing, so concurrent finalizes can still duplicate a parent's session history"
+    )

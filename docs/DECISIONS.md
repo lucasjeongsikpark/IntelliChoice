@@ -24208,11 +24208,20 @@ discard a genuine second cycle - a student who studied again and took a new post
 same pre would lose that result, which is worse than the duplicate being fixed. A test pins that
 arm.
 
-**Not race-proof, and stated rather than implied.** Two truly concurrent finalizes could both miss
-the check and insert. Closing that needs a unique constraint on `(pre_assessment_session_id,
-post_assessment_session_id)`, which **cannot be added while the existing duplicate row is in the
-table**. That is a row deletion on staging, so it is the user's call and is not done here. The
-observed failure was 46 seconds apart, which the guard covers.
+**Not race-proof on its own.** Two truly concurrent finalizes could both miss the check and insert.
+Closing that needs a unique constraint, which cannot be created while a duplicate is present.
+
+**The user authorised the cleanup, so `ecee04921753` now does both** (2026-08-15): it deletes, per
+`(pre, post)` group, every row except the one with the **earliest `computed_at`**
+(`learning_gain_id` breaking ties deterministically), then adds
+`uq_learning_gain_pre_post_cycle`. Nothing else is ever deleted, and the deleted rows are
+recomputations of the same cycle from the same attempts - the staging duplicate was byte-identical
+apart from `computed_at`. **The downgrade drops the constraint and cannot restore rows**: reversible
+in schema, not in data, and said so in the migration rather than left to be discovered.
+
+The constraint's test asserts by **bypassing** `record_learning_gain` and inserting straight to the
+table - a test that went through the guard would be re-testing the guard and would pass with no
+constraint at all.
 
 ### 5. The guard immediately caught a fixture encoding the impossible state
 
