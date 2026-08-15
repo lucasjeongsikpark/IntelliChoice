@@ -24224,3 +24224,74 @@ fixture - and the test passed for as long as it did only because nothing enforce
 The intent was legitimate, so the fixture was corrected rather than the guard weakened: each gain
 now gets its own pre/post pair, which is what two cycles actually are. A green test built on an
 impossible state is worth more attention than the failure that exposes it.
+
+### D-337 — The sync re-run, and my own D-326 guard deactivating the catalog it was written to protect
+
+**Date:** 2026-08-15 · **Status:** guard fixed; **staging catalog partially deactivated and recovering**
+
+The quota reset at midnight Pacific and the deferred sync ran. It worked, cost 79.66¢, and exposed
+a bug in the fix I wrote for the last one.
+
+### 1. What the run did
+
+`72 of 112 skills already have a servable video; searching 40 this run` — every remaining skill, no
+quota deferral. Exit 0.
+
+```
+Sync complete: 154 created, 46 updated, 182 marked inactive,
+               0 rejected (off-channel), 0 failed verification, 79.6563 cents spent.
+```
+
+| | before | after |
+|---|---|---|
+| videos | 262 | **416** |
+| active | 200 | **200** |
+| skills with a servable video | 72 | **76** |
+
+**Coverage rose by 4 and the active set was replaced.** 154 created + 46 updated = exactly the 200
+now active, while 182 of the previously-active rows were deactivated. That is not accumulation, it
+is churn.
+
+### 2. The guard I wrote for D-326's addendum has the bug it was written to prevent
+
+D-326's addendum added `saw_whole_channel` so a quota-capped run could not deactivate rows it never
+searched for. It was wired as `saw_whole_channel = deferred == 0` — **and the comment sitting
+directly beside it describes a second reason that condition misses**:
+
+> *"the resumable term selection added in D-326 searches only the *uncovered* skills, so the
+> previously-covered ones are absent from `seen_ids` by construction"*
+
+`covered=72, deferred=0` evaluates to `True`. The run searched 40 of 112 skills, saw a fraction of
+the channel, and was permitted to deactivate everything else. The comment was right; the condition
+did not implement it.
+
+**Fixed:** `covered == 0 and deferred == 0`.
+
+### 3. Why no test caught it, and the seam that was missing
+
+`test_catalog_sync.py` passes `saw_whole_channel` **into** `sync_channel` as `True` and `False` and
+asserts the effect of each. It never exercises the *computation*, which lived inline in `main()`
+where nothing could reach it. Extracted to a named function and given three tests — the resumable
+case, the quota case, and a positive arm so the guard cannot be satisfied by always returning False
+(a catalog that never deactivates accumulates videos the channel has removed).
+
+Same shape as D-335: **not a missing assertion, a missing seam.** Thirteenth instance this session,
+and the second where the flawed thing was my own recent fix.
+
+### 4. Honest limits of what was measured
+
+**I captured the before *count* (72) but not the before *set*, so I cannot say how many of the 25
+skills now holding only inactive videos lost coverage in this run** rather than already lacking it.
+That is precisely the gap D-326's addendum warned about — "the headline number improved while a
+subset silently regressed" — and I walked into it by not snapshotting the set first. Recorded as a
+gap, not glossed.
+
+What is certain: 25 skills have videos and none servable, and 182 rows were deactivated by a run
+that had no business deactivating anything.
+
+### 5. Recovery
+
+The deactivated rows are still in the table. Because coverage is computed from *servable* videos,
+those 25 skills now read as uncovered, so the next run's resumable selection will search them and
+the upsert will set their videos active again. With the guard fixed, that run will not deactivate
+the 200 currently active. Quota spent today is 4,000 of 10,000, leaving room for the recovery run.
