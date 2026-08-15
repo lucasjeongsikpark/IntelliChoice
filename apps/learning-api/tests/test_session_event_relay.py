@@ -19,7 +19,7 @@ from intellichoice_db.engine import create_engine
 from learning_api.services.session_event_relay import (
     MAX_PAYLOAD_BYTES,
     SessionEventRelay,
-    _dsn,
+    connect_kwargs,
 )
 from learning_api.services.session_events import SessionEventBus
 from sqlalchemy import text
@@ -153,12 +153,37 @@ def test_the_payload_ceiling_stays_under_the_postgres_limit() -> None:
     assert MAX_PAYLOAD_BYTES < 8000
 
 
-def test_the_dsn_is_converted_for_asyncpg() -> None:
-    """SQLAlchemy's driver-qualified URL is not a libpq DSN. Passing it through unchanged is the
-    same class of mistake as `create_engine(settings.database_url)` in an ops-task CLI: it fails
-    only where it is deployed."""
-    assert _dsn("postgresql+asyncpg://u:p@h:5432/d") == "postgresql://u:p@h:5432/d"
-    assert _dsn("postgresql://u:p@h:5432/d") == "postgresql://u:p@h:5432/d"
+def test_connection_arguments_survive_a_password_with_url_characters() -> None:
+    """**This test replaces one that passed while the code was broken.**
+
+    The first version asserted that `"postgresql+asyncpg://..."` became `"postgresql://..."` - the
+    transformation the code performed, not the property that mattered. It passed, shipped, and the
+    relay then failed to start on **both** staging replicas: RDS's generated password contains
+    URL-significant characters, so asyncpg parsed part of it as a query string and raised
+    `ValueError: bad query field`. Because relay startup is non-fatal, the API booted normally and
+    the fan-out silently did not exist.
+
+    Asserting on parsed *components* is the property that cannot be satisfied by a broken
+    transformation. The password here is synthetic and deliberately hostile: `?`, `&`, `=`, `>`,
+    `[`, `#`, `/` are all URL-significant.
+    """
+    hostile = "p%3Fa%26b%3Dc%3Ed%5Be%23f%2Fg"  # what SQLAlchemy would hold, percent-encoded
+    kwargs = connect_kwargs(f"postgresql+asyncpg://user:{hostile}@db.example:5432/mydb")
+
+    assert kwargs["user"] == "user"
+    assert kwargs["host"] == "db.example"
+    assert kwargs["port"] == 5432
+    assert kwargs["database"] == "mydb"
+    # Decoded exactly once, by the same parser the engine uses - never re-quoted into a URL.
+    assert kwargs["password"] == "p?a&b=c>d[e#f/g"
+
+
+def test_a_local_connection_asks_for_no_ssl_and_a_remote_one_does() -> None:
+    """S34: RDS ships `rds.force_ssl=1`, and local docker-compose Postgres neither needs nor
+    supports SSL. Detected by host, the same way `create_engine` and `alembic/env.py` do it, so the
+    relay cannot end up with a different posture from the rest of the app by accident."""
+    assert "ssl" not in connect_kwargs("postgresql+asyncpg://u:p@localhost:5432/d")
+    assert "ssl" in connect_kwargs("postgresql+asyncpg://u:p@db.rds.amazonaws.com:5432/d")
 
 
 def test_a_bus_with_no_relay_still_delivers_locally() -> None:

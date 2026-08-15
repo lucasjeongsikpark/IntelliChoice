@@ -24088,3 +24088,37 @@ dev, false of every deployment, and never re-examined when the service grew to t
 publisher is on the request path - where the client already has the same data in the HTTP response,
 so the SSE copy is a secondary channel rather than the sole delivery. Recorded as a follow-up rather
 than done here, because there is no background publisher in chat to lose anything.
+
+### D-335 addendum — the relay shipped broken, started on neither replica, and a green test said otherwise
+
+**Date:** 2026-08-15 · **Status:** fixed before the fan-out was ever claimed to work
+
+`a37e89d` deployed successfully, both ECS tasks healthy, every gate green. **The relay started on
+zero of two replicas.**
+
+```
+ValueError: bad query field: '48>k['
+```
+
+`_dsn()` did `database_url.replace("postgresql+asyncpg://", "postgresql://")` and handed the result
+to `asyncpg.connect`. RDS's generated password contains URL-significant characters; SQLAlchemy
+escapes them and asyncpg's own parser then hit them as a query string. Because relay startup is
+deliberately non-fatal (§3), the API booted normally, served traffic, and the fan-out silently did
+not exist — the exact failure shape D-334 was about, reproduced by its own fix.
+
+**Two things caught it, and neither was the test suite.** The deploy reported success; ECS reported
+both tasks healthy. It was found by grepping the deployed logs for `session_event_relay_started`
+and finding **zero**, then finding **two** `relay_start_failed`. Checking for the positive signal
+rather than the absence of errors is what made the difference.
+
+**The test that should have caught it passed.** `test_the_dsn_is_converted_for_asyncpg` asserted
+that `postgresql+asyncpg://u:p@h/d` became `postgresql://u:p@h/d` — **the transformation the code
+performed, not the property that mattered.** A test written from the implementation cannot fail
+when the implementation is wrong about its own premise. Eleventh instance of this session's
+pattern, and the first where the vacuous assertion was one I had written hours earlier.
+
+**Fixed** by parsing with `make_url` and passing discrete `user`/`password`/`host`/`port`/`database`
+to asyncpg, so no URL is left to mis-parse, plus `ssl_connect_args` for RDS's `rds.force_ssl=1`
+(S34) — which the string version had also silently omitted. The replacement test asserts parsed
+components against a deliberately hostile password containing `?`, `&`, `=`, `>`, `[`, `#` and `/`,
+and a second one pins the local-vs-RDS SSL split.
