@@ -7,6 +7,7 @@ import type {
   StudentHistory,
   StudentReport,
   TopicOption,
+  SessionResults,
 } from "../types";
 
 export const API_BASE = (import.meta.env.VITE_LEARNING_API_URL as string | undefined) ??
@@ -300,4 +301,18 @@ export function sendChatMessage(
     method: "POST",
     body: JSON.stringify({ question_variant_id: questionVariantId, message }),
   });
+}
+
+/**
+ * A completed cycle's results by session id (U4/D-338).
+ *
+ * The live screen renders from the session snapshot; this is what makes `/results/:id` work
+ * after that session is over, which is U4's fourth criterion. `learning_gain` is the whole gain
+ * object, the same shape the snapshot carries, so `ResultsScreen` cannot tell the two apart.
+ */
+export function getSessionResults(
+  token: string,
+  learningSessionId: string,
+): Promise<SessionResults> {
+  return request(`/learning/sessions/${learningSessionId}/results`, token);
 }

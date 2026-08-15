@@ -13,11 +13,13 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from intellichoice_curriculum.content import load_curriculum
+from intellichoice_db.models.mastery import LearningGain
 from intellichoice_db.repositories.assessment import AssessmentRepository
 from intellichoice_db.repositories.cost_reservation import CostReservationRepository
 from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.hints import HintEventRepository
 from intellichoice_db.repositories.interrupts import InterruptApprovalRepository
+from intellichoice_db.repositories.learning_session import LearningSessionRepository
 from intellichoice_db.repositories.mastery import MasteryRepository
 from intellichoice_db.repositories.mcp import McpToolCallRepository
 from intellichoice_db.repositories.memory import MemoryRepository
@@ -233,6 +235,16 @@ class LearningGainResponse(BaseModel):
     @classmethod
     def from_dict(cls, gain: dict) -> "LearningGainResponse":
         return cls(**gain)
+
+    @classmethod
+    def from_row(cls, gain: LearningGain) -> "LearningGainResponse":
+        """From the `learning_gain` table rather than from graph state (U4/D-338).
+
+        The live path builds this from the checkpoint dict; the bookmarked results endpoint reads
+        the durable row. Both produce the same response model on purpose - the screen must not be
+        able to tell which one it was restored from.
+        """
+        return cls.model_validate(gain, from_attributes=True)
 
 
 class AnswerResponse(BaseModel):
@@ -1956,3 +1968,94 @@ async def resume_session(
     )
     _publish_snapshot(events, response)
     return response
+
+
+class SessionResultsResponse(BaseModel):
+    """A completed cycle's results, readable by id after the session is over (U4/D-338).
+
+    **`learning_gain` carries the whole gain object rather than a flattened subset**, so the
+    bookmarked screen renders from exactly the shape the live snapshot supplies and
+    `ResultsScreen` needs no branch for "restored from a URL". A subset would have meant a second
+    client type that drifts from the first the next time the screen reads one more field.
+    """
+
+    learning_session_id: str
+    topic_id: str | None
+    learning_gain: LearningGainResponse
+    hint_count: int
+    solution_count: int
+    video_count: int
+    completed_at: datetime
+
+
+@router.get("/{learning_session_id}/results", response_model=SessionResultsResponse)
+async def get_session_results(
+    learning_session_id: str,
+    claims: Annotated[TokenClaims, Depends(get_current_claims)],
+    profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    graph: Annotated[LearningGraph, Depends(get_graph)],
+) -> SessionResultsResponse:
+    """U4's fourth criterion: results that survive the session ending.
+
+    **Why this could not be done in U4 itself (D-327).** `ResultsScreen` read the live snapshot, so
+    a `/results` route worked only while the graph still held that thread. Bookmarking it and
+    coming back tomorrow gave a blank screen.
+
+    **Two sources, durable one first.** `learning_sessions` (U7/D-332) is what makes this endpoint
+    possible at all: `learning_gain` has no `learning_session_id`, so without that table there is
+    no path from a URL to a cycle's numbers. The checkpoint is the fallback, because the reconciler
+    that fills `learning_sessions` is not yet scheduled - a session finished a minute ago has no
+    summary row, and that is precisely the session a student is most likely to bookmark.
+
+    Once U7's retention job runs, the ordering reverses in importance: the checkpoint is deleted at
+    30 days and the summary row is what keeps this URL working. Both paths are needed, in this
+    order, for the endpoint to work today *and* after deletion.
+
+    **Authorization is derived, never taken from the URL.** The session id names the cycle; the
+    student it belongs to comes from the record, and `resolve_target_student` then decides whether
+    this caller may read that student (self, or a verified parent link). A caller who guesses a
+    session id learns nothing - SPEC §5.21.3/§5.30.2.
+    """
+    summary = await LearningSessionRepository(db).get(learning_session_id)
+    if summary is not None:
+        student_external_id = summary.student_external_id
+        pre_id, post_id, study_id = (
+            summary.pre_assessment_session_id,
+            summary.post_assessment_session_id,
+            summary.study_session_id,
+        )
+        phase = summary.phase
+    else:
+        snapshot = await graph.aget_state(_graph_config(learning_session_id))
+        state = snapshot.values or {}
+        student_external_id = state.get("student_external_id")
+        pre_id = state.get("pre_assessment_session_id")
+        post_id = state.get("post_assessment_session_id")
+        study_id = state.get("study_session_id")
+        phase = state.get("phase")
+
+    if not student_external_id or not pre_id or not post_id:
+        raise HTTPException(status_code=404, detail="no completed results for this session")
+
+    await resolve_target_student(claims, student_external_id, profile_adapter, access="read")
+
+    if phase != "completed":
+        # A session still in progress has no results to bookmark. 404 rather than 409: from the
+        # caller's side this URL simply does not name a results page yet.
+        raise HTTPException(status_code=404, detail="no completed results for this session")
+
+    gain = await MasteryRepository(db).get_learning_gain_for_cycle(pre_id, post_id)
+    if gain is None:
+        raise HTTPException(status_code=404, detail="no completed results for this session")
+
+    attempts = await StudyRepository(db).get_attempts(study_id) if study_id else []
+    return SessionResultsResponse(
+        learning_session_id=learning_session_id,
+        topic_id=gain.topic_id,
+        learning_gain=LearningGainResponse.from_row(gain),
+        hint_count=sum(1 for a in attempts if a.hint_used),
+        solution_count=sum(1 for a in attempts if a.solution_used),
+        video_count=sum(1 for a in attempts if a.video_used),
+        completed_at=gain.computed_at,
+    )
