@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,6 +68,48 @@ class LearningSessionRepository:
             .order_by(LearningSession.last_activity_at.desc())
         )
         return list((await self._session.execute(stmt)).scalars().all())
+
+    async def list_eligible(
+        self, *, phase: str | None, completed: bool, cutoff: datetime, limit: int
+    ) -> list[LearningSession]:
+        """Sessions past their retention window whose checkpoint has not yet been deleted.
+
+        `completed=True` selects `phase == 'completed'` (the 30-day window); `completed=False`
+        selects everything else (the 90-day abandoned/pending window). Split on the *phase* rather
+        than taking two cutoffs in one query, because D-333's two windows are two policies with
+        two different risks, and one query returning both would make it easy to widen the wrong
+        one later.
+
+        `checkpoint_deleted_at IS NULL` is what makes a second run a no-op rather than a repeat.
+        """
+        stmt = select(LearningSession).where(
+            LearningSession.checkpoint_deleted_at.is_(None),
+            LearningSession.last_activity_at < cutoff,
+        )
+        if completed:
+            stmt = stmt.where(LearningSession.phase == "completed")
+        else:
+            stmt = stmt.where(LearningSession.phase != "completed")
+        if phase is not None:
+            stmt = stmt.where(LearningSession.phase == phase)
+        stmt = stmt.order_by(LearningSession.last_activity_at).limit(limit)
+        return list((await self._session.execute(stmt)).scalars().all())
+
+    async def mark_consolidated(self, learning_session_id: str, when: datetime) -> None:
+        await self._session.execute(
+            update(LearningSession)
+            .where(LearningSession.learning_session_id == learning_session_id)
+            .values(memory_consolidated_at=when)
+        )
+
+    async def mark_checkpoint_deleted(self, learning_session_id: str, when: datetime) -> None:
+        """Recorded in the *same* transaction as the checkpoint delete by the caller, so a crash
+        can never leave the rows gone and the row still claiming they exist."""
+        await self._session.execute(
+            update(LearningSession)
+            .where(LearningSession.learning_session_id == learning_session_id)
+            .values(checkpoint_deleted_at=when)
+        )
 
     async def known_activity(self) -> dict[str, datetime]:
         """`{learning_session_id: last_activity_at}` for every summary already stored.

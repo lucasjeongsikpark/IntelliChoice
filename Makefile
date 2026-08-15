@@ -102,6 +102,9 @@ memory-consolidate:
 session-consolidate:
 	uv run python -m learning_api.services.session_consolidation_cli
 
+checkpoint-retention:
+	uv run python -m learning_api.services.checkpoint_retention_cli
+
 db-upgrade:
 	cd packages/db && uv run alembic upgrade head
 
