@@ -37,6 +37,8 @@ import logging
 from typing import Any
 
 import asyncpg
+from intellichoice_db.engine import ssl_connect_args
+from sqlalchemy.engine import make_url
 
 from learning_api.services.session_events import SessionEventBus
 
@@ -49,9 +51,34 @@ CHANNEL = "learning_session_events"
 MAX_PAYLOAD_BYTES = 7_000
 
 
-def _dsn(database_url: str) -> str:
-    """asyncpg takes a libpq DSN, not SQLAlchemy's driver-qualified URL."""
-    return database_url.replace("postgresql+asyncpg://", "postgresql://")
+def connect_kwargs(database_url: str) -> dict[str, Any]:
+    """Discrete asyncpg connect arguments, parsed rather than string-munged.
+
+    **The first version of this shipped broken and started on neither replica.** It did
+    `database_url.replace("postgresql+asyncpg://", "postgresql://")` and handed the result to
+    `asyncpg.connect`. RDS's generated password contains URL-significant characters, so asyncpg's
+    parser hit them as a query string and died with `ValueError: bad query field: '48>k['`. The
+    relay was non-fatal by design, so the API booted fine and the fan-out silently did not exist.
+
+    Passing parsed components sidesteps quoting entirely - there is no URL left to mis-parse.
+    SQLAlchemy's `make_url` already understands the escaping its own engine relies on.
+
+    **SSL is not optional on RDS** (S34): its default parameter group ships `rds.force_ssl=1`.
+    `ssl_connect_args` returns asyncpg's own `ssl` kwarg, with `check_hostname=False`/`CERT_NONE`
+    for the reason recorded in its docstring - Amazon's RDS CA is not in this minimal image's trust
+    store - so both connection paths keep the same posture rather than one being stricter by
+    accident.
+    """
+    url = make_url(database_url)
+    kwargs: dict[str, Any] = {
+        "user": url.username,
+        "password": url.password,
+        "host": url.host,
+        "port": url.port or 5432,
+        "database": url.database,
+    }
+    kwargs.update(ssl_connect_args(database_url))
+    return kwargs
 
 
 class SessionEventRelay:
@@ -59,17 +86,17 @@ class SessionEventRelay:
 
     def __init__(self, bus: SessionEventBus, database_url: str) -> None:
         self._bus = bus
-        self._dsn = _dsn(database_url)
+        self._connect_kwargs = connect_kwargs(database_url)
         self._listener: asyncpg.Connection | None = None
         self._publisher: asyncpg.Connection | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
 
     async def start(self) -> None:
         self._loop = asyncio.get_running_loop()
-        listener = await asyncpg.connect(self._dsn)
+        listener = await asyncpg.connect(**self._connect_kwargs)
         # Separate from the listener: a connection blocked in LISTEN should not also be the one
         # issuing NOTIFY, and asyncpg's callback runs on the listener's own read path.
-        self._publisher = await asyncpg.connect(self._dsn)
+        self._publisher = await asyncpg.connect(**self._connect_kwargs)
         await listener.add_listener(CHANNEL, self._on_notify)
         self._listener = listener
         self._bus.attach_relay(self.publish)
