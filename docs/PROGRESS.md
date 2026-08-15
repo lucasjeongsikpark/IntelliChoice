@@ -68,6 +68,26 @@ every migration in this repo was generated the same way. Fixed with an `include_
 checkpoint references remain), and unit-tested. **The index half is a stated gap:** four hand-built
 indexes are still proposed for dropping, so *read every generated migration before running it*.
 
+**Merged as `f9f001e` (#273), 9/9 CI green, deployed to staging** — both services run
+`gha-f9f001e6f0fb`, read from ECS rather than the workflow's own report. **pytest 1547 → 1564.**
+
+**The migration ran against staging's real RDS, and the safety check was the point.** Before:
+74,706 checkpoints / 324,444 writes / 30,369 blobs. After: **74,704 / 324,416 / 30,367** — the tiny
+deltas are live traffic churn, not deletion. This was the run the D-332 hazard would have destroyed.
+
+**The reconciler ran on staging, twice:**
+
+| | |
+|---|---|
+| first run | **2,204** consolidated, **2,178** skipped as chat — 4,382 total, no remainder |
+| second run | **0 written**, 2,204 already current |
+| orphan fields | 1,857 `week_id` · 293 attendance status · 85 parent id · 62 with spend · 54 resolutions |
+| **all 9 completed sessions** | **9/9 carry `week_id` and both assessment ids** |
+
+The 2,178 chat count matches the independent phase census exactly, which is a second confirmation
+that the classifier agrees with the data rather than with itself. And 9/9 completed sessions being
+fully answerable without their checkpoint is the precondition the deletion job needed.
+
 **Second carry-over, logged not chased:** every `aget_tuple` warns
 `Deserializing unregistered type learning_api.graph.build.EntryInput ... will be blocked in a future
 version`. Harmless today, a real future break for the running app as much as for this job.
