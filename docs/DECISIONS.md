@@ -23935,3 +23935,84 @@ instance of this shape in the project and the second in this session.
 branch, so the interesting half of `_ensure_consolidated` is unit-tested (five parametrised cases)
 and not yet exercised live. The no-op branch is sound regardless — consolidation reads
 `learning_events`, so with zero events it can produce nothing whether the checkpoint exists or not.
+
+### D-334 — A student does see the personalized hint, about half the time, and the reason is architectural
+
+**Date:** 2026-08-15 · **Status:** measured; **the defect is reported, not fixed** · **Follows:** D-329
+
+The carry-over from D-329 was *"still unproven: that a student sees the personalized hint"*. It is
+now proven, and proving it surfaced a defect that had nothing to do with hints.
+
+### 1. The answer: yes — 2 of 4 times
+
+A probe drove a real staging session, opened an SSE connection **before** requesting the hint, then
+**waited 20-25 s instead of clicking on**, and watched for a frame whose hint text differed from the
+canonical rung served instantly. Four runs:
+
+| run | result |
+|---|---|
+| 1 | not delivered |
+| 2 | not delivered |
+| 3 | **delivered** — *"You started with 20 markers total, and you need to figure out how many groups of 5 you can make. Instead of adding, thin…"* |
+| 4 | **delivered** — *"You set up one of the prices incorrectly. When the jeans are 'marked down by 3 times their original price,' that's a rea…"* |
+
+The delivered text is real, misconception-specific tutoring that names the student's own wrong
+answer. **The feature works.** What it does not do is arrive reliably.
+
+### 2. Why half: the event bus is per-process and there are two replicas
+
+`SessionEventBus` is a plain in-process `dict[str, list[asyncio.Queue]]` with no cross-process
+transport. `learning-api` runs **2 ECS tasks**. The SSE connection is a long-lived request pinned to
+whichever replica the ALB gave it; `POST /respond` is routed **independently**, and the background
+task it spawns publishes to *its own process's* bus. When the two land on different replicas the
+event is published to nobody.
+
+P(same replica) = 1/2 at two tasks, and it gets worse as the service scales out — **the failure rate
+rises with capacity**, which is the opposite of how capacity is supposed to behave.
+
+**This is not a hint defect.** Every background-published SSE event has the same delivery rate,
+including D-217's deferred stage narratives. Anything added to that bus later inherits it.
+
+### 3. Ruled out on the way, in this order
+
+- **Staleness** — the guard fired on the first staging pair (`bedrock_call` 21:34:28.826,
+  `dropped_stale` 21:34:28.836, ten milliseconds apart) but **zero** times in the probe runs, which
+  waited. Correct behaviour, and not the cause here.
+- **Generation** — `was_personalized=true` and `personalized_hint_text <> canonical_hint_text` on
+  every probe row, with a real `hint_personalization` `bedrock_call` at 0.22¢ and ~2 s each.
+- **My own instrument, twice.** The first probe reported "not delivered" on **zero** SSE frames,
+  because `/stream` takes `token` as a *query parameter* (EventSource cannot set headers) and the
+  probe sent a header, got a 422, and never checked the status. A probe that receives nothing has
+  measured nothing; the script now prints the stream status and returns `INCONCLUSIVE` rather than
+  `NOT_DELIVERED` when no frame arrives. Same shape as D-330's 422.
+
+### 4. The delivery path had no test at all, and now does
+
+`BackgroundHintPersonalizationScheduler` was **the only one of the three schedulers with no test
+file**. `test_hint_personalization_scheduler.py` covers both branches with opposite expectations, so
+neither can pass by doing nothing:
+
+- student still on the attempt → an SSE event is published **and its hint text differs from the
+  canonical rung** (asserting only that "an event arrived" would pass on a repaint with identical
+  content, which is indistinguishable from success in every log and counter);
+- student moved on → nothing published, **and the row still completes** (asserting only "nothing
+  published" would also pass if the scheduler had crashed on its first line).
+
+Writing it caught a real wiring error: the narrative snapshot builder took different arguments, and
+the scheduler *swallowed the resulting `TypeError`* — the same silence D-329 was about.
+
+### 5. A correction to D-329, recorded rather than quietly edited
+
+`test_background_gateway_registry.py` asserted that the bug "ran in production for as long as the
+feature had existed". **Measured, that is false.** Personalization worked 2026-07-30 → 08-08 (50 of
+60 events), degraded on 08-11, was dead 08-12 → 08-14, and came back **0 of 99 → 2 of 2** on the fix.
+It was a regression, not an original defect. The fix is real; the history was invented and stated as
+fact. Ninth instance of "a present-tense claim in a docstring, never measured".
+
+### 6. Not fixed here, and why
+
+The fix is a cross-process event bus — Postgres `LISTEN`/`NOTIFY` (no new dependency; Postgres is
+already required and the payload is a session id) or Redis pub/sub (a new managed service). That is
+an architecture decision and it belongs to the user, so it is reported with options rather than
+chosen unilaterally. **Nothing is broken that was working before**; the defect is as old as the
+deferred-background pattern and has simply never been measured.
