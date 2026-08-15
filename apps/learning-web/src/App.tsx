@@ -92,6 +92,11 @@ function App() {
     if (location.pathname === "/") navigate(SESSION_PATH, { replace: true });
   }, [location.pathname, navigate]);
 
+
+  // `sub` is passed so the hook can drop a `sessionStorage` session belonging to a previous
+  // sign-in in this tab - see `clearSessionIfOwnedByAnotherSubject`.
+  const session = useLearningSession(token, sub);
+
   // U4/D-338: put the finished session in the URL the moment it completes, so the screen the
   // student is looking at is the screen a bookmark restores. Without this the results page is
   // reachable only by typing an id nobody has - "bookmarkable" would be true of the endpoint and
@@ -106,10 +111,6 @@ function App() {
     const target = `${RESULTS_PATH}/${encodeURIComponent(completedSessionId)}`;
     if (location.pathname !== target) navigate(target, { replace: true });
   }, [completedSessionId, location.pathname, navigate]);
-
-  // `sub` is passed so the hook can drop a `sessionStorage` session belonging to a previous
-  // sign-in in this tab - see `clearSessionIfOwnedByAnotherSubject`.
-  const session = useLearningSession(token, sub);
   // `fetchExamOverview`/`recordItemTime` are pulled out by name rather than read off
   // `session` at the call site: the hook returns a fresh object every render, so a
   // `useCallback` depending on `session` would be re-created every render and reintroduce
