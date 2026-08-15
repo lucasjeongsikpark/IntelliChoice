@@ -55,6 +55,29 @@ def _build_gateway(settings: YoutubeSyncSettings) -> ResilientBedrockGateway:
     )
 
 
+def saw_whole_channel(covered: int, deferred: int) -> bool:
+    """May this run deactivate catalog rows it did not encounter?
+
+    Only if it searched **every** skill. Two independent reasons it might not have:
+
+    - `deferred > 0` - the quota cap cut the term list (D-326 addendum's case).
+    - `covered > 0` - the resumable selection deliberately skips skills that already have a
+      servable video, so **their** videos are absent from `seen_ids` by construction.
+
+    **The second reason was missed, and it did real damage.** D-326's addendum guarded only on
+    `deferred == 0` while its own comment described the resumability case correctly. On staging
+    2026-08-15 a run with `covered=72, deferred=0` evaluated this as "saw everything" and marked
+    **182 videos inactive** - the entire previously-active catalog, found by earlier runs'
+    searches. Net coverage still rose 72 -> 76 skills, which is precisely why it was easy to miss:
+    the headline improved while the catalog was replaced underneath it.
+
+    That is the same failure D-326's addendum was written to prevent, reproduced by an incomplete
+    version of its own fix. Tested here rather than only through `sync_channel`, because the
+    existing tests passed this flag *in* - they exercised its effect and never its computation.
+    """
+    return covered == 0 and deferred == 0
+
+
 async def _pending_search_terms(
     repo: YoutubeRepository, settings: YoutubeSyncSettings, curriculum: CurriculumContent
 ) -> tuple[list[str], int, int]:
@@ -144,10 +167,7 @@ async def main() -> None:
                     curriculum=curriculum,
                     channel_id=settings.channel_id,
                     run_budget_cents=settings.bedrock_run_budget_cents,
-                    # D-326 addendum: only a run that searched every pending term may
-                    # deactivate what it did not see. `deferred > 0` means the quota cap cut
-                    # the term list, so this run's `seen_ids` is not the whole channel.
-                    saw_whole_channel=deferred == 0,
+                    saw_whole_channel=saw_whole_channel(covered, deferred),
                 )
             except YoutubeSyncError as exc:
                 print(f"sync failed, previous catalog left untouched: {exc}")

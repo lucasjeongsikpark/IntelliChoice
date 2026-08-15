@@ -25,6 +25,7 @@ from intellichoice_youtube.settings import (
     check_real_sync_preflight,
     check_search_quota,
 )
+from intellichoice_youtube.sync_cli import saw_whole_channel
 
 
 def _settings(**overrides: object) -> YoutubeSyncSettings:
@@ -148,3 +149,31 @@ def test_a_raised_allowance_is_declared_rather_than_assumed():
         daily_quota_units=50_000,
     )
     check_search_quota(settings, 112)
+
+
+def test_a_resumable_run_that_skipped_covered_skills_must_not_deactivate() -> None:
+    """**The staging regression, as a unit test.**
+
+    On 2026-08-15 a run with `covered=72, deferred=0` deactivated **182 videos** - the entire
+    previously-active catalog - because the guard only asked whether the *quota* had cut the term
+    list. The resumable selection also skips every already-covered skill, so those skills' videos
+    are absent from `seen_ids` by construction and `mark_inactive_except` removes them.
+
+    Net coverage still rose 72 -> 76 skills that run, which is why it was easy to miss: the
+    headline improved while the catalog was replaced underneath it. Same shape as D-326's addendum,
+    reproduced by an incomplete version of its own fix.
+    """
+    assert saw_whole_channel(covered=72, deferred=0) is False
+
+
+def test_a_quota_capped_run_must_not_deactivate() -> None:
+    """D-326 addendum's original case, kept: a run whose term list was truncated by the quota has
+    not seen the channel either."""
+    assert saw_whole_channel(covered=0, deferred=40) is False
+    assert saw_whole_channel(covered=10, deferred=40) is False
+
+
+def test_only_a_run_that_searched_every_skill_may_deactivate() -> None:
+    """The positive arm, without which the guard could be satisfied by returning False always -
+    and a catalog that never deactivates anything accumulates videos the channel has removed."""
+    assert saw_whole_channel(covered=0, deferred=0) is True
