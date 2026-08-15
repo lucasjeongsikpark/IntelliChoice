@@ -24295,3 +24295,34 @@ The deactivated rows are still in the table. Because coverage is computed from *
 those 25 skills now read as uncovered, so the next run's resumable selection will search them and
 the upsert will set their videos active again. With the guard fixed, that run will not deactivate
 the 200 currently active. Quota spent today is 4,000 of 10,000, leaving room for the recovery run.
+
+### D-337 verification — the guard held, and coverage went 72 → 102 of 112
+
+**Date:** 2026-08-15 · Deployed `6e48084`; recovery run exit 0.
+
+**The contrast is exact, and it is the fix doing the work rather than luck:**
+
+| run | guard input | `saw_whole_channel` | created | updated | **marked inactive** |
+|---|---|---|---|---|---|
+| 1, broken guard | `covered=72, deferred=0` | **True** (wrong) | 154 | 46 | **182** |
+| 2, fixed guard | `covered=76, deferred=0` | **False** (right) | 81 | 119 | **0** |
+
+Same code path, same channel, same day. The only difference is the condition, and the deactivation
+count went from 182 to zero.
+
+**Recovery, measured:**
+
+| | before today | after run 1 | after run 2 |
+|---|---|---|---|
+| skills with a servable video | 72 | 76 | **102 of 112** |
+| skills holding only inactive videos | — | 25 | **3** |
+| videos / active | 262 / 200 | 416 / 200 | **497 / 363** |
+
+The 119 "updated" in run 2 are largely the rows run 1 had wrongly deactivated, re-found and set
+active again — the self-healing path §5 predicted, confirmed rather than assumed.
+
+**Spend:** 79.66¢ + 79.28¢ = **$1.59**; quota 7,600 of 10,000 units.
+
+**Still short of complete:** 10 skills have no video at all and 3 hold only inactive ones. Those are
+a **content** question — whether the pinned channel publishes anything for them — not a quota or
+code question, and no further run will change it.
