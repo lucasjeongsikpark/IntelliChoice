@@ -87,6 +87,19 @@ class LearningSession(Base):
     checkpoint_deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # D-333: when long-term memory consolidation last succeeded for this session. The retention
+    # job refuses to delete a checkpoint while this is NULL - that is the user's gate, "only delete
+    # after consolidation succeeds" - and skips the paid Bedrock call when it is already set.
+    #
+    # Nullable with no backfill on purpose. `finalize_exam` has been consolidating completed
+    # sessions since S25, long before this column existed, so a default of "not consolidated" would
+    # be wrong for most historical rows and a default of "consolidated" would be a claim the
+    # database cannot support. The job resolves the unknown case by looking for consolidation
+    # *evidence* (a live `semantic_memory` fact citing one of this session's events) before
+    # reaching for the gateway.
+    memory_consolidated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     consolidated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

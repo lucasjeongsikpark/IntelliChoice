@@ -23833,3 +23833,105 @@ so the next person does not reach for the seeded one.
 blocked in a future version.` It is harmless today and it is a real future break — for the running
 app as much as for this job — since a LangGraph upgrade that enforces it would make old checkpoints
 unreadable. Recorded as a carry-over.
+
+### D-333 — The deletion half: three windows, consolidation as a gate, and a classifier hole I put there myself
+
+**Date:** 2026-08-15 · **Status:** implemented, **dry-run by default** · **Follows:** D-331, D-332
+
+The user's decisions, taken after D-331's measurement, and the rule in their own words:
+
+> Keep both chat and abandoned/pending checkpoints on a 90-day inactivity retention window. Before
+> deleting any eligible checkpoint, run long-term memory consolidation first; only delete the
+> checkpoint after consolidation succeeds, and retain/retry it if consolidation fails.
+
+and, once told that chat-api persists nothing about its conversations:
+
+> Do not treat chat as purely ephemeral without consolidation, and do not build a full
+> chat-summary/audit table just to support retention. Before deleting a chat checkpoint after the
+> 180-day inactivity window, run the existing long-term memory consolidation pipeline over the
+> conversation state. **A successful no-op when there is nothing worth remembering counts as
+> successful consolidation.**
+
+### 1. Three windows, because they are three policies
+
+| completed learning | abandoned/pending learning | chat |
+|---|---|---|
+| **30 days** (SPEC's own number) | **90 days** inactivity | **180 days** inactivity |
+
+Ordered shortest-first for the *safest* case, which is the opposite of ordering by volume:
+completed sessions are 1.7% of the bytes and the most fully durable; abandoned ones are 77% and may
+still be resumed; chat is 19% and has no durable record at all. A test pins the ordering, so an
+edit that inverts it fails rather than quietly changing how long a student's data lives.
+
+### 2. The finding that made the chat answer necessary
+
+**`chat-api` persists nothing about its conversations.** It writes only `interrupt_approvals` and
+`mcp_tool_calls`; `tutor_chat_messages` is written *solely by learning-api*. A chat-api question,
+its answer and its citations exist **only in the checkpoint**. That was reported before the window
+was applied, because "180-day retention" and "the only record of what we told a student" are very
+different sentences about the same rows.
+
+**Chat consolidation is a structural no-op today, and it is recorded as one rather than hidden.**
+`consolidate_student_session` reads `learning_events`; chat-api emits none. So the call returns a
+zero-cost success for every chat thread. That is not a wiring gap: `semantic_memory`'s twelve fact
+types are all about learning (`weak_skill`, `misconception`, `hint_dependence`, …) and "when does
+Saturday class start?" maps to none of them. The gate is written to become *real* automatically if
+chat ever does emit events, rather than being special-cased into always passing.
+
+### 3. Consolidation as a gate, without becoming a cost bug
+
+`consolidate_student_session` is a paid Bedrock call and `finalize_exam` has been making it since
+S25, so re-consolidating every eligible thread would re-pay for finished work at a volume that
+scales with the backlog. `_ensure_consolidated` therefore checks, in order: the recorded
+`memory_consolidated_at` flag → consolidation *evidence* (a live `semantic_memory` fact citing one
+of this session's events) → and only then the gateway. Plus `MAX_THREADS_PER_RUN` and
+`MAX_SPEND_CENTS`, both checked before each call.
+
+**Evidence is judged per session, never per student.** Per-student is wrong in the dangerous
+direction: a student with any fact at all would look consolidated for every session they ever had,
+including one whose events were never processed.
+
+**Failure retains.** The `except` around consolidation is deliberately broad: an unanticipated
+error must cost that one thread, not abort the run and leave every remaining thread unprocessed.
+
+### 4. A classifier hole I put there myself, and what it measured
+
+My first `_chat_thread_ids` selected "has checkpoints but no `learning_sessions` row". **A learning
+thread the reconciler has not projected yet also has no row.** Under that rule, if the reconciler
+had never run, every learning thread past 180 days would have been deleted under the chat policy —
+*bypassing the consolidation gate entirely*. The gate would still have been in the code and simply
+never reached, which is the worst version of a safety check.
+
+It is exactly the failure D-331 §3 warned about in the abstract — "the job must classify thread
+kind explicitly, never infer it from a missing field" — committed in the same session that wrote
+the warning.
+
+Fixed by additionally requiring that no checkpoint of the thread carries `phase`. **Measured on dev:
+12,836 threads had no summary row; only 12,716 also carried no `phase`. The 120-thread difference
+was real learning threads created since the last reconciler run.**
+
+### 5. Verified
+
+**The restore test (falsification check #1) exists and passes** — a real session driven to
+`completed`, consolidated, its checkpoint deleted, and every durable artefact re-read afterwards:
+attempts, mastery, `learning_gain`, `semantic_memory`, the summary row, and the five orphan fields.
+
+**And it was wrong first, caught by measurement.** The helper originally stopped after the
+pre-exam's `finalize`, which leaves the session in `study` — no `learning_gain` row and not the
+state the 30-day policy selects on. Both tests passed anyway. Caught by querying
+`learning_sessions.phase` after the run, never by re-reading the helper. That is the eighth
+instance of this shape in the project and the second in this session.
+
+**The job itself, run against dev:**
+
+| | |
+|---|---|
+| dry run | 14 eligible, **0 deleted**, `would_delete: 14`, **0.0000¢** |
+| apply run | 14 deleted, **1,176 checkpoint rows removed**, 0 orphaned writes, 0 orphaned blobs |
+| second apply run | **0 eligible, 0 deleted** — idempotent |
+| summaries after deletion | 14 rows intact, all 14 still carrying `week_id` |
+
+**One honest gap in that run:** all 14 took the *no-events* branch, not the evidence-intersection
+branch, so the interesting half of `_ensure_consolidated` is unit-tested (five parametrised cases)
+and not yet exercised live. The no-op branch is sound regardless — consolidation reads
+`learning_events`, so with zero events it can produce nothing whether the checkpoint exists or not.
