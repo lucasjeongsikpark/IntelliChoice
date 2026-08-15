@@ -88,6 +88,49 @@ The 2,178 chat count matches the independent phase census exactly, which is a se
 that the classifier agrees with the data rather than with itself. And 9/9 completed sessions being
 fully answerable without their checkpoint is the precondition the deletion job needed.
 
+**✅ THE PERSONALIZED HINT IS PROVEN, AND PROVING IT FOUND A REAL DEFECT (2026-08-15, D-334/D-335).**
+D-329's carry-over — *"still unproven: that a student sees the personalized hint"* — is closed.
+
+**The answer was yes, 2 of 4 times.** A probe drove real staging sessions, opened the SSE stream
+**before** requesting the hint, and **waited 20-25 s instead of clicking on**. The delivered text is
+real tutoring that names the student's own wrong answer. So the feature worked and did not arrive
+reliably.
+
+**Why: `SessionEventBus` was in-process and `learning-api` runs 2 ECS tasks.** The SSE connection is
+pinned to whichever replica the ALB gave it; `POST /respond` is routed independently and its
+background task published to its own process's bus. Different replica, no delivery. **The failure
+rate rises as the service scales out.** It affected every background-published event, including
+D-217's deferred stage narratives — not just hints.
+
+**Fixed with Postgres `LISTEN`/`NOTIFY` (D-335). SQS was considered at the user's request and
+declined on structure:** it is a work queue with competing consumers — one message to exactly one
+poller — so two replicas polling would land it on the wrong one half the time, reproducing the bug
+with more infrastructure. SNS fanned out to a queue *per replica* works but means queue lifecycle
+tied to ECS tasks replaced on every deploy.
+
+**Measured before and after, and the fix shipped broken once in between:**
+
+| | conclusive runs | delivered |
+|---|---|---|
+| before | 6 | **3 (50%)** |
+| after | 8 | **8 (100%)** |
+
+**⚠️ The first relay deployed green and started on neither replica** — `ValueError: bad query field`,
+because a naive scheme string-replace fed asyncpg a password containing URL-significant characters.
+Relay startup is deliberately non-fatal, so the API booted fine and the fan-out silently did not
+exist: *the exact failure shape D-334 was about, reproduced by its own fix.* Found by grepping the
+deployed logs for `session_event_relay_started` and getting **zero** — not by any gate. **And its
+test passed**, because it asserted the transformation the code performed rather than the property
+that mattered.
+
+**Two corrections to the record.** D-329's claim that personalized hints "had never worked in
+production" is **false**: measured, they worked 07-30 → 08-08 (50 of 60), regressed 08-11/12, and
+the fix restored them 0 of 99 → 2 of 2. And the bus docstring's *"a single in-memory dict is enough
+- this app runs as one Uvicorn worker in dev"* was true of dev and false of every deployment.
+
+**Carry-over:** `chat-api` has the same bus shape, but its only publisher is on the request path
+where the client already has the data in the HTTP response, so nothing is lost today.
+
 **✅ U7 IS COMPLETE (2026-08-15, D-333).** The deletion half is merged (`8c86685`, #274, 9/9 CI
 green) and deployed — run `31857020472` success, both services on `gha-8c86685b1de6` with
 rollout `COMPLETED`, read from ECS rather than the workflow's own report. **Deletion is dry-run unless `CHECKPOINT_RETENTION_APPLY=true`.**

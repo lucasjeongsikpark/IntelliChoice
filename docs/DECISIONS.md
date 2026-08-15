@@ -24122,3 +24122,36 @@ to asyncpg, so no URL is left to mis-parse, plus `ssl_connect_args` for RDS's `r
 (S34) — which the string version had also silently omitted. The replacement test asserts parsed
 components against a deliberately hostile password containing `?`, `&`, `=`, `>`, `[`, `#` and `/`,
 and a second one pins the local-vs-RDS SSL split.
+
+### D-335 verification — 3 of 6 before, 8 of 8 after
+
+**Date:** 2026-08-15 · Deployed `daf323c`, both services on `gha-daf323c8a837`, rollout `COMPLETED`.
+
+**The relay is running on both replicas**, read from the deployed logs rather than inferred from a
+green deploy — the mistake the addendum above records:
+
+```
+session_event_relay_started origin=199a298d
+session_event_relay_started origin=5881aecb
+relay_start_failed: 0
+```
+
+Two distinct origins is the load-bearing detail: one would mean a single task listening and the
+fan-out still half-blind.
+
+**Delivery, measured with `scripts/measure_hint_delivery.py`** — a real session, an SSE connection
+opened before the hint request, and a 20-25 s wait instead of clicking on:
+
+| | conclusive runs | delivered |
+|---|---|---|
+| before D-335 | 6 | **3 (50%)** |
+| after D-335 | 8 | **8 (100%)** |
+
+Inconclusive runs (the probe answered correctly by luck, so no intervention opened) are excluded
+rather than counted as failures — they measured nothing.
+
+If the true rate were still 50%, eight consecutive deliveries would occur about **1 time in 256**.
+
+Every delivered hint carried real, misconception-specific text naming the student's own error —
+*"I see you divided 18 by 2 and got 9—but remember, the $8 is the base price for the pizza
+itself!"* — so this is the feature working, not merely an event arriving.
