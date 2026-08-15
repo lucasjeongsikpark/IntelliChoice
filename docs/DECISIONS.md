@@ -24016,3 +24016,75 @@ already required and the payload is a session id) or Redis pub/sub (a new manage
 an architecture decision and it belongs to the user, so it is reported with options rather than
 chosen unilaterally. **Nothing is broken that was working before**; the defect is as old as the
 deferred-background pattern and has simply never been measured.
+
+### D-335 — SSE events now cross replicas: Postgres LISTEN/NOTIFY, and why not SQS
+
+**Date:** 2026-08-15 · **Status:** implemented · **Fixes:** D-334
+
+D-334 measured that a background-published SSE event reached the student in **2 of 4** staging
+runs, because `SessionEventBus` was in-process and `learning-api` runs 2 ECS tasks. This is the fix.
+
+### 1. SQS was considered at the user's request, and it does not fit
+
+The user asked to consider AWS SQS. Evaluated and declined, for a reason worth writing down because
+it is easy to get backwards:
+
+**SQS is a work queue with competing consumers - one message is delivered to exactly one poller.**
+The requirement here is the opposite: *broadcast to every replica*, where the one holding the SSE
+connection delivers and the rest discard. With two replicas polling one queue the message lands on
+the wrong one about half the time - **the same 50%, now with a queue to operate.** The mismatch is
+structural: this is not work distribution, it is addressed delivery to whichever process holds one
+specific TCP connection, and the publisher cannot know which that is.
+
+**SNS fanned out to a queue per replica does work**, and it was the honest AWS-native option. Its
+cost is queue *lifecycle*: each ECS task needs its own queue created at startup and torn down at
+stop, on tasks that are replaced on every deploy and every scale event - plus IAM, Terraform,
+orphan cleanup, and ~100 ms-1 s of long-poll latency, for one enhancement on a solo-maintained
+system.
+
+**`LISTEN`/`NOTIFY` has the same fan-out semantics with none of the lifecycle**: every listening
+connection receives every notification, and a dead process simply stops listening. Postgres is
+already a hard dependency, `asyncpg` is already installed, and RDS supports it natively.
+
+### 2. The payload question was settled by measurement, not by assumption
+
+`NOTIFY` rejects payloads at 8000 bytes, which made "send the whole event" versus "send an id and
+re-read" a real design fork - and re-reading would have meant rebuilding a snapshot per replica,
+where `_initial_snapshot` can make a Bedrock call.
+
+Measured instead: real staging SSE frames are **1160 / 1455 / 1889 / 2291 bytes**. The whole event
+fits with room, so it is sent whole and no rebuild is needed. `MAX_PAYLOAD_BYTES = 7000` leaves
+margin for the JSON envelope, and an event that exceeds it is **dropped from the fan-out rather than
+truncated** - a half-snapshot would be rendered by the client as though it were whole. The local
+subscriber is still served, so that one event degrades to pre-D-335 behaviour.
+
+### 3. Three properties the implementation holds deliberately
+
+- **Local delivery is not conditional on the relay.** `publish` serves this process's subscribers
+  first, then fans out. A relay failure degrades to exactly the old behaviour instead of breaking
+  the same-replica case that already worked, and `attach_relay` is optional so dev and tests need
+  no connection at all.
+- **The echo is dropped by origin.** Every listener receives every notification *including the
+  process that sent it*; without a per-bus origin id a local publish would be delivered twice and
+  the hint panel would repaint itself for nothing.
+- **A dedicated connection, outside the SQLAlchemy pool.** `LISTEN` binds to a session, and a
+  pooled connection returned between requests would silently stop listening - the failure mode
+  being no error anywhere and a quiet fan-out.
+
+### 4. The seam was missing, not the assertion
+
+`test_session_event_relay.py` publishes on one bus and asserts a *different* bus's subscriber
+receives it. **The old design could not fail that test, because "another replica" was not
+expressible** - one in-process dict has no other side. That is why D-334 survived: not a missing
+assertion but a missing seam, which is why the fix ships with the seam rather than only with a fix.
+
+The old docstring is the tenth instance of this session's recurring pattern, and the most expensive
+one: *"a single in-memory dict is enough - this app runs as one Uvicorn worker in dev"*. True of
+dev, false of every deployment, and never re-examined when the service grew to two tasks.
+
+### 5. Scope
+
+`learning-api` only. `chat-api` has its own `ChatSessionEventBus` with the same shape, but its only
+publisher is on the request path - where the client already has the same data in the HTTP response,
+so the SSE copy is a secondary channel rather than the sole delivery. Recorded as a follow-up rather
+than done here, because there is no background publisher in chat to lose anything.

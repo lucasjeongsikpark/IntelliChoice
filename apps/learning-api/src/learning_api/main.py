@@ -62,6 +62,7 @@ from learning_api.services.consolidation_scheduler import (
 from learning_api.services.hint_personalization_scheduler import (
     BackgroundHintPersonalizationScheduler,
 )
+from learning_api.services.session_event_relay import SessionEventRelay
 from learning_api.services.session_events import SessionEventBus
 from learning_api.services.stage_narrative_scheduler import (
     BackgroundStudyNarrativeScheduler,
@@ -99,8 +100,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     adapter = MySQLProfileAdapter(settings.mysql_url)
     app.state.profile_adapter = adapter
-    # SPEC §5.14.1 SSE stream's in-process pub/sub (S11) - one bus for the app's
-    # lifetime, same D-007 lifespan-singleton pattern as everything else on `app.state`.
+    # SPEC §5.14.1 SSE stream's pub/sub (S11) - one bus for the app's lifetime, same D-007
+    # lifespan-singleton pattern as everything else on `app.state`. The relay below fans it
+    # across replicas; without it a background publish only reaches the ECS task it ran on
+    # (D-334 measured that at 2 of 4).
     app.state.session_events = SessionEventBus()
     # Gmail MCP stand-in (SPEC §5.24) - real client selection by env is a future
     # session's scope once real Google credentials exist (D-002's pattern). Only ever
@@ -272,8 +275,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         else:
             app.state.study_narrative_scheduler = None
             app.state.hint_personalization_scheduler = None
+
+        # D-335: fan SSE events across replicas. Started last so a failure here cannot leave a
+        # half-built app, and tolerated rather than fatal - without the relay the bus degrades to
+        # its pre-D-335 in-process behaviour, which is worse than fixed but better than an API
+        # that will not boot over a push channel.
+        relay = SessionEventRelay(app.state.session_events, settings.database_url)
+        try:
+            await relay.start()
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "session_event_relay_start_failed - SSE events will not cross replicas",
+                exc_info=True,
+            )
+            relay = None
+        app.state.session_event_relay = relay
+
         yield
 
+    if relay is not None:
+        await relay.stop()
     await adapter.close()
     await engine.dispose()
 
