@@ -1,15 +1,19 @@
 """AUD-L-12: `Mastery.recommended_difficulty` narrows template choice within the chosen
 skill (SPEC §5.11.2 rules 2-3).
 
-**Why these tests are synthetic, and why that is the honest form here.** The live bank is
-1:1 skill<->difficulty - 5 approved skills, 10 templates each, one tier apiece - so
-`_closest_to_recommended` provably returns the whole pool for *every* possible
-recommendation, and no end-to-end test on real content can distinguish the wired
-implementation from the unwired one. That masking is the finding. These tests therefore
-build multi-tier templates by hand, which is the only way to exercise the mechanism before
-real content has two tiers for one skill; the wiring itself (mastery row -> selector) is
-asserted separately against the real flow in
-`test_learning_flow.py::test_difficulty_recommendation_reaches_template_selection`.
+**Why the first tests here are synthetic, and why that stopped being the whole story
+(D-341).** When this file was written the live bank was 1:1 skill<->difficulty - 5 approved
+skills, 10 templates each, one tier apiece - so `_closest_to_recommended` provably returned
+the whole pool for *every* recommendation, and no test on real content could distinguish the
+wired implementation from the unwired one. That masking was the finding, and hand-built
+multi-tier templates were the only way to exercise the mechanism.
+
+**That premise is now false, and the tests at the bottom of this file are the consequence.**
+Measured 2026-08-15: 958 approved items, and **81 of 96 spanning skills hold templates at more
+than one tier**. Real content can exercise this now. The synthetic tests stay - they pin the
+branch behaviour precisely, which a real-content test cannot - but they are no longer the only
+honest form. The wiring itself (mastery row -> selector) is asserted separately against the
+real flow in `test_learning_flow.py::test_difficulty_recommendation_reaches_template_selection`.
 
 No database: `_select_template` needs exactly one repository method, so a stub gives a
 faster and stricter test than seeding rows would.
@@ -214,3 +218,68 @@ def test_the_exact_tier_still_wins_when_it_has_something_unused() -> None:
     chosen = _select(templates, recommended=3, used={"t-tier3-used"})
 
     assert chosen.question_template_id == "t-tier3-free"
+
+
+# ---------------------------------------------------------------------------------------
+# D-341: the same function, against the REAL curriculum rather than hand-built templates.
+#
+# This file's header says the tests above are synthetic because "no end-to-end test on real
+# content can distinguish the wired implementation from the unwired one". That was true of a
+# 5-skill, one-tier-each bank. It is not true now: 81 of 96 spanning skills carry approved
+# templates at more than one tier, so the branches select genuinely different pools.
+#
+# These two tests exist because of a *decision*, not just a growth in content. 15 spanning
+# skills declare tiers the bank does not stock yet (`adv_vectors` declares [2, 4, 5] and holds
+# only tier 2), and the user's ruling is that those declarations **stay** - the gaps close by
+# generating content, not by narrowing the taxonomy. That makes the final fallback load-bearing
+# rather than defensive, and a test that never asks whether a declared-but-unstocked tier is
+# still servable would be missing the one thing the decision depends on.
+# ---------------------------------------------------------------------------------------
+
+
+def _real_curriculum_spanning_skills() -> list[tuple[str, list[int]]]:
+    from intellichoice_curriculum.content import load_curriculum
+
+    return [
+        (s.skill_id, sorted(s.difficulty_tiers))
+        for s in load_curriculum().skills
+        if len(s.difficulty_tiers) > 1
+    ]
+
+
+def test_every_declared_tier_of_every_spanning_skill_is_servable() -> None:
+    """**The property the taxonomy decision rests on.**
+
+    For each spanning skill, and each tier it declares, `_closest_to_recommended` must return a
+    non-empty pool from whatever that skill actually holds - including the 15 skills whose
+    declared tiers are ahead of the bank. Empty means a student recommended that tier gets no
+    question at all, which is how a declared-but-unstocked tier would become a dead end.
+
+    Driven from the real declarations rather than a fixture list, so a taxonomy edit is covered
+    the moment it lands instead of when someone remembers to update a constant.
+    """
+    spanning = _real_curriculum_spanning_skills()
+    assert spanning, "the curriculum has no spanning skills - this test would be vacuous"
+
+    for skill_id, declared in spanning:
+        # The worst case the bank can present: a single stocked tier, as far from the
+        # recommendation as this skill's declaration allows.
+        for stocked_tier in {declared[0], declared[-1]}:
+            pool = [_template(f"{skill_id}-only", stocked_tier)]
+            for recommended in declared:
+                got = _closest_to_recommended(pool, recommended)
+                assert got, (
+                    f"{skill_id} declares tier {recommended} but a bank holding only tier "
+                    f"{stocked_tier} returned no candidates - that tier is a dead end"
+                )
+
+
+def test_an_exactly_matching_tier_still_wins_over_a_nearby_one() -> None:
+    """The other half: the fallback must not have swallowed the preference.
+
+    A function that always returned the whole pool would pass the test above trivially - it is
+    satisfied by never being empty. This one fails unless the exact-match branch actually
+    narrows, which is the behaviour AUD-L-12 found unwired and the reason the file exists.
+    """
+    pool = [_template("far", 1), _template("exact", 4), _template("near", 5)]
+    assert [t.question_template_id for t in _closest_to_recommended(pool, 4)] == ["exact"]

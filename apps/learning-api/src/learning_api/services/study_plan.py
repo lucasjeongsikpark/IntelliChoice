@@ -70,14 +70,22 @@ def _closest_to_recommended(
     a recommendation is a preference, and a skill with no template near it must still be
     servable.
 
-    **Provably inert on the current curriculum, by construction rather than by luck.**
-    Every approved skill has exactly one difficulty tier (`TOPIC_DIFFICULTY_SKILLS` maps
-    tier -> skill 1:1; the live bank is 5 skills x 10 templates, one tier each), so all
-    three branches return the same full list: the exact-match branch catches
-    `recommended == tier`, the +/-1 branch catches an adjacent recommendation, and the
-    fallback catches the rest. That is *why* AUD-L-12 was invisible, and it is why this
-    function is tested against synthetic multi-tier templates - there is no content that
-    can exercise it. It starts mattering the first time one skill has two tiers.
+    **This used to say "provably inert on the current curriculum", and that is now false
+    (D-341).** It was written when the bank was 5 skills x 10 templates at one tier each, so
+    every branch returned the same full list and AUD-L-12 could hide. Measured 2026-08-15: the
+    bank holds 958 items and **81 of 96 spanning skills carry approved templates at more than
+    one tier**, so the exact-match and +/-1 branches now select genuinely different pools. The
+    same docstring also claimed "there is no content that can exercise it", which is the
+    opposite of true - `test_study_plan_difficulty_routing.py` now exercises it against the
+    real curriculum rather than only against hand-built templates.
+
+    **The final fallback is load-bearing and must stay** (D-341). 15 spanning skills declare
+    tiers the bank does not yet stock - `adv_vectors` declares [2, 4, 5] and holds only tier 2 -
+    and the user's decision is that those declarations stay, because the gaps close by
+    generating content rather than by narrowing the taxonomy. So a recommendation of 4 or 5 for
+    that skill lands outside +/-1 of anything approved, and `within_one or candidates` is what
+    keeps the skill servable. Returning empty there would make a declared-but-unstocked tier a
+    dead end.
 
     Order is preserved, so the `rng.choice` downstream stays deterministic (Phase 10).
     """
