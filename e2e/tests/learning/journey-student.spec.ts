@@ -131,14 +131,25 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
   // `feedback_visibility="hidden_until_finalize"` makes it `null` for every pre/post-exam
   // answer and a real bool for every study answer, so reading the field selects the phase.
   const studyVerdicts: { correct: boolean; ladderOpened: boolean }[] = [];
+  // **The phase the *server* last reported, which is what the study loop exits on (D-340).**
+  // D-321 diagnosed the drift and added the reconciliation assertion below, but left the loop
+  // reading `.phase-chip` - a DOM signal that lags a phase change and renders behind a modal.
+  // Measured 2026-08-15 on run 3 of 4 at `7d1bf67`: **8 answers submitted, 4 graded as study**,
+  // so the walk answered four post-exam questions believing they were study work.
+  let serverPhase: string | null = null;
   page.on("response", async (response) => {
     if (response.request().method() !== "POST" || !response.url().endsWith("/answers")) return;
     if (response.status() >= 300) return;
     try {
       const body = (await response.json()) as {
         is_correct?: unknown;
+        phase?: unknown;
         pending_interrupt?: { interrupt_type?: string } | null;
       };
+      // **Recorded before the `is_correct` filter, deliberately.** The filter selects *study*
+      // answers; the phase is needed from every answer, including the one that ends the study
+      // phase - which returns `post_exam` while still being a study answer.
+      if (typeof body.phase === "string") serverPhase = body.phase;
       if (typeof body.is_correct !== "boolean") return;
       studyVerdicts.push({
         correct: body.is_correct,
@@ -154,8 +165,22 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
   let interventions = 0;
   for (let i = 0; i < 12; i += 1) {
     await settleToInteractiveScreen(page);
-    const phase = await currentPhase(page);
-    if (phase && /post-exam/i.test(phase)) break;
+    // **Exit on the server, not the screen (D-340).** The answer that *completes* the study
+    // phase already returns `phase: "post_exam"`, so breaking on it leaks nothing: the walk
+    // stops before submitting a single post-exam question. `.phase-chip` is consulted only
+    // before any answer has been graded, where no server verdict exists yet - and `post[-_]`
+    // matches both spellings, since the wire says `post_exam` and the chip says `post-exam`.
+    const phase = serverPhase ?? (await currentPhase(page));
+    // Breadcrumb only (D-340): the first attempt at this fix did not hold - two of four runs
+    // still drifted - and the guess "the chip lags" cannot explain why the *server* phase failed
+    // to stop the loop. Record what each iteration actually saw, so the next run names the
+    // mechanism instead of prompting another guess (D-311's standing rule).
+    audit.note(
+      `study loop i=${i}: serverPhase=${serverPhase ?? "(none yet)"} ` +
+        `chip=${serverPhase === null ? await currentPhase(page) : "(not read)"} ` +
+        `answered=${studyAnswers} graded=${studyVerdicts.length}`,
+    );
+    if (phase && /post[-_]exam/i.test(phase)) break;
     // A wrong answer pauses the graph on `intervention_choice`; the ladder must be
     // worked before the next question is reachable (SPEC §5.11.3).
     // The second argument is U1's breadcrumb (D-324): it records which locator won the

@@ -24443,3 +24443,56 @@ result screen **positively** — `<h2>Video</h2>`, which the menu does not rende
 
 Fourteenth instance of this session's pattern, caught before shipping rather than after, and only
 because the run's own note was read instead of its exit code.
+
+### D-340 — The study loop now exits on the server, and the drift it was meant to fix was never captured
+
+**Date:** 2026-08-15 · **Status:** fix shipped, **not proven**; instrument left in place
+
+C1's Phase 6 clause reddened on run 3 of 4 at `7d1bf67` (68/7/0, 68/7/0, **67/7/1**, 68/7/0), with
+D-321's reconciliation guard firing: *"8 answers were submitted in the study loop but the server
+graded only 4 as study answers."*
+
+### 1. The fix D-321 described and did not make
+
+D-321 diagnosed the mechanism and added the assertion, but left the loop exiting on `.phase-chip` —
+its own comment says why that is wrong: *"the phase chip … lags a phase change; the server's own
+grading does not lag."* The loop now prefers the phase reported by the last `POST /answers`
+response, falling back to the chip only before any answer has been graded.
+
+**That exit is exact when it applies:** the answer that *completes* the study phase already returns
+`phase: "post_exam"`, so breaking on it stops the walk before it submits a single post-exam
+question — zero leakage rather than the slack-of-1 the assertion tolerates.
+
+### 2. What the measurement actually showed, including where it contradicts D-321
+
+Eight journey runs against staging after the fix:
+
+| batch | results |
+|---|---|
+| first 4 | **drift 4**, **drift 7**, 0, 0 |
+| next 4 (instrumented) | 0, 0, 0, 0 |
+| plus one instrumented run before those | 0 |
+
+**Seven consecutive clean runs, and the two drifts both happened with the fix already live.** So
+the fix did not obviously eliminate it, and seven clean runs is weak evidence against a ~1-in-6
+base rate. **This is not claimed as fixed.**
+
+**A breadcrumb on a clean run already contradicts part of D-321's account.** Across all twelve
+iterations `serverPhase` stayed `study` and the loop exited on the **iteration limit**, never on a
+phase change — so "the walk carried on past the end of the study phase" is not what happened in
+that run. A drift of 4-7 with the phase never leaving `study` points somewhere else entirely:
+`studyAnswers` counts *clicks the walk made*, not answers the server graded, so a submission that
+409s, races, or is swallowed inflates the left side without touching the right. That is a different
+defect from the one D-321 named, and it is **unconfirmed** — no breadcrumb from a drifting run has
+been captured.
+
+### 3. Why it ships anyway, and what stays behind
+
+The change is correct in principle regardless of whether it is *the* cause: a server-reported phase
+is strictly better than a DOM signal the codebase has already been burned by twice (D-321, D-324),
+and it cannot make the walk worse. The per-iteration breadcrumb stays, so the next occurrence
+records `serverPhase`, the chip, and both counters at the moment of drift — which is what will name
+the mechanism instead of prompting a third guess (D-311's standing rule).
+
+**C1's Phase 6 clause stays ⏸.** It closes when the walk stops being able to redden a run, and
+nothing here establishes that.
