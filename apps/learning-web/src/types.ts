@@ -305,3 +305,14 @@ export interface StudentReport {
   verified_facts: Record<string, unknown>;
   created_at: string;
 }
+
+/** U4/D-338: `GET /learning/sessions/{id}/results` - a completed cycle, readable by id. */
+export interface SessionResults {
+  learning_session_id: string;
+  topic_id: string | null;
+  learning_gain: LearningGain;
+  hint_count: number;
+  solution_count: number;
+  video_count: number;
+  completed_at: string;
+}

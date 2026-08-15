@@ -16,6 +16,7 @@ import { TopicSelectScreen } from "./screens/TopicSelectScreen";
 import { AttendanceScreen } from "./screens/AttendanceScreen";
 import { ExamScreen } from "./screens/ExamScreen";
 import { AssistancePanel } from "./screens/InterventionScreen";
+import { BookmarkedResultsScreen } from "./screens/BookmarkedResultsScreen";
 import { ResultsScreen } from "./screens/ResultsScreen";
 import { StageTransitionScreen } from "./screens/StageTransitionScreen";
 import { StudentDashboardScreen } from "./screens/StudentDashboardScreen";
@@ -33,6 +34,10 @@ const ROLE_KEY = "intellichoice.role";
 /** U4/D-327: the two URLs the app owns. `/` resolves to the session flow. */
 const SESSION_PATH = "/session";
 const DASHBOARD_PATH = "/dashboard";
+// U4/D-338: `/results/:learningSessionId`. A path segment rather than a query string so
+// the URL reads as a page a student can bookmark, and so §5.1.2's route-keyed notices can
+// treat it as its own route.
+const RESULTS_PATH = "/results";
 
 /**
  * The two top-level destinations, now **derived from the URL** rather than held in state
@@ -60,6 +65,13 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const view: View = location.pathname.startsWith(DASHBOARD_PATH) ? "dashboard" : "session";
+  // The session id in `/results/:id`, or null when this is not a results URL. Present *and*
+  // matching the live session is the ordinary post-finalize case, which the snapshot already
+  // renders - only a results URL with no live session behind it needs fetching.
+  const bookmarkedResultsId =
+    location.pathname.startsWith(`${RESULTS_PATH}/`)
+      ? decodeURIComponent(location.pathname.slice(RESULTS_PATH.length + 1))
+      : null;
   // Kept named `setView` so every existing call site reads unchanged; it now pushes a history
   // entry, which is what makes Back work.
   const setView = useCallback(
@@ -79,6 +91,21 @@ function App() {
   useEffect(() => {
     if (location.pathname === "/") navigate(SESSION_PATH, { replace: true });
   }, [location.pathname, navigate]);
+
+  // U4/D-338: put the finished session in the URL the moment it completes, so the screen the
+  // student is looking at is the screen a bookmark restores. Without this the results page is
+  // reachable only by typing an id nobody has - "bookmarkable" would be true of the endpoint and
+  // false of the product.
+  //
+  // `replace`, not `push`: Back from the results should leave the app rather than step to the
+  // same session's pre-completion URL, which the graph will not serve again.
+  const completedSessionId =
+    session.snapshot?.phase === "completed" ? session.snapshot.learning_session_id : null;
+  useEffect(() => {
+    if (completedSessionId === null) return;
+    const target = `${RESULTS_PATH}/${encodeURIComponent(completedSessionId)}`;
+    if (location.pathname !== target) navigate(target, { replace: true });
+  }, [completedSessionId, location.pathname, navigate]);
 
   // `sub` is passed so the hook can drop a `sessionStorage` session belonging to a previous
   // sign-in in this tab - see `clearSessionIfOwnedByAnotherSubject`.
@@ -340,6 +367,27 @@ function App() {
         ? (childCandidates?.find((c) => c.student_external_id === dashboardStudentId)
             ?.display_name ?? null)
         : null;
+
+    // U4/D-338: a `/results/:id` URL with no live session behind it. Placed before every
+    // session-derived branch because those all read `session.snapshot`, which for a bookmark
+    // opened tomorrow is either absent or a *different* session - rendering them first would show
+    // the sign-in or topic screen at a URL that names a finished cycle.
+    //
+    // When the id *is* the live session, this deliberately falls through: the snapshot already
+    // has the results and re-fetching them would be a request for data on screen.
+    if (
+      bookmarkedResultsId !== null &&
+      bookmarkedResultsId !== session.snapshot?.learning_session_id
+    ) {
+      return (
+        <BookmarkedResultsScreen
+          token={token}
+          learningSessionId={bookmarkedResultsId}
+          onDone={() => navigate(SESSION_PATH)}
+          onViewDashboard={() => setView("dashboard")}
+        />
+      );
+    }
 
     if (view === "dashboard" && dashboardStudentId) {
       return (

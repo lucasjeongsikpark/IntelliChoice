@@ -24363,3 +24363,83 @@ duplicated entries: none
 Before the fix the same endpoint returned 10 entries for 9 cycles, showing `linear_equations`
 twice. D-336 is closed on both halves: the cause cannot recur (guard plus constraint) and the
 existing damage is repaired.
+
+### D-338 — U4's fourth criterion: results readable after the session is over
+
+**Date:** 2026-08-15 · **Status:** implemented · **Closes:** U4's ⏸ from D-327
+
+D-327 shipped three of four criteria and recorded the fourth honestly: *"`ResultsScreen` reads the
+live snapshot and no endpoint serves a completed session's results by id, so a `/results` route
+would work only while that session was still live."*
+
+### 1. What made it possible was U7
+
+`learning_gain` carries `pre_assessment_session_id`, `post_assessment_session_id` and
+`study_session_id` — but **no `learning_session_id`**. There was no path from a URL to a cycle's
+numbers. `learning_sessions` (D-332), built for checkpoint consolidation, is exactly that mapping,
+so the endpoint that U4 needed became a lookup rather than a schema change.
+
+### 2. Two sources, in this order, and both are needed
+
+`GET /learning/sessions/{id}/results` reads the **summary row first, the checkpoint second**:
+
+- the reconciler that fills `learning_sessions` is **not yet scheduled**, so a session finished a
+  minute ago has no row — and that is precisely the session a student bookmarks;
+- the checkpoint is deleted at 30 days by U7's retention job, after which the summary row is the
+  only thing keeping the URL alive.
+
+Either source alone breaks one of the two cases.
+
+### 3. Authorization is derived, never taken from the URL
+
+The session id names the cycle; the student comes from the **record**, and `resolve_target_student`
+then decides whether this caller may read that student (self, or a verified parent link). A student
+pasting a classmate's session id gets the same 404 as one pasting a nonexistent id — SPEC §5.21.3,
+and a test asserts the two are indistinguishable.
+
+### 4. The response carries the whole gain, on purpose
+
+Not a flattened subset. `ResultsScreen` then needs no "restored from a URL" variant, and a student
+cannot tell which path rendered their screen. A subset would have meant a second client type
+drifting from the first the next time the screen read one more field.
+
+`navigate(\`/results/:id\`, { replace: true })` fires the moment the session completes, so the
+screen the student is looking at **is** the screen a bookmark restores. Without it "bookmarkable"
+would be true of the endpoint and false of the product.
+
+### 5. The test that earns the criterion
+
+`test_the_results_survive_the_checkpoint_being_deleted` consolidates a real completed session,
+deletes its checkpoint the way the retention job does, **asserts the checkpoint is actually gone**,
+and then reads the results back. Serving results while the session is live proves nothing the
+snapshot could not already do; the claim is about what happens after, so the test has to remove the
+thing it might otherwise be reading.
+
+### D-339 — U6's video criterion: reachable, then met, and a test that could not fail on the way
+
+**Date:** 2026-08-15 · **Status:** criterion met on staging
+
+U6 closed ⏸ on *"a band walk sees a real video offered"* being **unreachable by the harness**:
+`clearInterventionIfPresent` clicks "Get a hint" at every §5.11.3 menu, so no journey had ever taken
+the Video branch. It was also unreachable by content — 4 of 112 skills had a video when U6 was
+written; D-337's sync made it **102 of 112**.
+
+`video-intervention.spec.ts` takes the click no other journey makes, and asserts the branch resolves
+to one of §5.11.6's two legitimate outcomes: a card (link present, absolute URL, non-empty title,
+and the meta text must **not** say "watched" — D-314's honesty rule) or the no-video message (real
+text, no raw error). Which one occurred is recorded either way, so a channel that covers nothing is
+visible in the artifact rather than hidden behind a green tick.
+
+**Measured on staging: `U6 CRITERION | a real video was offered: true`** —
+*"How to solve one-step equations | Linear equations | Algebra I | Khan Academy"*, a real URL,
+correctly matched to a linear-equations skill.
+
+**The first version of this test could not fail, and it took reading the artifact to see it.** It
+waited on `.intervention-panel` and branched on whether a `.video-card` was inside. It passed — and
+the text it recorded as the "no video fallback" was *the intervention menu*: `"Not quite — want a
+hand? … GET A HINT / SHOW THE SOLUTION / WATCH A VIDEO"`. The panel it matched was the one already
+on screen, so the assertion held whether or not the click did anything. Fixed by waiting for the
+result screen **positively** — `<h2>Video</h2>`, which the menu does not render.
+
+Fourteenth instance of this session's pattern, caught before shipping rather than after, and only
+because the run's own note was read instead of its exit code.
