@@ -24335,3 +24335,31 @@ active again — the self-healing path §5 predicted, confirmed rather than assu
 **Still short of complete:** 10 skills have no video at all and 3 hold only inactive ones. Those are
 a **content** question — whether the pinned channel publishes anything for them — not a quota or
 code question, and no further run will change it.
+
+### D-336 verification — 10 rows became 9, and the earliest survived
+
+**Date:** 2026-08-15 · Migration `ecee04921753` applied to staging RDS by the `104510b` deploy.
+
+| | before | after |
+|---|---|---|
+| `learning_gain` rows | 10 | **9** |
+| distinct `(pre, post)` cycles | 9 | **9** |
+| `uq_learning_gain_pre_post_cycle` | absent | **present** |
+
+**Exactly one row removed and no others** — the row count fell by one while the cycle count did
+not move, which is the pair of numbers that distinguishes "deleted the duplicate" from "deleted
+something".
+
+**The surviving row is the earliest**, `2026-08-07 01:40:35`, not the `01:41:21` retry. That is the
+rule the migration states, confirmed against the data rather than assumed from the SQL.
+
+**The parent-visible symptom is gone**, read from the deployed API:
+
+```
+entries shown to the parent: 9
+duplicated entries: none
+```
+
+Before the fix the same endpoint returned 10 entries for 9 cycles, showing `linear_equations`
+twice. D-336 is closed on both halves: the cause cannot recur (guard plus constraint) and the
+existing damage is repaired.
