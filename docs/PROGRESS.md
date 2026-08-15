@@ -88,6 +88,47 @@ The 2,178 chat count matches the independent phase census exactly, which is a se
 that the classifier agrees with the data rather than with itself. And 9/9 completed sessions being
 fully answerable without their checkpoint is the precondition the deletion job needed.
 
+**✅ U7 IS COMPLETE (2026-08-15, D-333).** The deletion half is merged (`8c86685`, #274, 9/9 CI
+green) and deployed — run `31857020472` success, both services on `gha-8c86685b1de6` with
+rollout `COMPLETED`, read from ECS rather than the workflow's own report. **Deletion is dry-run unless `CHECKPOINT_RETENTION_APPLY=true`.**
+
+**The policy, decided by the user:** completed learning **30 days** (SPEC's own number),
+abandoned/pending **90 days** inactivity, chat **180 days** inactivity. Ordered shortest-first for
+the *safest* case rather than by volume, and a test pins the ordering. **Consolidation gates
+deletion** — nothing is deleted until long-term memory consolidation succeeds, a failure retains the
+checkpoint for the next run, and a successful no-op counts as success.
+
+**Reported before the window was applied: `chat-api` persists nothing about its conversations.** It
+writes only `interrupt_approvals` and `mcp_tool_calls`; `tutor_chat_messages` is written *solely by
+learning-api*. A chat Q&A exists only in its checkpoint. So chat consolidation is a **structural
+no-op** today — `semantic_memory`'s twelve fact types are all about learning — and that is written
+down rather than hidden behind a gate that always passes.
+
+**⚠️ A hole I put in myself, and the measurement that sized it.** `_chat_thread_ids` first selected
+"has checkpoints but no `learning_sessions` row". A *learning* thread the reconciler has not
+projected also has no row — so had the reconciler never run, every learning thread past 180 days
+would have been deleted under the chat policy, **bypassing the consolidation gate entirely**. It is
+exactly what D-331 §3 warned about in the abstract, committed in the same session that wrote the
+warning. Fixed by also requiring no `phase` in any of the thread's checkpoints. **Measured on dev:
+12,836 threads matched the loose rule, 12,716 the tight one — the 120 difference were real learning
+threads.**
+
+**The restore test exists, passes, and was wrong first.** Falsification check #1: a real session
+driven to `completed`, consolidated, checkpoint deleted, every durable artefact re-read. The helper
+originally stopped at the pre-exam's `finalize`, leaving the session in `study` — no `learning_gain`
+row and not the state the 30-day policy selects on — and **both tests passed anyway**. Caught by
+querying `learning_sessions.phase` after the run. That is the eighth instance of this shape in the
+project and the second today.
+
+**Verified:** pytest **1564 → 1578**. Dev: dry run 14 eligible / 0 deleted / **0.0000¢**; apply 14
+deleted, **1,176 checkpoint rows**, **0 orphaned** writes or blobs; second apply **0 eligible**.
+Staging: migration `4cfc45b7c5ff` applied, dry-run exit 0 with **0 eligible** (oldest thread is ~23
+days, so nothing clears 30 days yet), and checkpoint counts **identical** afterwards at
+74,704 / 324,416 / 30,367.
+
+**One honest gap:** all 14 dev threads took the *no-events* branch, so the evidence-intersection
+branch is unit-tested (5 parametrised cases) and not yet exercised live.
+
 **Second carry-over, logged not chased:** every `aget_tuple` warns
 `Deserializing unregistered type learning_api.graph.build.EntryInput ... will be blocked in a future
 version`. Harmless today, a real future break for the running app as much as for this job.

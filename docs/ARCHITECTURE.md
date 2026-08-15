@@ -989,7 +989,8 @@ flowchart TB
         YTSYNC["YouTube catalog sync (S15)<br/>make youtube-sync<br/>fetch→classify→embed→upsert→<br/>mark-missing-inactive"]
         WEBSYNC["Real org content sync (S17)<br/>make webcontent-sync (fetch→extract→<br/>write, human review) then<br/>make org-load / make knowledge-load"]
         MEMSYNC["Weekly memory consolidation (S25)<br/>make memory-consolidate<br/>per-student window→aggregate→<br/>MEMORY_CONSOLIDATION→validate→upsert"]
-        SESSSYNC["Session consolidation (U7, D-332)<br/>make session-consolidate<br/>checkpoint→aget_tuple→classify→<br/>upsert learning_sessions<br/>extract half only; nothing deletes<br/>a checkpoint yet"]
+        SESSSYNC["Session consolidation (U7, D-332)<br/>make session-consolidate<br/>checkpoint→aget_tuple→classify→<br/>upsert learning_sessions"]
+        CKPTRET["Checkpoint retention (U7, D-333)<br/>make checkpoint-retention<br/>completed 30d · pending 90d · chat 180d<br/>consolidation gates deletion;<br/>DRY-RUN unless CHECKPOINT_RETENTION_APPLY"]
     end
 
     subgraph STORES["Data stores (S1)"]
