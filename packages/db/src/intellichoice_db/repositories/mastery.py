@@ -37,9 +37,49 @@ class MasteryRepository:
         return existing
 
     async def record_learning_gain(self, gain: LearningGain) -> LearningGain:
+        """One row per (pre, post) cycle - returning the existing row if the cycle already has one.
+
+        **D-336: this used to be a bare `add`, and a cycle finalized twice produced two rows.**
+        Measured on staging: `pre=f422de5d…` has two rows with the *same* post session and
+        byte-identical numbers (`raw_gain=-1.0`, `normalized_gain=-0.125`), written **46 seconds
+        apart**. `POST /exam/finalize` carries no `Idempotency-Key` - only `/answers` does - so a
+        retry, a double submit or a reconnect recomputes the cycle and inserts again.
+
+        **The harm is parent-visible, and was verified against the deployed API rather than
+        inferred.** `services/history.py` builds one completed-session summary *per gain row*, so
+        `GET /learning/students/{id}/sessions` returned **10 entries for 9 real cycles** - a parent
+        seeing their child's `linear_equations` session listed twice, with identical scores.
+
+        Returning the existing row rather than raising: a second finalize of an already-finalized
+        cycle is a *retry*, not an error, and the caller wants the cycle's gain either way. The
+        recomputed values are discarded rather than written over the stored ones - they are
+        computed from the same attempts, so they agree, and preferring the first keeps
+        `computed_at` meaning "when this cycle was finalized".
+
+        **Not a race-proof guarantee.** Two truly concurrent finalizes could both miss the check
+        and insert. Closing that needs a unique constraint on
+        `(pre_assessment_session_id, post_assessment_session_id)`, which cannot be added while the
+        existing duplicate row is in the table - a deletion, and therefore the user's call. The
+        observed failure was 46 seconds apart, which this covers.
+        """
+        existing = await self.get_learning_gain_for_cycle(
+            gain.pre_assessment_session_id, gain.post_assessment_session_id
+        )
+        if existing is not None:
+            return existing
         self._session.add(gain)
         await self._session.flush()
         return gain
+
+    async def get_learning_gain_for_cycle(
+        self, pre_assessment_session_id: str, post_assessment_session_id: str
+    ) -> LearningGain | None:
+        """The pair is the cycle's identity: one pre form, one post form built against it."""
+        stmt = select(LearningGain).where(
+            LearningGain.pre_assessment_session_id == pre_assessment_session_id,
+            LearningGain.post_assessment_session_id == post_assessment_session_id,
+        )
+        return (await self._session.execute(stmt)).scalars().first()
 
     async def get_mastery(self, student_id: str, skill_id: str) -> Mastery | None:
         stmt = select(Mastery).where(
