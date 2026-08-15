@@ -2078,7 +2078,7 @@ at close, not recalled:
 | auto-approval decision recorded with its numbers | ✅ D-289 |
 | spend within per-run caps | ✅ every run behind a green preflight and an explicit cap |
 | Phase 6: per-band walks green on staging | ✅ 4 of 4, against the deployed build |
-| Phase 6: staging e2e green as a whole run | ⏸ **2 clean whole runs of 2 at one build (2026-08-15, `104510b`): 66/8/0 and 67/7/0, zero failures in either**, and the second *exercised* the ladder — `hint-displacement` ran rather than skipping and passed. That is the strongest evidence this clause has had, and it is **still not enough to close it.** The flake ran ~1-2 of 16 walks; at roughly 8 walks a run that is a ~50% chance of a clean run, so two in a row is ~25% by luck alone. **Closes at 4-5 consecutive clean whole runs of one build, or when the walk's option ordering is made deterministic** — the same premature-✅ shape this clause has already been marked with once (D-317 addendum) |
+| Phase 6: staging e2e green as a whole run | ⏸ **3 clean of 4 consecutive runs at one build (2026-08-15, `7d1bf67`): 68/7/0, 68/7/0, **67/7/1**, 68/7/0.** The clause does not close, and the run that reddened it is the reason two clean runs were not accepted earlier. **The red is the harness, with a named mechanism**, not a §5.11.3 product defect: D-321's reconciliation guard in `journey-student.spec.ts` fired — *"8 answers were submitted in the study loop but the server graded only 4 as study answers"* — so the walk carried past the end of the study phase and counted post-exam answers as study work. **The fix is the walk's study-loop exit condition**: it still leans on its own count where the server's grading is authoritative. Closes when that walk stops being able to redden a run |
 | Phase 6: staging serves the seeded bank | ✅ verified at `sha=ae41b7f2212f`, 958 items |
 | Phase 4: video catalog | ✅ **unblocked and stocked (2026-08-15, D-337).** The key arrived, the sync ran twice, and coverage is **102 of 112 skills** with a servable video (497 rows, 363 active), $1.59 and 7,600 of 10,000 quota units. **10 skills have no video at all and 3 hold only inactive ones** — a *content* question about what the pinned channel publishes, not a key, quota or code question, and no further run changes it. The first run also exposed D-337: the D-326-addendum guard checked the quota case but not the resumability case and deactivated 182 videos; fixed and re-verified at 0 |
 
@@ -2334,17 +2334,21 @@ review than two.
 **Done when:** a `post_outro` narrative renders a results-appropriate header · the field is optional
 so an older client cannot break on it.
 
-### Session U4 — URL routing ⏸ *(2026-08-14, D-327; three of four criteria)*
+### Session U4 — URL routing ✅ *(D-327 three of four; fourth closed 2026-08-15, D-338)*
 
 **Done:** a reload lands on the same screen · the dashboard is bookmarkable (deep link verified
 against the real CloudFront edge — no distribution change was needed) · Back works · **§5.1.2's
 route-aware gate is now possible**, which is why this session existed. Local e2e **74 passed**, both
 `exam-position-refresh` specs green so D-317's gate did not regress.
 
-**⏸ "results are bookmarkable" cannot be met yet.** `ResultsScreen` reads the live snapshot and no
-endpoint serves a completed session's results by id, so a `/results` route would work only while that
-session was still live. Needs `GET /learning/sessions/{id}/results` — new API surface, separate
-decision. Recorded in `routing.spec.ts`'s header rather than shipped looking finished.
+**✅ "results are bookmarkable" is now met (D-338).** `GET /learning/sessions/{id}/results` plus a
+`/results/:id` route. **U7 is what made it possible**: `learning_gain` carries no
+`learning_session_id`, so there was no path from a URL to a cycle's numbers until
+`learning_sessions` (D-332) existed. The endpoint reads the summary row first (the reconciler is not
+scheduled, so a just-finished session has none — and that is the one a student bookmarks) and the
+checkpoint second (deleted at 30 days by U7, after which the summary carries it). Authorization is
+derived from the record, never the URL: a pasted classmate id 404s exactly like a nonexistent one.
+The test that earns it deletes the checkpoint and asserts it is gone before reading the results back.
 
 **Phases are deliberately not in the URL:** a bookmarkable `/exam` could send a student to an exam the
 graph already finalized. The URL owns session-vs-dashboard; `phase` owns the rest.
@@ -2380,7 +2384,21 @@ telemetry and deliberately left this gap; this closes it without adding a proces
 **Done when:** a render crash reaches the server log with its `trace_id` · a stack containing a
 question stem is truncated, with a test · the endpoint is rate-limited, with a test.
 
-### Session U6 — YouTube catalog ✅ *(code done 2026-08-14, D-326; staging sync is a multi-day build)*
+### Session U6 — YouTube catalog ✅ *(fully closed 2026-08-15; D-326 code, D-337 catalog, D-339 criterion)*
+
+**All criteria met.** Coverage **102 of 112 skills** after two sync runs (D-337, $1.59, 7,600 of
+10,000 quota units), and the last criterion — *"a band walk sees a real video offered"* — is
+**met on staging**: `U6 CRITERION | a real video was offered: true`, a real Khan Academy
+linear-equations video with a working URL.
+
+**That criterion was unreachable twice over, and both reasons are now gone.** By *harness*:
+`clearInterventionIfPresent` clicks "Get a hint" at every §5.11.3 menu, so no journey had ever
+taken the Video branch — `video-intervention.spec.ts` (D-339) is the click no other walk makes.
+By *content*: 4 of 112 skills had a video when U6 was written.
+
+**Residual, and it is not a code question:** 10 skills have no video at all and 3 hold only
+inactive ones — whether the pinned channel publishes for them. No further run changes it.
+
 
 **Unblocked** — the key was already in Secrets Manager and the ops-task already carried the channel id.
 

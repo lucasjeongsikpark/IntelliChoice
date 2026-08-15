@@ -88,6 +88,39 @@ The 2,178 chat count matches the independent phase census exactly, which is a se
 that the classifier agrees with the data rather than with itself. And 9/9 completed sessions being
 fully answerable without their checkpoint is the precondition the deletion job needed.
 
+**✅ U4 AND U6 ARE CLOSED; C1 PHASE 6 IS NOT (2026-08-15, D-338/D-339).** Merged as `7d1bf67`
+(#281), deployed, both services on `gha-7d1bf6794b09` with rollout `COMPLETED`. pytest **1604**.
+
+**U4's fourth criterion is met (D-338).** `GET /learning/sessions/{id}/results` plus a
+`/results/:id` route. **U7 is what made it possible** — `learning_gain` carries no
+`learning_session_id`, so there was no path from a URL to a cycle's numbers until
+`learning_sessions` (D-332) existed. Summary row first (the reconciler is unscheduled, so a
+just-finished session has none, and that is the one a student bookmarks), checkpoint second
+(deleted at 30 days, after which the summary carries it). Authorization is derived from the record:
+a pasted classmate id 404s exactly like a nonexistent one. The test that earns it deletes the
+checkpoint, asserts it is gone, and reads the results back.
+
+**U6's video criterion is met (D-339).** `U6 CRITERION | a real video was offered: true` on staging —
+a real Khan Academy linear-equations video with a working URL. It had been unreachable twice over:
+by harness (`clearInterventionIfPresent` clicks "Get a hint" at every menu, so no walk had ever
+taken the Video branch) and by content (4 of 112 skills had a video; now 102).
+
+**⚠️ And that spec could not fail, first time round.** It waited on `.intervention-panel` and
+branched on whether a `.video-card` was inside — it passed, and the text it logged as the "no video
+fallback" was *the intervention menu*. Caught by reading the artifact, not the exit code. Fixed by
+waiting positively for `<h2>Video</h2>`, which the menu does not render. **Fourteenth instance of
+this session's pattern, and the first caught before shipping.**
+
+**C1 Phase 6 stays ⏸, and the measurement is why the earlier caution was right.** Four consecutive
+runs at `7d1bf67`: **68/7/0, 68/7/0, 67/7/1, 68/7/0** — three clean of four. Marking the clause on
+the two clean runs earlier today would have been wrong.
+
+**The red is the harness, with a named mechanism.** D-321's reconciliation guard fired: *"8 answers
+were submitted in the study loop but the server graded only 4 as study answers"* — the walk carried
+past the end of the study phase and counted post-exam answers as study work. Not a §5.11.3 product
+defect. **The fix is the walk's study-loop exit condition**, which still leans on its own count
+where the server's grading is authoritative.
+
 **✅ STAGING RE-VERIFIED AFTER FIVE DEPLOYS (2026-08-15).** Both services on `gha-104510b57eff`.
 Two full staging e2e runs at that one build: **66/8/0 and 67/7/0, zero failures in either**, run
 record `build_sha=104510b57eff` read from the harness rather than assumed.
