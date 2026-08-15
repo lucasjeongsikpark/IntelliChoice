@@ -138,16 +138,21 @@ async def _seed(session: AsyncSession, *, in_range_at: datetime, out_of_range_at
         )
     )
 
-    gain_pre_session = await assessment.create_session(
-        AssessmentSession(student_external_id=STUDENT_ID, session_type="pre_exam")
-    )
-    gain_post_session = await assessment.create_session(
-        AssessmentSession(student_external_id=STUDENT_ID, session_type="post_exam")
-    )
-
     # One LearningGain in range, one out of range - only the in-range row's
     # skill_level_gain should reach the pre/post-by-skill chart.
+    #
+    # **Each gain gets its own pre/post pair, because that is what two cycles are.** This loop used
+    # to reuse one pair for both rows, which D-336 made impossible: two gains sharing a (pre, post)
+    # is a *double-finalize of one cycle*, the parent-visible duplicate that repository guard now
+    # collapses. The fixture was encoding a state the product must never reach, and the test only
+    # passed because nothing enforced the invariant its own docstring claimed.
     for at, gain_value in [(in_range_at, 0.3), (out_of_range_at, 0.1)]:
+        gain_pre_session = await assessment.create_session(
+            AssessmentSession(student_external_id=STUDENT_ID, session_type="pre_exam")
+        )
+        gain_post_session = await assessment.create_session(
+            AssessmentSession(student_external_id=STUDENT_ID, session_type="post_exam")
+        )
         gain = LearningGain(
             student_external_id=STUDENT_ID,
             pre_assessment_session_id=gain_pre_session.assessment_session_id,

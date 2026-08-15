@@ -24155,3 +24155,72 @@ If the true rate were still 50%, eight consecutive deliveries would occur about 
 Every delivered hint carried real, misconception-specific text naming the student's own error —
 *"I see you divided 18 by 2 and got 9—but remember, the $8 is the base price for the pizza
 itself!"* — so this is the feature working, not merely an event arriving.
+
+### D-336 — A cycle finalized twice showed a parent the same session twice
+
+**Date:** 2026-08-15 · **Status:** cause fixed; **the existing duplicate row is left alone** (a
+deletion, and therefore the user's call) · **Follows:** D-331 §10, which logged it and did not chase it
+
+D-331 noticed one staging thread with two `learning_gain` rows and recorded it as out of scope.
+Chased now, it is a real parent-visible defect with a one-line cause.
+
+### 1. What the data says, precisely
+
+Of **10** gain rows on staging there are **9** distinct `(pre, post)` pairs. The duplicate is
+`pre=f422de5d…` with the **same** post session and **byte-identical** numbers - `raw_gain=-1.0`,
+`normalized_gain=-0.125` - written **46 seconds apart** (01:40:35 → 01:41:21, 2026-08-07).
+
+Same pre, same post, same values: a double-write of one cycle, not a student legitimately taking a
+second post-exam. `POST /exam/finalize` carries no `Idempotency-Key` - only `/answers` does - so a
+retry, a double submit or a reconnect recomputes the cycle and inserts again.
+
+### 2. The harm was read from the deployed API, not reasoned about
+
+`services/history.py` builds one completed-session summary **per gain row**, so
+`GET /learning/students/student-ext-1/sessions` returns **10 entries for 9 real cycles**:
+
+```
+2x  topic=linear_equations normalized=-0.125 raw=-1.0
+1x  topic=g6_geometry_measurement ...
+```
+
+A parent sees their child's session listed twice with identical scores. This was checked against
+staging rather than inferred from the code, because "one summary per row" and "the parent sees a
+duplicate" are different claims and only the second one matters.
+
+### 3. The invariant was already written down, and nothing enforced it
+
+`list_learning_gains_for_student`'s docstring has said *"one row per completed pre->study->post
+cycle"* since it was written. There is no unique constraint, no read-before-write, and no test.
+Twelfth instance of this session's pattern - a claim stated as fact and never checked - and the
+first where the claim was a **data invariant** rather than a comment about history.
+
+### 4. The fix, and what it deliberately does not do
+
+`record_learning_gain` now returns the existing row for a `(pre, post)` pair instead of inserting a
+second. Returning rather than raising: a second finalize is a **retry**, not an error, and raising
+would turn a harmless double submit into a 500 on a screen the student is waiting on. The
+recomputed values are discarded in favour of the stored ones - they read the same attempts so they
+agree, and preferring the first keeps `computed_at` meaning "when this cycle was finalized".
+
+**Keyed on the pair, not on the pre alone.** Keying on `pre_assessment_session_id` would silently
+discard a genuine second cycle - a student who studied again and took a new post-exam against the
+same pre would lose that result, which is worse than the duplicate being fixed. A test pins that
+arm.
+
+**Not race-proof, and stated rather than implied.** Two truly concurrent finalizes could both miss
+the check and insert. Closing that needs a unique constraint on `(pre_assessment_session_id,
+post_assessment_session_id)`, which **cannot be added while the existing duplicate row is in the
+table**. That is a row deletion on staging, so it is the user's call and is not done here. The
+observed failure was 46 seconds apart, which the guard covers.
+
+### 5. The guard immediately caught a fixture encoding the impossible state
+
+`test_dashboard_with_no_range_includes_everything` failed on the change: it seeded **two gains
+sharing one `(pre, post)` pair**, differing only in `computed_at`, to get "one in range, one out of
+range" for the date filter. That is precisely the double-finalize this fixes, written into a
+fixture - and the test passed for as long as it did only because nothing enforced the invariant.
+
+The intent was legitimate, so the fixture was corrected rather than the guard weakened: each gain
+now gets its own pre/post pair, which is what two cycles actually are. A green test built on an
+impossible state is worth more attention than the failure that exposes it.
