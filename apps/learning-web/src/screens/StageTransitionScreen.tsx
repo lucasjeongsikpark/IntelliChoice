@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { RichText } from "../components/RichText";
 
 /**
@@ -53,14 +54,13 @@ interface Props {
 }
 
 export function StageTransitionScreen({ narrative, evidence, stage, onContinue }: Props) {
-  const continueRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Focus the only action, so Enter/Space works without reaching for the mouse and a screen
-  // reader lands inside the dialog rather than wherever focus happened to be on the screen
-  // underneath - which is still mounted and still focusable without this.
-  useEffect(() => {
-    continueRef.current?.focus();
-  }, []);
+  // D-375: this was an initial focus move and nothing else, so Tab walked straight onto the
+  // screen underneath - "still mounted and still focusable without this", as the comment it
+  // replaces correctly observed, and then only solved for the first keystroke. The trap also
+  // restores focus on close, which the single `focus()` never did.
+  useFocusTrap(dialogRef);
 
   // Escape continues rather than doing nothing. There is only one way out of this dialog, so
   // the key that means "close" must take it - a dialog that swallows Escape reads as stuck.
@@ -83,7 +83,14 @@ export function StageTransitionScreen({ narrative, evidence, stage, onContinue }
   }, []);
 
   return (
-    <div className="narrative-overlay" role="dialog" aria-modal="true" aria-labelledby="narrative-text">
+    <div
+      ref={dialogRef}
+      tabIndex={-1}
+      className="narrative-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="narrative-text"
+    >
       <div className="narrative-card">
         <div className="gradient-bar" aria-hidden="true" />
 
@@ -104,7 +111,7 @@ export function StageTransitionScreen({ narrative, evidence, stage, onContinue }
           </section>
         )}
 
-        <button ref={continueRef} className="narrative-continue" onClick={onContinue}>
+        <button className="narrative-continue" onClick={onContinue}>
           Continue
         </button>
       </div>

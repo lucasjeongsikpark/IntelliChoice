@@ -4,6 +4,7 @@ approval (SPEC §5.1.4, Phase 8 §6.9). See the S5/S6/S7 session plans in docs/P
 for which of the nine spec'd endpoints are deferred and why.
 """
 
+import asyncio
 import logging
 import random
 import uuid
@@ -38,9 +39,11 @@ from intellichoice_shared.profiles import ProfileAdapter
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command, Interrupt, StateSnapshot
 from pydantic import BaseModel, Field
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learning_api.authorization import resolve_target_student
+from learning_api.config import get_settings
 from learning_api.dependencies import (
     get_bedrock_gateway,
     get_consolidation_scheduler,
@@ -650,6 +653,85 @@ def _graph_config(learning_session_id: str) -> RunnableConfig:
     return config
 
 
+TURN_TIMED_OUT_MESSAGE = (
+    "That took too long and was stopped. Your progress is saved - try again in a moment."
+)
+TURN_ALREADY_RUNNING_MESSAGE = (
+    "We're still working on your last action. Give it a moment and try again."
+)
+
+
+async def _claim_turn(db: AsyncSession, learning_session_id: str) -> None:
+    """One turn at a time per thread, enforced across replicas (D-376, porting D-346).
+
+    learning-api had **no advisory lock anywhere** — `grep -rn "advisory"` returned nothing.
+    Seven routes read the checkpoint, await, and then invoke, with the read-then-act window
+    wide open in between: `_get_state_values` is the read half, and two requests on one
+    `learning_session_id` could both see "no pending interrupt" and both reach `ainvoke`.
+    `AsyncPostgresSaver` has no optimistic-concurrency check, so both supersteps branch from
+    the same parent checkpoint and both write children — one turn's channel writes are lost,
+    and an `__interrupt__` raised by one can be discarded by the other.
+
+    **Reachable, if not common.** `busyRef` in `useLearningSession` is per *tab*, not a lock,
+    and Chrome's "Duplicate tab" copies `sessionStorage` — so two tabs hold the same session
+    id, each with its own busy gate. Two `ExamTimer`s expiring on the same wall-clock second
+    is the cleanest concrete pair, and shared branch devices make duplicated tabs plausible.
+
+    A **try**-lock, not a blocking one, for D-346's reason: with a 50s deadline, queueing
+    behind an in-flight turn could make the second tab wait most of a minute for a request it
+    will then repeat. An immediate, honest 409 is better. Transaction-scoped, so it covers the
+    whole turn and releases with the request even if it crashes.
+    """
+    acquired = await db.scalar(
+        text("SELECT pg_try_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"learning_turn:{learning_session_id}"},
+    )
+    if not acquired:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=TURN_ALREADY_RUNNING_MESSAGE
+        )
+
+
+async def _invoke_with_deadline(graph, payload, learning_session_id: str, ctx, db=None):
+    """Every `graph.ainvoke` in this router, under SPEC §5.25.1's outer bound (D-374).
+
+    **learning-api had no deadline of any kind** — verified by grep before this landed. The
+    gateway ladder is 3 attempts x `bedrock_call_timeout_s` plus 0.5s and 1.0s of backoff =
+    **61.5s**, and CloudFront cuts the client at 60s. D-208 measured the consequence on
+    `POST /exam/finalize`: 65-81s, with 61502.69ms of Bedrock "identical to the millisecond,
+    the signature of a ceiling being hit". The student saw an opaque edge 504 while the
+    backend kept working and kept spending, and on `GET /stream` it is worse — a non-2xx is
+    terminal for `EventSource`, so that tab receives no live push for the rest of its life.
+
+    **Cancelling mid-turn is safe for the same reason it is on chat** (D-346): the last
+    completed checkpoint is intact, which is the state a crash leaves and the state LangGraph
+    is built to resume from. The student's next request resumes rather than restarts.
+
+    The message says "your progress is saved" because it is true here in a way it is not for
+    a chat turn — an exam answer commits before the narrative work that overruns.
+
+    **The concurrency claim lives here too, deliberately** (D-376). Both bounds now apply at
+    exactly the same seven call sites, so an eighth `ainvoke` added later cannot pick up one
+    and miss the other — which is how learning came to have neither while chat had both.
+    `db` is optional only so a test can drive the deadline without a session; every route
+    passes it.
+    """
+    if db is not None:
+        await _claim_turn(db, learning_session_id)
+    try:
+        async with asyncio.timeout(get_settings().learning_turn_deadline_s):
+            return await graph.ainvoke(
+                payload, config=_graph_config(learning_session_id), context=ctx
+            )
+    except TimeoutError as exc:
+        logger.warning(
+            "learning_turn_deadline_exceeded", extra={"thread_id": learning_session_id}
+        )
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=TURN_TIMED_OUT_MESSAGE
+        ) from exc
+
+
 async def _reconcile_checkpoint(
     graph: LearningGraph, learning_session_id: str, state: dict, db: AsyncSession
 ) -> dict:
@@ -864,10 +946,12 @@ async def select_student(
         requested_student_id=body.student_id,
     )
     try:
-        result = await graph.ainvoke(
+        result = await _invoke_with_deadline(
+            graph,
             EntryInput(session_id=learning_session_id, entry_action="select_student"),
-            config=_graph_config(learning_session_id),
-            context=ctx,
+            learning_session_id,
+            ctx,
+            db,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
@@ -989,10 +1073,12 @@ async def select_topic(
         topic_id=body.topic_id,
     )
     try:
-        result = await graph.ainvoke(
+        result = await _invoke_with_deadline(
+            graph,
             EntryInput(session_id=learning_session_id, entry_action="select_topic"),
-            config=_graph_config(learning_session_id),
-            context=ctx,
+            learning_session_id,
+            ctx,
+            db,
         )
     except AssessmentBuildError as exc:
         raise HTTPException(
@@ -1061,10 +1147,12 @@ async def resolve_attendance_choice(
         bedrock_gateway=bedrock_gateway,
         attendance_choice=body.choice,
     )
-    result = await graph.ainvoke(
+    result = await _invoke_with_deadline(
+        graph,
         EntryInput(session_id=learning_session_id, entry_action="resolve_attendance"),
-        config=_graph_config(learning_session_id),
-        context=ctx,
+        learning_session_id,
+        ctx,
+        db,
     )
 
     pending = _result_interrupt(result)
@@ -1212,10 +1300,12 @@ async def submit_answer(
         defer_study_narrative=study_narrative_scheduler is not None,
     )
     try:
-        result = await graph.ainvoke(
+        result = await _invoke_with_deadline(
+            graph,
             EntryInput(session_id=learning_session_id, entry_action="submit_answer"),
-            config=_graph_config(learning_session_id),
-            context=ctx,
+            learning_session_id,
+            ctx,
+            db,
         )
     except flow.ItemAlreadyAnsweredError as exc:
         # The pre-flight above catches the ordinary exam case; this is the concurrent one
@@ -1616,10 +1706,12 @@ async def finalize_exam(
         defer_study_narrative=study_narrative_scheduler is not None,
     )
     try:
-        result = await graph.ainvoke(
+        result = await _invoke_with_deadline(
+            graph,
             EntryInput(session_id=learning_session_id, entry_action="finalize_exam"),
-            config=_graph_config(learning_session_id),
-            context=ctx,
+            learning_session_id,
+            ctx,
+            db,
         )
     except flow.ExamNotReadyToFinalizeError as exc:
         raise HTTPException(
@@ -1817,10 +1909,12 @@ async def respond_to_interrupt(
         defer_hint_personalization=hint_scheduler is not None,
     )
     try:
-        result = await graph.ainvoke(
+        result = await _invoke_with_deadline(
+            graph,
             Command(resume=resume_value),
-            config=_graph_config(learning_session_id),
-            context=ctx,
+            learning_session_id,
+            ctx,
+            db,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
@@ -1945,10 +2039,12 @@ async def resume_session(
         mcp_registry=mcp_registry,
         bedrock_gateway=bedrock_gateway,
     )
-    result = await graph.ainvoke(
+    result = await _invoke_with_deadline(
+        graph,
         EntryInput(session_id=learning_session_id, entry_action="resume"),
-        config=_graph_config(learning_session_id),
-        context=ctx,
+        learning_session_id,
+        ctx,
+        db,
     )
 
     response = ResumeResponse(

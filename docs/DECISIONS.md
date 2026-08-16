@@ -26041,3 +26041,213 @@ were "logging only… nothing here makes a network call, so a listener firing du
 cannot loop." Adding the report makes that false, so `reportClientError` carries the same
 re-entrancy latch learning-web needed, and the comment is corrected rather than left contradicting
 the code beneath it.
+
+---
+
+### D-373 — D-356 in the publisher nobody looked at, and the seven fixes that went one direction
+
+**Date:** 2026-08-16 · **Status:** fixed, falsified · **Files:** `apps/learning-api/src/learning_api/services/hint_personalization_scheduler.py`, `apps/learning-api/tests/test_hint_personalization_scheduler.py`
+
+The 2026-08-16 audit ([AUDIT_2026_08_16.md](AUDIT_2026_08_16.md)) had four independent sweeps
+report the same structure: **the two apps have been fixed in alternating directions and nobody
+tracked the symmetry.** D-347 recorded one direction and named the cause. Seven fixes have now
+gone one way only, and the seventh is this one.
+
+#### The defect
+
+`hint_personalization_scheduler` guarded its publish with
+
+```python
+if snapshot.values.get("last_study_attempt_id") != marker["attempt_id"]:
+```
+
+which asks *"has the student answered again?"* — and `intervention_choice` **does not advance
+that channel**; only `submit_answer` does. So a student who clicked "Watch a video" or "Show the
+solution" during the ~2.3 s Bedrock rewrite was still on the same attempt, the guard passed, and
+the published frame replaced their video with hint text.
+
+**That is D-356 exactly**, the defect treated as a launch blocker and fixed twice across two
+sessions — in the *narrative* scheduler. This publisher received neither D-358's
+`last_intervention_attempt_id` pairing nor D-369's publish-time re-read, and nobody opened it.
+
+**It is worse here than D-356 was, because it is unrecoverable.** A terminal rung closes the
+pause, nothing republishes, and `_initial_snapshot` gates `intervention` on
+`hint_ladder_awaiting_choice` — false at every terminal rung — so a refresh shows no help at all.
+The student spent their one intervention on nothing.
+
+#### The fix
+
+`_hint_is_still_on_screen(values, attempt_id, level)` asks whether the student is looking at
+*this* hint. Four conditions, each ruling out a real case: same attempt; the current help is a
+hint; at the same level; and paired to this attempt via D-358's channel.
+
+Evaluated **twice** — before the snapshot build and again immediately before the synchronous
+publish (D-369's lesson, ported). No awaits sit between the second check and the publish.
+
+**Deliberately strict:** a checkpoint written before D-358 shipped has no
+`last_intervention_attempt_id`, so the personalization is dropped and the student keeps the
+canonical hint — a complete, reviewed hint. The permissive direction erases help they chose.
+
+#### The tests, and what their absence had been hiding
+
+The file had two tests: "still here" and "moved to a different attempt". **Neither could see this
+defect**, because both leave `last_intervention` unset — the helper synthesised a checkpoint with
+only the one field the old guard read. Three added:
+
+- a student watching a **video** (the D-356 case) — falsified: reverting the predicate publishes;
+- a student who advanced to **hint 2** while hint 1 was being rewritten (the ladder must not walk
+  backwards) — the one condition not about D-356;
+- help that changes **while the snapshot is being built** (D-369's window), asserting both that a
+  second read happens and that nothing is published.
+
+All three go red on the reverted predicate; the two pre-existing tests stay green.
+
+**The module docstring described the old guard approvingly** and has been rewritten. It is worth
+noting as its own point: the wrong guard was documented as a feature for as long as it existed,
+which is why re-reading a docstring is not a substitute for re-reading the code under it.
+
+---
+
+### D-374 — learning had no deadline anywhere, and the frozen-exam state D-241 forbade
+
+**Date:** 2026-08-16 · **Status:** fixed · **Files:** `learning-api/config.py`, `learning-api/routers/sessions.py`, `learning-web/src/api/client.ts`, `learning-web/src/api/errors.ts`, `chat-web/src/api/errors.ts`, `apps/learning-api/tests/test_turn_deadline.py`
+
+Two halves of the same missing bound, from the 2026-08-16 audit. Both were built for chat and
+never ported — rows 1 and 5 of that audit's one-direction table.
+
+#### Server: `learning_turn_deadline_s = 50.0`
+
+There was **no `asyncio.timeout`, no `wait_for`, no deadline anywhere** in learning-api outside
+the SSE keep-alive. The gateway ladder is 3 attempts × 20 s plus 0.5 s and 1.0 s of backoff =
+**61.5 s**, against CloudFront's 60 s origin read timeout.
+
+**Not hypothetical — D-208 measured it** on `POST /exam/finalize`: 65–81 s with `61502.69ms` of
+Bedrock, *"identical to the millisecond, the signature of a ceiling being hit"*. D-208 moved
+consolidation off the path and left the inline `post_outro` narrative on it. On `GET /stream` it
+is worse: a non-2xx is terminal for `EventSource`, so that tab receives no live push for the rest
+of its life.
+
+All seven `graph.ainvoke` sites now go through `_invoke_with_deadline`. Cancelling mid-turn is
+safe for D-346's reason: the last completed checkpoint is intact, which is what a crash leaves
+and what LangGraph resumes from.
+
+#### Client: `REQUEST_TIMEOUT_MS = 55_000`
+
+learning-web had no `AbortController`, no `signal`, no timeout — and unlike chat-web it
+**serialises the whole UI behind one request.** `busyRef` is set before the call and cleared in a
+`finally` that never runs if the fetch never settles, so a stalled Submit disabled every option,
+Submit, Skip, Flag and the navigator *permanently*. The server timer kept running and
+`submitBlocked` then refused "Submit exam" because items were unanswered — **the student could
+neither answer nor submit**, the exact state D-241 records as one that must never exist. Only a
+reload escaped, and nothing on screen suggested one.
+
+#### The gap in D-352 that this also closes, in both apps
+
+D-352 added chat-web's timeout and **never taught `friendlyError` about it.** An aborted fetch
+raises a `DOMException`, not an `ApiError`, so a timed-out turn fell to *"You appear to be
+offline"* — wrong and unactionable when the network is fine and the server is merely slow. Both
+apps now map `TimeoutError`. chat deliberately does **not** map `AbortError`: `useChatSession`
+marks that turn cancelled and renders "You stopped this question", which is a truer sentence.
+
+#### The ordering is now arithmetic rather than a comment
+
+`test_the_deadline_sits_below_cloudfront_and_above_nothing_it_should_outlive` asserts the three
+bounds nest: deadline **50 s** < client **55 s** < CloudFront **60 s**, and the deadline below the
+61.5 s ladder it exists to bound. Each of those was a comment in some file and none was checked —
+which is how chat's client timeout came to sit above a server deadline that did not exist here.
+
+---
+
+### D-375 — The 401 nobody could act on, and a focus trap that was only half shipped
+
+**Date:** 2026-08-16 · **Status:** fixed · **Files:** `learning-web/src/App.tsx`, `hooks/useLearningSession.ts`, `hooks/useFocusTrap.ts` (new), `api/errors.ts`, `components/SubmitConfirmationModal.tsx`, `screens/StageTransitionScreen.tsx`, `components/TutorChatPanel.tsx`
+
+Rows 2, 3 and 4 of the audit's one-direction table — chat-web's D-347 and D-350, ported.
+
+#### The 401 (P1)
+
+`friendlyError` had a rule saying *"You've been signed out. Sign in again to keep going."* and
+**nothing acted on the status** — one grep hit in the whole app, the rule itself. `handleLogout`
+was the only code clearing the token and it renders only on `StartScreen`, which requires no
+session. So mid-exam:
+
+- every answer failed with an instruction the student could not follow;
+- the SSE stream carried the same dead token, died, and the Reconnect button re-opened with it;
+- a reload did not help — the dead token was still in `localStorage`, so the login screen never
+  rendered;
+- recovery meant opening a new tab, which abandons the session.
+
+**And this is the normal path, not an edge case.** A token lives one hour; a session is 25–40
+questions plus hint ladders and tutor turns.
+
+`handleSignedOut` clears the three keys. It deliberately does **not** call `endSession()`: the
+checkpoint is server-side, so signing back in resumes the same exam at the same question. Losing
+the session would be a second punishment for an expiry the student did not cause — D-347's
+reasoning about chat's transcript, applied to the thing learning has instead.
+
+**Residual, stated rather than glossed:** `EventSource` cannot read a status code, so a stream
+401 is not directly detectable. The next REST call clears the token and the login screen returns,
+which covers every student who acts; a student sitting idle keeps a dead stream until they do.
+
+#### The focus trap (P2, P1 for a keyboard-only student)
+
+Both learning modals shipped the half that looks like a trap and is not — an initial focus move
+plus `aria-modal="true"`, with nothing keeping focus inside. `aria-modal` hides the background
+from assistive technology, so a screen-reader user was covered and a sighted keyboard user was
+not. Two Tab presses from "Submit exam?" reach the exam options behind the scrim, where `1`–`4`
+or Enter **answers a question the student cannot see**.
+
+chat-web's `ApprovalModal` docstring names this exact mistake ("only the *initial* focus move and
+`aria-modal` ever shipped") and D-350 fixed it there. Extracted here as `useFocusTrap` so
+learning's two modals share one implementation.
+
+**The duplication across apps is left in place and flagged rather than taken silently.** The right
+home is a shared TS package, which does not exist — D-219's `RichText` carry-over is the same gap
+— and creating one changes both apps' builds. That is a decision to take deliberately, not a side
+effect of a bug fix. Until then `useFocusTrap.ts` and `ApprovalModal.tsx` must change together,
+and both say so.
+
+#### Two smaller ones in the same pass
+
+The tutor chat input had **no accessible name** — a screen reader announced "edit, blank", the
+same defect D-350 fixed on chat's composer. And its Enter handler had no `isComposing` guard, so
+the keystroke that *confirms* a Korean, Japanese or Chinese IME candidate also sent the
+half-committed text.
+
+---
+
+### D-376 — learning-api could invoke one graph thread twice, and both bounds now live in one place
+
+**Date:** 2026-08-16 · **Status:** fixed · **Files:** `apps/learning-api/src/learning_api/routers/sessions.py`, `apps/learning-api/tests/test_turn_deadline.py`
+
+Row 6 of the audit's one-direction table. `grep -rn "advisory" apps/learning-api/src/` returned
+**nothing**; chat has had `_claim_turn` since D-346.
+
+Seven routes read the checkpoint, await, then invoke — `_get_state_values` is the read half of
+that window. Two requests on one `learning_session_id` could both see "no pending interrupt" and
+both reach `ainvoke`. `AsyncPostgresSaver` has no optimistic-concurrency check, so both supersteps
+branch from the same parent checkpoint and both write children: one turn's channel writes are
+lost, and an `__interrupt__` raised by one can be discarded by the other — the state the 409
+exists to prevent.
+
+**Reachable, if uncommon.** `busyRef` is per *tab*, not a lock, and Chrome's "Duplicate tab"
+copies `sessionStorage`, so two tabs hold the same session id with independent busy gates. Two
+`ExamTimer`s expiring on the same wall-clock second both POST `/exam/finalize`. Shared branch
+devices make duplicated tabs plausible.
+
+#### The design choice worth recording
+
+**Both bounds are applied in the same helper.** `_invoke_with_deadline` now claims the lock and
+enforces the deadline, so all seven sites get both. The failure mode being designed against is
+concrete rather than theoretical: learning ended up with *neither* while chat had *both*, and the
+way that happens again is an eighth `ainvoke` added later picking up one and missing the other.
+`test_the_lock_and_the_deadline_are_applied_at_the_same_seven_call_sites` asserts exactly one
+direct `graph.ainvoke` remains — the helper's own.
+
+#### One measurement, because the suite looked slower
+
+The full learning-api run took 19:12 against 8:41 earlier, which would be an unacceptable cost for
+a lock. Measured directly on an invoke-heavy file: **150.7 s with the lock, 148.2 s without** —
+1.7%, i.e. noise. The suite difference was machine variance from concurrent work. Recorded because
+"the tests got slower after I added a lock" is exactly the kind of correlation that becomes folklore
+if nobody checks it.

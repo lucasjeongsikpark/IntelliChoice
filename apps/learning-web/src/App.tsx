@@ -93,9 +93,39 @@ function App() {
   }, [location.pathname, navigate]);
 
 
+  /**
+   * What a 401 does (D-375, porting chat-web's D-347).
+   *
+   * **Nothing acted on a 401 before, and the consequence was unrecoverable.** The friendly
+   * message said *"You've been signed out. Sign in again to keep going"* while no screen
+   * reachable mid-session offers a sign-in: `handleLogout` lives on `StartScreen`, which
+   * renders only when there is no session. The dead token stayed in `localStorage`, so
+   * `renderContent` skipped `DevLoginScreen` and even a reload did not help. The stream
+   * carries the same token in its query string, so it died too and the Reconnect button
+   * re-opened with it and failed again, forever.
+   *
+   * **And expiry mid-session is the normal path, not an edge case.** A token lives one hour;
+   * a session is a 10-question pre-exam, five study skill lines and a 10-question post-exam —
+   * 25-40 questions plus hint ladders and tutor turns.
+   *
+   * The three keys go, so the next render shows the login screen. `endSession()` is
+   * deliberately **not** called: the checkpoint is server-side and survives, so signing back
+   * in resumes the exam at the same question. Losing the session would be a second punishment
+   * for an expiry the student did not cause — the same reasoning D-347 applied to chat's
+   * transcript.
+   */
+  const handleSignedOut = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(SUB_KEY);
+    localStorage.removeItem(ROLE_KEY);
+    setToken(null);
+    setSub(null);
+    setRole(null);
+  }, []);
+
   // `sub` is passed so the hook can drop a `sessionStorage` session belonging to a previous
   // sign-in in this tab - see `clearSessionIfOwnedByAnotherSubject`.
-  const session = useLearningSession(token, sub);
+  const session = useLearningSession(token, sub, handleSignedOut);
 
   // U4/D-338: put the finished session in the URL the moment it completes, so the screen the
   // student is looking at is the screen a bookmark restores. Without this the results page is
