@@ -26213,3 +26213,41 @@ The tutor chat input had **no accessible name** — a screen reader announced "e
 same defect D-350 fixed on chat's composer. And its Enter handler had no `isComposing` guard, so
 the keystroke that *confirms* a Korean, Japanese or Chinese IME candidate also sent the
 half-committed text.
+
+---
+
+### D-376 — learning-api could invoke one graph thread twice, and both bounds now live in one place
+
+**Date:** 2026-08-16 · **Status:** fixed · **Files:** `apps/learning-api/src/learning_api/routers/sessions.py`, `apps/learning-api/tests/test_turn_deadline.py`
+
+Row 6 of the audit's one-direction table. `grep -rn "advisory" apps/learning-api/src/` returned
+**nothing**; chat has had `_claim_turn` since D-346.
+
+Seven routes read the checkpoint, await, then invoke — `_get_state_values` is the read half of
+that window. Two requests on one `learning_session_id` could both see "no pending interrupt" and
+both reach `ainvoke`. `AsyncPostgresSaver` has no optimistic-concurrency check, so both supersteps
+branch from the same parent checkpoint and both write children: one turn's channel writes are
+lost, and an `__interrupt__` raised by one can be discarded by the other — the state the 409
+exists to prevent.
+
+**Reachable, if uncommon.** `busyRef` is per *tab*, not a lock, and Chrome's "Duplicate tab"
+copies `sessionStorage`, so two tabs hold the same session id with independent busy gates. Two
+`ExamTimer`s expiring on the same wall-clock second both POST `/exam/finalize`. Shared branch
+devices make duplicated tabs plausible.
+
+#### The design choice worth recording
+
+**Both bounds are applied in the same helper.** `_invoke_with_deadline` now claims the lock and
+enforces the deadline, so all seven sites get both. The failure mode being designed against is
+concrete rather than theoretical: learning ended up with *neither* while chat had *both*, and the
+way that happens again is an eighth `ainvoke` added later picking up one and missing the other.
+`test_the_lock_and_the_deadline_are_applied_at_the_same_seven_call_sites` asserts exactly one
+direct `graph.ainvoke` remains — the helper's own.
+
+#### One measurement, because the suite looked slower
+
+The full learning-api run took 19:12 against 8:41 earlier, which would be an unacceptable cost for
+a lock. Measured directly on an invoke-heavy file: **150.7 s with the lock, 148.2 s without** —
+1.7%, i.e. noise. The suite difference was machine variance from concurrent work. Recorded because
+"the tests got slower after I added a lock" is exactly the kind of correlation that becomes folklore
+if nobody checks it.
