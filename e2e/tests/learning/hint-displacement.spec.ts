@@ -58,7 +58,21 @@ test("a requested hint stays on screen long enough to read", async ({ page, audi
   }
   test.skip(!reached, "no retry-ladder pause occurred in this run (every answer was correct)");
 
-  const clicked = await stableClick(page.getByRole("button", { name: /get a hint/i }));
+  // **Re-establish the menu between attempts** (D-363). `stableClick` retries the same
+  // locator and dismisses a blocking narrative, which covers the modal case but not this
+  // one: the chooser itself can re-render between "the menu is present" above and the click
+  // here, and four retries against a detached button all fail. Measured once - the run
+  // recorded `"Get a hint" click landed: false` with no `POST /respond`, burned the click
+  // budget and then the 30s wait, and reddened the whole suite for a button the harness
+  // never managed to press.
+  //
+  // Bounded and honest: if the menu keeps coming back and the button still will not take a
+  // click, that is a real finding and the assertion below still reports it.
+  let clicked = false;
+  for (let attempt = 0; attempt < 3 && !clicked; attempt += 1) {
+    await firstPause.waitFor({ state: "visible", timeout: 15_000 }).catch(() => undefined);
+    clicked = await stableClick(page.getByRole("button", { name: /get a hint/i }));
+  }
   audit.note(`"Get a hint" click landed: ${clicked}`);
 
   const panel = page.locator(".intervention-panel");

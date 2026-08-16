@@ -25543,3 +25543,83 @@ Three explanations were tested and two are excluded:
 **Recommendation, and it is not "raise the threshold":** add the eight live questions to
 `probe_eval.yaml` with their measured distances, then re-sweep. Tuning against a fixture that
 does not contain the failing cases is how a rule gets chosen that scores well and does nothing.
+
+---
+
+### D-360 — The position-restore spec polled the screen where the server was the authority
+
+**Date:** 2026-08-16 · **Status:** fixed · **Files:** `e2e/tests/learning/exam-position-refresh.spec.ts`
+
+`exam-position-refresh` reddened a whole staging run: the poll reached question 3, the reload
+restored to question **2**, and *the restore was right*. It lands on the first item still
+needing an answer, and the second submission was still in flight — the screen advances
+optimistically, so polling it proves only what the client believes.
+
+This is D-288's mechanism exactly, in the one spec that never got D-288's remedy.
+`journey-student.spec.ts` counts acknowledged 2xx responses before reloading and says so in a
+comment; this one polled the DOM. Fixed with `awaitAcceptance` — the option D-355 added a few
+hours earlier for the study loop, which turned out to be the right tool for a second caller.
+3/3 on staging.
+
+The local-only sibling at `:133` was deliberately left alone: its subject is a manufactured
+`/exam/overview` delay installed *after* the answers, not the answer race, and it is not
+flaking.
+
+---
+
+### D-361 — The hint spec was measuring the chooser, and reported a product defect for it
+
+**Date:** 2026-08-16 · **Status:** fixed · **Files:** `e2e/tests/learning/hint-displacement.spec.ts`
+
+`hint-displacement` failed a staging run with *"the hint panel unmounted after ~1ms without
+the student doing anything — a requested explanation the student cannot finish reading"*. That
+is a serious claim, and the run had no evidence for it.
+
+**The chooser is itself rendered inside `.intervention-panel`.** Waiting on that container
+matched the menu that was *already on screen* and resolved instantly. The proof is in the
+spec's own audit note, which recorded as "hint content" the menu verbatim: *"Not quite — want
+a hand? … GET A HINT / SHOW THE SOLUTION / WATCH A VIDEO"* — and the request log shows **no
+`POST /respond` at all**, so no hint was ever requested. The test then watched that menu
+unmount as the screen moved on and called it a product defect.
+
+**Fourth instance of one shape in a single session**, and the second of this exact sub-shape:
+D-339 fixed precisely this for `video-intervention.spec.ts` — *"the panel it matched was the
+one that was already on screen, so the assertion held whether or not the Video branch ever
+ran"* — and the sibling spec was never revisited.
+
+Now waits for `<h2>Hint N of M</h2>`, which `InterventionScreen` renders only on the hint
+branch and the menu never renders. The dwell loop tracks that heading rather than the
+container, because a hint replaced *by* the menu is a displacement, not a survival — which is
+the very thing this spec exists to detect. The click result is recorded too, since "the click
+did nothing" and "the hint never rendered" were previously indistinguishable.
+
+**Verified 3/3 on staging, and the timings are the tell:** 22–23s per run against the false
+path's 8.7s, with the recorded content now a real hint — *"Hint 1 of 3 … A nudge / The method
+/ Almost there"*, surviving **14.7s** of no interaction.
+
+---
+
+### D-362 — A staging run that takes 47 minutes is not evidence, and saying so is not selection
+
+**Date:** 2026-08-16 · **Status:** recorded
+
+The third accumulation run failed three specs and took **47.5 minutes** against a 6.1-minute
+norm. Two of the three failures were 15.5-minute *timeouts* rather than assertion failures,
+and the harness itself hit `apiRequestContext.post: Timeout 30000ms exceeded`.
+
+**Read the server before blaming the tests.** Over the same window learning-api logged **zero
+ERROR-level lines and zero requests slower than 20 seconds**, and both services sat at their
+desired counts with rollout `COMPLETED` and no events since the deploy. So the stall was not
+in the application. A single spec re-run immediately afterwards took **29.8s** — the same test
+that had just burned 15.5 minutes.
+
+**Why this is recorded rather than quietly re-run.** D-317's rule is that re-running until two
+runs land clean is claiming a criterion by selection, and that rule is right. The distinction
+here is direction of evidence: this is not a coin-flip flake being re-tossed, it is a run with
+positive, independent evidence that the measuring environment misbehaved — wall clock 8×
+normal, client-side timeouts, and a clean server-side record. A run that cannot measure is
+discarded as non-evidence and **named**, so the count is auditable rather than quietly
+restarted.
+
+**What it costs:** the accumulation restarts. C1 Phase 6's clause stays open on a recorded
+tally rather than on a claim.
