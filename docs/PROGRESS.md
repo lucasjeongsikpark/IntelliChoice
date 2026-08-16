@@ -68,6 +68,17 @@ first question got the 401 meant for the second. Same family as D-354.
   serializer from warn-and-allow to block-everything-else, which trades a warning for an outage
   on live sessions.
 
+**Deployed and verified from ECS, not from the workflow's report.** Run `31927721407` on
+`da2549f28602`; both services on `gha-da2549f28602`, rollout `COMPLETED`, learning-api 2/2 and
+chat-api 1/1. The stream-heavy specs pass against that build (`journey-student`,
+`sse-reconnect`, `narrative-refresh` — 4/4).
+
+**The reconciler was de-risked before its first unattended firing**, which is the AUD-F-34 lesson
+applied on purpose: a job whose first scheduled run is also its first run at all can fail, exit 0
+and be read as evidence. Run by hand on the deployed image: **exit 0, 182 new learning sessions
+projected** from 4,724 threads, 2,204 already current, 2,338 correctly classified as chat. So the
+18:00 UTC schedule is doing real work rather than firing into a no-op.
+
 **Carry-over:** D-356's fix. The access-probe rule sweep (still 1-of-8 recall, untuned) was not
 run — the session's staging budget went to diagnosing two real defects instead, and a retrieval
 change wants its own deploy rather than riding with D-356's. chat-api still has no crash sink.
