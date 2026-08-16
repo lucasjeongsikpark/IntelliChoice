@@ -107,7 +107,14 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
     }
   });
 
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
+  // **Its own student, not `studentPresent`** (D-365 §2). This walk named the isolation
+  // finding `config.ts` states - *"two tests signing in as the same student resume each
+  // other's exams"* - and was then the last spec still sharing it, with seventeen others.
+  // In isolation it runs clean in ~15s; in a whole-suite run it recorded 7 refused
+  // submissions and 2.3 minutes, because the session it joined had been left mid-study by
+  // whichever spec got there first. D-288 gave the band walks and the refresh test their
+  // own students and missed this one.
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentJourney);
   await expectNotBlank(page);
 
   await expect(page.getByRole("heading", { name: /ready to learn/i })).toBeVisible();

@@ -25737,3 +25737,42 @@ green run would have hidden.
 the suite is not yet stable** — not because the product is broken, but because the walk shares a
 fixture with ten other specs on an environment where sessions persist. D-365's second half is
 the next thing to fix, and it is the last cause currently known.
+
+---
+
+### D-367 — The last shared fixture: the walk that named the isolation finding gets its own student
+
+**Date:** 2026-08-16 · **Status:** shipped · **Files:** `packages/adapters/.../seed/mysql_fixtures.py`, `e2e/config.ts`, `e2e/tests/learning/journey-student.spec.ts`, `apps/learning-web/src/screens/DevLoginScreen.tsx`
+
+D-365 §2 left one named cause on C1 Phase 6: `journey-student` signed in as `studentPresent`
+(`student-ext-1`), which **seventeen other spec files share**, on an environment where sessions
+persist. With `workers: 1` that is not a race — it is a deterministic hand-off. Whichever spec
+runs first leaves a session mid-study, and the walk joins it instead of starting one. 7 refused
+submissions and 2.3 minutes in a whole run, against 0 and ~15 seconds in isolation.
+
+The remedy is the one `config.ts` has stated since D-288 and applied everywhere except here:
+`student-ext-10`, grade 3, present, one linked parent — the same shape as the student it
+replaces, so the walk's band, topic and gate coverage are unchanged and only the sharing goes.
+
+#### A new parent rather than a second child, which is the one real judgement here
+
+The smaller diff was to link `student-ext-10` to `PARENT_ONE_CHILD`. That would have broken a
+contract in a different file: `journey-parent.spec.ts` asserts that a parent with **exactly one**
+linked child is auto-selected at login with no chooser rendered (AUD-F-22). Adding a second child
+turns that fixture into a two-child parent and the auto-select journey starts failing for a
+reason unrelated to what it tests. `parent-ext-3` ("Pia Three") costs one row and keeps both
+fixtures meaning what their names say.
+
+#### What actually needed the deploy, which is not what it looks like
+
+`signInViaUi` does **not** use `DevLoginScreen`'s fixture list on staging — it mints a token out
+of band and seeds `localStorage` (D-097/D-310). So the frontend edit is for manual walks only.
+What the harness needs is the row in staging's **MySQL**, so the `ProfileAdapter` resolves the
+student and attendance reports present. That arrives via `deploy-staging.yml`'s re-seed step
+(D-111 §3) — and it needs a *full* deploy rather than a bare ops-task run, because the ops task
+executes `seed_mysql` **out of the deployed image**, which until this ships still holds the old
+nine-student fixture set.
+
+`DevLoginScreen` is updated anyway: `config.ts` states the harness list and that screen must not
+disagree, and the drift it warns about (`student-ext-3` present in one and missing from the
+other) is the reason the comment exists.
