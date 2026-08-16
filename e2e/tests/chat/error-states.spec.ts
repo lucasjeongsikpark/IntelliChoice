@@ -18,10 +18,8 @@ import type { Page } from "@playwright/test";
 import { CHAT_WEB } from "../../config";
 import { expect, test } from "../../fixtures/capture";
 import { SHAPES } from "../../fixtures/chat-shapes";
-import { seedGuest } from "../../fixtures/session";
+import { seedGuest, thinkingPlaceholder } from "../../fixtures/session";
 import { ask, stubChat } from "../../fixtures/stub-chat";
-
-const THINKING = "Thinking…";
 
 /** The composer's textarea, which is what "the visitor can carry on" means concretely. */
 function composer(page: Page) {
@@ -134,7 +132,7 @@ test.describe("failures the visitor can read and recover from", () => {
 
     const assistant = page.locator(".message-row.assistant .bubble");
     await expect(assistant).toBeVisible();
-    await expect(assistant).not.toHaveText(THINKING);
+    await expect(thinkingPlaceholder(page)).toHaveCount(0);
     const text = ((await assistant.textContent()) ?? "").trim();
     audit.note(`null-answer turn rendered: ${text}`);
     expect(text.length).toBeGreaterThan(0);
@@ -176,7 +174,7 @@ test.describe("an expired token", () => {
     await stubChat(page, { message: SHAPES["grounded answer"] });
     await page.goto(CHAT_WEB);
     await ask(page, "What are the Saturday hours?");
-    await expect(page.locator(".message-row.assistant .bubble").first()).not.toHaveText(THINKING);
+    await expect(thinkingPlaceholder(page)).toHaveCount(0);
 
     await page.route("**/chat/sessions/*/messages", (route) =>
       route.fulfill({

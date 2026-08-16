@@ -17,6 +17,7 @@ import {
   seedGuest,
   seedSession,
   signInViaUi,
+  thinkingPlaceholder,
 } from "../../fixtures/session";
 import { ask } from "../../fixtures/stub-chat";
 
@@ -34,7 +35,7 @@ test.describe.configure({ timeout: 180_000 });
 async function expectAnswered(page: import("@playwright/test").Page): Promise<string> {
   const bubble = page.locator(".message-row.assistant .bubble").last();
   await expect(bubble).toBeVisible({ timeout: 30_000 });
-  await expect(bubble).not.toHaveText("Thinking…", { timeout: 90_000 });
+  await expect(thinkingPlaceholder(page)).toHaveCount(0, { timeout: 90_000 });
   const text = (await bubble.innerText()).trim();
   expect(text.length, "the assistant bubble rendered empty - the S22.5 blank-turn class").toBeGreaterThan(0);
   return text;

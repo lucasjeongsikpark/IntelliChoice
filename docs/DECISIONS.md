@@ -25186,3 +25186,42 @@ measurement to close the disclosure would have traded a small leak for permanent
   committed; tuning is a measured pass of its own.
 - **SPEC was amended rather than deviated from.** §5.19.4's response text and the new §5.19.5
   reason table were written in the same change as the code, so the two cannot disagree.
+
+### D-354 — The Stop button silently disabled the harness's "did the turn answer?" gate
+
+**Date:** 2026-08-16 · **Status:** fixed · **Found by:** the staging chat suite, which failed where the local one had not · **Files:** `e2e/fixtures/session.ts`, `e2e/tests/chat/{journey-chat,sse-reconnect,error-states}.spec.ts`
+
+`expectAnswered` is the gate every chat journey passes through: wait for an assistant bubble,
+then wait for it to stop being the placeholder. The second half was
+
+```ts
+await expect(bubble).not.toHaveText("Thinking…", { timeout: 90_000 });
+```
+
+`toHaveText` with a string is an **exact** match. D-352 put a Stop button *inside* the
+placeholder bubble, so its text became `Thinking… Stop` - not equal to `Thinking…`, so the
+assertion started passing the moment the placeholder rendered. **The gate stopped gating**, and
+every journey began proceeding before its answer arrived.
+
+Nothing failed locally, because the stubbed suite answers in milliseconds and the next
+assertion was always already true. On staging, where a turn takes 6-11s, one test reloaded the
+page **40 ms after creating its session and before a single `/messages` request had been
+sent** - and only then did it fail, on `expectNotStuck`, which uses `getByText` (a *substring*
+match) and therefore still worked.
+
+Two things worth keeping from this:
+
+- **The failure was diagnosed from the recorded request list, not from reading.** Four rounds
+  of plausible theories (CloudFront serving a stale bundle, autoscaling churn, cross-test
+  storage leakage) died against six lines of `journeys.jsonl` showing the reload at 415 ms with
+  no `/messages` anywhere. The scaling history *was* real - the service went 1 → 2 → 3 during
+  the run - and it was not the cause. A true fact adjacent to a bug is the most expensive kind
+  of wrong answer.
+- **This is the U6 shape again, inverted.** There, a spec could not fail because it matched the
+  wrong element. Here, an assertion stopped being able to fail because the element it matched
+  gained a child. Both are "the test still runs, still passes, and no longer checks anything",
+  and both were caught by a *different* assertion happening to be written more robustly.
+
+The placeholder is now located by role (`getByRole("status").filter({hasText: "Thinking…"})`)
+in one shared helper, so the next thing added inside it cannot repeat this. The three specs
+that used the exact-text idiom all moved to it.

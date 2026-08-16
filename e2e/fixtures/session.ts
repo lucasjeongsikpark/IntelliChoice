@@ -158,6 +158,23 @@ export async function expectNotBlank(page: Page): Promise<void> {
  * it is still on screen after the timeout, the journey is stuck, which is a finding
  * even though nothing errored.
  */
+/** The in-flight placeholder, located by role rather than by its text.
+ *
+ * **D-352 broke every exact-text assertion against it and nothing said so.** The placeholder
+ * used to be a bubble whose whole text was `Thinking…`, so `not.toHaveText("Thinking…")` was a
+ * real gate. Adding a Stop button *inside* that bubble made its text `Thinking… Stop`, which is
+ * not equal to `Thinking…` - so the assertion started passing the instant the placeholder
+ * appeared, and `expectAnswered` stopped waiting for answers at all. Caught on staging by
+ * `expectNotStuck`, which uses `getByText` (a substring match) and therefore still worked: the
+ * reload fired 40ms after session creation, before a single `/messages` request was sent.
+ *
+ * Locating the element rather than matching its text is what makes this stable against the
+ * next thing added inside it.
+ */
+export function thinkingPlaceholder(page: Page) {
+  return page.getByRole("status").filter({ hasText: "Thinking…" });
+}
+
 export async function expectNotStuck(
   page: Page,
   stuckText: string | RegExp,

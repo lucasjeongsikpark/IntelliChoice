@@ -25,7 +25,7 @@ import type { Page, Route } from "@playwright/test";
 import { CHAT_WEB } from "../../config";
 import { expect, test } from "../../fixtures/capture";
 import { SHAPES } from "../../fixtures/chat-shapes";
-import { seedGuest } from "../../fixtures/session";
+import { seedGuest, thinkingPlaceholder } from "../../fixtures/session";
 import { ask, stubChat } from "../../fixtures/stub-chat";
 
 /**
@@ -141,6 +141,6 @@ test("reloading mid-turn resolves the turn instead of leaving it blank", async (
 
   const bubble = page.locator(".message-row.assistant .bubble").first();
   await expect(bubble).toContainText("Recovered from the checkpoint.");
-  await expect(bubble).not.toHaveText("Thinking…");
+  await expect(thinkingPlaceholder(page)).toHaveCount(0);
   audit.note("a turn left in flight by a reload was completed by the stream's initial frame");
 });
