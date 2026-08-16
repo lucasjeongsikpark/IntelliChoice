@@ -7,6 +7,58 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**✅ C1 PHASE 6 IS CLOSED — THE LAST ENGINEERING CLAUSE IN THE ROADMAP
+(2026-08-16, D-367 → D-370).**
+
+**Five consecutive clean full staging runs at `gha-aaad6cfec153`**: 88/88/88/87/88 passed at
+6.2–6.3 min each, against a recorded minimum of four. The walk itself reads `answered == graded,
+refused = 0` in all five, with 3–4 retry-ladder pauses genuinely worked — the drift this clause
+chased from D-321 to D-365 does not appear once. `HTTPCode_ELB_5XX_Count` and
+`HTTPCode_Target_5XX_Count` are both empty across the window.
+
+**It took seven attempts and every one of them found something real.** The clause was never
+flaky; it was a queue of independent faults that a single lucky green run would have hidden.
+**Four were product or infrastructure defects that reach real students** (D-356/D-358, D-364,
+D-369) and the rest were checks that had stopped checking. That is the argument for why a
+consecutive-clean-runs criterion is not a formality — see D-370's table.
+
+**Two defects closed this session:**
+
+- **D-367 — the last shared fixture.** `journey-student` signed in as `studentPresent`, shared
+  with **seventeen** other spec files on an environment where sessions persist. With
+  `workers: 1` that is a deterministic hand-off, not a race: whichever spec ran first left a
+  session mid-study and the walk joined it. Fixed with `student-ext-10`, the remedy `config.ts`
+  had stated since D-288 and that D-288 applied everywhere *except* the spec that named the
+  finding. A **new** `parent-ext-3` rather than a second child on `parent-ext-1`, because
+  `journey-parent` asserts one-child auto-select (AUD-F-22).
+- **⚠️ D-369 — D-358's fix was right and incomplete, and only the accumulation could show it.**
+  `video-intervention` failed with D-356's own message on a build already carrying D-358.
+  Reproduced with bodies captured: **1 failure in 5**, all five `POST /respond` bodies
+  substantively identical (200, `intervention.type="video"`). D-358 gave the guard the right
+  *question* — does this intervention belong to the attempt the student is on — and left it
+  asking at the wrong *moment*: the scheduler reads the checkpoint once, then opens a second
+  session to build the snapshot, so a choice committing in that gap is invisible to a read that
+  already happened. **No pairing signal detects a write that has not happened yet.** Fixed by
+  re-reading immediately before the synchronous publish; 9 of 9 clean afterwards. The 4-of-4 that
+  "verified" D-358 is exactly what a one-in-five window looks like.
+
+**The test-gap lesson, which generalises past this defect:** every existing test checked
+`_help_is_on_screen` as a pure *predicate* and none checked *when* it is evaluated, so the whole
+defect lived in the space between a correct predicate and its evaluation point. The new test
+drives the real scheduler with an `aget_state` that returns "nothing on screen" then "a video",
+and was **falsified by deleting the fix** before being believed.
+
+**Also corrected from the record (D-368):** PROGRESS carried D-364 as "fixed, needs a deploy". It
+did not — the keep-alive image became learning-api rev 137 at 05:01:59 and the single 502 fired at
+**04:28**, 34 minutes earlier. Read from applied AWS state rather than the commit log.
+
+**Carry-over:** the **solution** terminal rung has no staging e2e coverage —
+`assistance-panel-probe` is the only spec that clicks it and it is `@probe`-tagged, so it skips in
+a full run. D-369's unit test covers the mechanism for every terminal rung, so this is a coverage
+gap, not an untested defect. chat-api still has no crash sink.
+
+### Previous — the video defect and the access probe
+
 **✅ D-356 IS FIXED, AND THE ACCESS PROBE TURNED OUT NOT TO BE THE PROBLEM
 (2026-08-16, D-358 → D-360).**
 
