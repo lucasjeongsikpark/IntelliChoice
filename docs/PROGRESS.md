@@ -52,10 +52,40 @@ and was **falsified by deleting the fix** before being believed.
 did not — the keep-alive image became learning-api rev 137 at 05:01:59 and the single 502 fired at
 **04:28**, 34 minutes earlier. Read from applied AWS state rather than the commit log.
 
-**Carry-over:** the **solution** terminal rung has no staging e2e coverage —
-`assistance-panel-probe` is the only spec that clicks it and it is `@probe`-tagged, so it skips in
-a full run. D-369's unit test covers the mechanism for every terminal rung, so this is a coverage
-gap, not an untested defect. chat-api still has no crash sink.
+**And the access-probe item closes too, with a measured "no" (D-371).** D-359's recommendation was
+carried out — the eight live guest-probe questions are in `probe_eval.yaml` (45 gated / 13 public)
+— and the sweep says **keep the shipped rule**: `probe_access` scores 29 right / 0 wrong / **0
+false hits**, the best clean-sheet alternative is *identical*, and the only rule that gains a hit
+pays with a wrong-tier answer.
+
+**Why no threshold can fix it, which is the part worth keeping.** The seven live gated questions
+sit at `0.341 … 0.642` from their nearest gated chunk (mean **0.487**, against corpus-derived
+0.432 and a 0.40 ceiling) — and **the live public case sits at 0.448**, closer than four of the
+seven gated ones. Gated and public are *interleaved on the distance axis*, so widening to catch
+the gated questions also fires on one the corpus already answers. Rerank does not separate them
+either. **The signal does not carry the distinction**; this is not a tuning problem.
+
+**A denominator that was wrong all along.** Live re-measure: **recall 2/8, precision 5/5**, up from
+0–1 of 8 with no rule change (that figure was partly D-359's repaired `KeyError`). But the probe's
+precondition is a no-source refusal, so an *answered* question never reaches it: 2 answered, 4
+refused-without-hint, 2 hinted. It fired on **2 of the 6 it could reach**. Any future report of
+this number should say which denominator it means.
+
+**Carry-over:**
+
+- The **solution** terminal rung has no staging e2e coverage — `assistance-panel-probe` is the
+  only spec that clicks it and it is `@probe`-tagged, so it skips in a full run. D-369's unit test
+  covers the mechanism for every terminal rung, so this is a coverage gap, not an untested defect.
+- *"What grade levels do you serve?"* — a **public** question — came back `REFUSED+ESCALATE` live.
+  A public-corpus coverage gap, not an authorization one. Logged, not chased.
+- chat-api still has no crash sink.
+- D-364's verification stays statistical: zero 5xx across ~45 minutes of load, against an event
+  that fired once in three hours. Consistent with the fix, not yet proof of it.
+
+**Process note, mine to own:** I committed the Phase 6 closure docs onto local `main` before
+noticing, repeating the slip recorded last session. Caught before any push, moved onto
+`docs/phase6-closes` with `git branch -f` (no history rewritten, nothing discarded), and landed as
+PR #292. All five changes this session went through PRs: #290, #291, #292, #293.
 
 ### Previous — the video defect and the access probe
 
@@ -10503,6 +10533,52 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### C1 Phase 6 closes, and the last two defects were both "the right check at the wrong moment" (2026-08-16, D-367 → D-371)
+
+**The roadmap's last engineering clause is ✅.** Five consecutive clean full staging runs at
+`gha-aaad6cfec153` — 88/88/88/87/88 passed at 6.2–6.3 min — against a recorded minimum of four.
+The walk reads `answered == graded, refused = 0` in all five with 3–4 retry-ladder pauses genuinely
+worked, and both `HTTPCode_ELB_5XX_Count` and `HTTPCode_Target_5XX_Count` are empty across the
+window.
+
+**Seven attempts, and every one found something real.** Four were product or infrastructure
+defects that reach students; the rest were checks that had stopped checking. That is the case for
+why a consecutive-clean-runs criterion is not a formality — a single lucky green run would have
+hidden all of them. D-370 carries the table.
+
+**Built this session:**
+
+- **D-367 — the last shared fixture.** `journey-student` signed in as `studentPresent`, shared with
+  **seventeen** other spec files where sessions persist. With `workers: 1` that is a deterministic
+  hand-off, not a race. Fixed with `student-ext-10`; a **new** `parent-ext-3` rather than a second
+  child on `parent-ext-1`, because `journey-parent` asserts one-child auto-select (AUD-F-22).
+- **D-369 — D-358's fix was right and incomplete.** `video-intervention` failed with D-356's own
+  message on a build already carrying D-358. Reproduced with bodies captured: **1 in 5**, all five
+  `POST /respond` bodies substantively identical. D-358 gave the guard the right *question* and
+  left it asking at the wrong *moment* — the scheduler reads the checkpoint once, then does a DB
+  round-trip to build the snapshot, so a choice committing in that gap is invisible to a read that
+  already happened. **No pairing signal detects a write that has not happened yet.** Re-read
+  immediately before the synchronous publish; 9 of 9 clean afterwards.
+- **D-371 — the access probe re-swept and the answer is still "keep the shipped rule".** The eight
+  live questions are in the fixture now (45 gated / 13 public). `probe_access` scores 29/0 with
+  **zero false hits**; the best alternative is identical. The live gated questions sit at
+  0.341–0.642 and the live *public* one at **0.448**, interleaved among them — so the distance
+  signal does not carry the distinction and no threshold fixes it.
+- **D-368 — a record correction.** D-364's keep-alive fix was already deployed: the fixed image
+  became rev 137 at 05:01:59 and the single 502 fired at **04:28**. Read from applied AWS state.
+
+**Verification:** `make lint` clean · `make typecheck` 0 errors · `make test` 1653 passed / 2
+skipped / 1 xpassed (D-238's documented non-strict coin flip) · local `make e2e` 95 passed · five
+clean staging runs · 9/9 on the repaired video branch · four PRs, all checks green.
+
+**Spend:** ~90¢ on the probe sweep (four completed runs at ~17.8¢, one killed mid-run, each under
+its own explicit 100¢ cap), plus the usual few cents per staging walk.
+
+**The lesson that repeated three times this session, in three different places:** a check can be
+correct and still not check — the predicate right but evaluated too early (D-369), the instrument
+reading a field that had been removed (D-359), the fixture calibrated on easier cases than the
+ones users ask (D-371). Testing the predicate is not testing the check.
 
 ### Sweep — one dead feature in learning, and F-19's P1 resolved in chat (2026-08-14, D-329/D-330)
 
