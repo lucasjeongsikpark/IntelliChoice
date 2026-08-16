@@ -25908,3 +25908,68 @@ The **solution** terminal rung has no staging e2e coverage — `assistance-panel
 spec that clicks "Show the solution" and it is `@probe`-tagged, so it skips in a full run. D-369's
 unit test covers the mechanism for every terminal rung (the guard does not discriminate by
 intervention type), so this is a coverage gap rather than an untested defect. Carry-over.
+
+---
+
+### D-371 — The probe re-swept against the cases it was missing, and the shipped rule is still the answer
+
+**Date:** 2026-08-16 · **Status:** measured, deliberately not tuned — the item closes · **Spend:** ~90¢ (four completed sweeps at ~17.8¢, one killed mid-run, plus a live probe)
+
+D-359 recommended adding the eight live guest-probe questions to `probe_eval.yaml` and
+re-sweeping, on the reasoning that *"tuning against a fixture that does not contain the failing
+cases is how a rule gets chosen that scores well and does nothing."* Done. The fixture is now
+**45 gated / 13 public** (plus 8 unanswered from `qa_coverage_eval.yaml`).
+
+#### One of the eight is filed as `public`, and that is a judgement not a slip
+
+*"What does the tutor handbook require before a session starts?"* is **answered** to a guest from
+`public-student-participation-guide` — D-359 recorded it once and today's live run reproduced it.
+A public chunk answers it, which is precisely what the `public` class means. Filing it as `gated`
+would score every correct rule as a **miss** for staying silent on a question the corpus can
+already answer, biasing the sweep toward the over-wide rules D-359 warns against.
+
+#### The result, on the same fixture, `--query-field human_query`
+
+| rule | right | wrong | silent | FP public | FP unans |
+|---|---|---|---|---|---|
+| **SHIPPED `probe_access`** | **29** | **0** | 16 | **0** | **0** |
+| `pf >0.85 m0.10` | 29 | 0 | 16 | 0 | 0 |
+| `rr <=0.60 >0.9 m0.10` | 30 | **1** | 14 | 0 | 0 |
+| `nearest <=0.50` | 31 | 3 | 11 | 1 | 2 |
+| `nearest <=0.55` | 34 | 3 | 8 | 2 | 3 |
+
+**Nothing beats it.** The best clean-sheet alternative is *identical*, and the only rule that
+gains a hit pays with a wrong-tier answer — which the scoring rule counts as a failure, not a
+partial credit, because naming the wrong role is worse than saying nothing.
+
+#### Why no threshold can fix this, which is the finding worth keeping
+
+The seven live **gated** questions sit at these distances from their nearest gated chunk:
+
+```
+0.341  0.435  0.473  0.479  0.482  0.558  0.642     mean 0.487
+```
+
+against corpus-derived gated cases at mean **0.432** and a shipped ceiling of **0.40**. Only one
+of seven is inside it — which *is* the low live recall, measured rather than inferred.
+
+**And the live `public` case sits at 0.448**, closer than four of the seven gated ones. So the
+gated and public cases are **interleaved on the distance axis**. Widening the ceiling to 0.50 to
+catch four more gated questions also fires on a question the corpus already answers. The rerank
+score does not separate them either (live gated top scores 0.65–0.95; the public one is 0.90).
+
+This is not a tuning problem. **The signal does not carry the distinction**, and D-359's
+recommendation has now been carried out to the point where it says so with numbers.
+
+#### The live figure, and a denominator that was wrong
+
+Live re-measure today: **recall 2/8, precision 5/5 (zero false hints)** — up from the 0–1 of 8
+D-359 recorded, with no rule change, because that figure was partly the `KeyError` D-359 repaired.
+
+**The denominator was never 8.** The probe's precondition is a no-source refusal, so a question
+that gets *answered* never reaches it. Today: 2 answered, 4 refused-without-hint, 2 hinted. The
+probe fired on **2 of the 6 it could reach**. Every future report of this number should say which
+denominator it means.
+
+**Incidental, logged not chased:** *"What grade levels do you serve?"* — a **public** question —
+came back `REFUSED+ESCALATE`. That is a public-corpus coverage gap, not an authorization one.
