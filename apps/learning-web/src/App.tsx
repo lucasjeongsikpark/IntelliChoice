@@ -647,17 +647,21 @@ function App() {
             assistanceQuestion={helpOnScreen ? assistanceQuestion : null}
             overlayOpen={overlayOpen}
             error={session.error}
-            onSubmit={(questionVariantId, selectedOption, responseTimeMs) => {
+            onSubmit={async (questionVariantId, selectedOption, responseTimeMs) => {
               markInteraction();
               // The streak advances here, once per submission, rather than in a
               // snapshot effect - `is_correct` is masked (null) during exams, so only
               // study answers move it, matching where the chip renders.
-              void session
-                .submitAnswer(questionVariantId, selectedOption, responseTimeMs)
-                .then((result) => {
-                  if (result?.is_correct === true) setStreak((s) => s + 1);
-                  else if (result?.is_correct === false) setStreak(0);
-                });
+              const result = await session.submitAnswer(
+                questionVariantId,
+                selectedOption,
+                responseTimeMs,
+              );
+              if (result?.is_correct === true) setStreak((s) => s + 1);
+              else if (result?.is_correct === false) setStreak(0);
+              // D-378: `run()` returns null on any failure, which is what the exam screen
+              // needs in order to unlock the question rather than leave it falsely answered.
+              return result !== null;
             }}
             onSkip={(assessmentItemId) => {
               markInteraction();

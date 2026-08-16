@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatMeta, ChatTurn } from "../types";
+import { MAX_QUERY_CHARS } from "../api/errors";
 import logoUrl from "../../../../packages/ui-brand/assets/logo.png";
 import { AccessHintBanner } from "./AccessHintBanner";
 import { RichText } from "../components/RichText";
@@ -360,6 +361,10 @@ export function ChatScreen({
           id="chat-composer"
           name="chat-composer"
           value={draft}
+          // D-378: the browser stops this before the server has to. The 422 rule in
+          // `errors.ts` stays as the backstop for anything that bypasses the control -
+          // this is the half that means a visitor never reaches an error they cannot act on.
+          maxLength={MAX_QUERY_CHARS}
           placeholder="Ask a question…"
           disabled={busy}
           onChange={(e) => setDraft(e.target.value)}

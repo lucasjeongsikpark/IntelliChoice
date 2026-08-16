@@ -33,7 +33,16 @@ interface Props {
   // screen the student cannot see.
   overlayOpen?: boolean;
   error: string | null;
-  onSubmit: (questionVariantId: string, selectedOption: string, responseTimeMs: number) => void;
+  /**
+   * Resolves to whether the server **accepted** the answer (D-378). It used to return
+   * `void`, so `handleSubmitClick` could not tell a saved answer from a lost one and
+   * locked the question either way.
+   */
+  onSubmit: (
+    questionVariantId: string,
+    selectedOption: string,
+    responseTimeMs: number,
+  ) => Promise<boolean>;
   onSkip: (assessmentItemId: string) => void;
   onFlag: (assessmentItemId: string, flagged: boolean) => void;
   onRecordTime: (assessmentItemId: string, elapsedMs: number) => void;
@@ -440,11 +449,14 @@ export function ExamScreen({
     setStatusMessage(`Option ${key.toUpperCase()} selected.`);
   }
 
-  function handleSubmitClick() {
+  async function handleSubmitClick() {
     if (!currentItem || !selected || busy) return;
     const chosen = selected;
+    // Captured before the optimistic advance below moves it - the rollback has to undo the
+    // question that was answered, not whichever one is on screen when the POST returns.
+    const submittedOrder = currentDisplayOrder;
     const responseTimeMs = Date.now() - viewStartRef.current;
-    onSubmit(currentItem.question_variant_id, chosen, responseTimeMs);
+    const accepted = onSubmit(currentItem.question_variant_id, chosen, responseTimeMs);
     setAnsweredSelections((prev) => ({ ...prev, [currentDisplayOrder]: chosen }));
     setStatusMessage(`Answer submitted for question ${shownQuestionNumber}.`);
     setSelected(null);
@@ -463,6 +475,27 @@ export function ExamScreen({
       if (cachedBatch && currentDisplayOrder < cachedBatch.length - 1) {
         setCurrentDisplayOrder((d) => d + 1);
       }
+    }
+
+    // **The optimistic lock is now rolled back when the server refuses it** (D-378).
+    //
+    // `answeredSelections` feeds `isReadOnly`, so a failed POST - a 503, a dropped
+    // connection, the 401 D-375 now handles - still locked the question. The student could
+    // navigate back and find it unanswerable while the server still reported it `unseen`,
+    // and it was graded incorrect at finalize. That silently corrupts the pre-exam score,
+    // the learning gain computed from it, and the parent report built on that.
+    //
+    // AUD-F-27 fixed the neighbouring half - the `busy` gate stopped answers being
+    // *discarded* - and left this one: the lock had no rollback either way.
+    if (!(await accepted)) {
+      setAnsweredSelections((prev) => {
+        const next = { ...prev };
+        delete next[submittedOrder];
+        return next;
+      });
+      setStatusMessage(
+        `Question ${submittedOrder + 1} was not saved. Go back and answer it again.`,
+      );
     }
   }
 
@@ -667,7 +700,7 @@ export function ExamScreen({
 
       {!isReadOnly && (
         <>
-          <button type="button" disabled={busy || !selected} onClick={handleSubmitClick}>
+          <button type="button" disabled={busy || !selected} onClick={() => void handleSubmitClick()}>
             {busy ? "Submitting…" : "Submit answer"}
           </button>
           {isExamPhase && (

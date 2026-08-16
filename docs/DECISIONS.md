@@ -26313,3 +26313,51 @@ is most of it), so there is no honest floor and inventing one is how an alarm be
 day one. It needs a real usage baseline. `youtube-sync` is excluded from the heartbeat list
 because it is `enabled = false`, and a heartbeat on a switched-off schedule would fire forever
 and teach everyone to ignore the whole family.
+
+---
+
+### D-378 — Three places a visible control could never succeed, and one that silently corrupted a score
+
+**Date:** 2026-08-16 · **Status:** fixed · **Files:** `learning-web/src/screens/ExamScreen.tsx`, `learning-web/src/App.tsx`, `chat-web/src/{types.ts,hooks/useChatSession.ts,api/errors.ts,screens/ChatScreen.tsx}`
+
+The audit's Batch C: client state that lies to the user or to the scoring.
+
+#### A failed answer still locked the question (the one that reaches a parent)
+
+`handleSubmitClick` fired `onSubmit` **un-awaited** and wrote `answeredSelections` synchronously.
+That map feeds `isReadOnly`, so a POST that failed — a 503, a dropped connection, the 401 D-375
+now handles — still locked the question. The student navigating back found it unanswerable while
+the server still reported the item `unseen`, and it was **graded incorrect at finalize**.
+
+So the pre-exam score, the learning gain computed from it, and the parent report built on that
+were all silently wrong by one item, with nothing on screen saying so.
+
+`onSubmit` now resolves to whether the server accepted, and the lock is rolled back when it did
+not. The submitted display order is captured *before* the optimistic advance, so the rollback
+undoes the question that was answered rather than whichever is on screen when the POST returns.
+
+**AUD-F-27 fixed the neighbouring half and left this one.** Its `busy` gate stopped answers being
+*discarded*; the optimistic lock had no rollback either way.
+
+#### A retried escalation stopped being an escalation
+
+`retryTurn` rebuilt the request from `query` alone, and `escalate` defaults to false. So "Ask an
+administrator" that failed, retried, went back through the scope guard as an ordinary question,
+was refused again, and offered the same button — **a loop that never reaches a human.**
+
+`ChatTurn` now carries `escalate`. Note that `escalate-from-refusal.spec.ts` already asserts the
+flag on the first send, *with the reason spelled out* — "omitting the flag would send it back
+through the scope guard as a fresh question". The retry path was outside that assertion's reach,
+which is the same shape as every other finding in this audit: the check was right and did not
+cover the second caller.
+
+#### An over-length question got an error that never mentioned length
+
+`query` is `max_length=2000` server-side; the composer had no `maxLength` and `errors.ts` had no
+422 rule, so it fell to *"Something didn't go through. Give it another try in a moment."* — and
+"try again" re-sends identical text and fails identically, forever. A parent describing a
+situation before escalating is the realistic case.
+
+Both halves: `maxLength` on the composer so the browser prevents it, and the 422 rule as the
+backstop for anything that bypasses the control. `MAX_QUERY_CHARS` is exported from one place and
+mirrors the server's field, rather than being written as a bare number in two files.

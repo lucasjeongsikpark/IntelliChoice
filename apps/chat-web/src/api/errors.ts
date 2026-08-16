@@ -21,6 +21,10 @@ import { ApiError } from "./client";
 
 const GENERIC = "Something didn't go through. Give it another try in a moment.";
 
+// Mirrors `ChatMessageRequest.query`'s `max_length` in chat-api (D-378). Stated as a
+// number the visitor can act on rather than as "too long".
+export const MAX_QUERY_CHARS = 2000;
+
 const OFFLINE = "We can't reach the server right now. Check your connection and try again.";
 
 /** Exported so the 401 branch in `useChatSession` can act on the same classification the
@@ -44,6 +48,19 @@ interface Rule {
 // substring of the message it targeted, and a duplicate submission fell through to the
 // generic line until a Playwright screenshot showed it.
 const RULES: Rule[] = [
+  {
+    // D-378: there was no 422 rule at all, so an over-length question fell to GENERIC -
+    // "Something didn't go through. Give it another try in a moment." That says nothing
+    // about length, and "try again" re-sends the identical text and fails identically,
+    // forever. A parent describing a situation before escalating is the realistic case.
+    //
+    // Matched on the field name rather than on Pydantic's wording, which is a library
+    // detail: `detailText` already unpacks the validation array into a readable string
+    // containing the field.
+    status: 422,
+    detail: ["query"],
+    message: `That question is too long. Please shorten it to under ${MAX_QUERY_CHARS} characters and send it again.`,
+  },
   {
     // D-346's advisory lock. Genuinely transient and genuinely the user's own doing, so it
     // says what to do rather than what happened.
