@@ -52,6 +52,7 @@ from chat_api.config import get_settings
 from chat_api.dependencies import get_current_claims
 from chat_api.graph.build import build_graph
 from chat_api.graph.nodes import SERVICE_UNAVAILABLE_MESSAGE
+from chat_api.routers.client_errors import router as client_errors_router
 from chat_api.routers.meta import router as meta_router
 from chat_api.routers.sessions import router as sessions_router
 from chat_api.routers.stream import router as stream_router
@@ -310,6 +311,10 @@ app.include_router(stream_router)
 # `services.calendar_events` logic it shared with `calendar_extract` is untouched, so a
 # "what's coming up?" chat answer still works exactly as before.
 app.include_router(meta_router)
+# The crash sink (D-322 §2 option A, the chat half). Unlike learning's it accepts anonymous
+# reports - see the router's docstring for the gate that replaces the bearer token, and for
+# what that gate gives up.
+app.include_router(client_errors_router)
 
 
 @app.get("/healthz")

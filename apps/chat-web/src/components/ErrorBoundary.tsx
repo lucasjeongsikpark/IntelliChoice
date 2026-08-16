@@ -6,14 +6,18 @@
  * white space - no text, no button, no indication anything had gone wrong. learning-web
  * closed this in D-315; chat-web never did.
  *
- * **No server report, and that is a decision rather than an omission.** learning-web's
- * boundary posts to `/learning/client-errors`, which requires a bearer token by design - an
- * open crash sink is a log-injection endpoint. chat-api has no equivalent, and adding one
- * would help less here than it does there: chat's primary caller is *anonymous* (SPEC
- * §5.19.1), so the majority of chat crashes would have no token to attribute and would be
- * dropped by the same rule. A sink worth building for this app needs a different
- * authentication answer, which is a decision this component must not make on its own. Filed
- * as carry-over; console-only until then.
+ * **The server report now exists, and the objection this docstring used to raise is what
+ * shaped it.** It read: *"chat's primary caller is anonymous (SPEC §5.19.1), so the majority
+ * of chat crashes would have no token to attribute and would be dropped by the same rule. A
+ * sink worth building for this app needs a different authentication answer, which is a
+ * decision this component must not make on its own."* That was right, and copying
+ * learning-web's token-gated reporter here would have shipped a sink that silently discarded
+ * most of what it was built to catch.
+ *
+ * The answer lives in `chat_api.routers.client_errors`: the token is *optional*, and the
+ * rate limit does the work a token was doing — per `sub` when there is one, and a single
+ * shared app-wide bucket for anonymous reports, because the only id an anonymous caller could
+ * be keyed on is one they can forge. Read that module for what the weaker gate gives up.
  *
  * `console.error`, deliberately, and the only place in this app that uses it. Every other
  * error path uses `console.warn` (`api/errors.ts`) because §2.6 criterion 3 counts console
@@ -22,6 +26,7 @@
  */
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { reportClientError } from "../lib/reportClientError";
 
 interface Props {
   children: ReactNode;
@@ -39,7 +44,16 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    // Both, deliberately. The `console.error` stays because §2.6 criterion 3 counts console
+    // errors and a crash that destroyed the UI *should* fail that criterion loudly - see this
+    // file's header. The report is what makes it visible to anyone not sitting at the browser,
+    // which is the gap this component's docstring recorded as a decision it should not make
+    // alone. That decision is now made and lives in `chat_api.routers.client_errors`.
     console.error("react_render_crash", error, info.componentStack);
+    reportClientError({
+      message: error.message,
+      stack: `${error.stack ?? ""}\n--- component stack ---${info.componentStack ?? ""}`,
+    });
   }
 
   private handleReload = (): void => {

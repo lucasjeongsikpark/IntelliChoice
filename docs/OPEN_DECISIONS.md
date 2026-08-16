@@ -19,9 +19,37 @@ without a reason that is new.
 
 ---
 
-## 1. ✅ DECIDED — study re-serves the session's own exam questions → **re-render a different variant** (B)
+## 1. ✅ CLOSED — study re-serving the exam's questions was **fixed on 2026-08-14 by D-325, via option A**
 
-**Status:** open since 2026-08-13 (D-314 amendment). Product decision, §5.9/§5.12.
+> **⚠️ This entry was stale and its recommendation is now wrong. Do not implement B.**
+> Read this box before the analysis below it, which is preserved as the reasoning of the day.
+>
+> **It is already fixed, and with the *other* option.** D-325 (2026-08-14, the day after this was
+> written) shipped **A — exclude the session's exam templates from study selection**.
+> `flow._templates_to_avoid` unions the study items' templates with
+> `assessment_repo.get_items(pre_assessment_session_id)`, and
+> `journey-student.spec.ts:377` asserts that no study stem is byte-identical to a pre-exam
+> stem. That assertion ran clean in all five consecutive staging runs on 2026-08-16 (D-370).
+>
+> **And B is not achievable on today's bank, which is the part the table below gets wrong.**
+> B assumes the variant machinery can re-render the same item differently. It cannot: since
+> D-226 every servable template has exactly **one** rendering, and `_static_variant_row`
+> returns `rendered_question=canonical_variant.rendered_question` unconditionally. The only
+> axis that can vary per showing is **option order**, already spent on the post-exam's
+> parallel form. So B would serve *the same question with the options shuffled* — the student
+> still practises the exact item they are scored on, so the gain is still inflated. **B does
+> not fix the defect; it disguises it**, and shipping it would mean removing the exam
+> templates from the avoid-set and relaxing the e2e assertion that currently catches the real
+> thing.
+>
+> The genuinely open remnant is **content, not code**: re-rendering with different numerical
+> parameters is the authoring work D-189 costed and the user rejected. If the parallel-form
+> gap is ever reopened, it reopens there.
+>
+> *Verified 2026-08-16 by reading `flow.py:245–283`, `variant_persistence.py:107–200`, and the
+> spec assertion — not from the log.*
+
+**Status (as written):** open since 2026-08-13 (D-314 amendment). Product decision, §5.9/§5.12.
 
 A browser walk saw one question served **verbatim** as pre-exam Q1, as a study question, *and* as
 post-exam Q1 of the same session.
@@ -50,9 +78,26 @@ stays open is a day of gain numbers nobody should quote.
 
 ---
 
-## 2. ✅ DECIDED — no sink for client-side errors → **own authenticated endpoint** (A), not Sentry
+## 2. ✅ CLOSED — client-error sink built on both apps (A). learning D-328, chat **D-372**
 
-**Status:** open since 2026-08-13 (D-315 stated it as a deliberate boundary).
+> **Both halves now exist.** learning-api got `POST /learning/client-errors` in D-328;
+> chat-api got `POST /chat/client-errors` on 2026-08-16 (**D-372**), which was the last piece.
+>
+> **The chat half is not a copy, and the difference is the interesting part.** The
+> recommendation below says "authenticated endpoint", and chat cannot have one: its primary
+> caller is anonymous (SPEC §5.19.1), so a token gate would have discarded most of the crashes
+> the sink exists to see. `chat-web`'s `ErrorBoundary` had already written that objection down
+> and refused to guess. The gate that replaced the token is the **rate limit**: per `sub` when
+> there is a token, and a **single shared app-wide bucket** for anonymous reports — shared
+> rather than per `chat_session_id` because that field is unverified free text, so a per-id
+> bucket would hand a caller a fresh allowance for every id they invent. Redaction, truncation
+> and `extra="forbid"` are identical to learning's.
+>
+> The weaker gate is stated in the router's docstring rather than glossed: two unrelated
+> visitors crashing in the same minute compete for one allowance. It fails toward a missing log
+> line, never an amplified one.
+
+**Status (as written):** open since 2026-08-13 (D-315 stated it as a deliberate boundary).
 
 Both ends now *log*: an `ErrorBoundary` turns a render crash into a recovery screen,
 `window.onerror`/`unhandledrejection` cover what a boundary structurally cannot see, and
