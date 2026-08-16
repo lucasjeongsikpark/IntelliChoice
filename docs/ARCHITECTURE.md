@@ -238,6 +238,15 @@ to rot, because nothing fails when it does.)*
   implies. **⚠️ And a resize has lead time that is not money:** this account's Free Tier
   restrictions rejected `db.t4g.small` outright with a real `CreateDBInstance` failure in S32/D-084,
   so anything above `micro` is a prerequisite to check before it is a line item.
+- **The backend's keep-alive must outlive the load balancer's idle timeout** (D-364). The ALB's
+  `idle_timeout.timeout_seconds` is **120**; uvicorn's `--timeout-keep-alive` defaults to **5**,
+  and neither Dockerfile set it — so the ALB could hold a pooled backend connection for two
+  minutes while uvicorn closed it after five seconds idle, and a request dispatched onto a
+  just-closed connection becomes a **502 the application never sees**: no access log, no error,
+  nothing to grep. Measured on staging as exactly one ALB-generated 5xx in three hours of e2e
+  load, with zero task restarts and a clean application log. Both apps now pass **125**, so the
+  backend always outlives the reuse window and the ALB is the side that closes. A 5xx with no
+  server-side trace is the signature to remember: it is a connection-level fault, not the app.
 - **An alarm that reaches ALARM through `treat_missing_data` carries no metric *value*, and a
   step-scaling policy cannot act on one** (AUD-F-33, D-182). Both scale-in legs alarm on ALB
   `TargetResponseTime`, which publishes nothing when there are no requests, and
