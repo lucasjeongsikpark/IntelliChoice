@@ -4,6 +4,10 @@ note: Corpus-derived (AUD-C-20). Each question was generated FROM the chunk name
   under an instruction not to reuse its distinctive vocabulary; lexical_overlap is the measured fraction
   of the question's content words that also appear in that chunk. A high mean overlap means this fixture
   is measuring its own paraphrase - read it before trusting any keyword-coverage result.
+  D-359 added eight cases that are NOT corpus-derived - the `probe-live-*` ids at the end, which
+  are the questions the live guest probe actually asks staging, carried over because the
+  corpus-derived cases turned out to be easier than the ones users ask. They have no
+  source_chunk_id and no lexical_overlap, deliberately.
 cases:
 - id: probe-branch_manager-000
   category: gated
@@ -457,6 +461,104 @@ cases:
   lexical_overlap: 0.5
   human_query: How do I stop a student from getting locked out of their pre-exam?
   human_lexical_overlap: 0.5
+# **The eight live cases (D-359).** Everything above is corpus-derived: a question generated
+# FROM a chunk, which makes the fixture easier than reality - gated questions sit a mean
+# 0.422 from their nearest gated chunk against a 0.40 ceiling. These eight are the questions
+# scripts/measure_access_hint_live.py actually asks staging as an anonymous guest, where
+# recall measured 0-1 of 8. Tuning a rule against a fixture that does not contain the failing
+# cases is how a rule gets chosen that scores well and does nothing.
+#
+# source_chunk_id / lexical_overlap are null: there is no single chunk these were derived
+# from, which is the whole point. The loader tolerates nulls - its `no_answer` branch builds
+# exactly this shape.
+- id: probe-live-parent-000
+  category: gated
+  query: What is the attendance policy if my child misses a session?
+  expected_required_role: parent
+  source_document_title: Attendance Policy
+  source_chunk_id: null
+  lexical_overlap: null
+  human_query: What is the attendance policy if my child misses a session?
+  human_lexical_overlap: null
+  origin: live-guest-probe-2026-08-15
+- id: probe-live-parent-001
+  category: gated
+  query: What happens if my child is marked absent for the week?
+  expected_required_role: parent
+  source_document_title: Attendance Policy
+  source_chunk_id: null
+  lexical_overlap: null
+  human_query: What happens if my child is marked absent for the week?
+  human_lexical_overlap: null
+  origin: live-guest-probe-2026-08-15
+- id: probe-live-parent-002
+  category: gated
+  query: What does the parent handbook say about my responsibilities?
+  expected_required_role: parent
+  source_document_title: Parent Handbook
+  source_chunk_id: null
+  lexical_overlap: null
+  human_query: What does the parent handbook say about my responsibilities?
+  human_lexical_overlap: null
+  origin: live-guest-probe-2026-08-15
+- id: probe-live-tutor-000
+  category: gated
+  query: What instructional procedures should a tutor follow in a session?
+  expected_required_role: tutor
+  source_document_title: Instructional Procedures
+  source_chunk_id: null
+  lexical_overlap: null
+  human_query: What instructional procedures should a tutor follow in a session?
+  human_lexical_overlap: null
+  origin: live-guest-probe-2026-08-15
+- id: probe-live-tutor-001
+  category: gated
+  query: How should a tutor support a struggling student?
+  expected_required_role: tutor
+  source_document_title: Student Support Guide
+  source_chunk_id: null
+  lexical_overlap: null
+  human_query: How should a tutor support a struggling student?
+  human_lexical_overlap: null
+  origin: live-guest-probe-2026-08-15
+- id: probe-live-student-000
+  category: gated
+  query: What does a student need to do to prepare for the weekly pre-exam?
+  expected_required_role: student
+  source_document_title: Student Participation
+  source_chunk_id: null
+  lexical_overlap: null
+  human_query: What does a student need to do to prepare for the weekly pre-exam?
+  human_lexical_overlap: null
+  origin: live-guest-probe-2026-08-15
+- id: probe-live-branch_manager-000
+  category: gated
+  query: What are a branch manager's responsibilities for staffing a branch?
+  expected_required_role: branch_manager
+  source_document_title: Branch Operations Manual
+  source_chunk_id: null
+  lexical_overlap: null
+  human_query: What are a branch manager's responsibilities for staffing a branch?
+  human_lexical_overlap: null
+  origin: live-guest-probe-2026-08-15
+# **Filed as `public`, not `gated`, and that is the judgement worth reading.** The live probe
+# lists this among its gated questions, but D-359 measured it being *answered* to a guest
+# citing `public-student-participation-guide` - a public document. Role filtering held; the
+# wart is that the prose opens "According to the tutor handbook" while citing something else.
+# `public` means "a question a PUBLIC chunk answers; the probe must stay silent", which is
+# exactly this. Filing it as `gated` would score every correct rule as a MISS for staying
+# silent on a question the corpus can already answer, biasing the sweep toward over-wide
+# rules - the precise failure D-359 warns about.
+- id: probe-live-public-000
+  category: public
+  query: What does the tutor handbook require before a session starts?
+  expected_required_role: null
+  source_document_title: Student Participation Guide (public)
+  source_chunk_id: null
+  lexical_overlap: null
+  human_query: What does the tutor handbook require before a session starts?
+  human_lexical_overlap: null
+  origin: live-guest-probe-2026-08-15
 human_phrasing:
   added_by: scripts/generate_probe_eval_fixture.py --from-fixture
   model: us.anthropic.claude-haiku-4-5-20251001-v1:0
