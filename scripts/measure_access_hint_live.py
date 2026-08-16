@@ -89,7 +89,16 @@ def ask(question: str) -> dict:
 def classify(result: dict) -> str:
     hint = result.get("access_hint")
     if hint:
-        return f"HINT({hint['required_role']})"
+        # **This used to read `hint["required_role"]` and it stopped existing** (D-359).
+        # D-351 narrowed `AccessHintResponse` to `message` alone, deliberately - naming the
+        # tier tells an anonymous caller which role holds the answer, which is a disclosure
+        # the security design does not permit. The instrument was not updated in the same
+        # change, so from that deploy on a question that *did* hint raised `KeyError` here
+        # and was tallied as `ERROR KeyError` rather than as a hit: the run reported
+        # **recall 0/8 when the true figure was 1/8**, and the one working case was the
+        # thing being counted as broken. Read presence, not the tier - which is also the
+        # only thing a caller can see.
+        return "HINT"
     if result.get("citations"):
         return "ANSWERED"
     if result.get("escalation_recommended"):

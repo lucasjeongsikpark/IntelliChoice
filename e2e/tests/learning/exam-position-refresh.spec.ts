@@ -59,8 +59,16 @@ test("after a refresh, navigating back to an answered question stays there", asy
   await expect(page.locator(".phase-chip")).toHaveText(/pre-exam/i, { timeout: 60_000 });
 
   // Two answers, so question 1 is answered-and-locked and the screen has advanced to 3.
-  await answerCurrentQuestion(page);
-  await answerCurrentQuestion(page);
+  //
+  // **Waiting for the server to take them, not for the screen to move** (D-360). The screen
+  // advances optimistically, so polling it proves only that the *client* believes two
+  // answers landed. Measured on staging: the poll below reached question 3, the reload
+  // restored to question **2**, and the restore is right - it lands on the first item still
+  // needing an answer, and the second submission was still in flight. That is D-288's
+  // mechanism, which `journey-student.spec.ts` already guards by counting acknowledged
+  // responses; this spec polled the DOM instead and inherited the race.
+  await answerCurrentQuestion(page, { awaitAcceptance: true });
+  await answerCurrentQuestion(page, { awaitAcceptance: true });
   const reached = await expect
     .poll(async () => questionNumber(await positionText(page)), { timeout: 30_000 })
     .toBe(3)

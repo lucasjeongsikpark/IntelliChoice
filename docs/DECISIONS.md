@@ -25419,3 +25419,127 @@ image, zero environment variables gained or lost, zero values changed, zero secr
 three. Applied on that evidence, then read back from AWS rather than from Terraform's own report
 (the D-344 lesson): schedule `ENABLED`, correct cron and command, ops-task family latest now
 revision 127 on the **correct** image, and both services still running 133 / 131 untouched.
+
+---
+
+### D-358 — The guard knew about hints and not about videos, because the pause is the wrong signal
+
+**Date:** 2026-08-16 · **Status:** fixed, deployed, verified · **Fixes:** D-356 · **Files:** `apps/learning-api/src/learning_api/graph/{state,nodes}.py`, `services/stage_narrative_scheduler.py`
+
+#### The signal that was missing
+
+D-356 characterised the defect and stopped there, because every fix available at the time
+had a worse failure mode than the bug. What was missing was a way to ask **"is this help the
+help currently on screen?"** — and the answer had to survive `last_intervention` going stale,
+which it does by design: `submit_answer` advances `last_study_attempt_id` and leaves the help
+behind, so "there is an intervention" stays true long after the student moved on.
+
+`last_intervention_attempt_id` is that signal. Written next to `last_intervention` in both
+`intervention_choice` branches and nowhere else, so the two cannot drift apart. Help is on
+screen when the graph is paused **or** when the recorded intervention belongs to the current
+attempt.
+
+**Why the old guard could not have worked.** It read `hint_ladder_awaiting_choice`, which
+means *the graph is paused*. Hints 1 and 2 pause. **Hint 3 of 3, every solution and every
+video close the pause and leave the panel up** — `App.tsx` renders help on
+`ladderOpen || intervention != null` for exactly that reason. So the client and the scheduler
+disagreed about what "help is showing" means, and the three cases where they disagreed are
+precisely the three the guard needed to cover.
+
+#### Skip rather than carry, following the precedent it extends
+
+The alternative was to have the deferred frame carry `intervention` and `assistance_question`
+so the student sees both. Skipping matches what the existing guard already does and what its
+comment already argues: nothing durable is lost, the `stage_transitions` row is written either
+way, and *"the narrative was a between-questions message for a moment that is no longer
+between questions."* That reasoning is exactly as true of a student reading a video.
+
+#### ⚠️ The first version of the test passed with the fix deleted
+
+Asserting the pairing on the video test looked obviously right and proved nothing. With no
+`youtube_videos` row for the skill the video **falls back**, the pause stays *open*, and the
+walk exercises the hint branch — whose write was still in place. Found by deleting the write
+and re-running: still green.
+
+The assertion now lives on the **solution** choice, which always serves and therefore always
+takes the terminal branch. Deleting the write turns it red, which is the only reason to
+believe it. Three unit tests cover the guard directly, including the one that matters more
+than the positive case: **a stale intervention must NOT suppress a narrative.** A guard that
+always fires is not a guard, and gating on `last_intervention` alone would have silently
+disabled deferred narratives for the rest of every session.
+
+#### Verified
+
+pytest **1649 → 1653**. Deployed as `gha-662e525622f7`, read from ECS. On staging the video
+spec passed **4 of 4** at 8–10s each, against a pre-fix rate of roughly one failure in two and
+a failure that burned 30s waiting for a heading that never came.
+
+---
+
+### D-359 — The access probe is fine; the instrument that grades it was broken, and the fixture is easier than reality
+
+**Date:** 2026-08-16 · **Status:** measured, deliberately not tuned · **Spend:** 15.61¢ · **Files:** `scripts/measure_access_hint_live.py`
+
+#### The sweep, which says the shipped rule is already on the frontier
+
+`measure_access_probe_rules.py` over 58 cases (38 gated, 12 public, 8 unanswered) with
+`--query-field human_query`, rerank scores obtained for 58/58:
+
+| rule | right | wrong | silent | FP public | FP unans |
+|---|---|---|---|---|---|
+| **SHIPPED `probe_access`** | **26** | **0** | 12 | **0** | **0** |
+| `nearest <=0.50` | 27 | 2 | 9 | 0 | 2 |
+| `nearest <=0.55` | 30 | 2 | 6 | 1 | 3 |
+| `rerank_only >0.5` | 33 | 5 | 0 | 0 | 1 |
+| `rr <=0.65 margin 0.10` | 30 | 0 | 8 | 0 | 0 |
+
+Every distance rule that gains recall pays for it in wrong-tier answers or false hints. The
+one exception is the **margin family**, which reaches 30/38 with nothing measurable lost — and
+it is the family D-166 already demoted to a negative control after measuring the
+gated-vs-readable gap at 0.044 on unanswerable questions. Its clean sheet here rests on
+**20 negative cases**, which is not enough to promote a rule this file has already been wrong
+about once. **Not adopted. Recorded with its numbers so the next attempt starts from them.**
+
+#### The instrument was silently broken by a fix in the session that wrote it
+
+`measure_access_hint_live.py` classified a hint with `hint["required_role"]`. **D-351 removed
+that field on purpose** — naming the tier tells an anonymous caller which role holds the
+answer. The script was not updated in the same change, so from that deploy onward *a question
+that did produce a hint raised `KeyError` and was tallied as an error rather than a hit*.
+Today's first run showed exactly one `ERROR KeyError` among the gated questions: in all
+likelihood the single working case, counted as broken. Repaired to read presence, which is
+also the only thing a caller can see.
+
+#### What the live numbers actually are
+
+Two runs today against `gha-662e525622f7`, and they disagree with each other because
+synthesis is not deterministic:
+
+| run | gated outcomes | recall | false hints |
+|---|---|---|---|
+| before the repair | 5 refused, 2 answered, 1 `KeyError` (a hint) | ~1/8 | 0/5 |
+| after the repair | **8 refused** | **0/8** | 0/5 |
+
+So the honest figure is **0–1 of 8**: the probe runs — a no-source refusal is its precondition
+and all eight refusals reached it — and finds nothing.
+
+#### The reframing, which is the useful part
+
+Three explanations were tested and two are excluded:
+
+- **Not the corpus being absent.** Staging holds 55 effective approved gated chunks across 11
+  documents (15 branch_manager, 15 student, 15 tutor, 10 parent), all embedded.
+- **Not fake embeddings.** AUD-C-16 once found staging's corpus was mock hash vectors, which
+  would make every cosine meaningless. Measured over 1,770 pairs: **avg cosine 0.138, max
+  0.904**. Random 1024-d vectors would sit near zero throughout, so these carry real semantic
+  structure. AUD-C-16 is genuinely closed.
+- **What is left: the fixture is easier than reality.** The sweep's own distance table gives
+  gated questions a mean 0.422 to their nearest gated chunk against a 0.40 ceiling — so the
+  fixture sits right on the boundary and half of it lands inside. Hand-written questions
+  evidently sit further out, which is AUD-C-21's finding (a question is further from its
+  answer than an answer is) showing up one level higher: **the instrument used to choose the
+  threshold is calibrated on cases easier than the ones users ask.**
+
+**Recommendation, and it is not "raise the threshold":** add the eight live questions to
+`probe_eval.yaml` with their measured distances, then re-sweep. Tuning against a fixture that
+does not contain the failing cases is how a rule gets chosen that scores well and does nothing.
