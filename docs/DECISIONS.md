@@ -26251,3 +26251,65 @@ a lock. Measured directly on an invoke-heavy file: **150.7 s with the lock, 148.
 1.7%, i.e. noise. The suite difference was machine variance from concurrent work. Recorded because
 "the tests got slower after I added a lock" is exactly the kind of correlation that becomes folklore
 if nobody checks it.
+
+---
+
+### D-377 — The application layer was logged and unalarmed, and one job was succeeding at nothing
+
+**Date:** 2026-08-16 · **Status:** shipped · **Files:** `terraform/modules/observability/{app_events.tf,variables.tf}`, `terraform/environments/staging/main.tf`, `packages/observability/.../scheduled_jobs.py` (new), the four nightly CLIs, `learning-api/graph/nodes.py`
+
+The audit's Batch B. Its one-sentence shape: **the infrastructure layer is thoroughly alarmed
+and the application layer is thoroughly logged and almost entirely unalarmed.** Every P1 was a
+well-named log line that no metric filter read. `alarms.tf` already opens with this exact
+criticism, made about an earlier set of metrics, and it had become true again of a newer set.
+
+Nothing here needed new instrumentation except the nightly jobs; the rest is pointing existing
+CloudWatch machinery at events the applications already emit.
+
+#### The crash sink had no consumer
+
+Built for learning in D-328 and chat in D-372 *specifically* so a student's blank screen would
+reach someone. `$.event = "client_error"` is directly filterable. There was no filter, no alarm,
+no counter — **the reporting half shipped and the noticing half did not**, so a frontend deploy
+that white-screens one browser family sat until a human complained.
+
+#### D-329's detection gap, unchanged since the incident
+
+117 `background_hint_personalization_failed` in 48 hours, invisible because a detached task
+swallows exceptions by design. The bug is fixed; `grep -rin "background_" terraform/` still
+returned **zero**. One wildcard filter (`background_*_failed`) covers all three schedulers and
+anything later that follows the convention — the naming already existed, only the consumer was
+missing.
+
+#### The attendance gate went silent instead of spiking
+
+The `except` returned **above** `ATTENDANCE_CHECKS.inc()`, and `"unknown"` was declared in the
+metric's labelnames and emitted nowhere. D-152 §2 records that `attended = null` → UNKNOWN →
+blocked is a *routine* production path, so the one metric that could separate "the MySQL adapter
+is down" from "quiet night" read flat in both — while the ALB stayed green, because a blocked
+start is a successful response.
+
+#### A job succeeding at doing nothing
+
+The four enabled schedules reported entirely through `print()`. Read live from staging, that
+day's consolidation run: **0 facts added, 3,181 events dropped over the call cap, 14.11 cents
+spent.** Real money, no result, and the only trace was prose. Each CLI now emits
+`<job>_job_complete` next to its `print()` — the print stays, because it is what a human sees
+running a job by hand, which is how these are first exercised (AUD-F-34).
+
+#### The dead-man's switch, which is the real finding
+
+The existing alarm watches ECS task **exit ≠ 0** — a job that runs and fails. A job that *never
+runs* emits no task-state event, so nothing matches and nothing fires: a disabled schedule, a
+revoked `iam:PassRole`, a Scheduler-side failure and a `RunTask` that never launches are all
+indistinguishable from a quiet night. For a 90-day retention promise over minors' data, **the
+absence of a failure is not evidence of a run.** Hence `treat_missing_data = "breaching"` on the
+heartbeat — the inverse posture of every other alarm here, because missing data *is* the incident.
+
+#### Two thresholds deliberately left disabled
+
+`daily_completed_sessions_floor` is **0** on staging. Traffic there is synthetic (the e2e suite
+is most of it), so there is no honest floor and inventing one is how an alarm becomes noise on
+day one. It needs a real usage baseline. `youtube-sync` is excluded from the heartbeat list
+because it is `enabled = false`, and a heartbeat on a switched-off schedule would fire forever
+and teach everyone to ignore the whole family.

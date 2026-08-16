@@ -44,6 +44,10 @@ from typing import Any
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_db.models.learning_session import LearningSession
 from intellichoice_db.repositories.learning_session import LearningSessionRepository
+from intellichoice_observability.scheduled_jobs import (
+    JOB_SESSION_CONSOLIDATE,
+    report_job_complete,
+)
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -167,6 +171,7 @@ def main() -> None:
         f"{counts['unchanged']} already current, "
         f"{counts['skipped_not_learning']} not learning threads"
     )
+    report_job_complete(JOB_SESSION_CONSOLIDATE, **counts)
 
 
 if __name__ == "__main__":

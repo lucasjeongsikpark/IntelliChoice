@@ -38,6 +38,10 @@ from intellichoice_db.engine import create_engine, create_session_factory, sessi
 from intellichoice_db.repositories.memory import MemoryRepository
 from intellichoice_db.repositories.stage_transition import StageTransitionRepository
 from intellichoice_db.repositories.student_report import StudentReportRepository
+from intellichoice_observability.scheduled_jobs import (
+    JOB_RETENTION_PURGE,
+    report_job_complete,
+)
 
 SEMANTIC_MEMORY_RETENTION_DAYS = 90
 STAGE_TRANSITION_RETENTION_DAYS = 90
@@ -97,6 +101,9 @@ def main() -> None:
         f"{deleted['learning_events']} learning_events row(s) older than "
         f"{LEARNING_EVENT_RETENTION_DAYS} days"
     )
+    # D-377: the queryable form of the same four numbers. A 90-day retention promise over
+    # minors' data cannot rest on prose in a log stream nobody opens.
+    report_job_complete(JOB_RETENTION_PURGE, **deleted)
 
 
 if __name__ == "__main__":

@@ -377,6 +377,21 @@ async def select_topic(state: LearningState, runtime: Runtime[TurnContext]) -> d
             student_external_id=state.student_external_id,
         )
     except Exception as exc:  # SPEC §5.29: MySQL attendance failure -> block start
+        # **The `return` used to sit above the counter, so a broken gate went silent instead
+        # of spiking** (D-377). `"unknown"` was declared in the metric's labelnames and
+        # emitted nowhere in the repo — the slot for this exact case was designed and left
+        # unconnected, and there was no log line on this path either.
+        #
+        # It matters more than a missing datapoint. D-152 §2 records that
+        # `signups.attended = null` -> UNKNOWN -> blocked is a **routine** production path, so
+        # the one metric that could separate "the MySQL adapter is down" from "quiet night"
+        # read flat in both cases — while the ALB stayed green throughout, because a blocked
+        # start is a successful response.
+        ATTENDANCE_CHECKS.labels(result="unknown").inc()
+        logger.warning(
+            "attendance_check_failed",
+            extra={"student_external_id": state.student_external_id, "reason": type(exc).__name__},
+        )
         return {"phase": "error", "last_error": f"attendance check failed: {exc}"}
 
     ATTENDANCE_CHECKS.labels(result="blocked" if gate.blocked else "present").inc()
