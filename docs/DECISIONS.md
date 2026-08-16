@@ -25776,3 +25776,78 @@ nine-student fixture set.
 `DevLoginScreen` is updated anyway: `config.ts` states the harness list and that screen must not
 disagree, and the drift it warns about (`student-ext-3` present in one and missing from the
 other) is the reason the comment exists.
+
+---
+
+### D-368 — D-364's fix was already live, and the 502 predates it by 34 minutes
+
+**Date:** 2026-08-16 · **Status:** corrects the record; verification still statistical · **Method:** ECS task-definition registration times against the ALB metric
+
+PROGRESS carried D-364 as *"fixed, needs a deploy"*. It did not need one. The record is wrong in
+a way worth writing down, because the correction came from reading applied AWS state rather than
+from the commit log — the same D-344 discipline that caught the unapplied Terraform pin.
+
+| when (cluster local, 2026-08-16) | what |
+|---|---|
+| 01:27:51 | learning-api rev 136 registered — `gha-662e525622f7`, no keep-alive flag |
+| **04:28** | **the single `HTTPCode_ELB_5XX_Count` datapoint, Sum 1.0** |
+| **05:01:59** | **learning-api rev 137 registered — `gha-c97804e665e6`, the keep-alive commit** |
+| 05:02:00 | the deployment carrying it starts; rollout COMPLETED at 05:05 |
+
+So the 502 fired **34 minutes before the fix existed on the cluster**, which is consistent with
+D-364's account (found during the accumulation) and means the event is not evidence against the
+fix. Confirmed the running container uses it: both task definitions carry `command: null`, so
+the image's own `CMD` — the one `c97804e` gave `--timeout-keep-alive 125` — is what runs.
+
+**What this does and does not settle.** D-364's own note stands: the event fired once in three
+hours of *continuous e2e load*, so idle hours prove nothing. Zero 5xx in the five hours after the
+deploy is consistent with the fix and is not yet evidence for it. The accumulation is the load
+that makes the metric mean something, and it is read at the end of it rather than assumed.
+
+---
+
+### D-369 — The guard asked the right question at the wrong moment
+
+**Date:** 2026-08-16 · **Status:** fixed, falsified, deployed · **Files:** `apps/learning-api/src/learning_api/services/stage_narrative_scheduler.py`, `apps/learning-api/tests/test_stage_narrative_scheduler.py`
+
+`video-intervention` reddened the second accumulation run with D-356's own failure message —
+against a build that already carries D-358's fix, verified 4/4 the day before. Reproduced
+deliberately with `E2E_CAPTURE_BODIES=1 --repeat-each=5`: **1 failure in 5**, and the `POST
+/respond` bodies are substantively identical across all five — 200, `intervention.type="video"`,
+`phase: study`, `stage_narrative: null`. **The server was right every time.**
+
+#### What D-358 actually fixed, and what it left
+
+D-358 gave the guard the right *question*: not "is there an intervention" but "does it belong to
+the attempt the student is on". That predicate is correct and its four unit tests still pass.
+
+The remaining defect is **when** it is evaluated. `_run` reads the checkpoint once, after the
+~1.5 s generation call, and then does more awaiting work before publishing — it opens a second
+session and queries the study rows to build the snapshot. A student who clicks "Watch a video"
+in that gap commits their choice *after* the read, so the values the guard inspected **cannot**
+contain it. No pairing signal detects a write that has not happened yet.
+
+That is why the fix looked verified: 4 of 4 is entirely consistent with a window that catches
+roughly one run in five.
+
+#### The fix, and what it does not claim
+
+Re-read the checkpoint and re-apply the same guard **immediately before** the synchronous
+`publish`, after the snapshot is built. There are no awaits between that check and the publish,
+so within the process the window is *closed* rather than narrowed. A commit arriving from
+another replica in that gap remains possible in principle; that is stated here rather than
+glossed, in keeping with D-364's posture on statistical verification.
+
+Skipping loses nothing: the durable `stage_transitions` row is written before the publish, and
+the narrative is a between-questions message for a moment that is no longer between questions.
+
+#### The test gap this exposes, which generalises
+
+Every existing test for this guard checks `_help_is_on_screen` as a **pure predicate**. Not one
+checks *when* the scheduler calls it — so the entire defect lived in the untested space between
+a correct predicate and its evaluation point. The new test drives the real scheduler with an
+`aget_state` that returns "nothing on screen" first and "a video" second, and asserts both that
+the second read happens at all and that nothing is published.
+
+**Falsified before being believed** (last session's lesson, applied): deleting the re-check turns
+it red — `the scheduler read the checkpoint 1 time(s)`.

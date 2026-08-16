@@ -190,6 +190,31 @@ class BackgroundStudyNarrativeScheduler:
                         # deferred `study_step` frame is titled as one.
                         payload.stage,
                     )
+                # **Re-read and re-check, immediately before publishing** (D-369).
+                #
+                # The guard above is evaluated once, and everything after it takes time: the
+                # snapshot build opens a session and queries the study rows. A student who
+                # clicks "Watch a video" in that gap commits their choice *after* the read,
+                # so the values the guard inspected cannot contain it and no amount of
+                # pairing detects it — D-358 gave the guard the right question to ask and
+                # left it asking at the wrong moment.
+                #
+                # Measured on staging against the deployed fix: identical `POST /respond`
+                # bodies (200, `intervention.type="video"`, a real URL) in both the passing
+                # and failing runs, 1 failure in 5. The server was correct every time; only
+                # the frame that followed differed.
+                #
+                # There are no awaits between this check and the synchronous `publish`, so
+                # within this process the window is closed rather than narrowed. A commit
+                # from *another replica* landing in that gap remains possible in principle;
+                # it is not closed here and is not claimed to be.
+                latest = await self._graph_getter().aget_state(config)
+                if _help_is_on_screen(latest.values):
+                    logger.info(
+                        "stage_narrative_publish_skipped_help_arrived_late learning_session=%s",
+                        learning_session_id,
+                    )
+                    return
                 self._events.publish(learning_session_id, event)
         except Exception:
             # Swallowed on purpose (same reasoning as the consolidation scheduler): nothing
