@@ -28,6 +28,7 @@ from datetime import UTC, datetime, timedelta
 
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
+from intellichoice_observability.scheduled_jobs import JOB_CHAT_PURGE, report_job_complete
 
 RETENTION_DAYS = 90
 
@@ -48,6 +49,9 @@ async def purge() -> int:
 def main() -> None:
     deleted = asyncio.run(purge())
     print(f"purged {deleted} tutor_chat_messages row(s) older than {RETENTION_DAYS} days")
+    # D-377: the record a metric filter and the heartbeat alarm can read. The `print`
+    # above is for a human running this by hand; it is not a number anything can query.
+    report_job_complete(JOB_CHAT_PURGE, deleted=deleted, retention_days=RETENTION_DAYS)
 
 
 if __name__ == "__main__":

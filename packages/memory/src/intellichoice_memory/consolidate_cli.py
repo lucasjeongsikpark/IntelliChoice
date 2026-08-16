@@ -22,6 +22,10 @@ from intellichoice_db.engine import create_engine, create_session_factory, sessi
 from intellichoice_db.repositories.mastery import MasteryRepository
 from intellichoice_db.repositories.memory import MemoryRepository
 from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
+from intellichoice_observability.scheduled_jobs import (
+    JOB_MEMORY_CONSOLIDATE,
+    report_job_complete,
+)
 from intellichoice_shared.bedrock import BedrockTask
 
 from intellichoice_memory.consolidation import consolidate_student_window
@@ -150,6 +154,20 @@ async def main() -> int:
             f"{total_attempted} model call(s), {total_failed} failed, "
             f"{total_dropped} event(s) dropped, "
             f"{total_mastery_conflicts} refused (contradicted mastery)."
+        )
+        # D-377: the same numbers, queryable. This job is the reason the finding exists -
+        # a staging run on 2026-08-16 added 0 facts, dropped 3,181 events over the call cap
+        # and spent 14.11 cents, and the only trace was the sentence above.
+        report_job_complete(
+            JOB_MEMORY_CONSOLIDATE,
+            students=students_processed,
+            students_skipped=students_skipped,
+            added=total_added,
+            expired=total_expired,
+            spend_cents=round(spend, 2),
+            model_calls=total_attempted,
+            failed=total_failed,
+            dropped=total_dropped,
         )
         if total_attempted and total_failed == total_attempted:
             print(

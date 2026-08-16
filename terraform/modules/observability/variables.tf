@@ -150,3 +150,44 @@ variable "ops_task_log_group" {
   EOT
   type        = string
 }
+
+# --- D-377: the application-layer alarms ------------------------------------------------
+
+variable "client_error_alarm_threshold" {
+  description = <<-EOT
+    Browser crash reports in 15 minutes above which to alert. Deliberately low - a render
+    crash is not a rate to be tuned, and `ErrorBoundary` fires once per failed render so a
+    loop is already bounded by the endpoint's own per-caller limit.
+  EOT
+  type        = number
+  default     = 0
+}
+
+variable "background_failure_alarm_threshold" {
+  description = <<-EOT
+    `background_*_failed` events in one hour above which to alert. Above zero because a
+    single transient Bedrock failure is absorbed by design and the student still gets
+    reviewed content; D-329's undetected incident ran at ~2.4/hour sustained.
+  EOT
+  type        = number
+  default     = 2
+}
+
+variable "daily_completed_sessions_floor" {
+  description = <<-EOT
+    Completed learning sessions in 24h below which to alert, or 0 to disable. A floor rather
+    than a target: it should fire when the number is implausibly low for a whole day, not
+    when it dips. Set to 0 while staging traffic is synthetic and there is no honest floor.
+  EOT
+  type        = number
+  default     = 0
+}
+
+variable "nightly_job_events" {
+  description = <<-EOT
+    Job names whose `<name>_job_complete` record is metric-filtered and heartbeat-alarmed.
+    Must match the `job` field the CLIs emit.
+  EOT
+  type        = list(string)
+  default     = []
+}

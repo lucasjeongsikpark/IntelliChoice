@@ -741,6 +741,23 @@ module "observability" {
   # D-244: where `pipeline_cli` and `loader` write. Both run here as ops tasks, so their
   # records were already reaching CloudWatch - just as unstructured text nothing could read.
   ops_task_log_group = module.ops_task.log_group_name
+
+  # D-377: the nightly jobs whose `<name>_job_complete` record is counted and heartbeat-
+  # alarmed. **These strings must match `scheduled-jobs`'s own `locals.jobs` keys** - the
+  # alarm carries `job` as a dimension, so a mismatch produces one that can never clear.
+  # `youtube-sync` is deliberately absent: it is `enabled = false`, and a heartbeat alarm on
+  # a schedule that is switched off would fire forever and teach everyone to ignore it.
+  nightly_job_events = [
+    "session-consolidate",
+    "chat-purge",
+    "retention-purge",
+    "memory-consolidate",
+  ]
+  # Staging traffic is synthetic - the e2e suite is most of it - so there is no honest floor
+  # to put under "sessions completed in a day". Left at 0 (disabled) rather than guessed at;
+  # this is the one alarm in D-377 that needs a real usage baseline before it means anything,
+  # and inventing a threshold here is how an alarm becomes noise on day one.
+  daily_completed_sessions_floor = 0
   # D-244: 160 RDS metrics were being collected in this account and no alarm read one of
   # them. `max_connections_alarm` differs per engine because the two instance classes do
   # not share a connection ceiling - Postgres holds every session, checkpoint and question
