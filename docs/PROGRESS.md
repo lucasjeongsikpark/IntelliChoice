@@ -7,6 +7,59 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**✅ D-356 IS FIXED, AND THE ACCESS PROBE TURNED OUT NOT TO BE THE PROBLEM
+(2026-08-16, D-358 → D-360).**
+
+**The video defect is fixed and verified live (D-358).** The missing signal was *which
+attempt an intervention belongs to* — `last_intervention` goes stale by design, so "there is
+an intervention" is true long after the student moved on. A new `last_intervention_attempt_id`
+channel, written beside it in both branches, makes "is help on screen?" answerable; the
+narrative scheduler now skips the publish when it is. The old guard read
+`hint_ladder_awaiting_choice`, which means *the graph is paused* — and hint 3 of 3, every
+solution and every video **close** the pause while the panel stays up, which is exactly the
+three cases it needed to cover. Staging: **4 of 4** at 8–10s each, against a pre-fix rate of
+about one failure in two.
+
+**⚠️ The first version of that test passed with the fix deleted.** Asserting the pairing on
+the *video* test proved nothing: with no `youtube_videos` row the video falls back, the pause
+stays open, and the walk takes the other branch. Found by deleting the write and re-running.
+The assertion moved to the **solution** choice, which always takes the terminal branch, and
+deleting the write now turns it red.
+
+**The access-probe sweep ran (15.61¢) and the answer was "don't tune it" — for a better reason
+than expected (D-359).** The shipped rule scores **26 right / 0 wrong / 0 false positives** on
+58 cases; every distance rule that gains recall pays in wrong tiers or false hints. But the
+live figure is **0–1 of 8**, and chasing that gap excluded two explanations and found a third:
+
+- Not a missing corpus — staging holds **55 effective approved gated chunks** across 11
+  documents, all embedded.
+- Not fake embeddings — AUD-C-16's old finding would have made every cosine meaningless.
+  Measured over 1,770 pairs: **avg cosine 0.138, max 0.904**. Real semantic structure.
+  AUD-C-16 is genuinely closed.
+- **The fixture is easier than reality.** Gated questions sit a mean 0.422 from their nearest
+  gated chunk against a 0.40 ceiling — right on the boundary. Hand-written questions sit
+  further out. So the instrument used to *choose* the threshold is calibrated on cases easier
+  than the ones users ask. **Next step is to add the eight live questions to `probe_eval.yaml`
+  and re-sweep**, not to raise the threshold.
+
+**⚠️ And the live instrument had been silently broken by a fix in the session that wrote it.**
+`measure_access_hint_live.py` classified a hint with `hint["required_role"]`; D-351 removed
+that field on purpose (naming the tier is a disclosure). So from that deploy on, a question
+that *did* hint raised `KeyError` and was tallied as an error. Repaired.
+
+**C1 Phase 6 is still open, and the run that reopened it was a third real find (D-360).**
+`exam-position-refresh` reddened run 2: the poll reached question 3, the reload restored to
+question **2**, and the restore was correct — the second submission was still in flight.
+D-288's mechanism in a spec that polls the DOM where `journey-student` counts acknowledged
+responses. Fixed with `awaitAcceptance`, the option D-355 added for the study loop; 3/3 on
+staging. The accumulation restarted from zero after it.
+
+**The pattern worth naming:** three separate defects this session were all "a check that
+stopped detecting" — an allowance that was never path-scoped, an instrument reading a field
+that had been deliberately removed, and my own first test passing with its fix deleted.
+
+### Previous next session
+
 **⛔ C1 PHASE 6 CANNOT CLOSE, AND FOR THE FIRST TIME THE REASON IS A PRODUCT DEFECT
 (2026-08-16, D-355 → D-357).**
 
@@ -83,7 +136,7 @@ projected** from 4,724 threads, 2,204 already current, 2,338 correctly classifie
 run — the session's staging budget went to diagnosing two real defects instead, and a retrieval
 change wants its own deploy rather than riding with D-356's. chat-api still has no crash sink.
 
-### Previous next session
+### Earlier — the flake was the product (2026-08-16, D-355 → D-357)
 
 **⏸ CHAT SERVICE: seven phases shipped, two things left open for you (2026-08-15, D-343 → D-353).**
 

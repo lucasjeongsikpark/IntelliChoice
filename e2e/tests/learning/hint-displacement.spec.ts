@@ -58,10 +58,26 @@ test("a requested hint stays on screen long enough to read", async ({ page, audi
   }
   test.skip(!reached, "no retry-ladder pause occurred in this run (every answer was correct)");
 
-  await stableClick(page.getByRole("button", { name: /get a hint/i }));
+  const clicked = await stableClick(page.getByRole("button", { name: /get a hint/i }));
+  audit.note(`"Get a hint" click landed: ${clicked}`);
 
   const panel = page.locator(".intervention-panel");
-  const appeared = await panel
+  // **Wait for the hint *result*, not for "a panel"** (D-361, and the same defect D-339
+  // fixed for the video spec).
+  //
+  // The chooser is itself rendered inside `.intervention-panel`, so waiting on that
+  // container matched the menu that was **already on screen** and resolved instantly. The
+  // run that exposed it recorded, as its "hint content", the menu verbatim: *"Not quite —
+  // want a hand? … GET A HINT / SHOW THE SOLUTION / WATCH A VIDEO"* — and made no
+  // `POST /respond` at all, so no hint was ever requested. It then watched that menu
+  // unmount as the screen moved on and reported **"a requested explanation the student
+  // cannot finish reading"**, which is a product defect this run had no evidence for.
+  //
+  // `<h2>Hint …</h2>` comes from `InterventionScreen`'s hint branch and the menu does not
+  // render it, so the wait now fails when the click does nothing instead of passing
+  // against the thing it was supposed to replace.
+  const hintHeading = page.getByRole("heading", { name: /^hint(\s|$)/i });
+  const appeared = await hintHeading
     .waitFor({ state: "visible", timeout: 30_000 })
     .then(() => true)
     .catch(() => false);
@@ -72,14 +88,19 @@ test("a requested hint stays on screen long enough to read", async ({ page, audi
   audit.note(`hint content: ${JSON.stringify(hintText.slice(0, 200))}`);
 
   // How long does it survive with no further interaction? A student needs seconds.
+  //
+  // Tracked on the hint heading rather than on `.intervention-panel` for the same reason
+  // the wait above is (D-361): the container also holds the chooser, so "the container is
+  // still mounted" would stay true if the hint were replaced by the menu - which is a
+  // displacement, not a survival.
   const shownAt = Date.now();
   let dwellMs = 0;
   for (let i = 0; i < 30; i += 1) {
-    if ((await panel.count()) === 0) break;
+    if ((await hintHeading.count()) === 0) break;
     dwellMs = Date.now() - shownAt;
     await page.waitForTimeout(500);
   }
-  const stillThere = (await panel.count()) > 0;
+  const stillThere = (await hintHeading.count()) > 0;
   audit.note(
     stillThere
       ? `hint still on screen after ${dwellMs}ms of no interaction - survives`
