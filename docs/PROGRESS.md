@@ -1204,6 +1204,86 @@ and D-220 measured zero wrong tiers live.
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
 
+### Session log — the chat service walked end to end, and the failure paths nobody re-walks (2026-08-16, D-343 → D-354)
+
+**What this was.** Not a roadmap session. The user asked for a full end-to-end review of the chat
+service — including a live chrome-devtools walk — and a plan to fix what it found. Six
+implementation phases followed, plus a taxonomy redesign the user specified mid-session.
+
+**The happy path was already solid, and that is the first finding.** Ten turns as a guest and as a
+parent on staging: zero console errors, correct role gating, citations, the locator consent
+round-trip and its decline, scope refusals. Everything fixed below lives in paths that only run
+when something goes wrong — which is exactly where nobody looks after a feature works.
+
+**Built.**
+
+- **Spend containment (D-345).** chat-api had **no per-day bound of any kind**; the only budget was
+  50¢ per *session*, and `POST /chat/sessions` is unauthenticated, free and persists nothing, so a
+  caller reset it on every question. Per-caller cap (120/h, shared counter) + app-wide daily ceiling
+  (1500¢ = thirty exhausted sessions), reserve-then-settle. On `/messages`, not `/sessions`: a
+  session id costs zero until a message spends against it, so the obvious guard would have bounded
+  nothing.
+- **Turn bounds (D-346).** 50s deadline under CloudFront's 60s origin read timeout — the worst case
+  was ~6 minutes of work and spend for a client the edge had already dropped. Plus a
+  `pg_try_advisory_xact_lock` per thread (two POSTs could invoke one LangGraph thread at once) and
+  an ownership check that had been disclosing the pending interrupt type before refusing.
+- **SSE correctness (D-348, D-349).** Cross-replica relay on its own channel; `client_turn_id` so a
+  snapshot says which turn it describes; `/stream` no longer holds a request-scoped DB transaction
+  for the life of the connection (20 streams exhausted the pool).
+- **Frontend dead ends (D-347, D-352, D-353).** `friendlyError`, the D-216 `JSON.parse` guard and
+  `ErrorBoundary` were all fixes learning-web already had and chat-web never received. Plus: a 401
+  that looped forever, a response with a null answer that rendered *nothing at all*, an unknown
+  interrupt type that deadlocked the composer, an approval failure invisible behind the modal
+  scrim, no request timeout and no cancel, and "Log in" on an access hint destroying the
+  conversation the hint was about.
+- **Accessibility (D-350).** The focus trap `ApprovalModal`'s docstring already claimed — four Tabs
+  escaped to "new chat" behind the scrim, measured live. Live region, composer label,
+  `:focus-visible`, contrast floors, hit areas, and one mobile breakpoint where `App.css` had **no
+  width media query at all**, plus a mobile Playwright project.
+- **Refusal taxonomy (D-351), specified by the user.** A closed `TurnReason` set replaces inferring
+  the cause from three fields that merely correlate. Internal labels stop reaching users: a parent
+  asking about a mistaken donation refund was told the question was "unrelated general-purpose".
+  SPEC §5.19.4 amended and §5.19.5 added in the same change so code and spec cannot disagree.
+
+**Verification.** ruff clean · pyright 0 · **1646 passed** / 2 skipped / 1 xfailed. CI 9 of 9 on
+PR #284 (merged `efea7d8`). Staging deploy run `31919039255`, task def 131, all gates and the
+canary bake green, zero application errors since. Staging chat e2e **56 passed / 1 skipped**.
+**The relay measured 10/10 at two replicas**, with the run's 20 POSTs split **12/8** across the two
+tasks and both logging `chat_session_event_relay_started` — the split is what makes the 10/10 mean
+anything. Deployed-build devtools re-walk confirmed every accessibility finding.
+
+**Measured and deliberately not acted on.** The access hint fires for **1 of 8** gated questions at
+**5/5** precision (`scripts/measure_access_hint_live.py`). Untuned: AUD-C-20 bounds how far recall
+can move and that needs its own measured pass. Donations were not added to the supported-topic list
+— scope classification and refusal copy stayed separate questions.
+
+**Carry-over.** learning-api's `/stream` holds a DB session the same way chat's did · chat-api has
+no crash sink, so its `ErrorBoundary` is console-only (anonymous-first needs a different auth answer
+than learning's token-gated endpoint) · the access-probe rule sweep · C1 Phase 6 (untouched) · the
+`EntryInput` msgpack warning, which now provably applies to chat's `AskInput` too · U7's reconciler
+is still unscheduled.
+
+**Three mistakes of mine, all caught by an artifact and none by re-reading.**
+
+1. **D-344: I claimed a replica pin was protecting staging.** `terraform apply` is not part of the
+   deploy and nobody ran it, so the edit changed a file and nothing else — live was max 3 the whole
+   time. One `describe-scalable-targets` call contradicted it. Reverted and corrected.
+2. **D-354: my own Stop button disabled the harness's answer gate.** Putting it inside the
+   `Thinking…` bubble made `not.toHaveText("Thinking…")` — an exact match — pass instantly, so
+   `expectAnswered` stopped waiting for answers across every chat journey. Invisible locally where
+   stubs answer in milliseconds; caught on staging.
+3. **A `streamReady` boolean** let a stale "ready" from the previous session open a stream for a
+   brand-new one, 0 of 6 on a journey. Four wrong guesses from reading; one run of instrumentation
+   gave the answer.
+
+**And a fourth thing worth writing down, because it cost the most time.** Diagnosing (2) I produced
+three plausible theories — a stale CloudFront bundle, autoscaling churn, cross-test storage leakage.
+The service *had* scaled 1 → 2 → 3 during the run; that was true, verifiable, and not the cause.
+**A true fact sitting next to a bug is the most expensive kind of wrong answer**, because it
+survives the checks that kill a false one. Six lines of `journeys.jsonl` settled it.
+
+---
+
 ### Session log — U7 built, a 50%-delivery defect found, and content work parked (2026-08-15, D-331 → D-342)
 
 **Built.** U7 end to end: measured (D-331), `learning_sessions` + reconciler (D-332), retention job
@@ -1231,8 +1311,11 @@ ECS rather than the workflow's report. Staging e2e at the final build: 68/7/0, 6
 68/7/0.
 
 **Carry-over.** C1 Phase 6 (3 clean of 4; the red is harness drift, D-340's breadcrumb will name it
-next time) · chat-api relay (low value, request-path publisher only) · the `EntryInput` msgpack
-warning · U7's reconciler is not scheduled.
+next time) · ~~chat-api relay (low value, request-path publisher only)~~ **— built and measured
+2026-08-16 (D-349): 10/10 at two replicas. The "low value" reading was wrong for a reason worth
+keeping: it is true of the client that made the POST and false of the `/stream` connection, and
+the e2e run's own load scaled chat-api 1 → 2 → 3 on the latency policy the same day** · the
+`EntryInput` msgpack warning · U7's reconciler is not scheduled.
 
 **The pattern, and it did not stop.** Fifteen instances of a claim that was never measured — five of
 them mine, from this session. Three worth naming: the relay that **deployed green and started on

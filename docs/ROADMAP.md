@@ -223,7 +223,11 @@ verified live and via 3 repeated `make test` runs (270/270 stable).
 **Build:**
 - Events extractor in `packages/webcontent`; new `org_events` table (start/end, timezone, audience, branch, registration, RRULE, status) + repo + loader; placeholder `academic-calendar` doc replaced
 - `calendar_extract` queries `org_events` first (deterministic upcoming/completed/canceled/recurrence date logic); existing RAG-extraction path kept as fallback; `calendar_action`/`.ics` unchanged
-- Optional `GET /chat/events` + `EventsCard` in chat-web
+- Optional `GET /chat/events` + `EventsCard` in chat-web — **both gone as of 2026-08-16 (D-345).**
+  The endpoint was deleted: it was unauthenticated surface with no caller anywhere, and the
+  `EventsCard` it existed for had been deferred since this session. `services.calendar_events` is
+  untouched, so `calendar_extract`'s listing answer is unaffected. Re-adding the card means
+  re-adding the route, which is a few lines and a decision rather than a rediscovery.
 **Done when:** "what events are coming up?" returns real events correctly labeled current/upcoming; a past event is never described as upcoming; a canceled event says so; `.ics` generation works from a structured event row.
 **Actual scope (see PROGRESS.md/DECISIONS.md D-054/D-055):** events come from the org's
 Tribe Events Calendar REST API, not HTML scraping (found live, richer/more reliable) -
@@ -242,6 +246,20 @@ otherwise); 292/292 tests passing across 3 repeated runs.
 - Deterministic follow-up suggestions per answer; chat-web `WelcomeCard`, `AccessHintBanner`, suggestion chips
 - Golden Q&A coverage eval set (~40 questions) derived from the real ingested content, as versioned fixtures
 **Done when:** an anonymous tutor-procedure question yields the role-guidance message (never content) while a tutor token gets the real answer; the probe provably returns no content fields; welcome + suggestions render per role; the coverage eval passes its agreed threshold.
+
+**⚠️ Amended 2026-08-16 (D-351), and the first criterion is now measured rather than assumed.**
+The probe was walked live against the whole gated corpus as a guest: it produces a hint for
+**1 of 8** questions a role-gated document answers, with **0 false hints in 5** public ones. So
+the criterion as written — "an anonymous tutor-procedure question yields the role-guidance
+message" — is true of the single case it was demoed on and false of most others. Precision is
+perfect and AUD-C-20 bounds how far recall can move, so **the threshold was deliberately not
+tuned**; the baseline and the instrument (`scripts/measure_access_hint_live.py`) are committed
+so the next attempt starts from a number instead of a demo.
+
+The *second* criterion still holds and is now stronger: the hint no longer names the tier at
+all. `required_role` left the API (it stays in state and in the logs so the probe remains
+measurable), because naming it told an unauthenticated caller which role holds a document
+matching their terms — and it was the wrong role in 1 of 58 measured cases (AUD-C-25/D-179).
 
 ---
 

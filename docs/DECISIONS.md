@@ -25039,6 +25039,11 @@ auto-reconnect", and that was true of one 404 at a moment nobody was watching. I
 harmless once the e2e capture counts console errors, and it was never harmless as a *signal* -
 it says the client is asking for a resource it should know does not exist yet.
 
+<!-- D-351 is below D-353 rather than here: it was written last, after the user specified the
+     reason taxonomy mid-session. Left in place rather than moved, because these entries are
+     referenced by number and a hundred-line block move in a 25k-line file is risk without a
+     reader benefit. -->
+
 ### D-352 — A turn a visitor cannot stop, and three small client defects
 
 **Date:** 2026-08-15 · **Status:** implemented · **Files:** `chat-web/src/{api/client.ts,hooks/useChatSession.ts,screens/{ChatScreen,LocationConsentModal}.tsx,types.ts}`, `apps/chat-web/.env.example`, `e2e/{fixtures/chat-shapes.ts,tests/chat/interaction.spec.ts}`
