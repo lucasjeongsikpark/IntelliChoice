@@ -26041,3 +26041,67 @@ were "logging only… nothing here makes a network call, so a listener firing du
 cannot loop." Adding the report makes that false, so `reportClientError` carries the same
 re-entrancy latch learning-web needed, and the comment is corrected rather than left contradicting
 the code beneath it.
+
+---
+
+### D-373 — D-356 in the publisher nobody looked at, and the seven fixes that went one direction
+
+**Date:** 2026-08-16 · **Status:** fixed, falsified · **Files:** `apps/learning-api/src/learning_api/services/hint_personalization_scheduler.py`, `apps/learning-api/tests/test_hint_personalization_scheduler.py`
+
+The 2026-08-16 audit ([AUDIT_2026_08_16.md](AUDIT_2026_08_16.md)) had four independent sweeps
+report the same structure: **the two apps have been fixed in alternating directions and nobody
+tracked the symmetry.** D-347 recorded one direction and named the cause. Seven fixes have now
+gone one way only, and the seventh is this one.
+
+#### The defect
+
+`hint_personalization_scheduler` guarded its publish with
+
+```python
+if snapshot.values.get("last_study_attempt_id") != marker["attempt_id"]:
+```
+
+which asks *"has the student answered again?"* — and `intervention_choice` **does not advance
+that channel**; only `submit_answer` does. So a student who clicked "Watch a video" or "Show the
+solution" during the ~2.3 s Bedrock rewrite was still on the same attempt, the guard passed, and
+the published frame replaced their video with hint text.
+
+**That is D-356 exactly**, the defect treated as a launch blocker and fixed twice across two
+sessions — in the *narrative* scheduler. This publisher received neither D-358's
+`last_intervention_attempt_id` pairing nor D-369's publish-time re-read, and nobody opened it.
+
+**It is worse here than D-356 was, because it is unrecoverable.** A terminal rung closes the
+pause, nothing republishes, and `_initial_snapshot` gates `intervention` on
+`hint_ladder_awaiting_choice` — false at every terminal rung — so a refresh shows no help at all.
+The student spent their one intervention on nothing.
+
+#### The fix
+
+`_hint_is_still_on_screen(values, attempt_id, level)` asks whether the student is looking at
+*this* hint. Four conditions, each ruling out a real case: same attempt; the current help is a
+hint; at the same level; and paired to this attempt via D-358's channel.
+
+Evaluated **twice** — before the snapshot build and again immediately before the synchronous
+publish (D-369's lesson, ported). No awaits sit between the second check and the publish.
+
+**Deliberately strict:** a checkpoint written before D-358 shipped has no
+`last_intervention_attempt_id`, so the personalization is dropped and the student keeps the
+canonical hint — a complete, reviewed hint. The permissive direction erases help they chose.
+
+#### The tests, and what their absence had been hiding
+
+The file had two tests: "still here" and "moved to a different attempt". **Neither could see this
+defect**, because both leave `last_intervention` unset — the helper synthesised a checkpoint with
+only the one field the old guard read. Three added:
+
+- a student watching a **video** (the D-356 case) — falsified: reverting the predicate publishes;
+- a student who advanced to **hint 2** while hint 1 was being rewritten (the ladder must not walk
+  backwards) — the one condition not about D-356;
+- help that changes **while the snapshot is being built** (D-369's window), asserting both that a
+  second read happens and that nothing is published.
+
+All three go red on the reverted predicate; the two pre-existing tests stay green.
+
+**The module docstring described the old guard approvingly** and has been rewritten. It is worth
+noting as its own point: the wrong guard was documented as a feature for as long as it existed,
+which is why re-reading a docstring is not a substitute for re-reading the code under it.

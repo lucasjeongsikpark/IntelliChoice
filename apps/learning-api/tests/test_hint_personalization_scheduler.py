@@ -231,14 +231,32 @@ async def _stored_hint(hint_event_id: str) -> tuple[bool, str, str]:
         await engine.dispose()
 
 
-async def _run_scheduler(
-    *, learning_session_id: str, marker: dict, checkpoint_attempt_id: str | None, events
-) -> None:
-    """Drive one scheduler task to completion against a fake graph.
+_UNSET = object()
 
-    `checkpoint_attempt_id` is what the checkpoint claims the student is currently on - the single
-    value the staleness guard reads. Passing the marker's own attempt means "still here"; anything
-    else means "moved on".
+
+async def _run_scheduler(
+    *,
+    learning_session_id: str,
+    marker: dict,
+    checkpoint_attempt_id: str | None,
+    events,
+    intervention: object = _UNSET,
+    intervention_attempt_id: object = _UNSET,
+    late_intervention: object = _UNSET,
+) -> list[dict]:
+    """Drive one scheduler task to completion against a fake graph. Returns the values read.
+
+    `checkpoint_attempt_id` is what the checkpoint claims the student is currently on. Passing
+    the marker's own attempt means "still here"; anything else means "moved on".
+
+    **`intervention` and `intervention_attempt_id` default to "the hint this marker describes,
+    still on screen"** (D-373), which is what every pre-existing test in this file assumed
+    implicitly and got for free when the guard read one field. They are parameters now because
+    the guard reads four, and the three that were added are the ones D-356 turns on.
+
+    `late_intervention` models the D-369 window: when set, the **second** `aget_state` — the
+    one immediately before the publish — returns it instead. That is the only way to exercise a
+    student who switches help while the snapshot is being built.
     """
 
     def _resolved(value: object):
@@ -246,17 +264,33 @@ async def _run_scheduler(
         future.set_result(value)
         return future
 
-    fake_graph = SimpleNamespace(
-        aget_state=lambda config: _resolved(
-            SimpleNamespace(
-                values={
-                    "phase": "study",
-                    "last_study_attempt_id": checkpoint_attempt_id,
-                    "last_items": [],
-                }
-            )
-        )
+    default_intervention = {"type": "hint", "hint_level": marker["level"]}
+    first = intervention if intervention is not _UNSET else default_intervention
+    paired = (
+        intervention_attempt_id if intervention_attempt_id is not _UNSET else checkpoint_attempt_id
     )
+
+    def _values(current_intervention: object) -> dict:
+        return {
+            "phase": "study",
+            "last_study_attempt_id": checkpoint_attempt_id,
+            "last_intervention": current_intervention,
+            "last_intervention_attempt_id": paired,
+            "last_items": [],
+        }
+
+    reads: list[dict] = []
+
+    def _aget_state(config: object):
+        is_second = len(reads) == 1
+        current = (
+            late_intervention if (is_second and late_intervention is not _UNSET) else first
+        )
+        values = _values(current)
+        reads.append(values)
+        return _resolved(SimpleNamespace(values=values))
+
+    fake_graph = SimpleNamespace(aget_state=_aget_state)
 
     engine = create_engine()
     profile_adapter = MySQLProfileAdapter(MYSQL_URL)
@@ -274,6 +308,7 @@ async def _run_scheduler(
         )
         await scheduler.schedule(learning_session_id=learning_session_id, marker=marker)
         await asyncio.gather(*scheduler._tasks)
+        return reads
     finally:
         await profile_adapter.close()
         await engine.dispose()
@@ -358,3 +393,129 @@ def test_a_student_who_moved_on_is_not_shown_a_hint_for_the_previous_question() 
         "the rewrite still completed - dropping is about the screen, not about the record"
     )
     assert stored_text != canonical_col
+
+
+@pytest.mark.skipif(not _mysql_available(), reason="MySQL dev fake not running")
+def test_a_student_watching_a_video_does_not_have_it_replaced_by_hint_text() -> None:
+    """**D-373: D-356's defect, in the publisher that never got D-358's fix.**
+
+    The old guard compared `last_study_attempt_id` to the marker's attempt — and
+    `intervention_choice` does **not** advance that channel, only `submit_answer` does. So a
+    student who clicked "Watch a video" while this task sat in its ~2.3 s Bedrock call was
+    still on the same attempt, the guard passed, and the frame replaced their video with hint
+    text.
+
+    **Not recoverable, which is why this is P1 rather than a repaint.** A video closes the
+    pause, nothing republishes, and `_initial_snapshot` gates `intervention` on
+    `hint_ladder_awaiting_choice` — false at every terminal rung — so a refresh shows no help
+    at all. The student spent their one intervention on nothing.
+
+    Falsified by reverting `_hint_is_still_on_screen` to the single attempt-id comparison:
+    this publishes and goes red.
+    """
+    learning_session_id = f"d373-video-{uuid.uuid4().hex[:8]}"
+    events = SessionEventBus()
+    queue = events.subscribe(learning_session_id)
+
+    async def run() -> tuple[bool, tuple[bool, str, str]]:
+        study_session_id, attempt_id, hint_event_id, _canonical = await _seed_a_hinted_attempt(
+            "d373-video"
+        )
+        try:
+            await _run_scheduler(
+                learning_session_id=learning_session_id,
+                marker={"attempt_id": attempt_id, "hint_event_id": hint_event_id, "level": 1},
+                # Same attempt throughout - the student never answered, they switched help.
+                checkpoint_attempt_id=attempt_id,
+                intervention={"type": "video", "video_title": "Solving two-step equations"},
+                events=events,
+            )
+            return queue.empty(), await _stored_hint(hint_event_id)
+        finally:
+            await _cleanup(study_session_id, attempt_id)
+
+    nothing_published, (was_personalized, stored_text, canonical_col) = asyncio.run(run())
+
+    assert nothing_published, (
+        "hint text was published over a video the student had just chosen - D-356's symptom, "
+        "and unrecoverable because the pause is closed and a refresh restores no help (D-373)"
+    )
+    # Same posture as the moved-on case: dropping is about the screen, not the record.
+    assert was_personalized is True
+    assert stored_text != canonical_col
+
+
+@pytest.mark.skipif(not _mysql_available(), reason="MySQL dev fake not running")
+def test_a_student_who_advanced_to_the_next_rung_is_not_shown_the_previous_one() -> None:
+    """The same attempt and still a hint — but hint 2, while this task personalized hint 1.
+
+    Publishing would walk the ladder *backwards* on screen, which reads as the product losing
+    the student's place. The level comparison is what rules it out, and it is the one condition
+    of the four that is not about D-356.
+    """
+    learning_session_id = f"d373-rung-{uuid.uuid4().hex[:8]}"
+    events = SessionEventBus()
+    queue = events.subscribe(learning_session_id)
+
+    async def run() -> bool:
+        study_session_id, attempt_id, hint_event_id, _canonical = await _seed_a_hinted_attempt(
+            "d373-rung"
+        )
+        try:
+            await _run_scheduler(
+                learning_session_id=learning_session_id,
+                marker={"attempt_id": attempt_id, "hint_event_id": hint_event_id, "level": 1},
+                checkpoint_attempt_id=attempt_id,
+                intervention={"type": "hint", "hint_level": 2},
+                events=events,
+            )
+            return queue.empty()
+        finally:
+            await _cleanup(study_session_id, attempt_id)
+
+    assert asyncio.run(run()), "hint 1 was published over hint 2 - the ladder went backwards"
+
+
+@pytest.mark.skipif(not _mysql_available(), reason="MySQL dev fake not running")
+def test_help_that_changes_while_the_snapshot_is_built_still_suppresses_the_publish() -> None:
+    """**D-369's window, ported here (D-373).**
+
+    The guard is evaluated once and the snapshot build after it opens a session and queries
+    the study rows. A student switching to a video *in that gap* commits after the read, so
+    the values the guard inspected cannot contain it — no predicate can detect a write that
+    has not happened yet. The fix is a second read immediately before the synchronous publish.
+
+    Falsified by deleting that re-read: the first read says "hint on screen", nothing looks
+    again, and this publishes.
+    """
+    learning_session_id = f"d373-late-{uuid.uuid4().hex[:8]}"
+    events = SessionEventBus()
+    queue = events.subscribe(learning_session_id)
+
+    async def run() -> tuple[bool, int]:
+        study_session_id, attempt_id, hint_event_id, _canonical = await _seed_a_hinted_attempt(
+            "d373-late"
+        )
+        try:
+            reads = await _run_scheduler(
+                learning_session_id=learning_session_id,
+                marker={"attempt_id": attempt_id, "hint_event_id": hint_event_id, "level": 1},
+                checkpoint_attempt_id=attempt_id,
+                # First read: the hint is on screen. Second read: they chose a video.
+                late_intervention={"type": "video", "video_title": "Two-step equations"},
+                events=events,
+            )
+            return queue.empty(), len(reads)
+        finally:
+            await _cleanup(study_session_id, attempt_id)
+
+    nothing_published, read_count = asyncio.run(run())
+
+    assert read_count == 2, (
+        f"the scheduler read the checkpoint {read_count} time(s); the publish-time re-check is "
+        "what closes the window between the guard and the frame (D-369/D-373)"
+    )
+    assert nothing_published, (
+        "the student switched to a video while the snapshot was being built and the hint was "
+        "published over it anyway"
+    )

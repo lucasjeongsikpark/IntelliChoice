@@ -28,11 +28,18 @@ snapshot over the SSE bus.
    the cents into. The `hint_events` row is the audit trail, and the gateway's own
    `session_budget_cents` still bounds the call.
 
-**Staleness is guarded, not hoped for.** A student can answer again while the rewrite is in
-flight. Before publishing, the task re-reads the checkpoint and drops the result unless
-`last_study_attempt_id` still names the attempt the hint was for - otherwise a late hint
-would land on a different question, which is the D-215 §4 defect this codebase has already
-had once.
+**Staleness is guarded, not hoped for — and the guard was wrong for a year in a way this
+paragraph used to describe approvingly (D-373).** It said the task "drops the result unless
+`last_study_attempt_id` still names the attempt the hint was for", which covers a student who
+*answered again* and misses the student who *switched help*. `intervention_choice` does not
+advance that channel, so clicking "Watch a video" mid-rewrite left the guard satisfied and the
+published frame replaced the video with hint text — D-356's symptom, in the publisher that
+never received D-358's pairing signal or D-369's re-read.
+
+`_hint_is_still_on_screen` now asks whether the student is looking at *this hint*, and it is
+evaluated twice: once before the expensive snapshot build and again immediately before the
+synchronous publish, because a choice committing in that gap is invisible to a read that has
+already happened.
 """
 
 import asyncio
@@ -58,6 +65,40 @@ if TYPE_CHECKING:
     from learning_api.graph.build import LearningGraph
 
 logger = logging.getLogger(__name__)
+
+
+def _hint_is_still_on_screen(values: dict, *, attempt_id: str, level: int) -> bool:
+    """Whether the student is still looking at the exact hint this task personalized.
+
+    **The guard this replaces asked the wrong question, and D-356 is the cost.** It compared
+    `last_study_attempt_id` to the marker's attempt — but `intervention_choice` does *not*
+    advance that channel (only `submit_answer` does). So a student who clicked "Watch a video"
+    or "Show the solution" while this task was inside its ~2.3 s Bedrock call was still on the
+    same attempt, the guard passed, and the published frame replaced their video with hint
+    text. Every SSE frame replaces the client's whole snapshot, and the pause is already
+    closed at a terminal rung, so **nothing republishes and a refresh shows no help at all**.
+
+    Four things have to hold, and each rules out a real case:
+
+    - same attempt — the student has not answered and moved on (the original check);
+    - the current help is a *hint* — not the video or solution they switched to;
+    - at the *same level* — not hint 2 after this task personalized hint 1;
+    - and that help belongs to this attempt (`last_intervention_attempt_id`, D-358) — because
+      `last_intervention` is never cleared and goes stale by design.
+
+    **Deliberately strict rather than lenient.** A checkpoint written before D-358 shipped has
+    no `last_intervention_attempt_id`, so this returns False and the personalization is
+    dropped. That is the right direction: the student keeps the canonical hint, which is a
+    complete, reviewed hint, whereas the permissive direction erases help they chose.
+    """
+    if values.get("last_study_attempt_id") != attempt_id:
+        return False
+    intervention = values.get("last_intervention")
+    if not isinstance(intervention, dict) or intervention.get("type") != "hint":
+        return False
+    if intervention.get("hint_level") != level:
+        return False
+    return values.get("last_intervention_attempt_id") == attempt_id
 
 
 class BackgroundHintPersonalizationScheduler:
@@ -174,12 +215,16 @@ class BackgroundHintPersonalizationScheduler:
             snapshot = await self._graph_getter().aget_state(config)
             if not snapshot.values:
                 return
-            if snapshot.values.get("last_study_attempt_id") != marker["attempt_id"]:
-                # The student moved on while this ran. Dropping it is the only safe move:
-                # the row is already complete, and publishing would put a hint for a
-                # finished question next to the one they are looking at now.
-                logger.info("hint_personalization_dropped_stale learning_session=%s",
-                            learning_session_id)
+            if not _hint_is_still_on_screen(
+                snapshot.values, attempt_id=marker["attempt_id"], level=level
+            ):
+                # The student moved on, or switched to a video or solution, while this ran.
+                # Dropping it is the only safe move: the row is already complete, and
+                # publishing would replace whatever they are looking at now.
+                logger.info(
+                    "hint_personalization_dropped_stale learning_session=%s",
+                    learning_session_id,
+                )
                 return
 
             content = {
@@ -192,6 +237,24 @@ class BackgroundHintPersonalizationScheduler:
                 event = await self._snapshot_builder(
                     snapshot_session, learning_session_id, snapshot.values, content
                 )
+            # **Re-read and re-check immediately before publishing** (D-369, ported here).
+            #
+            # The guard above is evaluated once, and the snapshot build between then and now
+            # opens a session and queries the study rows. A student who switches to a video
+            # in that gap commits their choice *after* the read, so the values the guard
+            # inspected cannot contain it — the same defect, one step later. There are no
+            # awaits between this check and the synchronous `publish`, so within the process
+            # the window is closed rather than narrowed; a commit from another replica in
+            # that gap stays possible in principle and is not claimed otherwise.
+            latest = await self._graph_getter().aget_state(config)
+            if not _hint_is_still_on_screen(
+                latest.values, attempt_id=marker["attempt_id"], level=level
+            ):
+                logger.info(
+                    "hint_personalization_dropped_help_changed_late learning_session=%s",
+                    learning_session_id,
+                )
+                return
             if event is not None:
                 self._events.publish(learning_session_id, event)
         except Exception:
