@@ -170,12 +170,18 @@ resource "aws_cloudwatch_log_metric_filter" "nightly_jobs" {
   pattern        = "{ $.event = \"${each.key}_job_complete\" }"
 
   metric_transformation {
-    name          = "JobCompletions"
-    namespace     = local.pipeline_namespace
-    value         = "1"
-    unit          = "None"
-    default_value = 0
-    dimensions    = { job = "$.job" }
+    name      = "JobCompletions"
+    namespace = local.pipeline_namespace
+    value     = "1"
+    unit      = "None"
+    # **No `default_value`, and CloudWatch enforces that** — it rejects `dimensions` and
+    # `default_value` together (`InvalidParameterException: ... mutually exclusive`). That
+    # constraint happens to give the right shape here rather than a compromise: with a
+    # dimension, a job that never ran emits **no series at all**, and "no datapoint" is
+    # exactly the condition the heartbeat below treats as breaching. A default of 0 would
+    # manufacture a healthy-looking zero for a job that was never invoked, which is the
+    # failure this whole pair exists to catch.
+    dimensions = { job = "$.job" }
   }
 }
 
