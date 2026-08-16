@@ -517,14 +517,12 @@ module "ecs_service_chat_api" {
   enable_latency_step_scaling = true
   alb_arn_suffix              = module.alb.alb_arn_suffix
 
-  # D-344 (stopgap, removed by the D-349 relay): chat-api's SSE bus is per-process, so a
-  # snapshot published on one task reaches only the clients connected to that task. At one
-  # replica that is invisible; the moment the latency policy above scales out, a client
-  # whose EventSource landed on another task stops being reached - the same shape D-334
-  # measured at 50% loss on learning-api. The scale-out signal is *Bedrock latency*, which
-  # is exactly what a slow turn produces, so this fires precisely when it hurts most.
-  # One task is ample at this traffic; the cap comes back to 3 once the relay lands.
-  autoscaling_max_capacity = 1
+  # D-344 authored `autoscaling_max_capacity = 1` here as a stopgap while D-349's relay was
+  # built, and **it was never applied** - `terraform apply` is not part of `deploy-staging.yml`
+  # and nobody ran it, so live stayed at the module default of 3 the whole time. Reverted
+  # rather than left in place: a file claiming a capacity AWS does not have is worse than the
+  # default it was trying to override, and the relay it was waiting for landed in the same
+  # session anyway. The honest account is in D-344 itself.
 
   # S39: see the matching comment on ecs_service_learning_api above.
   enable_otel_sidecar  = var.enable_otel_tracing

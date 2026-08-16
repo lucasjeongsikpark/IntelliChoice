@@ -26,9 +26,11 @@ refusal-reason taxonomy that separates the classifier's label from what a visito
 1. **The access probe fires for 1 of 8 gated questions** (precision 5/5). Baseline measured and the
    instrument committed (`scripts/measure_access_hint_live.py`). Tuning needs the offline rule sweep
    as its own measured pass — AUD-C-20 bounds how far recall can move. **Not tuned.**
-2. **`chat-api` is pinned to one replica** (D-344) as a stopgap while the relay was built. The relay
-   has landed, so the pin should come off after the 2-replica staging verification — it is the last
-   step of that phase and is called out in the terraform comment.
+2. **The 2-replica relay measurement has not been run.** `scripts/measure_chat_sse_delivery.py` is
+   committed and refuses to report at one replica, because at one task the in-process bus always
+   works and a green run would mean nothing. (The D-344 "pin" that was supposed to protect the gap
+   before the relay **was never applied** — `terraform apply` is not part of the deploy and nobody
+   ran it, so live stayed at max 3 throughout. Corrected in D-344; the edit is reverted.)
 
 Carry-over: learning-api's `/stream` holds a request-scoped DB session for the life of the
 connection, the same defect D-348 fixed on chat (one app at a time); chat-api has no crash sink, so

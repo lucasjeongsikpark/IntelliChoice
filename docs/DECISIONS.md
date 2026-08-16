@@ -24688,6 +24688,24 @@ first, immediately, under time pressure — is how learning-api shipped `session
 green, and started on **zero of two replicas** (D-335). The relay is worth doing properly. One
 replica is ample at this traffic, and the cap returns to 3 in D-349 with a measurement behind it.
 
+#### ⚠️ Correction, same day: the pin was never applied
+
+Checked before claiming it had been removed. Live `application-autoscaling` for
+`intellichoice-staging-chat-api` reads **min 1 / max 3**. `terraform apply` is not part of
+`deploy-staging.yml` and nobody ran it, so editing `main.tf` changed a file and nothing else - the
+stopgap existed for the length of a code review and never once bounded the service.
+
+Nothing was harmed: the relay landed in the same session, and at staging's traffic the latency
+policy never fired. But the entry above asserted a live protection on the strength of a file edit,
+which is the same class of error as D-329's "never worked in production" and D-335's green-but-dead
+relay - **a claim about deployed state, made from source**. The check that caught it is the one that
+keeps catching them: read the deployed thing before saying anything about it.
+
+The terraform edit is reverted rather than kept. A file declaring a capacity AWS does not have is
+worse than the default it was overriding, and the reason for it is gone. **D-349 therefore removes
+nothing**; that clause in its heading is inherited from this mistake and is corrected here rather
+than quietly dropped.
+
 ### D-345 — chat-api could bill without bound, and the choke point was not where it looked
 
 **Date:** 2026-08-15 · **Status:** implemented · **Files:** `routers/sessions.py`, `services/turn_cost.py`, `config.py`, `models/{cost_reservation,rate_limit}.py`
@@ -24923,7 +24941,7 @@ one app at a time, and this one has a browser spec now.
 
 ### D-349 — chat-api's SSE fan-out, and why "low value" was the wrong reading
 
-**Date:** 2026-08-15 · **Status:** implemented · **Removes the D-344 replica pin** · **Files:** `chat_api/services/{session_events.py,session_event_relay.py}`, `chat_api/main.py`
+**Date:** 2026-08-15 · **Status:** implemented · **Files:** `chat_api/services/{session_events.py,session_event_relay.py}`, `chat_api/main.py`
 
 The carry-over called this low value and gave a correct reason: chat-api's only publishers are
 on the request path, so the client that made the POST already has the answer in its response
