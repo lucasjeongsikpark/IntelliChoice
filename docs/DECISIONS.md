@@ -25851,3 +25851,60 @@ the second read happens at all and that nothing is published.
 
 **Falsified before being believed** (last session's lesson, applied): deleting the re-check turns
 it red — `the scheduler read the checkpoint 1 time(s)`.
+
+---
+
+### D-370 — C1 Phase 6 closes: five consecutive clean runs, and seven attempts that were all real
+
+**Date:** 2026-08-16 · **Status:** ✅ the last engineering clause in the roadmap · **Build:** `gha-aaad6cfec153`
+
+| run | result | duration |
+|---|---|---|
+| 1 | 88 passed, 7 skipped | 6.2 min |
+| 2 | 88 passed, 7 skipped | 6.3 min |
+| 3 | 88 passed, 7 skipped | 6.3 min |
+| 4 | 87 passed, 8 skipped | 6.2 min |
+| 5 | 88 passed, 7 skipped | 6.2 min |
+
+Five consecutive, against a recorded minimum of four. The 87/8 run is not an anomaly:
+`hint-displacement` skips when the walk answers everything correctly and no ladder opens, which
+is D-318's deliberate "skip rather than tick".
+
+**The walk's own counters, which is what the clause was ever about:** `answered == graded` and
+`refused = 0` in all five, with **3–4 retry-ladder pauses genuinely worked** per run. The drift
+this row chased from D-321 to D-365 does not appear once.
+
+**Zero 5xx across the whole window** — both `HTTPCode_ELB_5XX_Count` and
+`HTTPCode_Target_5XX_Count` are empty from 15:00 to 17:10 UTC, covering roughly 45 minutes of
+continuous e2e load. That is *consistent with* D-364's keep-alive fix and is **not yet proof**:
+the original event fired once in three hours, so this window is about a quarter of the exposure
+that produced it. Stated that way on purpose.
+
+#### The reading that matters more than the tick
+
+**Seven attempts, and every single one found something real.** The clause was never flaky. It was
+a queue of independent faults, and a single lucky green run would have hidden all of them:
+
+| what stopped it | kind |
+|---|---|
+| the chat 401 route race | harness |
+| D-356/D-358 — a deferred narrative erasing a video the student asked for | **product** |
+| D-360 — the position spec polling the DOM where the server was authoritative | harness |
+| D-362 — a 47.5-minute run discarded as non-evidence | neither |
+| D-361, D-363 — the hint spec measuring the chooser; a click that never landed | harness |
+| D-364 — a 502 the application never logged | **infrastructure** |
+| D-365 — the walk re-answering an item it had already answered | harness |
+| D-367 — the walk sharing a student with seventeen specs on a persistent environment | fixture |
+| D-369 — the same narrative guard, asking the right question before the answer existed | **product** |
+
+Four were product or infrastructure defects that reach real students. The rest were checks that
+had stopped checking. **A "4–5 consecutive clean runs" criterion is not a formality**: it is the
+only instrument that surfaces a one-in-five and a one-in-three-hours fault in the same pass, and
+it earned its cost here.
+
+#### What did not close
+
+The **solution** terminal rung has no staging e2e coverage — `assistance-panel-probe` is the only
+spec that clicks "Show the solution" and it is `@probe`-tagged, so it skips in a full run. D-369's
+unit test covers the mechanism for every terminal rung (the guard does not discriminate by
+intervention type), so this is a coverage gap rather than an untested defect. Carry-over.

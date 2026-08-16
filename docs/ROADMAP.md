@@ -2083,8 +2083,11 @@ staging serves the seeded bank end to end.
 
 ### Session C1 — status at close, clause by clause (2026-08-13, D-307 → D-313)
 
-⏸ **PARTIAL, and the shape of what remains changed: coverage is complete, depth is not.** Measured
-at close, not recalled:
+⏸ **PARTIAL, and what remains is content by decision, not engineering.** Measured at close, not
+recalled. **Updated 2026-08-16 (D-370): every engineering clause is now ✅** — the last one,
+"staging e2e green as a whole run", closed after seven attempts. The two remaining 📋 rows are
+generation backlogs the user parked deliberately (D-341, D-342); neither is a defect and neither
+blocks anything. Read that as "C1 has nothing left to build", not as "C1 is done":
 
 | clause | where it stands |
 |---|---|
@@ -2096,7 +2099,7 @@ at close, not recalled:
 | auto-approval decision recorded with its numbers | ✅ D-289 |
 | spend within per-run caps | ✅ every run behind a green preflight and an explicit cap |
 | Phase 6: per-band walks green on staging | ✅ 4 of 4, against the deployed build |
-| Phase 6: staging e2e green as a whole run | ⏸ **Seven clean full runs across six attempts, never four consecutive (2026-08-16, D-366).** Each attempt drained one more independent cause and stopped, so this is a *stability* count rather than a defect count. **Two of the causes were real product/infrastructure defects, now fixed:** D-356/D-358 (a deferred narrative frame erased the video a student had just asked for — the guard read "the graph is paused", and video/solution *close* the pause) and D-364 (a 502 the application never logged: the ALB's idle timeout is 120s while uvicorn's keep-alive defaulted to 5s on both apps). **And the drift this row chased since D-321 is finally named:** D-365 — the walk re-answered an item it had already answered (`409 item ... has already been answered`), invisible three ways at once under the old harness, which is exactly `answered - graded == N` with the phase never leaving `study`. **One known cause remains:** `journey-student` shares `studentPresent` with ten specs on an environment where sessions persist, so it can resume a session an earlier spec left mid-study — 7 refusals in a whole run against 0 in isolation. The remedy is the one `config.ts` already states and D-288 applied everywhere else: give the walk its own seeded student (`student-ext-10`), which needs a re-seed rather than a harness edit |
+| Phase 6: staging e2e green as a whole run | ✅ **Closed 2026-08-16 (D-370): five consecutive clean full staging runs at `gha-aaad6cfec153`**, 88/88/88/87/88 passed at 6.2-6.3 min each, zero 5xx across the window, and the walk itself `answered == graded, refused=0` in all five with 3-4 retry-ladder pauses genuinely worked. **It took seven attempts and every one found something real** - the clause was never flaky, it was a queue of independent faults a single green run would have hidden. Four were product or infrastructure defects: D-356/D-358 and D-369 (a deferred narrative frame erasing help the student had just asked for - twice, the second time because D-358 gave the guard the right question and left it asking before the student's choice had committed), D-364 (a 502 the application never logged: the ALB idle timeout at 120s against uvicorn's 5s default), and D-365 (the walk re-answering an item it had already answered). The last cause was the one `config.ts` had prescribed all along - D-367 gave the walk its own seeded student, which D-288 had applied everywhere except the spec that named the finding |
 | Phase 6: staging serves the seeded bank | ✅ verified at `sha=ae41b7f2212f`, 958 items |
 | Phase 4: video catalog | ✅ **unblocked and stocked (2026-08-15, D-337).** The key arrived, the sync ran twice, and coverage is **102 of 112 skills** with a servable video (497 rows, 363 active), $1.59 and 7,600 of 10,000 quota units. **10 skills have no video at all and 3 hold only inactive ones** — a *content* question about what the pinned channel publishes, not a key, quota or code question, and no further run changes it. The first run also exposed D-337: the D-326-addendum guard checked the quota case but not the resumability case and deactivated 182 videos; fixed and re-verified at 0 |
 
