@@ -25664,3 +25664,76 @@ staging runs, and any recurrence is now a different cause rather than this one.
 which is exactly the design INTEGRATION_PLAN §2.6 criterion 3 asks for, and the reason a
 one-in-three-hours infrastructure fault surfaced at all instead of being a rounding error in
 somebody's dashboard.
+
+---
+
+### D-365 — The drift, named at last: the study walk re-answered an item it had already answered
+
+**Date:** 2026-08-16 · **Status:** fixed in isolation; a second cause remains (see below) · **Files:** `e2e/tests/learning/journey-student.spec.ts`
+
+D-355's instrumentation was built so the next drift would state its own cause. It did, on its
+first firing against a real staging walk:
+
+```
+study submission refused: 409 .../answers
+{"detail":"item a73ff8e8-... has already been answered"}      (twice, same item)
+```
+
+**A correct answer opens no pause, so nothing in the loop made it wait.** The next iteration
+answered whatever was still rendered — the same item — and the server refused it. Under the old
+harness each refusal was invisible three times over: counted as an answer (clicks, not
+acceptances), dropped from the verdicts (the listener returned early on non-2xx), and forgiven
+by the console allowance (never path-scoped despite its comment). **N double-submits therefore
+produced exactly `answered - graded == N` with the phase never leaving `study`** — the signature
+D-340 measured, could not explain, and shipped a since-retracted fix against.
+
+The loop now waits for the screen to move: a new question stem, or the pause the ladder opens on
+a wrong answer, where re-answering the same item is legitimate and does not 409. Verified on
+staging across three consecutive walks: **`refused=0`, `answered=4`, `graded=4`**.
+
+#### ⚠️ And the full suite then showed a *second* cause, which this does not fix
+
+In isolation the walk is clean. In a whole-suite run it recorded **7 refusals** and took 2.3
+minutes against 15 seconds. The difference is the fixture: `journey-student` signs in as
+`studentPresent`, and **ten specs share that student** while staging's sessions persist — so the
+walk can resume a session an earlier spec left mid-study, and the screen does not advance the
+way a fresh session's does.
+
+**The remedy is already written down and was applied everywhere except here.** `config.ts` says
+it plainly: *"Each walk gets its own student because staging's sessions persist: two tests
+signing in as the same student resume each other's exams (the journey-student isolation
+finding)."* D-288 gave the four band walks students 5–8 and the refresh test student 9 — and left
+the walk that **named the finding** on the shared one.
+
+**Next step, and it is a seed change rather than a harness edit:** add `student-ext-10` (present,
+one linked parent) to `mysql_fixtures.py`, point the main walk at it, and re-seed staging. Not
+done here because it needs a deploy and a re-seed, and this session had already spent its
+staging budget.
+
+---
+
+### D-366 — C1 Phase 6 at close: seven clean runs, never four consecutive, and why that is progress
+
+**Date:** 2026-08-16 · **Status:** the clause stays ⏸, with a tally rather than a claim
+
+Six accumulation attempts against the deployed build. **Seven clean full staging runs in total
+and never four in a row**, because each attempt surfaced one more independent cause and stopped:
+
+| attempt | clean runs | what stopped it |
+|---|---|---|
+| 1 | 0 | the chat 401 route race, and D-356 (video panel erased) |
+| 2 | 2 | D-360 — position-restore polled the DOM where the server was authoritative |
+| 3 | 2 | **discarded, not counted (D-362)** — 47.5 min against a 6.1 min norm, zero server-side errors |
+| 4 | 2 | D-361 — the hint spec was measuring the chooser |
+| 5 | 1 | D-363 (the click never landed) and **D-364, a real 502 the app never logged** |
+| 6 | 0 | D-365 — the study walk double-submitting, then the shared-fixture cause behind it |
+
+**Every one of those was real**, and two were product or infrastructure defects rather than
+harness noise (D-356, D-364). The clause is not closing on luck, and it should not: what the
+accumulation has actually been doing is draining a queue of independent faults that a single
+green run would have hidden.
+
+**The honest reading of "4–5 consecutive clean runs" is that it is a *stability* criterion, and
+the suite is not yet stable** — not because the product is broken, but because the walk shares a
+fixture with ten other specs on an environment where sessions persist. D-365's second half is
+the next thing to fix, and it is the last cause currently known.
