@@ -7,6 +7,73 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**⛔ C1 PHASE 6 CANNOT CLOSE, AND FOR THE FIRST TIME THE REASON IS A PRODUCT DEFECT
+(2026-08-16, D-355 → D-357).**
+
+The session set out to close the last ⏸ clause in the project by accumulating 5 consecutive
+clean staging runs. **Run 1 failed, twice over, and both failures were real.**
+
+**D-356 — a student clicks "Watch a video" and a background narrative erases it.** Measured
+rather than inferred: re-run with bodies captured, **one pass and one fail**, and the two
+`POST /respond` responses are substantively identical — 200, `intervention.type="video"`, the
+same real Khan Academy URL, `stage_narrative: null` in both. **The server did the same correct
+thing in both.** `build_deferred_narrative_snapshot` omits `intervention` and
+`assistance_question`, and every SSE frame *replaces* the client's whole snapshot, so a
+deferred `study_step` frame ~1.5s later wipes the panel. Video and solution are the exposed
+branches because both **close** the pause, leaving only `intervention` holding the panel up.
+The guard that already exists (`hint_ladder_awaiting_choice`) was written for this exact wipe —
+for hints — and cannot fire once the pause is closed. **Characterised, not fixed**: every quick
+fix would show a student help for a question they already left, which is worse, in a launch
+journey. The fix needs a signal that does not exist yet (which attempt an intervention belongs
+to). The spec now names D-356 in its failure message.
+
+**D-355 — the clause was chasing a retracted mechanism, and three harness holes hid the truth.**
+ROADMAP still prescribed "fix the study-loop exit condition"; that shipped as D-340 and the
+drift survived it (2 of 8 runs), and D-340 §2 had already retracted the cause. Removed: clicks
+counted as answers, refused `POST /answers` dropped silently, and — the one that mattered — a
+409 allowance whose comment claimed it was scoped by path when it never was. Chromium puts the
+failing URL in the console record's *location*, not its text, so `"Failed to load resource"`
+forgave every failed request in the walk, including the `/answers` 409 the journey exists to
+watch. **Also recorded, not changed: `Allowances.statuses` is reported and never asserted** —
+`clientErrors` feeds the artifact and no check reads it.
+
+**A second real race the run exposed:** the chat 401 spec's `expect(thinking).toHaveCount(0)`
+had nothing positive in front of it, so it passed instantly and the test ran ahead of the
+browser, installing its 401 route while the *first* ask's fetch was still being dispatched. The
+first question got the 401 meant for the second. Same family as D-354.
+
+**✅ Shipped and verified anyway:**
+
+- **The `learning_sessions` reconciler is scheduled** — `cron(0 18 * * ? *)`, first in the
+  nightly order, ahead of the purges. Verified from AWS, not from Terraform's report: `ENABLED`,
+  correct command, ops-task latest now rev 127 on the **correct** image, services untouched at
+  133/131. `make tfvars-floor-check` **failed first** and was right to: the floor was two deploys
+  stale and a bare apply would have made the older image every family's latest revision (D-141's
+  shape, fifth instance, first caught by the check). The three planned task-definition
+  replacements were then diffed as sets — identical image, no env or secret gained or lost — and
+  applied on that evidence.
+- **learning-api's `/stream` no longer holds a request-scoped DB session** for the life of the
+  connection (the port of chat's D-348). Uses `session_scope`, not a bare factory, because
+  learning's initial snapshot *writes* — which also fixes a latent second half: the pre-intro's
+  audit row was not durable while the tab stayed open.
+- **The `98abc0f0` double-`learning_gain` carry-over is closed by measurement**: staging holds
+  **9 gain rows and 0 duplicate pre-assessment ids**, so D-336's migration had already removed it.
+- **`docs/FIRST_VISIT_NOTICE.md`** — §5.1.2's eleven disclosures written out as copy for S45 to
+  transcribe (T-02, open since D-127). **Three of the eleven describe behaviour that does not
+  exist**: "challenge learning results" appears once in the whole SPEC with no endpoint or UI,
+  solution images are S29 (deferred, D-078), and tutor/branch-manager sharing has no
+  learning-api view. Recommendation: **ship eight, not eleven**.
+- **A checkpoint-serializer pinning test in each app** for `EntryInput`/`AskInput`. The msgpack
+  allowlist was deliberately **not** applied: passing any explicit list flips LangGraph's
+  serializer from warn-and-allow to block-everything-else, which trades a warning for an outage
+  on live sessions.
+
+**Carry-over:** D-356's fix. The access-probe rule sweep (still 1-of-8 recall, untuned) was not
+run — the session's staging budget went to diagnosing two real defects instead, and a retrieval
+change wants its own deploy rather than riding with D-356's. chat-api still has no crash sink.
+
+### Previous next session
+
 **⏸ CHAT SERVICE: seven phases shipped, two things left open for you (2026-08-15, D-343 → D-353).**
 
 An end-to-end review of the chat service — code, terraform, e2e, plus a live chrome-devtools walk
@@ -44,7 +111,7 @@ connection, the same defect D-348 fixed on chat (one app at a time); chat-api ha
 `ErrorBoundary` is console-only (an anonymous-first app needs a different auth answer than
 learning's token-gated endpoint).
 
-### Previous next session
+### Earlier — U7 measured, not built
 
 **⏸ U7 IS MEASURED, NOT BUILT (2026-08-14, D-331).** The design review and the staging dry-run are
 done; **no deletion code was written, deliberately**. The measurement changed the recommendation.
@@ -1203,6 +1270,32 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — the flake was the product, and the guard that caught the apply (2026-08-16, D-355 → D-357)
+
+**Goal:** close C1 Phase 6 by accumulating 5 consecutive clean staging runs, then take the three
+other open tracks. **Outcome: the clause cannot close, and the reason is better than the one it
+had.**
+
+**Built:** three harness holes removed so the study walk can no longer invent its own drift
+(D-355); the `learning_sessions` reconciler scheduled and verified in applied AWS state (D-357);
+learning-api's `/stream` pool hold fixed with `session_scope`, which also makes the pre-intro's
+audit row durable; a serializer pinning test per app; `docs/FIRST_VISIT_NOTICE.md` (T-02).
+
+**Verification:** ruff clean · pyright 0 errors · pytest **1649 passed / 2 skipped / 1 xfailed**
+· local e2e **95/95** · staging: 86 passed / 2 failed, both failures real and both diagnosed.
+
+**The finding:** `video-intervention.spec.ts` is a **true positive** at ~50%. Server proven
+correct by capturing bodies — the passing and failing `/respond` responses are substantively
+identical — and the defect is that a deferred narrative frame replaces the client's whole
+snapshot without `intervention`, erasing a video the student just asked for (D-356). Not fixed:
+every quick fix would show help for a question the student already left.
+
+**Two lessons worth keeping.** A negative assertion with nothing positive in front of it passes
+instantly and means nothing — that is D-354's family and it appeared twice more here, once in my
+own new code path. And `make tfvars-floor-check` earned itself: it failed before an apply that
+"only added a scheduled job" and would have made a two-deploy-stale image every task family's
+latest revision.
 
 ### Session log — the chat service walked end to end, and the failure paths nobody re-walks (2026-08-16, D-343 → D-354)
 

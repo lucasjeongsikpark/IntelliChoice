@@ -25,8 +25,15 @@ each non-obvious choice was made. Session provenance is tagged in each node (e.g
   schedule but ships **deliberately disabled**, because `youtube_provider` defaults to
   `fake` and an unattended run would write fabricated catalog rows on a schedule, which is
   worse than not running (D-105). `make webcontent-sync` remains manual for the same class
-  of reason. The three enabled schedules — `chat-purge`, `retention-purge`,
-  `memory-consolidate` — do run unattended.
+  of reason. The four enabled schedules — `session-consolidate`, `chat-purge`,
+  `retention-purge`, `memory-consolidate` — do run unattended, in that nightly order
+  (18:00 / 18:10 / 18:50, with consolidation Sundays at 18:30). **The order is a
+  correctness constraint, not tidiness** (D-357): `session-consolidate` projects finished
+  learning threads into `learning_sessions`, and `checkpoint_retention_cli` both reads
+  eligibility from that table *and* classifies a thread as chat by the **absence** of a
+  row — so an unprojected learning thread is invisible to the learning windows and looks
+  like chat to the other branch. That retention job stays **unscheduled** until this one
+  has a record of firing.
 
 **Two shipped behaviors that deviate from the plan's own recommendation**, recorded here
 because reading the spec alone would mispredict the code: S22 kept **grade-on-submit** rather
@@ -217,7 +224,15 @@ to rot, because nothing fails when it does.)*
   process serving 150 concurrent sessions; it is a per-task constant, so multiplying tasks
   multiplies *idle pool capacity* rather than useful connections. A session holds one connection
   for its whole transaction, so the demand rule is **`pool_size ≈ target r`** (plus one psycopg
-  connection per task for `AsyncPostgresSaver`). Under that rule 25 concurrent needs ~40
+  connection per task for `AsyncPostgresSaver`). **A connection held for the life of an SSE
+  connection breaks that rule outright** (D-348 on chat, D-356 on learning): a
+  dependency-with-yield is torn down *after* the response finishes and an SSE response never
+  finishes, so each open browser tab pinned one pooled connection, idle-in-transaction —
+  measured on chat as 20 concurrent streams exhausting 10 + 10 and blocking every other request
+  on that replica. Both `/stream` routes now build their initial snapshot in a short-lived
+  session and hold nothing across the keep-alive loop; learning's uses `session_scope` rather
+  than a bare factory because its snapshot *writes* a `stage_transitions` row. Under that rule
+  25 concurrent needs ~40
   connections across both services and **`db.t4g.micro`'s ~112 is sufficient**; 150 concurrent
   needs ~180 and does require a resize — 1.6× the ceiling, not the 2.8× a fixed 21-per-task
   implies. **⚠️ And a resize has lead time that is not money:** this account's Free Tier

@@ -174,6 +174,22 @@ test.describe("an expired token", () => {
     await stubChat(page, { message: SHAPES["grounded answer"] });
     await page.goto(CHAT_WEB);
     await ask(page, "What are the Saturday hours?");
+    // **Wait for the first answer to actually arrive before re-routing** (D-355).
+    //
+    // This used to be `expect(thinkingPlaceholder).toHaveCount(0)` alone, which is a
+    // negative assertion with nothing in front of it: it passes *instantly*, before the
+    // placeholder could have rendered, so it does not mean "the turn finished". Under
+    // load the test then ran ahead of the browser and installed the 401 route below while
+    // the FIRST ask's fetch was still being dispatched - and Playwright matches routes
+    // when the request is issued, not when the click happened. So the first question got
+    // the 401 meant for the second, the app signed out correctly, and the second `ask`
+    // spent 30s looking for a composer on the login screen.
+    //
+    // Measured: fails in a full suite (local and staging), passes 16/16 in isolation -
+    // the timing only loses when something else is loading the machine. The positive wait
+    // is the fix and the stronger assertion; the placeholder check stays, now meaning
+    // "and it is no longer thinking" rather than "nothing has happened yet".
+    await expect(page.locator(".message-row.assistant .bubble").first()).toBeVisible();
     await expect(thinkingPlaceholder(page)).toHaveCount(0);
 
     await page.route("**/chat/sessions/*/messages", (route) =>

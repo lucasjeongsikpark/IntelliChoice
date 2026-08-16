@@ -17,9 +17,10 @@ import asyncio
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from intellichoice_adapters.fake_auth import TokenError
+from intellichoice_db.engine import session_scope
 from intellichoice_db.repositories.stage_transition import StageTransitionRepository
 from intellichoice_shared.auth import Audience, account_refusal_reason
 from intellichoice_shared.bedrock import BedrockGateway, StageNarrativePayload
@@ -29,7 +30,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from learning_api.authorization import resolve_target_student
 from learning_api.dependencies import (
     get_bedrock_gateway,
-    get_db_session,
     get_graph,
     get_profile_adapter,
     get_session_events,
@@ -241,11 +241,11 @@ async def _initial_snapshot(
 @router.get("/{learning_session_id}/stream")
 async def stream_session(
     learning_session_id: str,
+    request: Request,
     token: Annotated[str, Query()],
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     events: Annotated[SessionEventBus, Depends(get_session_events)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
 ) -> StreamingResponse:
     # AUD-F-36: subscribe BEFORE the initial-snapshot read. The read can dwell (the S26
@@ -259,9 +259,26 @@ async def stream_session(
     # made the read newer also queued its own later event.
     queue = events.subscribe(learning_session_id)
     try:
-        initial = await _initial_snapshot(
-            learning_session_id, graph, profile_adapter, db, bedrock_gateway, token
-        )
+        # D-356, the port of chat-api's D-348: a short-lived session from the factory
+        # rather than `Depends(get_db_session)`. A dependency-with-yield is torn down
+        # *after* the response finishes, and an SSE response never finishes - so the
+        # request's session stayed checked out and idle-in-transaction for as long as the
+        # browser tab was open. The pool is 10 + 10 overflow; measured on chat, 20
+        # concurrent SSE connections exhausted it and every other request on that replica
+        # blocked. The keep-alive loop below needs no database at all.
+        #
+        # **`session_scope` rather than the bare factory, and that is the difference from
+        # chat's port.** chat's initial snapshot is read-only, so closing without
+        # committing costs nothing. This one is not: `_maybe_fire_pre_intro` writes a
+        # `stage_transitions` row and `StageTransitionRepository.record` only flushes. On
+        # the old dependency that write was committed by `get_db_session` - but only when
+        # the *stream* ended, so the pre-intro's audit row (its `cost_cents` included) was
+        # not durable while the tab stayed open. A unit of work that commits on a clean
+        # exit fixes the hold and that latent second half together.
+        async with session_scope(request.app.state.db_session_factory) as db:
+            initial = await _initial_snapshot(
+                learning_session_id, graph, profile_adapter, db, bedrock_gateway, token
+            )
     except BaseException:
         # The auth/404 failures inside `_initial_snapshot` must not leak the queue now
         # that it is registered before they run.
