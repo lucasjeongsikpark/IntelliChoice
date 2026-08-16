@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "../api/client";
-import { friendlyError } from "../api/errors";
+import { friendlyError, isSignedOut } from "../api/errors";
 import { openSessionStream } from "../api/stream";
 import type { RespondBody } from "../api/client";
 import type { ExamOverview, SessionSnapshot } from "../types";
@@ -40,7 +40,11 @@ function clearSessionIfOwnedByAnotherSubject(sub: string | null): void {
 // restore exact position. On mount, if a session id is already stored, opening the SSE
 // stream alone restores the snapshot - no replay of prior actions needed, since
 // `/stream` reads the live LangGraph checkpoint on connect (see D-032).
-export function useLearningSession(token: string | null, sub: string | null) {
+export function useLearningSession(
+  token: string | null,
+  sub: string | null,
+  onSignedOut?: () => void,
+) {
   const [sessionId, setSessionId] = useState<string | null>(() => {
     clearSessionIfOwnedByAnotherSubject(sub);
     return sessionStorage.getItem(SESSION_ID_KEY);
@@ -69,6 +73,14 @@ export function useLearningSession(token: string | null, sub: string | null) {
   // which is how the guard came to silently discard the student's work.
   const busyRef = useRef(false);
   const [busy, setBusy] = useState(false);
+
+  // D-375: held in a ref so `run` can stay dependency-free. `run` is memoised with `[]` and
+  // is captured by every action callback in this file; adding `onSignedOut` to its deps
+  // would rebuild all of them on each render of `App`.
+  const signedOutRef = useRef(onSignedOut);
+  useEffect(() => {
+    signedOutRef.current = onSignedOut;
+  }, [onSignedOut]);
 
   // Action callbacks read `sessionId` through this ref, not the `sessionId` state
   // variable directly - a caller that chains `startSession().then(() => chooseStudent())`
@@ -151,6 +163,11 @@ export function useLearningSession(token: string | null, sub: string | null) {
       // this used to print things like "question variant 3f2a… is not an item of this
       // session" to a child, measured live on staging.
       setError(friendlyError(err));
+      // D-375: a 401 must clear the stored token, and this is the only place that can.
+      // Nothing acted on 401 before - the friendly message said "Sign in again to keep
+      // going" while no screen in the app offered a sign-in, and the dead token stayed in
+      // `localStorage` so even a reload skipped the login screen. See `App.handleSignedOut`.
+      if (isSignedOut(err)) signedOutRef.current?.();
       return null;
     } finally {
       busyRef.current = false;

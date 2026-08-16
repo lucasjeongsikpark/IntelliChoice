@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import type { ExamOverview } from "../types";
 
 interface Props {
@@ -16,11 +17,11 @@ function questionList(numbers: number[]): string {
 // client-held `exam/overview` snapshot, not by parsing the finalize endpoint's 422 body,
 // so the same list is visible before the student ever attempts to submit.
 export function SubmitConfirmationModal({ overview, busy, onConfirm, onCancel }: Props) {
-  const cancelRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    cancelRef.current?.focus();
-  }, []);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // D-375: this used to be an initial `cancelRef.current?.focus()` and nothing else. Two Tab
+  // presses then reached the exam options behind the scrim, where `1`-`4` or Enter answers a
+  // question the student cannot see while this dialog is still asking whether to submit.
+  useFocusTrap(dialogRef);
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape" && !busy) onCancel();
@@ -38,6 +39,8 @@ export function SubmitConfirmationModal({ overview, busy, onConfirm, onCancel }:
   return (
     <div className="modal-backdrop">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="modal"
         role="dialog"
         aria-modal="true"
@@ -66,7 +69,6 @@ export function SubmitConfirmationModal({ overview, busy, onConfirm, onCancel }:
         <button
           type="button"
           className="secondary"
-          ref={cancelRef}
           onClick={onCancel}
           disabled={busy}
         >

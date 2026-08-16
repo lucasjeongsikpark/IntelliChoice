@@ -144,12 +144,19 @@ export function TutorChatPanel({
       <div className="chat-input-row">
         <input
           type="text"
+          // D-375: no accessible name at all before, so a screen reader announced "edit,
+          // blank" or fell back to the placeholder - which is not a reliable name and
+          // disappears the moment the student starts typing. D-350 fixed the identical
+          // defect on chat-web's composer and never reached here.
+          aria-label="Ask your tutor a question"
           value={input}
           disabled={transcript.sending}
           placeholder="Type your question..."
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter") void handleSend();
+            // D-375: `isComposing` guards IME input. Without it the Enter that *confirms* a
+            // Korean, Japanese or Chinese candidate also sends the half-committed text.
+            if (event.key === "Enter" && !event.nativeEvent.isComposing) void handleSend();
           }}
         />
         <button disabled={transcript.sending || !input.trim()} onClick={() => void handleSend()}>

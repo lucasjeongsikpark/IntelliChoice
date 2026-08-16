@@ -93,6 +93,13 @@ function isServerError(status: number): boolean {
   return status >= 500;
 }
 
+/** Exported so the 401 branch in `useLearningSession` acts on the same classification the
+ *  message comes from, rather than re-testing the status somewhere else and drifting (D-375,
+ *  mirroring chat-web's `isSignedOut`). */
+export function isSignedOut(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401;
+}
+
 export function friendlyError(error: unknown): string {
   // D-374: the request deadline aborts with a `DOMException`, not an `ApiError`, so without
   // this it falls to `OFFLINE` — "You appear to be offline", which is wrong and unactionable

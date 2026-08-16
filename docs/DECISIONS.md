@@ -26155,3 +26155,61 @@ marks that turn cancelled and renders "You stopped this question", which is a tr
 bounds nest: deadline **50 s** < client **55 s** < CloudFront **60 s**, and the deadline below the
 61.5 s ladder it exists to bound. Each of those was a comment in some file and none was checked —
 which is how chat's client timeout came to sit above a server deadline that did not exist here.
+
+---
+
+### D-375 — The 401 nobody could act on, and a focus trap that was only half shipped
+
+**Date:** 2026-08-16 · **Status:** fixed · **Files:** `learning-web/src/App.tsx`, `hooks/useLearningSession.ts`, `hooks/useFocusTrap.ts` (new), `api/errors.ts`, `components/SubmitConfirmationModal.tsx`, `screens/StageTransitionScreen.tsx`, `components/TutorChatPanel.tsx`
+
+Rows 2, 3 and 4 of the audit's one-direction table — chat-web's D-347 and D-350, ported.
+
+#### The 401 (P1)
+
+`friendlyError` had a rule saying *"You've been signed out. Sign in again to keep going."* and
+**nothing acted on the status** — one grep hit in the whole app, the rule itself. `handleLogout`
+was the only code clearing the token and it renders only on `StartScreen`, which requires no
+session. So mid-exam:
+
+- every answer failed with an instruction the student could not follow;
+- the SSE stream carried the same dead token, died, and the Reconnect button re-opened with it;
+- a reload did not help — the dead token was still in `localStorage`, so the login screen never
+  rendered;
+- recovery meant opening a new tab, which abandons the session.
+
+**And this is the normal path, not an edge case.** A token lives one hour; a session is 25–40
+questions plus hint ladders and tutor turns.
+
+`handleSignedOut` clears the three keys. It deliberately does **not** call `endSession()`: the
+checkpoint is server-side, so signing back in resumes the same exam at the same question. Losing
+the session would be a second punishment for an expiry the student did not cause — D-347's
+reasoning about chat's transcript, applied to the thing learning has instead.
+
+**Residual, stated rather than glossed:** `EventSource` cannot read a status code, so a stream
+401 is not directly detectable. The next REST call clears the token and the login screen returns,
+which covers every student who acts; a student sitting idle keeps a dead stream until they do.
+
+#### The focus trap (P2, P1 for a keyboard-only student)
+
+Both learning modals shipped the half that looks like a trap and is not — an initial focus move
+plus `aria-modal="true"`, with nothing keeping focus inside. `aria-modal` hides the background
+from assistive technology, so a screen-reader user was covered and a sighted keyboard user was
+not. Two Tab presses from "Submit exam?" reach the exam options behind the scrim, where `1`–`4`
+or Enter **answers a question the student cannot see**.
+
+chat-web's `ApprovalModal` docstring names this exact mistake ("only the *initial* focus move and
+`aria-modal` ever shipped") and D-350 fixed it there. Extracted here as `useFocusTrap` so
+learning's two modals share one implementation.
+
+**The duplication across apps is left in place and flagged rather than taken silently.** The right
+home is a shared TS package, which does not exist — D-219's `RichText` carry-over is the same gap
+— and creating one changes both apps' builds. That is a decision to take deliberately, not a side
+effect of a bug fix. Until then `useFocusTrap.ts` and `ApprovalModal.tsx` must change together,
+and both say so.
+
+#### Two smaller ones in the same pass
+
+The tutor chat input had **no accessible name** — a screen reader announced "edit, blank", the
+same defect D-350 fixed on chat's composer. And its Enter handler had no `isComposing` guard, so
+the keystroke that *confirms* a Korean, Japanese or Chinese IME candidate also sent the
+half-committed text.
