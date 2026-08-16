@@ -275,3 +275,129 @@ def test_a_turn_with_no_help_publishes_normally() -> None:
     assert not _help_is_on_screen(
         {"phase": "study", "hint_ladder_awaiting_choice": False, "last_intervention": None}
     )
+
+
+@pytest.mark.skipif(not _mysql_available(), reason="MySQL dev fake not running")
+def test_help_arriving_after_the_guard_still_suppresses_the_publish() -> None:
+    """D-369: the guard asked the right question at the wrong moment.
+
+    Every test above checks `_help_is_on_screen` as a **predicate**. None of them checks
+    **when** it is evaluated, and that is where the remaining failures lived: the scheduler
+    read the checkpoint once, then opened a session and queried the study rows to build the
+    snapshot, and only then published. A student clicking "Watch a video" in that gap
+    commits their choice *after* the read, so the values the guard inspected cannot contain
+    it — no pairing signal can detect a write that has not happened yet.
+
+    Measured on staging against the deployed D-358 fix: 1 failure in 5 repeats, with the
+    `POST /respond` bodies byte-identical in substance between the passing and failing runs
+    (200, `intervention.type="video"`, a real URL). The server was right every time.
+
+    This models the gap directly: `aget_state` returns "nothing on screen" the first time
+    and "a video the student is reading" the second. Nothing may be published.
+
+    **Falsified by deleting the re-check** in `_run` — with only the first guard, this test
+    publishes a frame and goes red.
+    """
+    learning_session_id = "d369-late-help-session"
+    events = SessionEventBus()
+    queue = events.subscribe(learning_session_id)
+
+    before = {
+        "phase": "study",
+        "hint_ladder_awaiting_choice": False,
+        "last_intervention": None,
+        "last_study_attempt_id": "attempt-3",
+        "last_items": [
+            {
+                "question_variant_id": "v-next",
+                "assessment_item_id": "i-next",
+                "rendered_question": "Solve for x: x + 2 = 9",
+                "display_order": 0,
+                "option_a": "7",
+                "option_b": "6",
+                "option_c": "8",
+                "option_d": "5",
+            }
+        ],
+    }
+    # The same attempt, now with a video attached: the student chose it while the snapshot
+    # was being built. `hint_ladder_awaiting_choice` stays False because a video *closes*
+    # the pause - the D-358 case, arriving one step later.
+    after = {
+        **before,
+        "last_intervention": {"type": "video"},
+        "last_intervention_attempt_id": "attempt-3",
+    }
+
+    reads: list[str] = []
+
+    def _aget_state(config: object):
+        reads.append("read")
+        return _resolved(SimpleNamespace(values=before if len(reads) == 1 else after))
+
+    fake_graph = SimpleNamespace(aget_state=_aget_state)
+
+    def _gateway() -> ResilientBedrockGateway:
+        mock = MockBedrockProvider()
+        return ResilientBedrockGateway(
+            provider=mock,
+            embedding_provider=mock,
+            model_registry={BedrockTask.STAGE_NARRATIVE: "us.anthropic.claude-haiku-4-5"},
+        )
+
+    async def run() -> None:
+        engine = create_engine()
+        profile_adapter = MySQLProfileAdapter(MYSQL_URL)
+        try:
+            scheduler = BackgroundStudyNarrativeScheduler(
+                session_factory=create_session_factory(engine),
+                gateway_factory=_gateway,
+                graph_getter=lambda: fake_graph,  # type: ignore[arg-type, return-value]
+                events=events,
+                profile_adapter=profile_adapter,
+                snapshot_builder=build_deferred_narrative_snapshot,
+            )
+            await scheduler.schedule(
+                learning_session_id=learning_session_id,
+                student_external_id=STUDENT_UNLINKED,
+                marker={
+                    "stage": "study_step",
+                    "completed_skill_id": "linear_one_step",
+                    "target_skill_id": "linear_two_step",
+                },
+            )
+            await asyncio.gather(*scheduler._tasks)
+        finally:
+            await profile_adapter.close()
+            await engine.dispose()
+
+    async def cleanup() -> None:
+        engine = create_engine()
+        try:
+            factory = create_session_factory(engine)
+            async with session_scope(factory) as session:
+                await session.execute(
+                    delete(StageTransition).where(
+                        StageTransition.learning_session_id == learning_session_id
+                    )
+                )
+                await session.commit()
+        finally:
+            await engine.dispose()
+
+    try:
+        asyncio.run(run())
+    finally:
+        asyncio.run(cleanup())
+
+    # The checkpoint must be read a second time at all - if it is not, the guard is being
+    # asked once and this test would pass for the wrong reason.
+    assert len(reads) == 2, (
+        f"the scheduler read the checkpoint {len(reads)} time(s); the publish-time re-check "
+        "is what closes the window between the guard and the frame (D-369)"
+    )
+    assert queue.empty(), (
+        "a deferred narrative frame was published over a video the student had just asked "
+        "for - the choice committed after the guard read the checkpoint, which is D-356's "
+        "mechanism surviving D-358's fix (D-369)"
+    )
