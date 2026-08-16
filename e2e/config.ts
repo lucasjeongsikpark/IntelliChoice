@@ -148,10 +148,22 @@ export const FIXTURES = {
   studentBand912: { role: "student", sub: "student-ext-8" },
   /** The refresh-restores-position test's own student, isolating it from the full walk. */
   studentResume: { role: "student", sub: "student-ext-9" },
+  /**
+   * The main `journey-student` walk's own student (D-365 §2), same shape as `studentPresent`
+   * (grade 3, present, one linked parent) so only the sharing changes.
+   *
+   * The walk that *named* the isolation finding above was the last one still sharing
+   * `studentPresent` with seventeen other spec files. In isolation it is clean; in a whole
+   * run it recorded 7 refused submissions and 2.3 minutes against 15 seconds, because it
+   * resumed a session another spec had left mid-study.
+   */
+  studentJourney: { role: "student", sub: "student-ext-10" },
   /** One linked child - exercises the auto-select path. */
   parentOneChild: { role: "parent", sub: "parent-ext-1" },
   /** Two linked children - exercises the child_selection interrupt. */
   parentTwoChildren: { role: "parent", sub: "parent-ext-2" },
+  /** `studentJourney`'s parent. Its own, so `parentOneChild` stays a one-child fixture. */
+  parentJourney: { role: "parent", sub: "parent-ext-3" },
 } as const;
 
 export const TOPIC_ID = "linear_equations";

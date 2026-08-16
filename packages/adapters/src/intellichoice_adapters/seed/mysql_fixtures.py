@@ -1,14 +1,20 @@
 """Fixture data for the dev-fake MySQL (SPEC §5.4.1 tables).
 
-2 parents (1-child and 2-child cases) + 7 students, 2 branches, and attendance covering
-present / absent / unknown (no row).
+3 parents (1-child, 2-child, and the journey walk's own) + 10 students, 2 branches, and
+attendance covering present / absent / unknown (no row).
 
-Students 1-4 cover the *gate* cases (present/absent/unknown/unlinked). Students 5-8 exist
-for the per-band e2e walks (D-288): the original four are grades 2-5 only, so the 6-8 and
+Students 1-4 cover the *gate* cases (present/absent/unknown/unlinked). Students 5-9 exist
+for the e2e walks (D-288): the original four are grades 2-5 only, so the 6-8 and
 9-12 bands were unwalkable, and staging's persistent sessions mean two tests signing in as
 the same student resume each other's exams - so each band walk gets its own student rather
-than sharing. All four are present and unlinked: the walks test content serving, not the
-gate, and the gate cases stay with students 1-4.
+than sharing. All present and unlinked: the walks test content serving, not the gate, and
+the gate cases stay with students 1-4.
+
+Student 10 is the last of that family and the one D-288 missed (D-365 §2). The main
+`journey-student` walk kept signing in as student 1 - shared with **seventeen other spec
+files** - so in a whole-suite run it resumed sessions other specs had left mid-study and
+took 7 refused submissions against 0 in isolation. It is the walk that *named* the
+isolation finding, and it was the last one still sharing.
 """
 
 from sqlalchemy import text
@@ -19,6 +25,13 @@ from intellichoice_adapters.mysql_profile_adapter import current_week_key
 
 PARENT_ONE_CHILD = "parent-ext-1"
 PARENT_TWO_CHILDREN = "parent-ext-2"
+# The journey walk's own parent. **A new parent rather than a second child on
+# PARENT_ONE_CHILD**, which would have been the smaller diff and would have broken a
+# contract: `journey-parent.spec.ts` asserts that exactly one linked child is auto-selected
+# at login with no chooser rendered (AUD-F-22). Linking student 10 there turns that fixture
+# into a two-child parent and the auto-select journey starts failing for a reason that has
+# nothing to do with what it tests.
+PARENT_JOURNEY = "parent-ext-3"
 
 STUDENT_ONLY_CHILD = "student-ext-1"  # child of PARENT_ONE_CHILD, attendance: present
 STUDENT_FIRST_CHILD = "student-ext-2"  # child of PARENT_TWO_CHILDREN, attendance: absent
@@ -33,6 +46,10 @@ STUDENT_BAND_35 = "student-ext-6"  # grade 4, attendance: present
 STUDENT_BAND_68 = "student-ext-7"  # grade 7, attendance: present
 STUDENT_BAND_912 = "student-ext-8"  # grade 10, attendance: present
 STUDENT_RESUME = "student-ext-9"  # grade 3, attendance: present - the refresh test's own
+# The main `journey-student` walk's own student (D-365 §2). Grade 3, present, one linked
+# parent - the same shape as STUDENT_ONLY_CHILD it replaces, so the walk's band, topic and
+# parent-report coverage are unchanged and only the sharing goes away.
+STUDENT_JOURNEY = "student-ext-10"  # grade 3, attendance: present, child of PARENT_JOURNEY
 
 BRANCH_MAIN = "branch-ext-1"
 BRANCH_NORTH = "branch-ext-2"
@@ -49,6 +66,13 @@ _USERS = [
         "external_id": PARENT_TWO_CHILDREN,
         "role": "parent",
         "display_name": "Paul Two",
+        "grade": None,
+        "branch_external_id": None,
+    },
+    {
+        "external_id": PARENT_JOURNEY,
+        "role": "parent",
+        "display_name": "Pia Three",
         "grade": None,
         "branch_external_id": None,
     },
@@ -115,6 +139,13 @@ _USERS = [
         "grade": "3",
         "branch_external_id": BRANCH_MAIN,
     },
+    {
+        "external_id": STUDENT_JOURNEY,
+        "role": "student",
+        "display_name": "Kai Journey",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
 ]
 
 _PARENT_CHILD_LINKS = [
@@ -123,6 +154,7 @@ _PARENT_CHILD_LINKS = [
         "parent_external_id": PARENT_TWO_CHILDREN,
         "child_external_ids": [STUDENT_FIRST_CHILD, STUDENT_SECOND_CHILD],
     },
+    {"parent_external_id": PARENT_JOURNEY, "child_external_ids": [STUDENT_JOURNEY]},
 ]
 
 _BRANCHES = [
@@ -167,6 +199,7 @@ _ATTENDANCE = [
     {"student_external_id": STUDENT_BAND_68, "status": "present"},
     {"student_external_id": STUDENT_BAND_912, "status": "present"},
     {"student_external_id": STUDENT_RESUME, "status": "present"},
+    {"student_external_id": STUDENT_JOURNEY, "status": "present"},
 ]
 
 

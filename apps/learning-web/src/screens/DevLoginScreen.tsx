@@ -25,8 +25,12 @@ const FIXTURE_IDS: { label: string; role: Role; sub: string }[] = [
   { label: "Student — Hana Seventh (grade 7, present)", role: "student", sub: "student-ext-7" },
   { label: "Student — Iris Tenth (grade 10, present)", role: "student", sub: "student-ext-8" },
   { label: "Student — Jae Resume (grade 3, present)", role: "student", sub: "student-ext-9" },
+  // The main journey walk's own student and parent (D-365). Kept in step with `e2e/config.ts`
+  // deliberately: the comment at the top of this list is about exactly this drift.
+  { label: "Student — Kai Journey (grade 3, present)", role: "student", sub: "student-ext-10" },
   { label: "Parent — Priya One (1 linked child)", role: "parent", sub: "parent-ext-1" },
   { label: "Parent — Paul Two (2 linked children)", role: "parent", sub: "parent-ext-2" },
+  { label: "Parent — Pia Three (1 linked child, Kai)", role: "parent", sub: "parent-ext-3" },
 ];
 
 /**
