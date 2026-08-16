@@ -25156,6 +25156,28 @@ Two rules bind it, both tested:
    rather than the one that was wrong, so the next message added is covered by construction.
 2. **`access_required` names no role and no document.**
 
+#### The relay, measured on real infrastructure (2026-08-16)
+
+D-349's relay is the one claim in this change that unit tests cannot settle: two bus instances
+in one process is a simulation of two replicas, not two replicas. Measured on staging with
+`scripts/measure_chat_sse_delivery.py`, chat-api held at two tasks:
+
+| | |
+|---|---|
+| **Delivery** | **10 / 10** rounds |
+| Both relays started | two distinct `origin=` values in the task logs |
+| Both targets healthy | `10.0.11.246` and `10.0.10.150`, in rotation |
+| POSTs served per task | **12 / 8** across the two log streams (20 = the run's own total) |
+
+The 12/8 split is what makes 10/10 mean something: the load genuinely crossed both replicas
+while every round's snapshot arrived. Before the relay, the rounds whose POST landed away from
+the stream would have delivered nothing - which is exactly the 2-of-4 D-334 measured.
+
+And the scenario stopped being hypothetical during the same session: the staging e2e run drove
+p95 latency high enough that the step policy **scaled chat-api 1 → 2 → 3 on its own**. The
+carry-over that called this gap "low value" was reasoning about a service that never scaled;
+it scaled the first time real chat load hit it.
+
 #### Why the access hint stopped naming the tier
 
 It used to be one of four role-specific sentences ("*That's available to parents — log in with
