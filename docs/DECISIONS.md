@@ -25973,3 +25973,71 @@ denominator it means.
 
 **Incidental, logged not chased:** *"What grade levels do you serve?"* — a **public** question —
 came back `REFUSED+ESCALATE`. That is a public-corpus coverage gap, not an authorization one.
+
+---
+
+### D-372 — The crash sink for the anonymous app, and the record correction that came with it
+
+**Date:** 2026-08-16 · **Status:** built, falsified, tested · **Files:** `apps/chat-api/src/chat_api/routers/client_errors.py`, `apps/chat-api/tests/test_client_errors.py`, `apps/chat-web/src/lib/reportClientError.ts`, `ErrorBoundary.tsx`, `main.tsx`, `docs/OPEN_DECISIONS.md`
+
+#### First: OPEN_DECISIONS #1 was stale, and building it would have been a regression
+
+The session's next item was decision #1 — *"study re-serves the session's own exam questions →
+re-render a different variant (B)"*. It should not be built, and the entry is now corrected in
+place. Two independent reasons, both read from the code rather than the log:
+
+1. **It is already fixed, with the other option.** D-325 (2026-08-14, the day after #1 was
+   written) shipped **A**: `flow._templates_to_avoid` unions the study items' templates with the
+   pre-exam's, and `journey-student.spec.ts:377` asserts no study stem is byte-identical to a
+   pre-exam stem. That assertion passed in all five consecutive staging runs today (D-370).
+2. **B is not achievable on this bank.** Since D-226 every servable template has exactly one
+   rendering; `_static_variant_row` returns `rendered_question=canonical_variant.rendered_question`
+   unconditionally. The only axis that can vary is option order, already spent on the post-exam's
+   parallel form. So B means *the same question with the options shuffled* — the student still
+   practises the exact item they are scored on. **B does not fix the inflation; it disguises it**,
+   and shipping it would mean deleting the exam templates from the avoid-set and relaxing the
+   assertion that catches the real defect.
+
+The genuinely open remnant is content: re-rendering with different numerical parameters is the
+authoring work D-189 costed and the user rejected.
+
+**The lesson is about the document, not the defect.** `OPEN_DECISIONS.md` is read as the answer to
+"what should I work on next", and an entry that records a recommendation without a closure check
+will eventually recommend undoing a shipped fix. Both entries touched today now carry a dated
+"verified by reading X" box above the original reasoning.
+
+#### The chat crash sink (decision #2, the half that was missing)
+
+learning-api has had one since D-328. chat-web's `ErrorBoundary` was console-only, and its
+docstring had already refused to guess the missing piece: *"chat's primary caller is anonymous
+(SPEC §5.19.1), so the majority of chat crashes would have no token to attribute and would be
+dropped by the same rule. A sink worth building for this app needs a different authentication
+answer, which is a decision this component must not make on its own."*
+
+**The answer: the rate limit does the work the token was doing.** A bearer token is optional — a
+present-but-invalid one still 401s, which is `get_optional_claims`'s existing contract. Then:
+
+- authenticated → keyed on `sub`, 20/minute, exactly as learning does it;
+- anonymous → **one shared app-wide bucket**, 60/minute.
+
+**Shared rather than per `chat_session_id`, which was the tempting design and is the trap.** That
+field is unverified free text — verifying it means a checkpoint read on an error path — so a
+per-id bucket hands a caller a brand-new allowance for every id they invent, which is not a rate
+limit at all. `test_a_forged_session_id_does_not_buy_a_fresh_allowance` pins it, and **the
+falsification was run**: switching the key to `payload.chat_session_id` turns that one test red
+and leaves the other ten green.
+
+**What the weaker gate costs, in the docstring rather than buried:** two unrelated visitors
+crashing in the same minute compete for one allowance, so a real report can be dropped because of
+someone else's loop. It fails toward a missing log line, never an amplified one, and it is not
+claimed to be equivalent to learning's.
+
+Redaction-then-truncation, the three-field limit and `extra="forbid"` are copied unchanged. The
+log records `caller_external_id: None` and `is_anonymous: True` for a guest rather than inventing
+a substitute identifier — SPEC §5.30 applies to logs, and "anonymous" is a truthful value.
+
+**The client half adds a hazard chat-web did not have.** `main.tsx` previously said its listeners
+were "logging only… nothing here makes a network call, so a listener firing during an outage
+cannot loop." Adding the report makes that false, so `reportClientError` carries the same
+re-entrancy latch learning-web needed, and the comment is corrected rather than left contradicting
+the code beneath it.
