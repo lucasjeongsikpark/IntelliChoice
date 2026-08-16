@@ -71,6 +71,33 @@ precondition is a no-source refusal, so an *answered* question never reaches it:
 refused-without-hint, 2 hinted. It fired on **2 of the 6 it could reach**. Any future report of
 this number should say which denominator it means.
 
+**And after the clause closed, two more items came off the list (D-372).**
+
+- **⛔ OPEN_DECISIONS #1 was stale, and building it would have been a regression.** The entry
+  recommends *"re-render a different variant" (B)* for study re-serving the exam's questions.
+  **D-325 already fixed it the day after, with option A** — `flow._templates_to_avoid` unions the
+  study templates with the pre-exam's, and `journey-student.spec.ts:377` asserts no study stem is
+  byte-identical to a pre-exam stem (it passed in all five clean runs today). **And B is not
+  achievable**: since D-226 every servable template has exactly one rendering, so B means the same
+  question with the options shuffled — the student still practises the exact item they are scored
+  on. **B does not fix the inflation, it disguises it**, and shipping it would mean deleting the
+  exam templates from the avoid-set and relaxing the assertion that catches the real thing.
+  Corrected in place with a dated "verified by reading X" box.
+- **✅ chat-api has a crash sink** (`POST /chat/client-errors`), the half of decision #2 that was
+  missing. `ErrorBoundary` had refused to guess it, correctly: chat's primary caller is anonymous,
+  so learning's token gate would have discarded most of the crashes the sink exists to see. **The
+  rate limit does the work the token was doing** — per `sub` at 20/min when authenticated, and a
+  *single shared app-wide bucket* at 60/min for anonymous reports. Shared rather than per
+  `chat_session_id` because that field is unverified free text, so a per-id bucket hands a caller
+  a fresh allowance for every id they invent. Verified live through CloudFront: anonymous → 202,
+  unknown field → 422, invalid token → 401, and the CloudWatch line reads `is_anonymous: true`
+  with `caller_external_id: null` and the server's own `trace_id`.
+
+**The document lesson, which outlives both:** `OPEN_DECISIONS.md` is read as the answer to *"what
+should I work on next"*, so an entry that records a recommendation without a closure check will
+eventually recommend undoing a shipped fix. Both entries touched today now carry a dated
+verified-by-reading box above the original reasoning.
+
 **Carry-over:**
 
 - The **solution** terminal rung has no staging e2e coverage — `assistance-panel-probe` is the
@@ -78,7 +105,6 @@ this number should say which denominator it means.
   covers the mechanism for every terminal rung, so this is a coverage gap, not an untested defect.
 - *"What grade levels do you serve?"* — a **public** question — came back `REFUSED+ESCALATE` live.
   A public-corpus coverage gap, not an authorization one. Logged, not chased.
-- chat-api still has no crash sink.
 - D-364's verification stays statistical: zero 5xx across ~45 minutes of load, against an event
   that fired once in three hours. Consistent with the fix, not yet proof of it.
 
@@ -10567,10 +10593,20 @@ hidden all of them. D-370 carries the table.
   signal does not carry the distinction and no threshold fixes it.
 - **D-368 — a record correction.** D-364's keep-alive fix was already deployed: the fixed image
   became rev 137 at 05:01:59 and the single 502 fired at **04:28**. Read from applied AWS state.
+- **D-372 — the chat crash sink, and a second stale entry caught before it was built.**
+  `OPEN_DECISIONS` #1 recommended a change that D-325 had already made the other way, and that is
+  **not buildable** on today's bank anyway — it would have meant deleting the exam templates from
+  the avoid-set and relaxing the assertion that catches the real defect. Not built; corrected.
+  #2's missing half *was* built: `POST /chat/client-errors`, where the **rate limit does the work
+  the token was doing**, because an anonymous-first app cannot gate on a bearer token without
+  discarding most of what it wants to see. The anonymous bucket is shared app-wide rather than
+  keyed on the forgeable `chat_session_id`, and the test pinning that was falsified.
 
-**Verification:** `make lint` clean · `make typecheck` 0 errors · `make test` 1653 passed / 2
-skipped / 1 xpassed (D-238's documented non-strict coin flip) · local `make e2e` 95 passed · five
-clean staging runs · 9/9 on the repaired video branch · four PRs, all checks green.
+**Verification:** `make lint` clean · `make typecheck` 0 errors · `make test` **1665 passed** / 2
+skipped / 1 xfailed (1653 at session start) · local `make e2e` 95 passed · chat-web `tsc` clean ·
+five clean staging runs · 9/9 on the repaired video branch · the new chat endpoint exercised live
+through CloudFront (anonymous 202, unknown field 422, invalid token 401, and the CloudWatch line
+reading `is_anonymous: true` with a null caller id) · **six PRs, all checks green**.
 
 **Spend:** ~90¢ on the probe sweep (four completed runs at ~17.8¢, one killed mid-run, each under
 its own explicit 100¢ cap), plus the usual few cents per staging walk.
