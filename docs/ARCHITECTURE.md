@@ -477,8 +477,25 @@ to rot, because nothing fails when it does.)*
   its own `NOTIFY` by origin id, else every local publish would deliver twice. Payload is the whole
   event (real frames measured at 1160–2291 bytes against the 8000-byte cap) and an oversized one is
   **dropped from the fan-out rather than truncated** — a half-snapshot renders as though it were
-  whole. `chat-api`'s bus has the same shape but only a request-path publisher, where the client
-  already has the data in the HTTP response.
+  whole. **`chat-api` has the same relay since D-349**, on its own channel (`chat_session_events`)
+  because both apps share one Postgres and `NOTIFY` is broadcast per channel. The reading that
+  delayed it — "chat's only publisher is on the request path, so the client already has the answer"
+  — is true of the POSTing client and false of the `/stream` connection, which is what a reloaded
+  tab or a second device depends on and which the ALB pins independently. chat-api scales on ALB p95
+  latency, so the trigger for scaling out is a slow turn, and a slow turn is when people reload.
+- **A snapshot says which turn it describes** (D-348) — `client_turn_id` travels client → `AskInput`
+  → `QAState` → every response and the `/stream` initial frame. Without it `chat-web` applied every
+  snapshot to the newest bubble, and `/stream` re-sends its initial snapshot on *every* connect, so
+  a reconnect during an in-flight turn painted the previous turn's answer under the new question —
+  permanently, after a reload. The client's own id rather than the query text: `post_message`
+  redacts free text (AUD-C-24) before it reaches state, so a question containing an email address
+  would come back differing from what was typed and match nothing.
+- **An SSE stream does not hold a request-scoped database session** (D-348) — a
+  dependency-with-yield is torn down after the response finishes, and an SSE response never
+  finishes, so `chat-api`'s stream kept a connection idle-in-transaction for the life of the browser
+  tab. At a 10+10 pool that is 20 concurrent streams to exhaustion. The initial snapshot now runs in
+  a short-lived session and releases before the keep-alive loop, which touches no database at all.
+  learning-api's stream has the identical shape and is carry-over.
 - **An SSE stream subscribes before it reads its initial snapshot, never after** (AUD-F-36, D-145) —
   both apps' `routers/stream.py` register on the in-process event bus *first*, then build the frame,
   and unsubscribe if that build fails. Reversed, an action completing during the read publishes to
@@ -1266,6 +1283,23 @@ flowchart LR
 ```
 
 ## 5. Q&A request flow (QAState graph, S13/S14/S15)
+
+**Every turn carries a reason code** (D-351, SPEC §5.19.5). `TurnReason` is a closed set —
+`answer`, `no_approved_source`, `sources_conflict`, `access_required`, `out_of_scope`,
+`human_action_required`, `policy_restricted`, `system_error`, `needs_clarification` — written by
+whichever node produced `answer`, cleared per turn by `resolve_role`, and carried on all three
+response models. It exists because a client previously had to infer the *cause* from
+`escalation_recommended` + `citations.length` + `access_hint != null`, three fields that correlate
+rather than state anything, which is how one message came to serve three causes (AUD-C-19). Two
+rules bind it: no user-facing message restates its own code, and `access_required` names no role
+and no document — the matching tier is selected and logged server-side, and dropped by
+`AccessHintResponse` at the API boundary, so a wrong selection cannot become a wrong disclosure.
+
+**A turn is bounded three ways** (D-345/D-346): a per-caller cap and an app-wide per-day spend
+ceiling on `/messages` — the choke point, because a session id costs nothing until a message spends
+against it — a 50s `asyncio.timeout` under CloudFront's 60s origin read timeout, and a
+`pg_try_advisory_xact_lock` per thread so two simultaneous POSTs cannot invoke one LangGraph thread
+twice.
 
 One HTTP request per turn, one `ainvoke` call. Three intents now pause via `interrupt()`
 (`admin_escalation`, `calendar_action` - S14; `branch_locator_consent` - S15), resumed

@@ -7,11 +7,20 @@ Backed by the QAState LangGraph workflow (SPEC §5.19.2) +
 `AsyncPostgresSaver` checkpointing (SPEC §5.16).
 """
 
+import asyncio
+import logging
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from intellichoice_db.models.cost_reservation import SCOPE_CHAT_TURN, SUBJECT_CHAT_API
 from intellichoice_db.repositories.chat import ChatSuggestionRepository
+from intellichoice_db.repositories.cost_reservation import (
+    CeilingReachedError,
+    CostReservationRepository,
+)
 from intellichoice_db.repositories.interrupts import InterruptApprovalRepository
 from intellichoice_db.repositories.mcp import McpToolCallRepository
 from intellichoice_db.repositories.org import OrgEventRepository
@@ -26,15 +35,18 @@ from intellichoice_shared.rate_limit import RateLimiter
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command, Interrupt, StateSnapshot
 from pydantic import BaseModel, Field
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from chat_api.config import get_settings
 from chat_api.dependencies import (
     get_bedrock_gateway,
+    get_cost_ledger,
     get_db_session,
     get_email_rate_limiter,
     get_graph,
     get_mcp_registry,
+    get_message_rate_limiter,
     get_optional_claims,
     get_profile_adapter,
     get_session_events,
@@ -44,8 +56,32 @@ from chat_api.graph.nodes import TurnContext
 from chat_api.services import suggestions
 from chat_api.services.checkpoint_privacy import purge_resume_writes
 from chat_api.services.session_events import ChatSessionEventBus
+from chat_api.services.turn_cost import TURN_RESERVATION_ESTIMATE_CENTS
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat/sessions", tags=["chat-sessions"])
+
+# D-345/D-346. What a caller sees when a containment guard fires. Each is a distinct
+# condition with a distinct remedy, so none of them reuses another's wording - the whole
+# point of AUD-C-19 was that "no approved source" was being shown for three different
+# causes.
+TOO_MANY_TURNS_MESSAGE = (
+    "You've asked a lot of questions in a short time. Please wait a little while before "
+    "asking another."
+)
+DAILY_CEILING_MESSAGE = (
+    "The assistant has reached its daily limit and can't answer new questions right now. "
+    "Please try again tomorrow, or contact your branch directly."
+)
+TURN_TIMED_OUT_MESSAGE = (
+    "That question took too long to answer and was stopped. Please try asking it again, or "
+    "more simply."
+)
+TURN_ALREADY_RUNNING_MESSAGE = (
+    "This conversation is already working on a question. Wait for it to finish before "
+    "sending another."
+)
 
 
 class CreateSessionResponse(BaseModel):
@@ -54,6 +90,11 @@ class CreateSessionResponse(BaseModel):
 
 class AskMessageRequest(BaseModel):
     query: str = Field(min_length=1, max_length=2000)
+    # D-348: the client's own id for this turn, echoed back on the response and on every
+    # subsequent snapshot for it. Optional, so a non-browser caller need not supply one;
+    # bounded, because it is checkpointed and echoed and an unbounded string should never be
+    # either. Opaque to the server - it is never parsed, compared or stored anywhere else.
+    client_turn_id: str | None = Field(default=None, max_length=64)
     # D-164: the caller is forwarding a question it already asked to a human, not asking a
     # new one. Set by chat-web's "Ask an administrator" button on a no-source refusal,
     # carrying that refusal's own question text back. The turn then skips `scope_guard`
@@ -73,11 +114,22 @@ class CitationResponse(BaseModel):
 
 
 class AccessHintResponse(BaseModel):
-    """SPEC §18-C3: mirrors `chat_api.services.role_access.AccessHint` at the API
-    boundary.
+    """The access hint at the API boundary.
+
+    **`required_role` was removed here in D-351 and is deliberately not coming back without
+    a decision.** It named the tier a matching document belongs to ("parent"), which tells an
+    unauthenticated caller that a document restricted to that tier exists and mentions their
+    terms - a disclosure produced by a probe that only runs *because* the normal pipeline
+    already declined, and one measured wrong in the field (AUD-C-25/D-179 named `parent` for a
+    question the public corpus answers). The tier is still selected and logged, so the probe
+    stays measurable; it no longer reaches the caller.
+
+    That leaves this model carrying one field. It is kept as a model rather than flattened to
+    a string because `reason == ACCESS_REQUIRED` is now the machine-readable half, and a
+    client that wants to render the hint differently should key on that, not on a nullable
+    string appearing.
     """
 
-    required_role: str
     message: str
 
 
@@ -94,6 +146,16 @@ class MessageResponse(BaseModel):
     suggested_followups: list[str] = []
     ics_content: str | None = None
     pending_interrupt: dict | None = None
+    # D-348: echoed straight back so a client can tell which of its turns a payload
+    # describes. All three of `MessageResponse`, `RespondResponse` and
+    # `SessionSnapshotEvent` carry it, because D-058/AUD-C-14 is bidirectional - a field
+    # on one and not the others gets *nulled* on every broadcast rather than failing.
+    client_turn_id: str | None = None
+    # D-351: why this turn ended the way it did, as a closed `TurnReason` code. The field a
+    # client should branch on - `answer` is the words, and inferring the cause from
+    # `escalation_recommended` + `citations` + `access_hint` (which is what a client had to do
+    # before) is how three different causes came to wear one message (AUD-C-19).
+    reason: str | None = None
 
 
 class EmailApprovalChoice(BaseModel):
@@ -153,6 +215,16 @@ class RespondResponse(BaseModel):
     suggested_followups: list[str] = []
     ics_content: str | None = None
     pending_interrupt: dict | None = None
+    # D-348: echoed straight back so a client can tell which of its turns a payload
+    # describes. All three of `MessageResponse`, `RespondResponse` and
+    # `SessionSnapshotEvent` carry it, because D-058/AUD-C-14 is bidirectional - a field
+    # on one and not the others gets *nulled* on every broadcast rather than failing.
+    client_turn_id: str | None = None
+    # D-351: why this turn ended the way it did, as a closed `TurnReason` code. The field a
+    # client should branch on - `answer` is the words, and inferring the cause from
+    # `escalation_recommended` + `citations` + `access_hint` (which is what a client had to do
+    # before) is how three different causes came to wear one message (AUD-C-19).
+    reason: str | None = None
 
 
 class SessionSnapshotEvent(BaseModel):
@@ -174,6 +246,16 @@ class SessionSnapshotEvent(BaseModel):
     suggested_followups: list[str] = []
     ics_content: str | None = None
     pending_interrupt: dict | None = None
+    # D-348: echoed straight back so a client can tell which of its turns a payload
+    # describes. All three of `MessageResponse`, `RespondResponse` and
+    # `SessionSnapshotEvent` carry it, because D-058/AUD-C-14 is bidirectional - a field
+    # on one and not the others gets *nulled* on every broadcast rather than failing.
+    client_turn_id: str | None = None
+    # D-351: why this turn ended the way it did, as a closed `TurnReason` code. The field a
+    # client should branch on - `answer` is the words, and inferring the cause from
+    # `escalation_recommended` + `citations` + `access_hint` (which is what a client had to do
+    # before) is how three different causes came to wear one message (AUD-C-19).
+    reason: str | None = None
 
 
 def _publish_snapshot(events: ChatSessionEventBus, response: BaseModel) -> None:
@@ -281,7 +363,7 @@ def _assert_session_access(snapshot_values: dict, claims: TokenClaims | None) ->
 
 async def _reject_if_paused(
     graph: QAGraph, chat_session_id: str, claims: TokenClaims | None
-) -> None:
+) -> dict:
     """`/messages` is the one entry point that may legitimately see *no* prior state
     (a session's first message) - unlike `learning_api`'s `_get_state_values`, this
     never 404s on that case, only 409s if a task is genuinely paused (D-021 gotcha #2:
@@ -291,16 +373,30 @@ async def _reject_if_paused(
     Also the ownership gate, because this is already the one place `/messages` reads the
     checkpoint - keeping them together means a future caller cannot pick up the paused
     check and quietly leave the access check behind.
+
+    Returns the pre-turn state values so the caller can read `bedrock_spend_cents` off
+    them: that field is a running *session* total, so this turn's own cost - what D-345's
+    reservation settles at - is the difference across the invoke, and this read is already
+    happening.
     """
     snapshot = await graph.aget_state(_graph_config(chat_session_id))
     if not snapshot.values:
-        return
+        return {}
     _assert_session_access(snapshot.values, claims)
     if _pending_task_interrupt(snapshot) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="a pending interrupt must be resolved via /respond before continuing",
         )
+    return snapshot.values
+
+
+def _turn_cost_cents(before: dict, result: dict) -> float:
+    """This turn's spend, from the session-cumulative counter either side of the invoke."""
+    spent = float(result.get("bedrock_spend_cents") or 0.0) - float(
+        before.get("bedrock_spend_cents") or 0.0
+    )
+    return max(spent, 0.0)
 
 
 def _turn_context(
@@ -336,6 +432,113 @@ def _turn_context(
     )
 
 
+def _caller_key(claims: TokenClaims | None, request: Request) -> str:
+    """Who a per-caller limit counts against - the same derivation
+    `nodes.prepare_admin_escalation` uses for the escalation cap, so a signed-in caller is
+    one key wherever they connect from and an anonymous one is their egress IP. Never
+    stored raw: `PostgresRateLimiter` HMACs it (see `rate_limit_events`' docstring).
+    """
+    if claims is not None:
+        return claims.sub
+    return request.client.host if request.client else "anonymous"
+
+
+async def _reject_if_over_caller_limit(limiter: RateLimiter, key: str) -> None:
+    if not await limiter.allow(key):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=TOO_MANY_TURNS_MESSAGE
+        )
+
+
+async def _claim_turn(db: AsyncSession, chat_session_id: str) -> None:
+    """One turn at a time per thread, enforced across replicas (D-346).
+
+    `_reject_if_paused` reads the checkpoint and *then* invokes, with nothing in between:
+    two simultaneous POSTs on one thread both saw "not paused" and both ran, and a
+    LangGraph thread is not safe to invoke concurrently. An `asyncio.Lock` would only fix
+    the single-task case, and the same autoscaling that makes D-344 necessary makes that
+    the wrong shape.
+
+    A **try**-lock, not a blocking one: with D-346's 50s deadline, queueing behind an
+    in-flight turn could make a second tab wait almost a minute for a request it will then
+    have to repeat. An immediate, honest 409 is better. The lock is transaction-scoped and
+    this session commits at dependency teardown, so it covers the whole turn and releases
+    with the request even if it crashes.
+    """
+    acquired = await db.scalar(
+        text("SELECT pg_try_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"chat_turn:{chat_session_id}"},
+    )
+    if not acquired:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=TURN_ALREADY_RUNNING_MESSAGE
+        )
+
+
+@asynccontextmanager
+async def _reserved_turn(ledger: CostReservationRepository) -> AsyncIterator[list[float]]:
+    """Charge this turn's worst case against the per-day ceiling, then settle the real cost.
+
+    Yields a one-element list the caller writes the turn's actual cost into. A list rather
+    than a return value because the settle has to happen on the way out of the `with`,
+    including when the body raises - a timed-out or failed turn still spent whatever it
+    spent before it stopped.
+
+    Never settling is safe by construction: the reservation stays charged at its estimate,
+    which over-counts. That is the direction a spend ceiling should fail in.
+    """
+    settings = get_settings()
+    try:
+        reservation = await ledger.reserve(
+            scope=SCOPE_CHAT_TURN,
+            subject_external_id=SUBJECT_CHAT_API,
+            estimate_cents=TURN_RESERVATION_ESTIMATE_CENTS,
+            ceiling_cents=settings.chat_daily_spend_ceiling_cents,
+        )
+    except CeilingReachedError as exc:
+        logger.warning(
+            "chat_daily_spend_ceiling_reached",
+            extra={"spend_cents": exc.spend_cents, "ceiling_cents": exc.ceiling_cents},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=DAILY_CEILING_MESSAGE
+        ) from exc
+
+    actual: list[float] = [0.0]
+    try:
+        yield actual
+    finally:
+        await ledger.settle(reservation.reservation_id, actual[0])
+
+
+async def _run_turn(
+    graph: QAGraph,
+    payload: "AskInput | Command | None",
+    *,
+    chat_session_id: str,
+    ctx: TurnContext,
+) -> dict:
+    """`graph.ainvoke` under the outer deadline SPEC §5.25.1's per-call timeouts never gave
+    the request as a whole (D-346).
+
+    Six sequential gateway calls, each retrying up to three times at 20s, put the worst case
+    near six minutes - well past CloudFront's 60s origin read timeout, so the client was
+    already gone while the backend kept working and kept spending. Cancelling mid-turn
+    leaves the last completed checkpoint intact, which is the same state a crash leaves and
+    a state LangGraph is built to resume from.
+    """
+    try:
+        async with asyncio.timeout(get_settings().chat_turn_deadline_s):
+            return await graph.ainvoke(
+                payload, config=_graph_config(chat_session_id), context=ctx
+            )
+    except TimeoutError as exc:
+        logger.warning("chat_turn_deadline_exceeded", extra={"thread_id": chat_session_id})
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=TURN_TIMED_OUT_MESSAGE
+        ) from exc
+
+
 @router.post("", response_model=CreateSessionResponse)
 async def create_session(
     claims: Annotated[TokenClaims | None, Depends(get_optional_claims)],
@@ -355,10 +558,19 @@ async def post_message(
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     rate_limiter: Annotated[RateLimiter, Depends(get_email_rate_limiter)],
+    message_limiter: Annotated[RateLimiter, Depends(get_message_rate_limiter)],
+    cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     graph: Annotated[QAGraph, Depends(get_graph)],
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
 ) -> MessageResponse:
-    await _reject_if_paused(graph, chat_session_id, claims)
+    # D-345: the containment guards run in cheapest-first order, and this is the endpoint
+    # they belong on. `POST /chat/sessions` was the tempting place - it is the
+    # unauthenticated, unpersisted one - but a session id costs nothing until a message
+    # spends against it, so limiting *creation* would not have bounded a single cent. An
+    # abuser reusing one id per message would have walked straight past it.
+    await _reject_if_over_caller_limit(message_limiter, _caller_key(claims, request))
+    await _claim_turn(db, chat_session_id)
+    before = await _reject_if_paused(graph, chat_session_id, claims)
     # AUD-C-24 (D-072's "How to apply" clause): the caller's typed text is redacted here,
     # at the request boundary - the only place free text enters this graph - before it
     # reaches `TurnContext`, the checkpointed `QAState`, or any Bedrock payload
@@ -378,11 +590,19 @@ async def post_message(
         query=query,
         client_ip=request.client.host if request.client else None,
     )
-    result = await graph.ainvoke(
-        AskInput(session_id=chat_session_id, query=query, escalate=body.escalate),
-        config=_graph_config(chat_session_id),
-        context=ctx,
-    )
+    async with _reserved_turn(cost_ledger) as spent:
+        result = await _run_turn(
+            graph,
+            AskInput(
+                session_id=chat_session_id,
+                query=query,
+                escalate=body.escalate,
+                client_turn_id=body.client_turn_id,
+            ),
+            chat_session_id=chat_session_id,
+            ctx=ctx,
+        )
+        spent[0] = _turn_cost_cents(before, result)
 
     pending = _result_interrupt(result)
     citations = [CitationResponse(**c) for c in result.get("citations") or []]
@@ -396,12 +616,16 @@ async def post_message(
         confidence=result.get("confidence"),
         missing_information=result.get("missing_information"),
         escalation_recommended=result.get("escalation_recommended", False),
-        access_hint=AccessHintResponse(**access_hint) if access_hint else None,
+        access_hint=(
+            AccessHintResponse(message=access_hint["message"]) if access_hint else None
+        ),
         suggested_followups=await _suggested_followups(db, result, citations),
         ics_content=result.get("ics_content"),
         pending_interrupt=(
             _pending_interrupt_preview(pending, result) if pending is not None else None
         ),
+        client_turn_id=result.get("client_turn_id"),
+        reason=result.get("reason"),
     )
     _publish_snapshot(events, response)
     return response
@@ -418,6 +642,7 @@ async def respond_to_interrupt(
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     rate_limiter: Annotated[RateLimiter, Depends(get_email_rate_limiter)],
+    cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     graph: Annotated[QAGraph, Depends(get_graph)],
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
 ) -> RespondResponse:
@@ -427,12 +652,27 @@ async def respond_to_interrupt(
     -pending interrupt so a stale or mismatched client request fails clearly instead of
     silently resuming the wrong node.
     """
+    await _claim_turn(db, chat_session_id)
     snapshot = await graph.aget_state(_graph_config(chat_session_id))
     if not snapshot.values:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="chat session not found"
         )
     snapshot_values = snapshot.values
+
+    # D-346: **before** anything that describes the thread's state. This check used to sit
+    # below both 409s, so a caller holding only a session id learned that the session
+    # existed, that an interrupt was pending, and - from the mismatch message - *which* one,
+    # all before being told the thread was not theirs.
+    #
+    # The 404 above still runs first, and that is a deliberate limit rather than a claim of
+    # full indistinguishability: an unknown id 404s and a foreign one 403s, so the two
+    # remain tellable apart. `_assert_session_access`'s own docstring chose the 403, both
+    # `/stream` and `/messages` already answer that way, and the ids are uuid4 - so the
+    # enumeration this leaks is not a practical one. What was practical, and is now closed,
+    # is reading a stranger's *pending approval type* out of a 409 detail string.
+    _assert_session_access(snapshot_values, claims)
+
     pending = _pending_task_interrupt(snapshot)
     if pending is None:
         raise HTTPException(
@@ -444,8 +684,6 @@ async def respond_to_interrupt(
             detail=f"pending interrupt is {pending.value.get('type')!r}, not "
             f"{body.interrupt_type!r}",
         )
-
-    _assert_session_access(snapshot_values, claims)
 
     if isinstance(body, EmailApprovalChoice):
         resume_value: object = {"approved": body.approved}
@@ -470,11 +708,14 @@ async def respond_to_interrupt(
         rate_limiter=rate_limiter,
         client_ip=request.client.host if request.client else None,
     )
-    result = await graph.ainvoke(
-        Command(resume=resume_value),
-        config=_graph_config(chat_session_id),
-        context=ctx,
-    )
+    async with _reserved_turn(cost_ledger) as spent:
+        result = await _run_turn(
+            graph,
+            Command(resume=resume_value),
+            chat_session_id=chat_session_id,
+            ctx=ctx,
+        )
+        spent[0] = _turn_cost_cents(snapshot_values, result)
 
     if isinstance(body, LocationConsentChoice):
         # AUD-C-03: the resume payload above is the only place the caller's precise
@@ -496,7 +737,9 @@ async def respond_to_interrupt(
         confidence=result.get("confidence"),
         missing_information=result.get("missing_information"),
         escalation_recommended=result.get("escalation_recommended", False),
-        access_hint=AccessHintResponse(**access_hint) if access_hint else None,
+        access_hint=(
+            AccessHintResponse(message=access_hint["message"]) if access_hint else None
+        ),
         suggested_followups=await _suggested_followups(db, result, citations),
         ics_content=result.get("ics_content"),
         pending_interrupt=(
@@ -504,6 +747,8 @@ async def respond_to_interrupt(
             if next_pending is not None
             else None
         ),
+        client_turn_id=result.get("client_turn_id"),
+        reason=result.get("reason"),
     )
     _publish_snapshot(events, response)
     return response

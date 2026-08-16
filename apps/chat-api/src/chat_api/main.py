@@ -16,6 +16,7 @@ from intellichoice_adapters.fake_email import FakeEmailTransport
 from intellichoice_adapters.fake_maps import FakeMapsProvider
 from intellichoice_adapters.mysql_profile_adapter import MySQLProfileAdapter
 from intellichoice_db.engine import create_engine, create_session_factory
+from intellichoice_db.models.rate_limit import SCOPE_CHAT_MESSAGE
 from intellichoice_db.repositories.rag import RagRepository
 from intellichoice_db.repositories.rate_limit import RateLimitRepository
 from intellichoice_observability.langsmith_config import configure_langsmith
@@ -51,11 +52,11 @@ from chat_api.config import get_settings
 from chat_api.dependencies import get_current_claims
 from chat_api.graph.build import build_graph
 from chat_api.graph.nodes import SERVICE_UNAVAILABLE_MESSAGE
-from chat_api.routers.events import router as events_router
 from chat_api.routers.meta import router as meta_router
 from chat_api.routers.sessions import router as sessions_router
 from chat_api.routers.stream import router as stream_router
 from chat_api.services.escalation_rate_limit import PostgresRateLimiter
+from chat_api.services.session_event_relay import ChatSessionEventRelay
 from chat_api.services.session_events import ChatSessionEventBus
 
 logger = logging.getLogger(__name__)
@@ -168,6 +169,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         window_s=settings.email_rate_limit_window_s,
         key_secret=settings.jwt_signing_secret,
     )
+    # D-345: the same limiter, a different scope and a much wider window - every turn, not
+    # just the escalation button. See `Settings.chat_message_rate_limit_max_per_window` for
+    # why the cap is generous rather than tight.
+    app.state.message_rate_limiter = PostgresRateLimiter(
+        repository=RateLimitRepository(app.state.db_session_factory),
+        max_per_window=settings.chat_message_rate_limit_max_per_window,
+        window_s=settings.chat_message_rate_limit_window_s,
+        key_secret=settings.jwt_signing_secret,
+        scope=SCOPE_CHAT_MESSAGE,
+    )
 
     if _otel_provider is not None:
         instrument_sqlalchemy_engines(engine, adapter.engine, provider=_otel_provider)
@@ -177,8 +188,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with AsyncPostgresSaver.from_conn_string(settings.checkpoint_database_url) as saver:
         await saver.setup()
         app.state.qa_graph = build_graph(saver)
+
+        # D-349: started after the engine exists, and **tolerated rather than fatal** - without
+        # the relay the bus degrades to its pre-D-349 in-process behaviour, which is worse than
+        # fixed but better than an API that will not boot over a push channel. Mirrors
+        # `learning_api.main`'s wiring, including that posture.
+        relay = ChatSessionEventRelay(app.state.session_events, settings.database_url)
+        try:
+            await relay.start()
+        except Exception:
+            logger.warning(
+                "chat_session_event_relay_start_failed - SSE events will not cross replicas",
+                exc_info=True,
+            )
+            relay = None
+        app.state.session_event_relay = relay
+
         yield
 
+    if relay is not None:
+        await relay.stop()
     await adapter.close()
     await engine.dispose()
 
@@ -274,7 +303,12 @@ async def _bedrock_gateway_error_handler(request: Request, exc: Exception) -> JS
 
 app.include_router(sessions_router)
 app.include_router(stream_router)
-app.include_router(events_router)
+# D-345: `GET /chat/events` used to be registered here. It was unauthenticated by design
+# (public-audience only) and had no caller anywhere - `chat-web` never fetched it, and the
+# `EventsCard` it was built for is still deliberately deferred in ROADMAP. Deleted rather
+# than kept: an unauthenticated route nobody calls is surface without a user, and the
+# `services.calendar_events` logic it shared with `calendar_extract` is untouched, so a
+# "what's coming up?" chat answer still works exactly as before.
 app.include_router(meta_router)
 
 

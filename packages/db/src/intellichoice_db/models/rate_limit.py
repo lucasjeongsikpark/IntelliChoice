@@ -35,6 +35,10 @@ from intellichoice_db.models.base import Base, new_uuid
 # Limiter surfaces. Strings rather than a Postgres enum, matching `cost_reservations.scope`
 # - adding a surface should be a code change, not a migration.
 SCOPE_ADMIN_ESCALATION = "admin_escalation"
+# D-345: every chat turn, not just the escalation button. Keyed the same way (external id
+# when signed in, client IP when anonymous, HMAC'd either way), so a branch's shared egress
+# IP is one key for its anonymous visitors and a distinct key per signed-in one.
+SCOPE_CHAT_MESSAGE = "chat_message"
 
 
 class RateLimitEvent(Base):

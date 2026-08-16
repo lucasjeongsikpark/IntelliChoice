@@ -26,11 +26,26 @@ one that matters least by volume, which is why all three are here rather than on
 
 **Chat consolidation is a structural no-op today, and that is recorded rather than hidden.**
 `consolidate_student_session` reads `learning_events`, and chat-api writes none - it persists only
-`interrupt_approvals` and `mcp_tool_calls`. So the call returns a zero-cost success for every chat
-thread. That is not a wiring gap to be fixed: `semantic_memory`'s twelve fact types are all about
-learning (`weak_skill`, `misconception`, `hint_dependence`, ...) and "when does Saturday class
-start?" maps to none of them. The gate is written so that it becomes *real* automatically if chat
-ever does emit events, rather than being special-cased into always passing.
+`interrupt_approvals`, `mcp_tool_calls`, `rate_limit_events` and (since D-345) `cost_reservations`.
+So the call returns a zero-cost success for every chat thread. That is not a wiring gap to be
+fixed: `semantic_memory`'s twelve fact types are all about learning (`weak_skill`,
+`misconception`, `hint_dependence`, ...) and "when does Saturday class start?" maps to none of
+them. The gate is written so that it becomes *real* automatically if chat ever does emit events,
+rather than being special-cased into always passing.
+
+**Two corrections to that inventory (D-343), neither of which changes the policy.** The list above
+used to name only the first two tables. And **none of the four is deleted when a chat thread is
+pruned here** - `interrupt_approvals` rows in particular outlive their thread and keep a
+`session_id` pointing at nothing. Accepted rather than overlooked: an approval record is the audit
+trail of a human decision to send an email, which is exactly the thing that should survive the
+conversation that produced it. But it does mean "a chat Q&A leaves no durable record" is true of
+the *conversation*, not of the account of what was approved.
+
+Neither counter table is wired here either, for different reasons. `rate_limit_events` prunes its
+own expired rows inside the transaction that writes them and stores an HMAC rather than the caller
+key, so it needs nothing. `cost_reservations` does **not** self-prune - its ceiling query is
+windowed, so old rows stop counting but keep sitting there. At chat's volume that is a few rows a
+day and not worth a job; if it ever is, `retention_purge_cli` is where it goes.
 
 **Cost.** `consolidate_student_session` is a paid Bedrock call. `finalize_exam` has been making it
 since S25, so most completed sessions are already consolidated and must not be re-paid for -

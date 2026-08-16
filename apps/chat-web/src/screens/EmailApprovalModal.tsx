@@ -4,13 +4,18 @@ import type { EmailApprovalInterrupt } from "../types";
 interface Props {
   pending: EmailApprovalInterrupt;
   busy: boolean;
+  error?: string | null;
   onApprove: (approved: boolean) => void;
 }
 
-export function EmailApprovalModal({ pending, busy, onApprove }: Props) {
+export function EmailApprovalModal({ pending, busy, error, onApprove }: Props) {
   return (
     // Escape declines: the safe half of an approval whose other half sends real email.
-    <ApprovalModal titleId="email-approval-title" onDismiss={() => onApprove(false)}>
+    <ApprovalModal
+      titleId="email-approval-title"
+      error={error}
+      onDismiss={() => onApprove(false)}
+    >
       <h2 id="email-approval-title">Send to an administrator?</h2>
       {/* D-219: this read "SPEC §5.1.4: no email is sent without your approval." An
           internal specification section number, on the screen where a parent decides

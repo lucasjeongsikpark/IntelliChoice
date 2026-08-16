@@ -92,9 +92,14 @@ button.link {
   letter-spacing: normal;
   text-decoration: underline;
   width: auto;
-  display: inline;
+  /* D-350: `display: inline` with zero padding gave "new chat" and "sign out" a ~13px-tall
+     hit area, adjacent, separated only by " · " - and one of them is destructive. Inline
+     -block with vertical padding brings the target close to the 44px guidance without
+     changing how the text reads in its run. */
+  display: inline-block;
   margin: 0;
-  padding: 0;
+  padding: 10px 4px;
+  min-height: 44px;
 }
 
 .error {
@@ -226,11 +231,14 @@ button.link {
 }
 
 .citations-label {
-  font-size: 11px;
+  /* D-350: 11px at 0.7 opacity is ~7.7:1 - passing, but marginal at that size and it is a
+     label a reader has to resolve to know what the chips beside it are. 12px at 0.85 costs
+     nothing and stops it being the smallest text in the app. */
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text);
-  opacity: 0.7;
+  opacity: 0.85;
   align-self: center;
 }
 
@@ -397,6 +405,15 @@ button.chip {
   margin-top: 0;
 }
 
+/* D-347: the failure of the dialog's own action, inside the dialog. The page-level `.error`
+   sits in `.chat-page`, which the overlay above covers entirely - so a failed approval used
+   to be invisible and the dialog simply appeared not to respond. Bottom margin cleared
+   because this is the last element in the modal. */
+.modal-error {
+  margin: 12px 0 0;
+  text-align: left;
+}
+
 .email-preview {
   text-align: left;
   background: var(--bg);
@@ -435,10 +452,13 @@ button.chip {
    so "Thinking…" was a static grey bubble for ten seconds, which reads as a hung request
    rather than a slow one. Motion is the cheapest possible signal that something is still
    happening, and it is switched off for anyone who has asked for reduced motion. */
+/* D-350: the trough was 0.45, which drops `--text` on `--bg` to roughly 4.4:1 - under
+   WCAG AA for normal-size text, on the element a visitor stares at for ten seconds. 0.7
+   keeps the motion cue while staying above 4.5:1. */
 @keyframes thinking-pulse {
   0%,
   100% {
-    opacity: 0.45;
+    opacity: 0.7;
   }
   50% {
     opacity: 1;
@@ -452,5 +472,82 @@ button.chip {
 @media (prefers-reduced-motion: reduce) {
   .bubble.dim {
     animation: none;
+  }
+}
+
+/* D-350: focus was invisible. There was not one `:focus` or `:focus-visible` rule in this
+   file, and `button` strips its border - so a keyboard user navigating the composer, the
+   follow-up chips and the approval dialogs had only the UA default ring, which is thin and
+   low-contrast over a filled `--accent` button. `:focus-visible` rather than `:focus` so a
+   mouse click does not leave a ring behind. */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-control, 6px);
+}
+
+.stream-dot.idle {
+  background: var(--border);
+}
+
+/* D-350: the visually-hidden helper this app did not have. Copied from
+   `apps/learning-web/src/App.css`, which is where the pattern already lives. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* D-352: the Stop button sits inside the pulsing `Thinking…` bubble. */
+button.link.cancel-turn {
+  margin-left: 10px;
+  min-height: 0;
+  padding: 2px 4px;
+  font-size: 13px;
+}
+
+/* D-350: the only width media query in this file. Before it, `#root`'s 24px padding, a
+   non-wrapping header holding a logo, an 18px `h1`, the role and two link-buttons, and a
+   three-button modal row all rendered unchanged at 360px - and the composer sat under the
+   iOS home indicator. Deliberately one breakpoint and not a responsive redesign: this
+   removes the breakages, and there is no mobile-usage evidence to design against yet. */
+@media (max-width: 480px) {
+  #root {
+    padding: 12px;
+  }
+
+  .chat-page {
+    height: calc(100svh - 24px);
+  }
+
+  .chat-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .chat-header h1 {
+    font-size: 16px;
+  }
+
+  /* Three buttons reading "Cancel", "Download .ics" and "Add to Google Calendar" cannot sit
+     in one row at this width; uppercase and `width: 100%` make them collapse rather than
+     wrap. */
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions button {
+    width: 100%;
+  }
+
+  .composer {
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 }

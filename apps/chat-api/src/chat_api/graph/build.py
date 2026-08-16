@@ -29,6 +29,10 @@ class AskInput(BaseModel):
     # D-164. Always supplied per turn (default False), so it can never go stale on a
     # thread the way a field written only by a node could - see `QAState.escalate`.
     escalate: bool = False
+    # D-348. Merged into `QAState` by LangGraph rather than written by any node, and
+    # deliberately *not* cleared by `resolve_role`: a `/respond` resume continues the same
+    # turn, so the id checkpointed when it started is the correct one to keep echoing.
+    client_turn_id: str | None = None
 
 
 QAGraph = CompiledStateGraph[QAState, nodes.TurnContext, AskInput, QAState]

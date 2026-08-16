@@ -37,7 +37,9 @@ export type PendingInterrupt =
 
 // SPEC §18-C3 (see `chat_api.services.role_access.AccessHint`'s own docstring).
 export interface AccessHint {
-  required_role: Role;
+  // D-351: `required_role` was removed from the API. The tier is still selected server-side
+  // and logged, so the probe stays measurable, but naming it told an unauthenticated caller
+  // which role holds a document matching their terms.
   message: string;
 }
 
@@ -59,6 +61,14 @@ export interface TurnSnapshot {
   suggested_followups: string[];
   ics_content?: string | null;
   pending_interrupt?: PendingInterrupt | null;
+  // D-351: why the turn ended this way, as a closed server-side code (`TurnReason`). The
+  // field to branch on - `answer` is the words. Optional because a session checkpointed
+  // before this existed has no reason recorded.
+  reason?: string | null;
+  // D-348: the `turnId` this client sent with the question, echoed back on the response and
+  // on every snapshot describing that turn. Optional because a session started before this
+  // field existed still has checkpoints without it.
+  client_turn_id?: string | null;
 }
 
 // `GET /chat/meta` (see `routers/meta.py`'s `ChatMetaResponse`) - anonymous-OK, no
@@ -79,4 +89,9 @@ export interface ChatTurn {
   // `ChatScreen` rendered `Thinking…` forever. `error` is what makes the third state
   // representable; it is cleared whenever a real response arrives for this turn.
   error?: string | null;
+  // D-352: a fourth state, and a distinct one. A turn the user *stopped* is not a turn that
+  // failed - it needs no apology and no "couldn't be sent", just an offer to ask again. The
+  // flag rather than a string comparison against the message, so the wording stays a
+  // rendering concern.
+  cancelled?: boolean;
 }

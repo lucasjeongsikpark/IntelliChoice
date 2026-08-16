@@ -52,19 +52,17 @@ from chat_api.services import admin_escalation as admin_escalation_service
 from chat_api.services import branch_locator as branch_locator_service
 from chat_api.services import calendar as calendar_service
 from chat_api.services import calendar_events as calendar_events_service
-from chat_api.services import qa, role_access
+from chat_api.services import outcomes, qa, role_access
 from chat_api.services.branch_locator import BranchLocatorResult, BranchLocatorStatus
+from chat_api.services.outcomes import ACCESS_REQUIRED_MESSAGE, TurnReason
 
 from .state import QAState
 
 logger = logging.getLogger(__name__)
 
-# SPEC §5.19.4 verbatim.
-OUT_OF_SCOPE_MESSAGE = (
-    "I can help with IntelliChoice programs, branches, schedules, volunteering,\n"
-    "student learning, parent information and tutor or branch procedures.\n"
-    "I cannot answer unrelated general-purpose questions."
-)
+# SPEC §5.19.4, and D-351 changed both the SPEC text and this one together rather than letting
+# them drift - see `outcomes.OUT_OF_SCOPE_MESSAGE` for the measured case that prompted it.
+OUT_OF_SCOPE_MESSAGE = outcomes.OUT_OF_SCOPE_MESSAGE
 
 # SPEC §5.29's "user-safe error message", re-exported from `services.qa` - it moved down
 # a layer in D-156 when AUD-C-19 needed it at the synthesis call site, and this module
@@ -315,6 +313,10 @@ async def resolve_role(state: QAState, runtime: Runtime[TurnContext]) -> dict:
         # Resetting on entry rather than in each pausing node is the point: there are
         # several pausing nodes and the next one added would have to remember.
         "answer": None,
+        # D-351: the reason code is a per-turn result like everything else here, and would
+        # otherwise outlive the turn that produced it - the same AUD-C-04 class this block
+        # exists for.
+        "reason": None,
         "citations": None,
         "confidence": None,
         "missing_information": None,
@@ -387,6 +389,7 @@ async def refuse(state: QAState, runtime: Runtime[TurnContext]) -> dict:
     QA_OUT_OF_SCOPE.inc()
     return {
         "answer": OUT_OF_SCOPE_MESSAGE,
+        "reason": TurnReason.OUT_OF_SCOPE,
         "citations": [],
         "confidence": None,
         "missing_information": None,
@@ -408,6 +411,7 @@ async def service_unavailable(state: QAState, runtime: Runtime[TurnContext]) -> 
     del state, runtime
     return {
         "answer": SERVICE_UNAVAILABLE_MESSAGE,
+        "reason": TurnReason.SYSTEM_ERROR,
         "citations": [],
         "confidence": None,
         "missing_information": None,
@@ -432,6 +436,9 @@ async def unavailable_intent(state: QAState, runtime: Runtime[TurnContext]) -> d
     )
     return {
         "answer": message,
+        # An in-scope intent with no handler is the assistant needing more from the caller,
+        # not a refusal about the question - `clarification` is literally the default here.
+        "reason": TurnReason.NEEDS_CLARIFICATION,
         "citations": [],
         "confidence": None,
         "missing_information": None,
@@ -479,6 +486,23 @@ async def answer_document_qa(state: QAState, runtime: Runtime[TurnContext]) -> d
     }
 
 
+def _reason_for_qa_answer(answer: str) -> TurnReason:
+    """Which `TurnReason` a `qa.answer_question` result represents.
+
+    Keyed on the message `qa` returned rather than re-deriving the outcome from citations and
+    confidence, because `qa` has already made that decision and a second classification here
+    could disagree with it - which is precisely the AUD-C-19 shape (one message, three
+    causes) inverted into three reasons for one message.
+    """
+    if answer == outcomes.SYSTEM_ERROR_MESSAGE:
+        return TurnReason.SYSTEM_ERROR
+    if answer == outcomes.SOURCES_CONFLICT_MESSAGE:
+        return TurnReason.SOURCES_CONFLICT
+    if answer == outcomes.NO_APPROVED_SOURCE_MESSAGE:
+        return TurnReason.NO_APPROVED_SOURCE
+    return TurnReason.ANSWER
+
+
 async def synthesize_answer(state: QAState, runtime: Runtime[TurnContext]) -> dict:
     """SPEC §5.21.8: citation-grounded synthesis + verification, over the chunks
     `answer_document_qa` already retrieved (re-loaded by id - `QAState` checkpoints ids
@@ -516,6 +540,10 @@ async def synthesize_answer(state: QAState, runtime: Runtime[TurnContext]) -> di
     QA_CONVERSATION_COST_CENTS.observe(total_spend_cents)
     return {
         "answer": grounded.answer,
+        # D-351: `qa.answer_question` already decided which of the three outcomes this is;
+        # the mapping is by the message it returned rather than a second classification, so
+        # the reason and the words cannot disagree.
+        "reason": _reason_for_qa_answer(grounded.answer),
         "citations": [citation.model_dump() for citation in grounded.citations],
         "confidence": grounded.confidence,
         "missing_information": grounded.missing_information,
@@ -624,6 +652,7 @@ async def explain_access(state: QAState, runtime: Runtime[TurnContext]) -> dict:
         # branch that could have had them does not route here.
         return {
             "answer": qa.NO_SOURCE_MESSAGE,
+            "reason": TurnReason.NO_APPROVED_SOURCE,
             "citations": [],
             "confidence": 0.0,
             "missing_information": "No verifiable, non-conflicting source supports an answer.",
@@ -632,13 +661,31 @@ async def explain_access(state: QAState, runtime: Runtime[TurnContext]) -> dict:
             "bedrock_spend_cents": spend,
         }
 
+    # D-351: the selected tier is **logged, not shown**. `build_access_hint` still picks a
+    # specific audience - it is the number D-351's instrument measures, and throwing it away
+    # would make the probe unobservable - but the caller now reads one generic sentence.
+    # Two reasons, one measured and one structural, both in `outcomes.ACCESS_REQUIRED_MESSAGE`.
+    logger.info(
+        "access_hint_offered",
+        extra={"required_role": hint.required_role, "user_role": state.user_role},
+    )
     return {
-        "answer": hint.message,
+        "answer": ACCESS_REQUIRED_MESSAGE,
+        "reason": TurnReason.ACCESS_REQUIRED,
         "citations": [],
         "confidence": None,
         "missing_information": None,
         "escalation_recommended": False,
-        "access_hint": hint.model_dump(),
+        # `required_role` stays in *state* and is dropped at the API boundary, rather than
+        # never being written. The distinction matters: it is what
+        # `qa_coverage_runner`'s `role_gated` cases score, and it is how AUD-C-22's
+        # wrong-tier selection was caught at all. Removing it from state would have made
+        # the probe unmeasurable in exchange for a disclosure the response model already
+        # closes (`AccessHintResponse` carries `message` only).
+        "access_hint": {
+            "required_role": hint.required_role,
+            "message": ACCESS_REQUIRED_MESSAGE,
+        },
         "bedrock_spend_cents": spend,
     }
 
@@ -709,6 +756,7 @@ async def admin_escalation_blocked(state: QAState, runtime: Runtime[TurnContext]
     del state, runtime
     return {
         "answer": RATE_LIMITED_MESSAGE,
+        "reason": TurnReason.POLICY_RESTRICTED,
         "citations": [],
         "confidence": None,
         "missing_information": None,
@@ -764,6 +812,9 @@ async def admin_escalation(state: QAState, runtime: Runtime[TurnContext]) -> dic
 
     return {
         "answer": message,
+        # The escalation resolved: an email was sent, declined, or failed to send. All
+        # three are outcomes of a *human* decision rather than of the assistant's knowledge.
+        "reason": TurnReason.HUMAN_ACTION_REQUIRED,
         "citations": [],
         "confidence": None,
         "missing_information": None,
@@ -865,6 +916,7 @@ async def calendar_event_listing(state: QAState, runtime: Runtime[TurnContext]) 
         lines.append(f"- {item['title']} - {item['starts_at']}{location}")
     return {
         "answer": "\n".join(lines),
+        "reason": TurnReason.ANSWER,
         "citations": [],
         "confidence": None,
         "missing_information": None,
@@ -888,6 +940,12 @@ async def calendar_no_event(state: QAState, runtime: Runtime[TurnContext]) -> di
     message = NO_UPCOMING_EVENTS_MESSAGE if has_event_history else NO_EVENT_FOUND_MESSAGE
     return {
         "answer": message,
+        # Nothing scheduled is a real, correct answer from the org calendar; "I could not
+        # find a dated event to add" is the assistant asking for a better question.
+        "reason": (
+            TurnReason.ANSWER if message == NO_UPCOMING_EVENTS_MESSAGE
+            else TurnReason.NEEDS_CLARIFICATION
+        ),
         "citations": [],
         "confidence": None,
         "missing_information": None,
@@ -947,6 +1005,9 @@ async def calendar_action(state: QAState, runtime: Runtime[TurnContext]) -> dict
 
     return {
         "answer": message,
+        # Added to Google, downloaded as .ics, or cancelled - each is the result of the
+        # caller's own choice at the approval dialog.
+        "reason": TurnReason.HUMAN_ACTION_REQUIRED,
         "citations": [],
         "confidence": None,
         "missing_information": None,
@@ -1036,6 +1097,7 @@ async def branch_locator_consent(state: QAState, runtime: Runtime[TurnContext]) 
     if not approved:
         return {
             "answer": LOCATION_DECLINED_MESSAGE,
+            "reason": TurnReason.POLICY_RESTRICTED,
             "citations": [],
             "confidence": None,
             "missing_information": None,
@@ -1054,6 +1116,7 @@ async def branch_locator_consent(state: QAState, runtime: Runtime[TurnContext]) 
     except ValidationError:
         return {
             "answer": LOCATION_MISSING_MESSAGE,
+            "reason": TurnReason.NEEDS_CLARIFICATION,
             "citations": [],
             "confidence": None,
             "missing_information": None,
@@ -1071,6 +1134,7 @@ async def branch_locator_consent(state: QAState, runtime: Runtime[TurnContext]) 
 
     return {
         "answer": _format_branch_locator_answer(result),
+        "reason": TurnReason.ANSWER,
         "citations": [],
         "confidence": None,
         "missing_information": None,

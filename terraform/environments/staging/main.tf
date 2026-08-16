@@ -517,6 +517,13 @@ module "ecs_service_chat_api" {
   enable_latency_step_scaling = true
   alb_arn_suffix              = module.alb.alb_arn_suffix
 
+  # D-344 authored `autoscaling_max_capacity = 1` here as a stopgap while D-349's relay was
+  # built, and **it was never applied** - `terraform apply` is not part of `deploy-staging.yml`
+  # and nobody ran it, so live stayed at the module default of 3 the whole time. Reverted
+  # rather than left in place: a file claiming a capacity AWS does not have is worse than the
+  # default it was trying to override, and the relay it was waiting for landed in the same
+  # session anyway. The honest account is in D-344 itself.
+
   # S39: see the matching comment on ecs_service_learning_api above.
   enable_otel_sidecar  = var.enable_otel_tracing
   otel_collector_image = local.otel_collector_image

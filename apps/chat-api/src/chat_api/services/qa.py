@@ -23,16 +23,16 @@ from intellichoice_shared.bedrock import (
     RagContextChunk,
 )
 
+from chat_api.services import outcomes
+
 logger = logging.getLogger(__name__)
 
-NO_SOURCE_MESSAGE = (
-    "I don't have an approved source for that yet. I can pass this on to a branch "
-    "manager if you'd like."
-)
-CONFLICT_MESSAGE = (
-    "The documents I found disagree with each other on this, so I don't want to guess. "
-    "I can pass this on to a branch manager to confirm."
-)
+# D-351: the words now live in `services.outcomes` alongside the reason codes, so a reader
+# looking for "what does a visitor see when X" finds one file rather than four. Re-exported
+# under the original names because they are referenced from tests, the graph and the e2e
+# fixtures, and renaming them would be churn with no reader benefit.
+NO_SOURCE_MESSAGE = outcomes.NO_APPROVED_SOURCE_MESSAGE
+CONFLICT_MESSAGE = outcomes.SOURCES_CONFLICT_MESSAGE
 
 # SPEC §5.29's "user-safe error message", for the case the other messages here cannot
 # honestly cover: the turn failed for a reason that has nothing to do with what was
@@ -44,11 +44,7 @@ CONFLICT_MESSAGE = (
 #
 # Lives here rather than in `graph/nodes.py` (D-156): AUD-C-19 needed it at the synthesis
 # call site below, and the dependency runs graph -> services. `graph.nodes` re-exports it.
-SERVICE_UNAVAILABLE_MESSAGE = (
-    "I can't look that up right now - the assistant is temporarily unavailable.\n\n"
-    "This is a problem on our side, not with your question. Please try again in a few "
-    "minutes. If it keeps happening, contact your branch manager."
-)
+SERVICE_UNAVAILABLE_MESSAGE = outcomes.SYSTEM_ERROR_MESSAGE
 
 
 def _normalized_for_containment(text: str) -> str:

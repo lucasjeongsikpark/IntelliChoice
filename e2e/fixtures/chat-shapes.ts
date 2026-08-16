@@ -31,11 +31,22 @@ export interface Shape {
   confidence?: number | null;
   missing_information?: string | null;
   escalation_recommended: boolean;
-  access_hint?: { required_role: string; message: string } | null;
+  access_hint?: { message: string } | null;
   suggested_followups: string[];
   ics_content?: string | null;
   pending_interrupt?: Record<string, unknown> | null;
+  // D-348: echoed back so a client can tell which of its turns a payload describes.
+  client_turn_id?: string | null;
+  // D-351: the closed reason code the client branches on.
+  reason?: string | null;
 }
+
+// Kept in step with `chat_api.services.outcomes.ACCESS_REQUIRED_MESSAGE` by
+// `test_turn_reasons.py`'s copy assertions on the server side; duplicated here because the
+// e2e fixtures deliberately do not import from the Python app.
+const ACCESS_REQUIRED_MESSAGE =
+  "I can't answer that from the sources available to you. Some information is only " +
+  "available once you sign in, so signing in may help.";
 
 export const SESSION_ID = "00000000-0000-4000-8000-00000000f39a";
 
@@ -52,6 +63,8 @@ const base: Shape = {
   suggested_followups: [],
   ics_content: null,
   pending_interrupt: null,
+  client_turn_id: null,
+  reason: "answer",
 };
 
 const citation: ShapeCitation = {
@@ -132,14 +145,16 @@ export const SHAPES: Record<string, Shape> = {
   // emits, and that is precisely why the duplicate-render defect survived a green e2e run
   // and was found by walking the deployed build instead. Keep them equal: with the two
   // different, the `renders:` assertions below cannot see the duplication at all.
+  // D-351: the copy is now generic and names no tier, and the fixture uses the real string
+  // rather than a paraphrase - `ChatScreen`'s D-220 de-duplication compares `answer` against
+  // `access_hint.message` exactly, so a fixture that only *looks* like the real pair would
+  // exercise the opposite branch of the very check this shape exists to cover.
   "access hint": {
     ...base,
-    answer: "That's available to tutors - log in with a tutor account to see it.",
+    answer: ACCESS_REQUIRED_MESSAGE,
     citations: [],
-    access_hint: {
-      required_role: "tutor",
-      message: "That's available to tutors - log in with a tutor account to see it.",
-    },
+    reason: "access_required",
+    access_hint: { message: ACCESS_REQUIRED_MESSAGE },
   },
 
   "event listing": {
@@ -239,10 +254,23 @@ export const SHAPES: Record<string, Shape> = {
     answer: null,
     pending_interrupt: {
       interrupt_type: "calendar_action",
+      // D-352: these were `summary` / `start_time`, which no version of the backend has
+      // ever emitted - the real `intellichoice_shared.calendar.CalendarEvent` uses
+      // `title` / `start_datetime` / `end_datetime` / `timezone`. `CalendarActionModal`
+      // reads the real names, so the drifted fixture rendered a title of literally
+      // "Event" and an empty " – " date range, and the shape test passed anyway because
+      // it only asserted that *a modal appeared*. The drift control at the top of
+      // `response-shapes.spec.ts` could not see it either: it compares top-level
+      // `/messages` keys, and `pending_interrupt` is `Record<string, unknown>`.
       calendar_event: {
-        summary: "Baton Rouge session",
-        start_time: "2026-08-08T14:00:00Z",
+        title: "Baton Rouge parent session",
+        start_datetime: "2026-08-08T14:00:00Z",
+        end_datetime: "2026-08-08T15:00:00Z",
+        timezone: "America/Chicago",
         location: "Baton Rouge branch",
+        description: "Termly parent update.",
+        source_document_id: "doc-branch-directory",
+        source_page: 4,
       },
     },
   },

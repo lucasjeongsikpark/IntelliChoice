@@ -24620,3 +24620,569 @@ Parking the content does not park the **behaviour** under thin content. That was
 user did not defer, and D-341 tested it: `_closest_to_recommended` never returns empty, so a
 declared-but-unstocked tier stays servable rather than becoming a dead end. If a future change makes
 an unstocked tier unservable, **that is a real defect and is not covered by this entry.**
+
+### D-343 — The chat service, walked end to end: the happy path is solid and five things are not
+
+**Date:** 2026-08-15 · **Status:** the evidence base for D-344 … D-350 · **Method:** code review of
+`apps/chat-api` (4,856 LOC) + `apps/chat-web` (1,727 LOC) + terraform + e2e, then a live
+chrome-devtools walk of staging (`d222glidpp4azv.cloudfront.net`, build `gha-7d1bf6794b09`)
+
+The walk mattered more than the review. Ten turns as a guest and as `parent-ext-1` produced **zero
+console errors, zero failed requests, and correct behaviour on every path the e2e suite already
+covers**: welcome card, role-filtered suggestions, citations, the locator consent round-trip and its
+decline, scope refusals, and role-gated answers. That is worth stating plainly, because the rest of
+this entry is a defect list and the list is not the whole picture.
+
+What the walk found that reading could not:
+
+1. **The modal has no focus trap.** Four `Tab` presses from inside the location-consent dialog put
+   focus on "new chat" *behind the scrim*. `ApprovalModal`'s own docstring says the component was
+   written to stop exactly this; only the initial focus move and `aria-modal` were ever implemented.
+   A docstring claiming a fix that is not there is worse than no docstring — it is why nobody
+   re-checked. (→ D-350)
+2. **The access probe misses the case it exists for.** A guest asking *"What is the attendance
+   policy if my child misses a session?"* gets a bare no-source refusal and an escalate button. The
+   same question as a signed-in parent returns a full answer with **three citations** from the
+   parent-gated Attendance Policy document. The one question where "log in and you can see this"
+   is the true answer is the one where the hint does not appear. (→ D-351)
+3. **The scope guard refuses org-adjacent questions with copy that insults them.** A parent asking
+   how to request a refund for a mistaken donation is told the assistant "cannot answer unrelated
+   general-purpose questions". Donations are not unrelated to a 501(c)(3); the classification is
+   arguable, the wording is not. (→ D-351)
+4. **Mid-flight reload recovered — because there is one replica.** Two reloads during a slow turn
+   both healed from the checkpoint. That is the single-task case; the autoscaling policy is live and
+   latency-triggered. (→ D-344, D-349)
+5. **Timing, measured rather than assumed.** Cited answers took **6.2 s, 6.3 s, 7.8 s, 8.0 s, 10.9 s**
+   wall clock; scope refusals 2.1–2.5 s; the interrupt turn 1.5 s. Throughout, the composer is
+   disabled with a `Thinking…` bubble and **no cancel affordance**. This is the known D-115 posture,
+   not a new defect — but it is the number that makes the missing request deadline (D-346) and the
+   missing cancel (D-352) matter.
+
+Two facts from the code that shaped every fix below, both of which contradicted an assumption:
+
+- **`cost_reservations.scope` is a plain string in shared `packages/db`.** Giving chat-api a spend
+  ceiling needs no migration and no cross-app import — a new scope constant is a code change. The
+  briefing assumed this would be learning-api-only infrastructure.
+- **`TurnSnapshot` carries no turn identity.** The SSE snapshot-clobber cannot be fixed in the
+  frontend, because there is nothing to correlate a snapshot against. It is a wire-shape change.
+
+### D-344 — chat-api pinned to one replica until the relay lands, and why that is the honest order
+
+**Date:** 2026-08-15 · **Status:** stopgap, **removed by D-349** · **File:** `terraform/environments/staging/main.tf`
+
+chat-api's `ChatSessionEventBus` is a per-process `dict[str, list[asyncio.Queue]]`. Its two
+publishers are both on the request path (`routers/sessions.py`), which is why the carry-over called
+the relay gap "low value": the client that made the POST already has the answer in the response body.
+
+That reasoning holds for the *client that made the POST* and for nobody else. The `/stream`
+connection is what a reloaded tab, a second device, or a recovering client depends on, and it is
+pinned to whichever task the ALB chose — there is no target-group stickiness. `autoscaling_max_capacity`
+defaulted to **3**, with ALB-p95 step scaling enabled because chat-api waits on Bedrock (AUD-F-14).
+
+So the trigger for scaling out is a slow turn, and a slow turn is precisely when a user reloads. The
+defect would first appear under exactly the conditions that create it.
+
+**The decision is the ordering, not the pin.** The pin is one line. The alternative — port the relay
+first, immediately, under time pressure — is how learning-api shipped `session_event_relay.py` with a
+`_dsn()` string-replacement that broke on a password containing URL-significant characters, deployed
+green, and started on **zero of two replicas** (D-335). The relay is worth doing properly. One
+replica is ample at this traffic, and the cap returns to 3 in D-349 with a measurement behind it.
+
+#### ⚠️ Correction, same day: the pin was never applied
+
+Checked before claiming it had been removed. Live `application-autoscaling` for
+`intellichoice-staging-chat-api` reads **min 1 / max 3**. `terraform apply` is not part of
+`deploy-staging.yml` and nobody ran it, so editing `main.tf` changed a file and nothing else - the
+stopgap existed for the length of a code review and never once bounded the service.
+
+Nothing was harmed: the relay landed in the same session, and at staging's traffic the latency
+policy never fired. But the entry above asserted a live protection on the strength of a file edit,
+which is the same class of error as D-329's "never worked in production" and D-335's green-but-dead
+relay - **a claim about deployed state, made from source**. The check that caught it is the one that
+keeps catching them: read the deployed thing before saying anything about it.
+
+The terraform edit is reverted rather than kept. A file declaring a capacity AWS does not have is
+worse than the default it was overriding, and the reason for it is gone. **D-349 therefore removes
+nothing**; that clause in its heading is inherited from this mistake and is corrected here rather
+than quietly dropped.
+
+### D-345 — chat-api could bill without bound, and the choke point was not where it looked
+
+**Date:** 2026-08-15 · **Status:** implemented · **Files:** `routers/sessions.py`, `services/turn_cost.py`, `config.py`, `models/{cost_reservation,rate_limit}.py`
+
+Everything that looked like a spend control in chat-api was one: `bedrock_session_budget_cents`
+= 50, checked by the gateway against `QAState.bedrock_spend_cents`. It bounds a *session*. And
+`POST /chat/sessions` is unauthenticated, free, and persists nothing - it returns
+`str(uuid.uuid4())` and stops - so a caller asking each question in a fresh session got a full
+50-cent budget every time. There was no per-day ceiling of any kind. The only backstop was the
+`bedrock-spend-spike` CloudWatch alarm, which is detective, not preventive.
+
+**The correction that changed the design: the choke point is `/messages`, not `/sessions`.**
+Rate-limiting session *creation* was the obvious move and would have bounded nothing - a session
+id costs zero until a message spends against it, and an abuser reusing one id per message walks
+straight past it. So the guards sit on the endpoint that spends. A session-create limit was
+considered and **deliberately not added**: with a per-caller message cap in place it is redundant,
+and it would gate the app's entry point, where a false refusal is a hard dead end.
+
+Two layers, because they do different jobs:
+
+1. **Per-caller cap** on `rate_limit_events` (AUD-C-27's shared counter), scope `chat_message`,
+   **120 per hour**, keyed exactly as the escalation cap is - external id when signed in, client
+   IP when anonymous, HMAC'd either way. This is a *fairness* guard: it stops one caller
+   consuming the whole daily ceiling. Generous on purpose, for D-087's measured reason - real
+   school branches put many concurrent students behind one egress IP. A cited answer takes 6-11s
+   (D-343), so no human approaches 120/hour; twenty anonymous students asking six questions each
+   is exactly 120.
+2. **App-wide per-day ceiling** on `cost_reservations` (AUD-X-08's reserve-then-settle),
+   **1500 cents = thirty fully-exhausted sessions** at the 50-cent per-session budget. The
+   arithmetic is deliberate so moving either number visibly moves the other. Its subject is the
+   constant `chat-api`, not a person: a chat caller may be anonymous, and an anonymous caller's
+   only identifier is an IP, which must not be stored in that table.
+
+**What made the ceiling usable rather than merely present** is `settle`. A turn reserves 25 cents
+worst-case up front; without settling, 60 sequential turns would exhaust a day and the "spend
+ceiling" would really be a per-day turn count that refuses legitimate traffic long before any
+money is spent. `test_a_turn_settles_at_its_real_cost_not_the_reservation` is the test for that,
+and it is the one worth keeping if the others are ever trimmed.
+
+#### The estimate, and a test that could not fail
+
+`TURN_RESERVATION_ESTIMATE_CENTS = 25.0` is a constant, following `tutor_chat`'s shape, because
+`BedrockGateway` keeps `worst_case_cost_cents` off the Protocol on purpose. Derivation:
+1.368 + 2.952 + 4.824 + 2.952 = 12.096 cents for scope-guard, rerank, synthesis and the access
+probe's second rerank on the dearest model, doubled for `generate_structured`'s one repair retry.
+
+The first recording test I wrote **passed with the access-probe rerank deleted from the
+declaration**. Deleting a declared call and watching the suite stay green is the check that caught
+it - the same discipline that caught the U6 spec that could not fail. Two causes:
+
+- the harness path made only one rerank, so a count check on RERANK could never trip; and
+- more fundamentally, **`probe_access`'s reranker arm is unreachable under
+  `MockBedrockProvider`** - its embeddings are hash vectors, so `access_probe_candidates` never
+  returns anything inside the distance threshold and the lexical arm always wins.
+  `retrieval.probe_access` says so in its own docstring (D-165/D-179); I had read that file and
+  still wrote a test premised on the opposite.
+
+The rewritten test prices the calls a real turn **actually made** rather than re-deriving the
+declaration, over two paths (refuse-then-probe, retrieve-and-answer), and both falsifications now
+fire: removing the synthesis call fails it, and dropping the constant to 5.0 fails it. The second
+RERANK stays declared and stays unexercised offline, and the test docstring says exactly that
+rather than implying coverage it does not have.
+
+#### A test-isolation defect this introduced, found by running the whole suite
+
+`test_a_signed_in_caller_has_their_own_budget…` passed alone and failed in the full run: the
+conftest fixture cleared only `testclient`'s counter, while signed-in tests are keyed by their own
+`sub`, so `parent-ext-1`'s rows survived from earlier tests. Order-dependent, and it looks exactly
+like a regression in the code under test. Fixed on both sides - the fixture clears the whole
+`chat_message` scope, and the test mints a sub nothing else uses.
+
+### D-346 — A chat turn could run for six minutes, and two of them could run on one thread
+
+**Date:** 2026-08-15 · **Status:** implemented · **File:** `apps/chat-api/src/chat_api/routers/sessions.py`
+
+Three unrelated-looking gaps with one shape: the request had no bound of its own, only bounds on
+its parts.
+
+**No deadline.** A `document_qa` turn ending in a no-source refusal makes up to six sequential
+gateway calls, each retrying three times at `bedrock_call_timeout_s` = 20s, so the worst case is
+near six minutes. CloudFront cuts the client at 60s and the ALB at 120s - so past that point the
+backend was working and spending for a caller who was already gone, with no cancellation. Now
+`asyncio.timeout(50)`, under CloudFront's 60s origin read timeout so the caller gets this app's
+own structured 504 rather than the edge's opaque one. Cancelling mid-turn leaves the last
+completed checkpoint, which is what a crash leaves and what LangGraph resumes from. The
+reservation settles in a `finally`, so a killed turn does not stay charged at its estimate.
+
+**No lock.** `_reject_if_paused` reads the checkpoint and then invokes with nothing in between,
+so two simultaneous POSTs on one thread both saw "not paused" and both ran - and a LangGraph
+thread is not safe to invoke twice at once. `pg_try_advisory_xact_lock(hashtext(...))` on the
+request's session, which commits at teardown, so the claim covers the whole turn and releases even
+if it crashes. A **try**-lock, not a blocking one: with a 50s deadline, queueing a second tab
+behind an in-flight turn could make it wait almost a minute for a request it must then repeat. An
+`asyncio.Lock` would have been the wrong shape for the same reason D-344 exists - it only fixes
+the single-task case.
+
+**Interrupt state disclosed before ownership.** `/respond` checked 404 → 409 (none pending) → 409
+(*"pending interrupt is 'email_approval', not …"*) → 403 (not yours). A caller holding only a
+session id learned that it existed, that an approval was pending, and which kind, before being
+refused. The ownership check now runs immediately after the 404.
+
+The 404 still runs first, and that is a stated limit rather than a claim: an unknown id 404s and a
+foreign one 403s, so the two remain tellable apart. `_assert_session_access` chose that 403
+deliberately, `/stream` and `/messages` already answer the same way, and the ids are uuid4 - the
+enumeration it leaks is not practical. What was practical, and is now closed, is reading a
+stranger's pending approval type out of a 409 detail string. `/stream` needed no change: it
+already checks ownership before computing anything about the pending interrupt.
+
+### D-347 — chat-web's failure paths were dead ends, and three of them were port gaps
+
+**Date:** 2026-08-15 · **Status:** implemented · **Files:** `apps/chat-web/src/{api/errors.ts,api/stream.ts,main.tsx,App.tsx,hooks/useChatSession.ts,screens/ChatScreen.tsx,components/{ErrorBoundary,ApprovalModal}.tsx}`, `e2e/tests/chat/error-states.spec.ts`
+
+learning-web solved four of these and chat-web never received the fix. That is the finding
+worth recording, more than any individual defect: **two independently deployed frontends with a
+deliberate no-shared-code posture will silently diverge on error handling**, because error
+handling is what nobody re-walks once the feature works.
+
+The ports, each traceable to the decision that produced it in the other app:
+
+- **`friendlyError`** (from `learning-web/src/api/errors.ts`). chat-web surfaced
+  `String(err.detail)` in three places, so a 409 read *"That message couldn't be sent. a pending
+  interrupt must be resolved via /respond before continuing"* - an endpoint path, shown to a
+  parent asking about branch hours. A port and not a shared module because the *rules* are
+  per-app; what is shared is the shape (status + detail substring, first match wins, unrecognised
+  falls through to one generic line).
+  One deliberate divergence: **503 detail text is passed through rather than replaced.** D-345's
+  ceiling and the graph's outage path both write a visitor-facing sentence naming a remedy, and a
+  generic "something broke on our side" would be strictly worse. learning-web has no
+  server-authored 5xx text to preserve, which is why its version does not do this.
+- **The guarded `JSON.parse`** (D-216). One line. An unparsable SSE frame threw inside the event
+  handler, which kills no connection and logs nothing visible - it just silently stops snapshots
+  applying, which in this app means a reloaded tab's `Thinking…` never resolves.
+- **`ErrorBoundary` + global `error`/`unhandledrejection` listeners** (D-315). A render crash was
+  a white page with no fallback and no record. **No server report, deliberately:** learning-web's
+  posts to `/learning/client-errors`, which requires a bearer token by design (an open crash sink
+  is a log-injection endpoint), and chat's primary caller is *anonymous*, so most chat crashes
+  would be dropped by that same rule. A sink worth building here needs a different authentication
+  answer. Carry-over; console-only until then. That also removes the re-entrancy hazard
+  learning-web had to latch against - nothing in chat's listeners makes a network call.
+
+Four defects that were chat's own:
+
+- **The blank assistant turn.** The bubble was gated on `turn.response.answer`, so a response with
+  a null answer rendered *nothing at all* - citations, escalation banner, access hint and
+  follow-up chips all live inside that gate - while `Thinking…` was simultaneously suppressed
+  because `response` was non-null. Reachable by reloading during a first turn. Now gated on
+  `turn.response`, with a fallback line when nothing else in the bubble would render.
+- **The unknown-interrupt deadlock.** The composer was disabled for *any* pending interrupt while
+  only three types have a dialog, so a fourth added server-side would lock the app with nothing on
+  screen to act on. `response-shapes.spec.ts` states that it covers the known types only, so
+  nothing would have caught it. Now locked on *known* types, with a visible notice and a "start a
+  new chat" escape otherwise.
+- **The invisible approval failure.** `.modal-overlay` is `position: fixed; inset: 0; z-index: 10`
+  over a 40% scrim, and the page-level error renders in `.chat-page` beneath it - so a failing
+  `POST /respond` looked like nothing happening at all, on the one screen where the action is
+  sending real email. The error now renders inside the dialog.
+- **Token and guest flag could both be set.** `handleLogin`/`handleLogout` keep them consistent,
+  but neither is involved when the keys are written from outside the app - which the e2e fixtures
+  do on every run and a human debugging staging does by hand. Both present meant: skip the login
+  screen *and* send the stale token, so a session that looked like a guest 401'd on every turn
+  with no visible cause. Reconciled at import time; the token wins.
+
+**The 401 loop, and what the fix deliberately does not do.** `get_optional_claims` 401s a
+present-but-invalid token rather than downgrading to anonymous - correct, so an expired session is
+not a silent access-scope drop - but chat-web never cleared the token, so every retry failed
+identically and `EventSource` reconnected against the same 401 forever. Now the four keys clear on
+the first 401. The **transcript is deliberately kept**: losing the conversation is a second
+punishment for an expiry the visitor did not cause.
+
+#### Two harness facts this cost time to learn, recorded so the next spec does not
+
+1. **Playwright matches the most recently registered route handler first.** Registering a 409
+   override *before* `stubChat` means `stubChat` wins and the test silently exercises the happy
+   path - which is exactly what happened: three tests "could not find the error bubble" while the
+   failure screenshot showed a perfectly good answer.
+2. **Chromium logs its own console error for any failed fetch** (`Failed to load resource: … 409`).
+   A test whose subject *is* a non-2xx must allow that alongside the status, or the capture
+   fixture's zero-console-errors teardown fails it. `response-shapes.spec.ts` already did this for
+   its 500 and its comment says so; I re-derived it from a failure anyway.
+
+### D-348 — A snapshot with no turn identity, and a stream holding a database transaction open
+
+**Date:** 2026-08-15 · **Status:** implemented · **Files:** `chat_api/{graph/state.py,graph/build.py,routers/sessions.py,routers/stream.py}`, `chat-web/src/{types.ts,api/client.ts,hooks/useChatSession.ts}`, `e2e/tests/chat/sse-reconnect.spec.ts`
+
+Two problems in the same endpoint, both invisible to every existing test because **chat had no
+SSE spec at all** - every chat spec stubs the stream with a static comment frame, so the
+snapshot handler was the one part of `useChatSession` no browser test ever ran.
+
+#### The snapshot could not say which turn it described
+
+`useChatSession` applied every snapshot to `prev[prev.length - 1]`. `/stream` emits its initial
+snapshot on *every* connect, and that snapshot describes whatever the checkpoint currently
+holds - so a reconnect during an in-flight turn painted the previous turn's answer and
+citations under the new question. On reload mid-turn it was not even transient: the restored
+turn had no response of its own, so the stale one stayed.
+
+**This is a wire-shape change, not a client fix**, which is what the spot-check in D-343 found:
+`TurnSnapshot` carried nothing to correlate against.
+
+*The obvious candidate was the query text, and it is wrong.* `post_message` redacts free text
+at the request boundary (AUD-C-24) before it reaches state, so a question containing an email
+address comes back differing from what the client typed and matches nothing - the snapshot
+would be silently dropped exactly for the users whose questions contain contact details.
+
+So the client sends its own `client_turn_id`, the server treats it as opaque, and it rides on
+`AskInput` → `QAState` → all three response models. Checkpointed rather than request-scoped
+because the reconnect case is the one that needs it: after a reload the browser has rebuilt its
+transcript from storage, and an id that survived in the checkpoint is the only thing that can
+match a frame to a bubble. `/respond` needs no special handling - it resumes the paused turn, so
+the id checkpointed when that turn started is the correct one to keep echoing.
+
+An unmatched snapshot is **dropped**, not applied to the last turn, because "apply it to the
+last turn" is the behaviour being fixed. The one case that legitimately has no id - a session
+checkpointed before this field existed - falls back to positional matching.
+
+**An existing test caught this and was strengthened rather than loosened.**
+`escalate-from-refusal.spec.ts` asserts the exact outgoing request body, so the new field failed
+it. The fix asserts the field instead: both turns must carry an id, and the two must **differ**,
+because escalation appends a new transcript turn rather than mutating the refusal - reusing the
+first id would send every later snapshot to the wrong bubble.
+
+#### The stream held a request-scoped database session for the life of the connection
+
+`Depends(get_db_session)` is torn down *after* the response finishes, and an SSE response never
+finishes. `_suggested_followups` runs real queries inside it, so a transaction was autobegun and
+stayed idle-in-transaction until the browser tab closed. The pool is 10 + 10 overflow, so **20
+concurrent SSE connections exhaust it** and every other request on that replica blocks. The
+keep-alive loop needs no database at all, so the initial snapshot now runs in a short-lived
+session from the factory and releases before the generator starts.
+
+learning-api's `/stream` has the identical shape. Filed as carry-over rather than fixed here -
+one app at a time, and this one has a browser spec now.
+
+### D-349 — chat-api's SSE fan-out, and why "low value" was the wrong reading
+
+**Date:** 2026-08-15 · **Status:** implemented · **Files:** `chat_api/services/{session_events.py,session_event_relay.py}`, `chat_api/main.py`
+
+The carry-over called this low value and gave a correct reason: chat-api's only publishers are
+on the request path, so the client that made the POST already has the answer in its response
+body. Nothing is lost *for that client*.
+
+It is not the client the fan-out serves. `/stream` is what a **reloaded tab**, a second device,
+or a recovering client depends on, and the ALB pins it to whichever replica it chose - there is
+no target-group stickiness. Combined with D-344's finding (max 3 replicas, scaled on ALB p95
+latency, so the trigger is a slow turn and a slow turn is when people reload), the conclusion
+flips: the publisher being request-path is exactly why the *other* connection is the one that
+needs the relay.
+
+A deliberate copy of `learning_api.services.session_event_relay` rather than a shared module -
+the two apps are independently deployed and neither imports the other. The channel name differs
+(`chat_session_events`), and that is load-bearing: both apps share one Postgres, `NOTIFY` is
+broadcast to every listener on a channel, and chat and learning thread ids are both bare uuid4
+strings in the *same* `checkpoints` table. "They cannot collide" would be a claim about uuid4,
+not about design.
+
+**`connect_kwargs` is copied verbatim, comment included.** learning-api's first version
+string-replaced the DSN scheme, and RDS's generated password contains URL-significant
+characters, so asyncpg parsed part of it as a query string: `ValueError: bad query field:
+'48>k['`. Relay start is non-fatal, so the API booted green and the fan-out silently did not
+exist on **either** replica, while its own test passed - because it asserted the transformation
+the code performed rather than the property that mattered. The chat test asserts parsed
+components against a synthetic password containing `?`, `&`, `=`, `>`, `[`, `#`, `/`, and it was
+written before this shipped rather than after it broke.
+
+**A test that reached across the app seam, caught and removed.** The first version of
+`test_the_two_apps_channels_do_not_cross_deliver` imported `learning_api` to compare channel
+names. chat-api does not declare learning-api as a dependency - that import resolved only
+because the workspace shares one venv. A test that crosses the boundary the two apps exist to
+maintain is a worse defect than the one it guards, so the channel is pinned as a literal.
+
+### D-350 — The chat UI's keyboard and screen-reader gaps, and a readiness flag that was the wrong type
+
+**Date:** 2026-08-15 · **Status:** implemented · **Files:** `chat-web/src/{screens/ChatScreen.tsx,components/ApprovalModal.tsx,hooks/useChatSession.ts,App.css}`, `e2e/{playwright.config.ts,tests/chat/accessibility.spec.ts}`
+
+Everything here was measured on staging with chrome-devtools rather than read off the code
+(D-343), which matters because two of them are invisible to inspection.
+
+**The focus trap that did not exist, and whose docstring said it did.** Four `Tab` presses
+from inside the location-consent dialog put focus on "new chat" *behind the scrim*.
+`ApprovalModal`'s own header names "could tab straight through to the page behind" as the
+defect it fixed; only the initial focus move and `aria-modal` were ever implemented.
+`aria-modal` hides the background from assistive technology - which is why a screen-reader
+user was covered and a sighted keyboard user was not. Those are different guarantees and the
+docstring conflated them. Now: a real Tab/Shift-Tab wrap, re-reading focusable children on
+every press (these dialogs change shape while open - "Share location" enables once a ZIP is
+typed), plus `inert` on the page behind for the pointer half a key handler cannot reach.
+
+**A docstring claiming a property the code lacks is worse than no docstring**, because it is
+the reason nobody re-checks. That is the second time this session (the other: D-329's
+"never worked in production", corrected in the prior one).
+
+The rest, each a one-liner with a real consequence: `.message-list` had no `role="log"` or
+`aria-live`, so an answer arriving announced nothing (learning-web's `TutorChatPanel` already
+did this correctly); the composer - the one control a visitor spends all their time in - had
+no accessible name, which Chrome DevTools flagged live; `Thinking…` had no `role="status"`;
+the connection dot was colour-only *and* said "connecting" for a stream that had never been
+attempted, because `streamState` initialises to "connecting" while the effect that opens the
+stream deliberately returns early until the first turn exists; there was not one
+`:focus-visible` rule in the file while `button` strips its border; the `Thinking…` pulse
+trough sat at ~4.4:1, under AA, on the element a visitor stares at for ten seconds; and "new
+chat" / "sign out" were adjacent 13px links with no hit area, one of them destructive.
+
+**Mobile: one breakpoint, not a redesign.** `App.css` had no width media query at all - the
+only two were `prefers-reduced-motion` and the tokens file's colour scheme - so nothing about
+360px had ever been observed, because `playwright.config.ts` ran Desktop Chrome only. A second
+project (`Pixel 7`, `grep: /@mobile/`) now runs the specs that opt in, and the desktop project
+`grepInvert`s them - without that, a `@mobile` spec runs on both and asserts a viewport it
+does not have.
+
+#### The regression this phase introduced, and what it actually was
+
+The chat suite went from green to **6 of 6 failures** on `journey-chat`'s new-chat test: a
+`404 GET /stream` reaching the console. Bisected file by file (backend held constant, chat-web
+stashed → green; restored → red), then instrumented the effect to print `(sessionId,
+streamReady)` on every run, because four rounds of reading the code produced four wrong
+guesses.
+
+The print showed it immediately: `streamReady` went **true while `sessionId` was still null** -
+after `endSession()` had set it false - and the next session id to arrive then satisfied the
+effect at once, opening a stream against a session whose first message had not been sent.
+
+`streamReady` was a boolean, and a boolean cannot express what the effect actually needs. It
+recorded "*some* session has answered a turn", which stops being true the moment the session
+changes; a `setStreamReady(true)` still in flight from the previous session's turn landed after
+the reset and re-enabled it. So it holds the **session id it is ready for** now, and the effect
+compares. A value naming session A cannot enable a stream for session B - the failure mode is
+gone by construction rather than by ordering.
+
+The pre-existing comment called this 404 "harmless, self-heals via `EventSource`'s own
+auto-reconnect", and that was true of one 404 at a moment nobody was watching. It is not
+harmless once the e2e capture counts console errors, and it was never harmless as a *signal* -
+it says the client is asking for a resource it should know does not exist yet.
+
+### D-352 — A turn a visitor cannot stop, and three small client defects
+
+**Date:** 2026-08-15 · **Status:** implemented · **Files:** `chat-web/src/{api/client.ts,hooks/useChatSession.ts,screens/{ChatScreen,LocationConsentModal}.tsx,types.ts}`, `apps/chat-web/.env.example`, `e2e/{fixtures/chat-shapes.ts,tests/chat/interaction.spec.ts}`
+
+**No request in this client had a deadline** - no `AbortController`, no `AbortSignal`, no
+`signal` on any fetch - and no turn had a cancel. A cited answer takes 6-11s (measured live,
+D-343) with the composer disabled throughout, so a request that hung left `Thinking…` pulsing
+with no way out but a reload, which then landed on the blank-turn path D-347 fixed.
+
+Both now exist and their numbers are deliberately ordered: the client times out at **55s**,
+just above the server's own **50s** turn deadline (D-346), which sits under CloudFront's 60s
+origin read timeout. So the server stops the work and answers, and the client fires only if
+even that answer never arrives. A client timeout *below* the server's would abandon turns the
+backend was about to finish and had already paid for.
+
+A cancel and a timeout both surface as an abort, so they are told apart by *who* aborted -
+`controller.signal.aborted` is true only for the user's Stop. That distinction is the whole
+point: **a turn the visitor stopped is not a turn that failed.** It gets its own state
+(`ChatTurn.cancelled`), no `role="alert"`, no "couldn't be sent", no page-level red banner, and
+an "Ask again" rather than a "Try again".
+
+Three others, each small and each previously unobservable:
+
+- **`.ics` download**: the anchor was never appended to the document and `revokeObjectURL` ran
+  synchronously on the next line. Chromium tolerates both, which is exactly why a
+  Chromium-only suite asserting the *button is visible* never caught it.
+- **`getCurrentPosition` had no options at all**: no timeout, no `maximumAge`, and no busy
+  state - so a permission prompt left open, or an OS that never returns a fix, left the dialog
+  sitting there with every button enabled and nothing happening. 15s timeout, a "Finding you…"
+  state, and `TIMEOUT` distinguished from `PERMISSION_DENIED` because they call for different
+  next steps.
+- **`apps/chat-web/.env.example` did not exist**, so `VITE_CHAT_API_URL` was documented
+  nowhere - including the `??`-not-`||` subtlety that lets the staging build's empty string
+  survive as a value.
+
+#### The drifted fixture, and why the test that "covered" it could not fail
+
+`chat-shapes.ts`'s `calendar_event` used `summary` / `start_time`. No version of the backend
+has ever emitted those - `intellichoice_shared.calendar.CalendarEvent` is
+`title`/`start_datetime`/`end_datetime`/`timezone` - and `CalendarActionModal` reads the real
+names. So the dialog rendered a title of literally **"Event"** and a date range of **" – "**,
+and the `renders:` loop passed the whole time because it asserts only that *a dialog appeared*.
+The drift control at the top of that file could not see it either: it compares top-level
+`/messages` keys, and `pending_interrupt` is `Record<string, unknown>`.
+
+Fixed and asserted on content. Falsified by restoring the old fixture: the new test fails with
+`Received string: "Add to your calendar?Event – Location: …"`, which is the placeholder itself.
+
+### D-353 — "Log in" destroyed the conversation it was offered for
+
+**Date:** 2026-08-15 · **Status:** implemented · **Files:** `chat-web/src/{App.tsx,screens/ChatScreen.tsx,hooks/useChatSession.ts}`
+
+`AccessHintBanner`'s "Log in" was wired to `onLogout`, which calls `endSession()`. So a guest
+who asked a parent-gated question, saw "sign in to see this", and accepted, lost the question -
+at the one moment where the thing they wanted is behind the sign-in they are being sent to.
+Never observed, because no test had ever clicked that button.
+
+The session id must still go, and that is the part worth writing down: it was created
+anonymously, so reusing it under a token hits `_assert_session_access` and 403s. Correct server
+behaviour, and a dead end for the client. So `resetSessionKeepTranscript` drops the id and
+keeps the rendered conversation; the next question mints a session under the new identity.
+
+Also ported `clearSessionIfOwnedByAnotherSubject` from `useLearningSession`, which chat-web had
+no equivalent of. A session id and transcript in `sessionStorage` belong to whoever was signed
+in when they were written; sign out and back in as somebody else in the same tab and both
+survive. Anonymous is compared like any other identity here, not treated as the absence of one
+(SPEC §5.19.1) - a guest returning after a signed-in session must not inherit it either, which
+also makes the post-401 reload privacy-correct rather than merely tidy.
+
+### D-351 — Refusal reasons became a taxonomy, and the access hint stopped naming roles
+
+**Date:** 2026-08-15 · **Status:** implemented · **Amends SPEC §5.19.4, adds §5.19.5** · **Files:** `chat_api/services/outcomes.py` (new), `chat_api/{graph/{state,nodes}.py,routers/{sessions,stream}.py,services/qa.py}`, `chat-web/src/types.ts`, `scripts/measure_access_hint_live.py` (new), `docs/SPEC.md`
+
+#### The measurement that started it
+
+D-343 found one live case: a guest asking about the parent-gated Attendance Policy got a bare
+no-source refusal with no log-in hint, while the same question as a parent returns a full
+answer with three citations. One case is an anecdote, so it was measured properly against
+staging - `scripts/measure_access_hint_live.py`, now a standing instrument:
+
+| | |
+|---|---|
+| **Recall** | **1 of 8** questions a role-gated document answers produced a hint |
+| **Precision** | **0 of 5** public questions produced a false one |
+
+So the probe is heavily biased toward silence. That is the safe direction (D-221) and it also
+means the feature mostly is not doing the job SPEC gives it. **The threshold was not tuned**:
+AUD-C-20 bounds how far recall can move, and moving it needs the offline rule sweep as a
+separate measured pass. What changed instead is what happens when it *does* fire, and what a
+refusal says when it does not.
+
+One incidental finding, checked rather than assumed: "What does the tutor handbook require
+before a session starts?" is *answered* to a guest, and it is **not** a leak - the citation is
+`public-student-participation-guide`, a public document, so role filtering held. The answer
+opens "According to the tutor handbook" while citing something else. A prose-attribution wart;
+recorded, not fixed.
+
+#### The architecture change
+
+Every "I can't answer that" was a hardcoded string produced by whichever node decided it, with
+no shared classification. A client told them apart by inferring from `escalation_recommended` +
+`citations.length` + `access_hint != null` - three fields that correlate rather than a stated
+cause, which is the shape that let AUD-C-19 ship one message for three different causes.
+
+`services/outcomes.py` now holds a closed `TurnReason` enum and the words for each:
+`answer`, `no_approved_source`, `sources_conflict`, `access_required`, `out_of_scope`,
+`human_action_required`, `policy_restricted`, `system_error`, `needs_clarification`. Every node
+that writes `answer` writes `reason`; it rides `QAState` → all three response models; it is
+cleared per turn by `resolve_role` alongside the other result fields (AUD-C-04's class applied
+to a new field, which is exactly why that reset lives in one place).
+
+Two rules bind it, both tested:
+
+1. **No user-facing message restates its own reason code.** Checked over the whole message set
+   rather than the one that was wrong, so the next message added is covered by construction.
+2. **`access_required` names no role and no document.**
+
+#### Why the access hint stopped naming the tier
+
+It used to be one of four role-specific sentences ("*That's available to parents — log in with
+a parent account*"). Two problems:
+
+- **Measured:** the promise is kept 1 time in 8, and AUD-C-25/D-179 recorded a live case where
+  it named `parent` for a question the *public* corpus answers.
+- **Structural:** naming the tier tells an unauthenticated caller that a document restricted to
+  that tier exists and mentions their terms. Small, but it is information they did not have
+  before asking, produced by a probe that runs *because* the pipeline already declined.
+
+Generic copy makes a wrong selection harmless: the worst case becomes "you were told to sign in
+and it would not have helped" rather than "you were told to sign in *as a branch manager*".
+
+**The tier is still selected, still logged, and still in graph state** - dropped only by
+`AccessHintResponse` at the API boundary. That split is load-bearing and was got wrong first
+time: removing it from state broke `qa_coverage_runner`'s `role_gated` scoring, which is the
+instrument that caught AUD-C-22's wrong-tier selection in the first place. Deleting the
+measurement to close the disclosure would have traded a small leak for permanent blindness.
+`test_the_api_response_carries_the_reason_and_not_the_tier` asserts the seam by asserting
+`AccessHintResponse.model_fields`, because a future `**access_hint` would silently undo it.
+
+#### Deliberately not done
+
+- **Donations were not added to the supported-topic list.** Scope classification and refusal
+  copy are separate questions and were kept separate; §5.19.4's topic list is unchanged.
+- **The probe threshold was not tuned.** The baseline is recorded and the instrument is
+  committed; tuning is a measured pass of its own.
+- **SPEC was amended rather than deviated from.** §5.19.4's response text and the new §5.19.5
+  reason table were written in the same change as the code, so the two cannot disagree.

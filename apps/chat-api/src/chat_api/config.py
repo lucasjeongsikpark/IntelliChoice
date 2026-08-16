@@ -105,6 +105,40 @@ class Settings(BaseSettings):
     # applies only to the admin-escalation send, not every chat message.
     email_rate_limit_max_per_window: int = 5
     email_rate_limit_window_s: float = 3600.0
+
+    # D-345, the two halves of chat-api's spend containment. Neither existed: the only
+    # bound on what this app could bill was `bedrock_session_budget_cents` above, read from
+    # the *checkpointed* per-session total - and `POST /chat/sessions` is unauthenticated,
+    # free, and persists nothing, so a caller minting one session per question reset that
+    # budget on every turn. There was no per-day ceiling of any kind.
+    #
+    # 1. Per-caller turn cap, on the shared `rate_limit_events` counter (AUD-C-27's table),
+    #    keyed exactly like the escalation cap. Generous on purpose, for D-087's measured
+    #    reason: real school branches put many concurrent students behind one egress IP,
+    #    which is the key an anonymous caller is limited by. A cited answer takes 6-11s
+    #    (D-343), so no single human approaches 120/hour; twenty anonymous students at a
+    #    branch asking six questions each in one hour is exactly 120. This is a fairness
+    #    guard - it stops one caller consuming the whole daily ceiling below - not the
+    #    spend bound itself.
+    chat_message_rate_limit_max_per_window: int = 120
+    chat_message_rate_limit_window_s: float = 3600.0
+    # 2. The app-wide per-day ceiling, on `cost_reservations` (AUD-X-08's reserve-then-
+    #    settle). 1500 cents is **thirty fully-exhausted sessions** at the 50-cent
+    #    per-session budget above - the arithmetic is deliberate, so raising either number
+    #    has a visible effect on the other. Because `settle` writes the turn's real cost
+    #    the moment it finishes, only *in-flight* turns are charged at the estimate: at the
+    #    2-6 cents a real turn costs on the deployed model this supports several hundred
+    #    turns a day, and the estimate only bites when many run at once.
+    chat_daily_spend_ceiling_cents: float = 1500.0
+
+    # SPEC §5.25.1's missing outer bound. A `document_qa` turn that ends in a no-source
+    # refusal makes up to six sequential gateway calls, each of which may retry three times
+    # at `bedrock_call_timeout_s` - so the request had no deadline short of ~6 minutes,
+    # while CloudFront cuts the client at 60s and the ALB at 120s. The backend kept running
+    # and kept spending for a client that had already gone. 50s sits under CloudFront's 60s
+    # origin read timeout so the caller sees this app's own structured 504 rather than the
+    # edge's opaque one.
+    chat_turn_deadline_s: float = 50.0
     # D-087: general per-IP request cap across every route (except /healthz, /metrics) -
     # a stopgap against gross traffic/cost abuse (every request can reach Bedrock) until
     # a real WAF exists (SPEC §6.22 lists both separately; no AWS WAF built this
