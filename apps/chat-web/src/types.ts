@@ -94,4 +94,16 @@ export interface ChatTurn {
   // flag rather than a string comparison against the message, so the wording stays a
   // rendering concern.
   cancelled?: boolean;
+  /**
+   * Whether this turn was sent as an escalation (D-378).
+   *
+   * **`retryTurn` re-sent it as an ordinary question without this**, because it rebuilt the
+   * request from `query` alone and `escalate` defaults to false. So a failed "Ask an
+   * administrator" retried straight back through the scope guard, was refused again, and
+   * offered the same button - a loop that never reaches a human.
+   * `escalate-from-refusal.spec.ts` asserts the flag on the *first* send precisely because
+   * "omitting it would send it back through the scope guard as a fresh question"; the retry
+   * was outside that assertion's reach.
+   */
+  escalate?: boolean;
 }

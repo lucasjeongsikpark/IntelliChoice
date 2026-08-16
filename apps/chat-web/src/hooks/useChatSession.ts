@@ -268,7 +268,12 @@ export function useChatSession(
         const sid = await ensureSession();
         if (!sid) return null;
         const turnId = crypto.randomUUID();
-        setTranscript((prev) => [...prev, { id: turnId, query, response: null, error: null }]);
+        setTranscript((prev) => [
+          ...prev,
+          // D-378: recorded on the turn so `retryTurn` can reproduce it. Without it a
+          // retried escalation silently becomes an ordinary question.
+          { id: turnId, query, response: null, error: null, escalate: true },
+        ]);
         return await postTurn(sid, turnId, query, true);
       });
     },
@@ -290,7 +295,8 @@ export function useChatSession(
             t.id === turnId ? { ...t, response: null, error: null, cancelled: false } : t,
           ),
         );
-        return await postTurn(sid, turnId, turn.query);
+        // D-378: `turn.escalate`, not a bare re-send. See `ChatTurn.escalate`.
+        return await postTurn(sid, turnId, turn.query, turn.escalate ?? false);
       });
     },
     [run, ensureSession, postTurn, transcript],
