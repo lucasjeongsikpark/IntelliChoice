@@ -240,6 +240,7 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
     // assertion below compared a count of *clicks* against a count of *gradings*, so any
     // refused or unobserved submission looked identical to the walk drifting out of the
     // study phase - the reading D-340 shipped a fix against and then had to retract.
+    const stemBefore = await page.locator("h1").innerText().catch(() => "");
     if (
       !(await answerCurrentQuestion(page, {
         optionIndex: i,
@@ -251,6 +252,30 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
       continue;
     }
     studyAnswers += 1;
+    // **Wait for the screen to move on before answering again** (D-365), and this is the
+    // root cause of the drift the whole clause was about.
+    //
+    // A correct answer opens no pause, so nothing in this loop made it wait: the next
+    // iteration answered whatever was still rendered, which was the *same item*, and the
+    // server replied `409 item ... has already been answered`. Measured on staging with
+    // D-355's instrumentation in place: two of them in one walk. Under the old harness each
+    // was counted as an answer (clicks, not acceptances), dropped from the verdicts (non-2xx
+    // returned early) and forgiven by the console allowance (never path-scoped) - which is
+    // **exactly** the `answered - graded == N` signature D-340 could not explain.
+    //
+    // Either signal means the screen moved: a new question, or the pause the ladder opens on
+    // a wrong answer (where re-answering the same item is legitimate and does not 409).
+    await expect
+      .poll(
+        async () => {
+          const pauseUp = await page.getByRole("heading", { name: /want a hand/i }).count();
+          const stem = await page.locator("h1").innerText().catch(() => "");
+          return pauseUp > 0 || stem !== stemBefore;
+        },
+        { timeout: 15_000 },
+      )
+      .toBeTruthy()
+      .catch(() => undefined);
   }
   // The walk clicks Submit and moves on, so the last verdict can still be in flight. Bounded
   // and tolerant: a missing verdict must not become a failure of its own, since the counters
