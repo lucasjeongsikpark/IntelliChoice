@@ -54,9 +54,32 @@ D-288's mechanism in a spec that polls the DOM where `journey-student` counts ac
 responses. Fixed with `awaitAcceptance`, the option D-355 added for the study loop; 3/3 on
 staging. The accumulation restarted from zero after it.
 
-**The pattern worth naming:** three separate defects this session were all "a check that
-stopped detecting" — an allowance that was never path-scoped, an instrument reading a field
-that had been deliberately removed, and my own first test passing with its fix deleted.
+**C1 Phase 6 did not close, and the tally is recorded rather than claimed.** Five accumulation
+attempts at the deployed build; **seven clean full runs in total but never four consecutive**,
+because each attempt surfaced one more independent race and stopped:
+
+| attempt | result | what it found |
+|---|---|---|
+| 1 | 0 clean | the chat 401 race and D-356 (video) |
+| 2 | 2 clean | D-360 — `exam-position-refresh` polled the DOM where the server was authoritative |
+| 3 | 2 clean | **discarded as non-evidence (D-362)** — 47.5 min against a 6.1 min norm, two 15-min timeouts, zero server-side errors |
+| 4 | 2 clean | D-361 — the hint spec was measuring the chooser, not the hint |
+| 5 | 1 clean | D-363 (the click never landed) and **D-364, a real 502** |
+
+**D-364 is the one to read.** `sse-reconnect` failed on the teardown's zero-5xx rule, not its
+own assertion: a **502 on `POST /exam/viewed` that the application never logged**.
+`HTTPCode_ELB_5XX_Count` shows exactly **1.0** over the same three hours and there were no task
+restarts — the signature of a connection-level fault. Cause: the ALB's idle timeout is **120s**
+while uvicorn's `--timeout-keep-alive` defaults to **5s** and neither Dockerfile set it, so the
+ALB can dispatch onto a connection the backend has already closed. Both apps. Fixed at 125s;
+**needs a deploy**, and verification is statistical (the metric staying at zero), which is
+stated rather than glossed.
+
+**The pattern worth naming:** five separate defects this session were all "a check that stopped
+detecting" — an allowance that was never path-scoped, an instrument reading a field that had
+been deliberately removed, a hint spec matching the menu it was meant to replace, a click whose
+failure was indistinguishable from a missing hint, and my own first test passing with its fix
+deleted.
 
 ### Previous next session
 

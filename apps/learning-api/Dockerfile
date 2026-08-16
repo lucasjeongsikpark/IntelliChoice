@@ -101,4 +101,12 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
 # here specifically because this container is never reachable except from the ALB (the
 # ECS task security group only allows inbound from the ALB's security group, S32/D-084);
 # there is no other path a spoofed header could arrive by.
-CMD ["uvicorn", "learning_api.main:app", "--host", "0.0.0.0", "--port", "8001", "--proxy-headers", "--forwarded-allow-ips=*"]
+# **`--timeout-keep-alive` above the ALB's idle timeout** (D-364). uvicorn defaults to 5s;
+# the ALB is configured for 120s. So the ALB keeps a pooled backend connection for up to two
+# minutes while uvicorn closes it after five seconds of idle, and a request sent on a
+# connection the backend has just closed becomes a **502 the application never sees** - no
+# access log, no error, nothing to find. Measured on staging: exactly one ALB-generated 5xx in
+# three hours of load, on a fire-and-forget `POST /exam/viewed`, with zero task restarts and a
+# clean application log. 125 > 120 makes the backend outlive the reuse window, so the ALB is
+# always the side that closes.
+CMD ["uvicorn", "learning_api.main:app", "--host", "0.0.0.0", "--port", "8001", "--proxy-headers", "--forwarded-allow-ips=*", "--timeout-keep-alive", "125"]

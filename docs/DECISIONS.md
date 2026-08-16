@@ -25623,3 +25623,44 @@ restarted.
 
 **What it costs:** the accumulation restarts. C1 Phase 6's clause stays open on a recorded
 tally rather than on a claim.
+
+---
+
+### D-364 — A 502 the application never sees: uvicorn's keep-alive is shorter than the ALB's
+
+**Date:** 2026-08-16 · **Status:** fixed, needs a deploy to take effect · **Found by:** the e2e teardown's 5xx gate, on a spec about something else · **Files:** `apps/{learning-api,chat-api}/Dockerfile`
+
+`sse-reconnect.spec.ts` reddened a staging run — not on its own assertion, which passed (*"1
+/stream responses in 20003ms of idle"*, exactly the non-reconnect it checks for), but on the
+teardown's *"zero 5xx"* rule:
+
+```
+502 POST /learning/sessions/{id}/exam/viewed
+```
+
+**Confirmed as one real 502, not a harness artefact.** `HTTPCode_ELB_5XX_Count` over the same
+three hours is a single datapoint of **1.0** — the ALB generated it, and it agrees exactly with
+what the browser saw. There were **no ECS task stops** since the deploy hours earlier, and the
+application logged nothing: no access line, no error. A 5xx with no server-side trace is the
+signature of a connection-level failure between the load balancer and the target.
+
+**The cause is a timeout mismatch, and it is a default nobody set.** The ALB's
+`idle_timeout.timeout_seconds` is **120**; uvicorn's `--timeout-keep-alive` defaults to **5**
+and neither Dockerfile passed it. So the ALB may hold a pooled backend connection for two
+minutes while uvicorn closes it after five seconds of idle — and a request dispatched onto a
+connection the backend has just closed becomes a 502 that never reaches the application. Both
+apps had it.
+
+Fixed by passing **125** on both, so the backend always outlives the reuse window and the ALB
+is the side that closes.
+
+**Verification is statistical and that is stated rather than glossed.** The event fired **once
+in three hours** of continuous e2e load, so a green run afterwards proves nothing on its own.
+What can be checked is the metric: `HTTPCode_ELB_5XX_Count` should stay at zero across future
+staging runs, and any recurrence is now a different cause rather than this one.
+
+**Why a spec about SSE reconnection found it.** It did not look for it. The teardown enforces
+"zero 5xx" over everything the page did, for the whole run, rather than at any one assertion —
+which is exactly the design INTEGRATION_PLAN §2.6 criterion 3 asks for, and the reason a
+one-in-three-hours infrastructure fault surfaced at all instead of being a rounding error in
+somebody's dashboard.
