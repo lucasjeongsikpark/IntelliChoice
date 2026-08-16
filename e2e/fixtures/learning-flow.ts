@@ -207,14 +207,38 @@ export async function chooseTopic(page: Page, label = /linear equations/i): Prom
   throw new Error("could not select a topic after 5 attempts (narrative race or missing topic list)");
 }
 
+/** How long a submission may take to be graded before `awaitAcceptance` gives up on it. */
+const ANSWER_VERDICT_TIMEOUT_MS = 45_000;
+
+export interface AnswerOptions {
+  /** Which option to pick, modulo the option count. See the note on cycling below. */
+  optionIndex?: number;
+  /**
+   * Return whether the **server accepted** the submission rather than whether the clicks
+   * landed (D-355).
+   *
+   * The default is the older, weaker meaning, and a caller that counts submissions is
+   * counting the wrong thing under it: this function returns true the moment Submit is
+   * clicked, so a submission the server *refuses* still increments the caller's tally.
+   * `journey-student` reconciles its own count against the verdicts the server graded, and
+   * a drift of 4-7 with the phase never leaving `study` (D-340) is exactly the shape a
+   * silently-refused submission produces. Opt in where the count is load-bearing; leaving
+   * every other caller on the click-based meaning keeps their timing unchanged.
+   */
+  awaitAcceptance?: boolean;
+  /** Called once per submission the server refused, when `awaitAcceptance` is set. */
+  onRefused?: (status: number, url: string) => void;
+}
+
 /**
  * Answers the question currently on screen by picking an option and submitting.
  * Returns false when there is no answerable question (already answered, or the screen
- * is showing something else) so callers can drive a loop off it.
+ * is showing something else) so callers can drive a loop off it - and, under
+ * `awaitAcceptance`, also when the server refused the answer it did submit.
  */
 export async function answerCurrentQuestion(
   page: Page,
-  options: { optionIndex?: number } = {},
+  options: AnswerOptions = {},
 ): Promise<boolean> {
   // Retried for the same reason `chooseTopic` is: a stage narrative arriving over SSE
   // replaces the exam screen mid-interaction, including between selecting an option and
@@ -266,7 +290,35 @@ export async function answerCurrentQuestion(
       await page.waitForTimeout(250);
       continue;
     }
-    if ((await stableClick(chosen)) && (await stableClick(submit))) return true;
+    if (!(await stableClick(chosen))) continue;
+    if (!options.awaitAcceptance) {
+      if (await stableClick(submit)) return true;
+      continue;
+    }
+    // **Armed before the click, not after it.** The verdict can land before the click
+    // promise resolves, and a waiter registered afterwards would miss it and then time out
+    // on a submission that in fact succeeded - turning a working answer into a false
+    // "refused". `.catch` keeps a timeout from becoming an unhandled rejection when the
+    // click below fails and this promise is abandoned.
+    const verdict = page
+      .waitForResponse(
+        (response) =>
+          response.request().method() === "POST" && response.url().endsWith("/answers"),
+        { timeout: ANSWER_VERDICT_TIMEOUT_MS },
+      )
+      .catch(() => null);
+    if (!(await stableClick(submit))) {
+      void verdict;
+      continue;
+    }
+    const response = await verdict;
+    // No response observed inside the window. Reported as "not accepted", which is the
+    // safe direction: the caller under-counts rather than claiming a submission the
+    // server may never have graded.
+    if (response === null) return false;
+    if (response.status() < 300) return true;
+    options.onRefused?.(response.status(), response.url());
+    return false;
   }
   return false;
 }

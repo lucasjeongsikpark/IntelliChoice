@@ -47,10 +47,25 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
   audit,
 }) => {
   // AUD-F-02 (its own finding, measured in post-finalize-poll.spec.ts): finalizing an exam
-  // produces a burst of 409s on `exam/overview` and `exam/items/{id}/time`, each a browser
+  // produced a burst of 409s on `exam/overview` and `exam/items/{id}/time`, each a browser
   // console error. Allowed by path here so this journey still enforces "zero console
   // errors" for everything else - otherwise one known defect would mask every new one.
-  audit.allow({ statuses: [409], consoleErrors: ["Failed to load resource"] });
+  //
+  // **The "by path" half of that sentence was not true until D-355.** A plain
+  // `"Failed to load resource"` string matches the message *text*, and Chromium puts the
+  // failing URL in the location instead - so this line forgave every failed request in the
+  // walk, on any path, at any status. A 409 on `POST /answers` was therefore invisible
+  // twice over: forgiven here, and dropped by the verdict listener below. That is a
+  // documented live defect (last-question-double-submit.spec.ts measured one on staging
+  // 2026-08-06), and N of them produce exactly the `answered - graded == N` drift D-340
+  // could not explain. Scoped to the two AUD-F-02 paths, which is what the comment above
+  // always claimed.
+  audit.allow({
+    statuses: [409],
+    consoleErrors: [
+      { text: "Failed to load resource", url: /\/exam\/(overview|items\/[^/]+\/time)/ },
+    ],
+  });
   // **D-325: the study phase must not re-serve a question the exam already asked.**
   //
   // **Attached here, before the pre-exam, and that placement is the whole point (D-325).**
@@ -137,15 +152,38 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
   // Measured 2026-08-15 on run 3 of 4 at `7d1bf67`: **8 answers submitted, 4 graded as study**,
   // so the walk answered four post-exam questions believing they were study work.
   let serverPhase: string | null = null;
+  // **Every submission the server refused, which nothing recorded before D-355.** The
+  // listener below used to `return` on any non-2xx, so a refused answer left no trace at
+  // all: not in the verdicts, not in the notes, and not in the teardown check either
+  // (the console allowance above forgave it, and `clientErrors` is reported rather than
+  // asserted). The drift this walk fails on is measured in exactly those units.
+  const refusedAnswers: string[] = [];
+  let lastStudyProgressSeen: "present" | "absent" | "(none yet)" = "(none yet)";
   page.on("response", async (response) => {
     if (response.request().method() !== "POST" || !response.url().endsWith("/answers")) return;
-    if (response.status() >= 300) return;
+    if (response.status() >= 300) {
+      const body = await response.text().catch(() => "(body unavailable)");
+      refusedAnswers.push(`${response.status()} ${new URL(response.url()).pathname}`);
+      audit.note(
+        `answer REFUSED by the server: ${response.status()} ${response.url()} - ` +
+          body.slice(0, 300),
+      );
+      return;
+    }
     try {
       const body = (await response.json()) as {
         is_correct?: unknown;
         phase?: unknown;
+        study_progress?: unknown;
         pending_interrupt?: { interrupt_type?: string } | null;
       };
+      // Recorded as evidence, deliberately NOT used to exit the loop. `study_progress` is
+      // `None` outside the study phase (D-272), which makes it look like a second
+      // server-authoritative "study is over" bit - but `_study_progress` also returns
+      // `None` when the study session row is missing or unreadable, so breaking on it
+      // would end the walk early for reasons that have nothing to do with the phase. The
+      // phase already exits the loop; this only has to explain a drift after the fact.
+      lastStudyProgressSeen = body.study_progress == null ? "absent" : "present";
       // **Recorded before the `is_correct` filter, deliberately.** The filter selects *study*
       // answers; the phase is needed from every answer, including the one that ends the study
       // phase - which returns `post_exam` while still being a study answer.
@@ -178,7 +216,8 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
     audit.note(
       `study loop i=${i}: serverPhase=${serverPhase ?? "(none yet)"} ` +
         `chip=${serverPhase === null ? await currentPhase(page) : "(not read)"} ` +
-        `answered=${studyAnswers} graded=${studyVerdicts.length}`,
+        `answered=${studyAnswers} graded=${studyVerdicts.length} ` +
+        `refused=${refusedAnswers.length} study_progress=${lastStudyProgressSeen}`,
     );
     if (phase && /post[-_]exam/i.test(phase)) break;
     // A wrong answer pauses the graph on `intervention_choice`; the ladder must be
@@ -196,7 +235,18 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
     // option happening to be wrong for some item - an accident of the stored option order.
     // D-302 changed which items are served here and the accident stopped holding, so the
     // assertion below failed on staging while the app behaved correctly.
-    if (!(await answerCurrentQuestion(page, { optionIndex: i }))) {
+    // **`awaitAcceptance` makes `studyAnswers` mean "the server took this answer"** rather
+    // than "the two clicks landed" (D-355). Under the old meaning the reconciliation
+    // assertion below compared a count of *clicks* against a count of *gradings*, so any
+    // refused or unobserved submission looked identical to the walk drifting out of the
+    // study phase - the reading D-340 shipped a fix against and then had to retract.
+    if (
+      !(await answerCurrentQuestion(page, {
+        optionIndex: i,
+        awaitAcceptance: true,
+        onRefused: (status, url) => audit.note(`study submission refused: ${status} ${url}`),
+      }))
+    ) {
       await page.waitForTimeout(1000);
       continue;
     }
@@ -220,6 +270,20 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
   );
   expect(studyAnswers, "the study phase served no questions at all").toBeGreaterThan(0);
 
+  // **Asserted before the reconciliation guard below, because it explains it.** If the
+  // server refused submissions, the drift the guard reports is a *consequence*, and the
+  // guard's own message ("the walk carried on past the end of the study phase") would name
+  // the wrong cause - which is what happened for two sessions. A refused `POST /answers`
+  // is a product finding, not a harness one: `last-question-double-submit.spec.ts` measured
+  // a real 409 on staging from a read-only-lock / overview-poll race (2026-08-06).
+  expect(
+    refusedAnswers,
+    `the server refused ${refusedAnswers.length} answer submission(s) during the study ` +
+      `loop (${refusedAnswers.join(", ")}). Each one is a study answer the student ` +
+      "believes they gave and the server never graded, and it inflates the reconciliation " +
+      "drift asserted below without the walk having left the study phase at all (D-355)",
+  ).toEqual([]);
+
   // **The loop's own count is not the number of study answers, and believing it hid a defect
   // for a whole session.** `studyAnswers` counts submissions this loop made; `studyVerdicts`
   // counts the ones the *server* graded as study answers, and SPEC §5.9.2 withholds
@@ -234,12 +298,23 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
   //
   // Allowing a slack of 1 rather than demanding equality: the last submission's response can
   // still be in flight, and the poll above is deliberately tolerant of that.
+  //
+  // **The mechanism this message used to assert was retracted by D-340 and is not restated
+  // here.** In the run that reddened 3-of-4, `serverPhase` stayed `study` across all twelve
+  // iterations and the loop exited on the iteration limit - so "the walk carried on past the
+  // end of the study phase" was never what happened, and the exit-condition fix shipped for
+  // it did not stop the drift. What remains true is only the arithmetic: two counts that
+  // should agree do not. D-355 removed the three ways this walk could produce that drift by
+  // itself (clicks counted as answers, refusals dropped, refusals forgiven), so a drift that
+  // survives all of them is now evidence about the *server*, and the notes above carry the
+  // per-iteration state needed to say which.
   expect(
     studyAnswers - studyVerdicts.length,
-    `${studyAnswers} answers were submitted in the study loop but the server graded only ` +
-      `${studyVerdicts.length} as study answers - the walk carried on past the end of the ` +
-      "study phase and counted exam answers as study work, so every count it reports about " +
-      "the retry ladder is measured over the wrong set of questions",
+    `${studyAnswers} submissions were accepted in the study loop but the server graded only ` +
+      `${studyVerdicts.length} of them as study answers. Both counts now come from the ` +
+      "server (D-355), so this is no longer explainable as the walk miscounting its own " +
+      "clicks: read the per-iteration `study loop i=` notes for the phase, the refusal " +
+      "count and whether `study_progress` was still present when the two diverged",
   ).toBeLessThanOrEqual(1);
 
   // **A run with no wrong answer proves nothing about the ladder, and must not claim to.**
