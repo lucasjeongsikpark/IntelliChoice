@@ -26105,3 +26105,53 @@ All three go red on the reverted predicate; the two pre-existing tests stay gree
 **The module docstring described the old guard approvingly** and has been rewritten. It is worth
 noting as its own point: the wrong guard was documented as a feature for as long as it existed,
 which is why re-reading a docstring is not a substitute for re-reading the code under it.
+
+---
+
+### D-374 — learning had no deadline anywhere, and the frozen-exam state D-241 forbade
+
+**Date:** 2026-08-16 · **Status:** fixed · **Files:** `learning-api/config.py`, `learning-api/routers/sessions.py`, `learning-web/src/api/client.ts`, `learning-web/src/api/errors.ts`, `chat-web/src/api/errors.ts`, `apps/learning-api/tests/test_turn_deadline.py`
+
+Two halves of the same missing bound, from the 2026-08-16 audit. Both were built for chat and
+never ported — rows 1 and 5 of that audit's one-direction table.
+
+#### Server: `learning_turn_deadline_s = 50.0`
+
+There was **no `asyncio.timeout`, no `wait_for`, no deadline anywhere** in learning-api outside
+the SSE keep-alive. The gateway ladder is 3 attempts × 20 s plus 0.5 s and 1.0 s of backoff =
+**61.5 s**, against CloudFront's 60 s origin read timeout.
+
+**Not hypothetical — D-208 measured it** on `POST /exam/finalize`: 65–81 s with `61502.69ms` of
+Bedrock, *"identical to the millisecond, the signature of a ceiling being hit"*. D-208 moved
+consolidation off the path and left the inline `post_outro` narrative on it. On `GET /stream` it
+is worse: a non-2xx is terminal for `EventSource`, so that tab receives no live push for the rest
+of its life.
+
+All seven `graph.ainvoke` sites now go through `_invoke_with_deadline`. Cancelling mid-turn is
+safe for D-346's reason: the last completed checkpoint is intact, which is what a crash leaves
+and what LangGraph resumes from.
+
+#### Client: `REQUEST_TIMEOUT_MS = 55_000`
+
+learning-web had no `AbortController`, no `signal`, no timeout — and unlike chat-web it
+**serialises the whole UI behind one request.** `busyRef` is set before the call and cleared in a
+`finally` that never runs if the fetch never settles, so a stalled Submit disabled every option,
+Submit, Skip, Flag and the navigator *permanently*. The server timer kept running and
+`submitBlocked` then refused "Submit exam" because items were unanswered — **the student could
+neither answer nor submit**, the exact state D-241 records as one that must never exist. Only a
+reload escaped, and nothing on screen suggested one.
+
+#### The gap in D-352 that this also closes, in both apps
+
+D-352 added chat-web's timeout and **never taught `friendlyError` about it.** An aborted fetch
+raises a `DOMException`, not an `ApiError`, so a timed-out turn fell to *"You appear to be
+offline"* — wrong and unactionable when the network is fine and the server is merely slow. Both
+apps now map `TimeoutError`. chat deliberately does **not** map `AbortError`: `useChatSession`
+marks that turn cancelled and renders "You stopped this question", which is a truer sentence.
+
+#### The ordering is now arithmetic rather than a comment
+
+`test_the_deadline_sits_below_cloudfront_and_above_nothing_it_should_outlive` asserts the three
+bounds nest: deadline **50 s** < client **55 s** < CloudFront **60 s**, and the deadline below the
+61.5 s ladder it exists to bound. Each of those was a comment in some file and none was checked —
+which is how chat's client timeout came to sit above a server deadline that did not exist here.

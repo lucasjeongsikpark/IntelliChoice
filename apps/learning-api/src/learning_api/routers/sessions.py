@@ -4,6 +4,7 @@ approval (SPEC §5.1.4, Phase 8 §6.9). See the S5/S6/S7 session plans in docs/P
 for which of the nine spec'd endpoints are deferred and why.
 """
 
+import asyncio
 import logging
 import random
 import uuid
@@ -41,6 +42,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learning_api.authorization import resolve_target_student
+from learning_api.config import get_settings
 from learning_api.dependencies import (
     get_bedrock_gateway,
     get_consolidation_scheduler,
@@ -650,6 +652,43 @@ def _graph_config(learning_session_id: str) -> RunnableConfig:
     return config
 
 
+TURN_TIMED_OUT_MESSAGE = (
+    "That took too long and was stopped. Your progress is saved - try again in a moment."
+)
+
+
+async def _invoke_with_deadline(graph, payload, learning_session_id: str, ctx):
+    """Every `graph.ainvoke` in this router, under SPEC §5.25.1's outer bound (D-374).
+
+    **learning-api had no deadline of any kind** — verified by grep before this landed. The
+    gateway ladder is 3 attempts x `bedrock_call_timeout_s` plus 0.5s and 1.0s of backoff =
+    **61.5s**, and CloudFront cuts the client at 60s. D-208 measured the consequence on
+    `POST /exam/finalize`: 65-81s, with 61502.69ms of Bedrock "identical to the millisecond,
+    the signature of a ceiling being hit". The student saw an opaque edge 504 while the
+    backend kept working and kept spending, and on `GET /stream` it is worse — a non-2xx is
+    terminal for `EventSource`, so that tab receives no live push for the rest of its life.
+
+    **Cancelling mid-turn is safe for the same reason it is on chat** (D-346): the last
+    completed checkpoint is intact, which is the state a crash leaves and the state LangGraph
+    is built to resume from. The student's next request resumes rather than restarts.
+
+    The message says "your progress is saved" because it is true here in a way it is not for
+    a chat turn — an exam answer commits before the narrative work that overruns.
+    """
+    try:
+        async with asyncio.timeout(get_settings().learning_turn_deadline_s):
+            return await graph.ainvoke(
+                payload, config=_graph_config(learning_session_id), context=ctx
+            )
+    except TimeoutError as exc:
+        logger.warning(
+            "learning_turn_deadline_exceeded", extra={"thread_id": learning_session_id}
+        )
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=TURN_TIMED_OUT_MESSAGE
+        ) from exc
+
+
 async def _reconcile_checkpoint(
     graph: LearningGraph, learning_session_id: str, state: dict, db: AsyncSession
 ) -> dict:
@@ -864,10 +903,11 @@ async def select_student(
         requested_student_id=body.student_id,
     )
     try:
-        result = await graph.ainvoke(
+        result = await _invoke_with_deadline(
+            graph,
             EntryInput(session_id=learning_session_id, entry_action="select_student"),
-            config=_graph_config(learning_session_id),
-            context=ctx,
+            learning_session_id,
+            ctx,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
@@ -989,10 +1029,11 @@ async def select_topic(
         topic_id=body.topic_id,
     )
     try:
-        result = await graph.ainvoke(
+        result = await _invoke_with_deadline(
+            graph,
             EntryInput(session_id=learning_session_id, entry_action="select_topic"),
-            config=_graph_config(learning_session_id),
-            context=ctx,
+            learning_session_id,
+            ctx,
         )
     except AssessmentBuildError as exc:
         raise HTTPException(
@@ -1061,10 +1102,11 @@ async def resolve_attendance_choice(
         bedrock_gateway=bedrock_gateway,
         attendance_choice=body.choice,
     )
-    result = await graph.ainvoke(
+    result = await _invoke_with_deadline(
+        graph,
         EntryInput(session_id=learning_session_id, entry_action="resolve_attendance"),
-        config=_graph_config(learning_session_id),
-        context=ctx,
+        learning_session_id,
+        ctx,
     )
 
     pending = _result_interrupt(result)
@@ -1212,10 +1254,11 @@ async def submit_answer(
         defer_study_narrative=study_narrative_scheduler is not None,
     )
     try:
-        result = await graph.ainvoke(
+        result = await _invoke_with_deadline(
+            graph,
             EntryInput(session_id=learning_session_id, entry_action="submit_answer"),
-            config=_graph_config(learning_session_id),
-            context=ctx,
+            learning_session_id,
+            ctx,
         )
     except flow.ItemAlreadyAnsweredError as exc:
         # The pre-flight above catches the ordinary exam case; this is the concurrent one
@@ -1616,10 +1659,11 @@ async def finalize_exam(
         defer_study_narrative=study_narrative_scheduler is not None,
     )
     try:
-        result = await graph.ainvoke(
+        result = await _invoke_with_deadline(
+            graph,
             EntryInput(session_id=learning_session_id, entry_action="finalize_exam"),
-            config=_graph_config(learning_session_id),
-            context=ctx,
+            learning_session_id,
+            ctx,
         )
     except flow.ExamNotReadyToFinalizeError as exc:
         raise HTTPException(
@@ -1817,10 +1861,11 @@ async def respond_to_interrupt(
         defer_hint_personalization=hint_scheduler is not None,
     )
     try:
-        result = await graph.ainvoke(
+        result = await _invoke_with_deadline(
+            graph,
             Command(resume=resume_value),
-            config=_graph_config(learning_session_id),
-            context=ctx,
+            learning_session_id,
+            ctx,
         )
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
@@ -1945,10 +1990,11 @@ async def resume_session(
         mcp_registry=mcp_registry,
         bedrock_gateway=bedrock_gateway,
     )
-    result = await graph.ainvoke(
+    result = await _invoke_with_deadline(
+        graph,
         EntryInput(session_id=learning_session_id, entry_action="resume"),
-        config=_graph_config(learning_session_id),
-        context=ctx,
+        learning_session_id,
+        ctx,
     )
 
     response = ResumeResponse(

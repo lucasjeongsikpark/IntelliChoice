@@ -94,6 +94,13 @@ function isServerError(status: number): boolean {
 }
 
 export function friendlyError(error: unknown): string {
+  // D-374: the request deadline aborts with a `DOMException`, not an `ApiError`, so without
+  // this it falls to `OFFLINE` — "You appear to be offline", which is wrong and unactionable
+  // when the network is fine and the server is merely slow. `TimeoutError` is what
+  // `AbortSignal.timeout` raises; `AbortError` is a caller-initiated cancel.
+  if (error instanceof DOMException && error.name === "TimeoutError") {
+    return "That took too long to answer. Your progress is saved — try again in a moment.";
+  }
   if (!(error instanceof ApiError)) {
     // A thrown `TypeError: Failed to fetch` is what a dropped connection looks like here.
     return OFFLINE;

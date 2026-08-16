@@ -13,6 +13,27 @@ import type {
 export const API_BASE = (import.meta.env.VITE_LEARNING_API_URL as string | undefined) ??
   "http://localhost:8001";
 
+/**
+ * Every request carries a deadline (D-374, porting chat-web's D-352).
+ *
+ * **There was no timeout anywhere in this client** — no `AbortController`, no `AbortSignal`,
+ * no `signal` on any fetch — and unlike chat-web, learning-web serialises the *whole UI*
+ * behind one request. `useLearningSession`'s `busyRef` is set before the call and cleared in
+ * a `finally` that never runs if the fetch never settles, so a stalled Submit left every
+ * option, Submit, Skip, Flag and the question navigator disabled forever. The server-side
+ * timer kept running and `submitBlocked` then refused "Submit exam" because items were
+ * unanswered: **the student could neither answer nor submit**, which D-241 records as a state
+ * that must never exist. Only a reload escaped, and nothing on screen suggested one.
+ *
+ * 55s is deliberately just above learning-api's own 50s turn deadline (D-374) and below
+ * CloudFront's 60s origin read timeout, so the ordering is: the server stops the work and
+ * answers with its own structured 504, *then* this fires only if even that never arrives —
+ * which is the network-level stall a shared classroom tablet actually produces. A client
+ * timeout below the server's would abandon turns the backend was about to complete and pay
+ * for.
+ */
+export const REQUEST_TIMEOUT_MS = 55_000;
+
 export class ApiError extends Error {
   status: number;
   detail: unknown;
@@ -29,7 +50,13 @@ async function request<T>(path: string, token: string | null, init?: RequestInit
   if (init?.headers) Object.assign(headers, init.headers);
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  // A caller's own signal composes with the deadline, so whichever fires first aborts.
+  // `AbortSignal.any` rather than one wrapping the other, because a cancelled request and a
+  // timed-out one must both actually abort — chaining them by hand is how one ends up ignored.
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers, signal });
   if (!res.ok) {
     // A `Response` body can only be consumed once - `res.json()` still reads (and
     // locks) the stream even when it throws on invalid JSON, so a `res.text()`

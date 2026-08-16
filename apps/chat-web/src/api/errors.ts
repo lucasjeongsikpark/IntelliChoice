@@ -82,6 +82,15 @@ const RULES: Rule[] = [
 ];
 
 export function friendlyError(error: unknown): string {
+  // D-374: D-352 added `REQUEST_TIMEOUT_MS` and never taught this function about it. The
+  // deadline aborts with a `DOMException`, not an `ApiError`, so a timed-out turn read as
+  // "You appear to be offline" — wrong and unactionable when the network is fine and the
+  // server is merely slow. A caller-initiated `AbortError` is deliberately *not* handled
+  // here: `useChatSession` marks that turn `cancelled` and renders "You stopped this
+  // question", which is a truer sentence than any error string.
+  if (error instanceof DOMException && error.name === "TimeoutError") {
+    return "That question took too long to answer. Try asking it again, or more simply.";
+  }
   if (!(error instanceof ApiError)) {
     // A thrown `TypeError: Failed to fetch` is what a dropped connection looks like here.
     return OFFLINE;

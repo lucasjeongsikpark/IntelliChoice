@@ -94,6 +94,15 @@ class Settings(BaseSettings):
     bedrock_embedding_model_id: str = "amazon.titan-embed-text-v2:0"
     bedrock_call_timeout_s: float = 20.0
     bedrock_max_retries: int = 2
+
+    # SPEC §5.25.1's outer bound, ported from chat-api's `chat_turn_deadline_s` (D-346/D-374).
+    # learning-api had none: the gateway ladder is 3 attempts x 20s plus 0.5s and 1.0s of
+    # backoff = **61.5s**, against CloudFront's 60s origin read timeout. Measured by D-208 -
+    # `POST /exam/finalize` at 65-81s with 61502.69ms of Bedrock, "identical to the
+    # millisecond, the signature of a ceiling being hit". The student got an opaque edge 504
+    # while the backend kept working and kept spending. 50s sits under the edge's 60s so the
+    # caller sees this app's own structured 504 rather than CloudFront's.
+    learning_turn_deadline_s: float = 50.0
     # D-208: memory consolidation gets its own, longer ceiling because it is a different
     # size of call. Every other task here is one short generation - a tutor reply measures
     # ~3-4 s on staging. Consolidation sends up to 20 000 tokens of session events plus
