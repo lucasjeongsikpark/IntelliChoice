@@ -26,11 +26,18 @@ refusal-reason taxonomy that separates the classifier's label from what a visito
 1. **The access probe fires for 1 of 8 gated questions** (precision 5/5). Baseline measured and the
    instrument committed (`scripts/measure_access_hint_live.py`). Tuning needs the offline rule sweep
    as its own measured pass — AUD-C-20 bounds how far recall can move. **Not tuned.**
-2. **The 2-replica relay measurement has not been run.** `scripts/measure_chat_sse_delivery.py` is
-   committed and refuses to report at one replica, because at one task the in-process bus always
-   works and a green run would mean nothing. (The D-344 "pin" that was supposed to protect the gap
-   before the relay **was never applied** — `terraform apply` is not part of the deploy and nobody
-   ran it, so live stayed at max 3 throughout. Corrected in D-344; the edit is reverted.)
+2. **Deployed and measured.** Run `31919039255` on `efea7d846d37`; chat-api on task def 131.
+   The relay delivered **10/10 at two replicas** with the run's POSTs split 12/8 across both
+   tasks, and both tasks logged `chat_session_event_relay_started`. Staging chat e2e: **56
+   passed, 1 skipped**. (The D-344 "pin" meant to cover the gap before the relay **was never
+   applied** — `terraform apply` is not part of the deploy — so live stayed at max 3 throughout.
+   Corrected in D-344; the edit is reverted. It turned out to matter: the e2e run's own load
+   scaled chat-api 1 → 2 → 3 on the latency policy.)
+
+3. **A harness gate I broke and fixed the same day (D-354).** D-352's Stop button went inside the
+   `Thinking…` bubble, which made `not.toHaveText("Thinking…")` — an exact match — pass instantly,
+   so `expectAnswered` stopped waiting for answers across every chat journey. Invisible locally
+   (stubs answer in milliseconds), caught on staging. The placeholder is now located by role.
 
 Carry-over: learning-api's `/stream` holds a request-scoped DB session for the life of the
 connection, the same defect D-348 fixed on chat (one app at a time); chat-api has no crash sink, so
