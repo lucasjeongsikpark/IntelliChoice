@@ -239,6 +239,17 @@ def _study_session_id(learning_session_id: str) -> str:
     return asyncio.run(fetch())
 
 
+def _graph_values(learning_session_id: str) -> dict:
+    """The whole checkpointed state, for assertions about channels rather than responses."""
+
+    async def fetch() -> dict:
+        graph = app.state.learning_graph
+        snapshot = await graph.aget_state({"configurable": {"thread_id": learning_session_id}})
+        return dict(snapshot.values)
+
+    return asyncio.run(fetch())
+
+
 def _bedrock_spend_cents(learning_session_id: str) -> float:
     async def fetch() -> float:
         graph = app.state.learning_graph
@@ -1031,6 +1042,28 @@ def test_difficulty_recommendation_reaches_template_selection(
             json={"interrupt_type": "intervention_choice", "choice": "solution"},
         ).json()
         assert body["phase"] == "study"
+
+        # **D-358, pinned on the branch that actually needed it.** A solution always
+        # serves, so this *closes* the pause - the terminal rung, where
+        # `hint_ladder_awaiting_choice` goes false while the panel stays on screen. That is
+        # the state a deferred `study_step` frame used to publish over, erasing help the
+        # student was reading.
+        #
+        # It is asserted here rather than only on the video test because the video path is
+        # not deterministic on a developer machine: with no `youtube_videos` row for the
+        # skill it falls back, the pause stays *open*, and the walk exercises the other
+        # branch entirely. Measured, not assumed - deleting this write and re-running the
+        # video test left it green, which is the whole reason this assertion lives here.
+        values = _graph_values(session_id)
+        assert body["pending_interrupt"] is None, "a solution must close the pause"
+        assert values["hint_ladder_awaiting_choice"] is False
+        assert values["last_intervention"] is not None
+        assert values["last_intervention_attempt_id"] == values["last_study_attempt_id"], (
+            "the solution on screen was not paired with the attempt it explains, so "
+            "`_help_is_on_screen` cannot tell it from help the student has moved past "
+            "and the background narrative will publish over it (D-358)"
+        )
+
         remediation_skill, remediation_recommended = calls[-1]
         # D-212: the contract is "remediation stays on the line just answered", not a
         # particular skill name - so it is checked against the skill actually routed above.
@@ -1583,6 +1616,24 @@ def test_intervention_choice_pause_records_choice_and_blocks_skip() -> None:
         # `_study_session_id` reads via `app.state.learning_graph`, so it must run while
         # this block's checkpointer connection is still open.
         study_session_id = _study_session_id(session_id)
+
+        # **D-358: the help on screen is paired with the attempt it belongs to.**
+        #
+        # Asserted from the *checkpoint*, not from the response, and that is the point: the
+        # response obviously knows what it just served, while the channel is read later by
+        # a background publisher deciding whether it is about to erase this panel. A video
+        # served with no pairing recorded is exactly the state that let a deferred
+        # `study_step` frame blank it ~1.5s later, roughly one staging run in two.
+        #
+        # Without this assertion the guard in `stage_narrative_scheduler` would keep
+        # passing its own unit tests while reading a channel nothing ever wrote - the
+        # failure shape this suite has now hit often enough to test for on purpose.
+        values = _graph_values(session_id)
+        assert values["last_intervention"] is not None
+        assert values["last_intervention_attempt_id"] == values["last_study_attempt_id"], (
+            "the served intervention was not paired with the current attempt, so nothing "
+            "downstream can tell 'help is on screen' from 'help was on screen once'"
+        )
 
     attempt = _study_attempt(study_session_id, wrong_variant_id)
     assert attempt.is_correct is False
