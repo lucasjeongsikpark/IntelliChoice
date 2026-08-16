@@ -37,11 +37,41 @@ export interface FailedRequest {
   failure: string;
 }
 
+/**
+ * A console-error allowance narrowed to the request that produced it.
+ *
+ * Chromium logs `Failed to load resource: the server responded with a status of 409 ()`
+ * for every non-2xx fetch, and **the message text does not name the URL - the location
+ * does**. So a bare `"Failed to load resource"` string forgives that error on every path
+ * at once. `journey-student.spec.ts` meant to forgive AUD-F-02's post-finalize burst on
+ * `exam/overview`, and its comment said "allowed by path here"; what it actually allowed
+ * was any failed request anywhere in the walk, including a 409 on `POST /answers` - the
+ * one request whose failure that journey exists to detect (D-355).
+ */
+export interface ScopedConsoleError {
+  /** Substring of the console message text, as for a plain string allowance. */
+  text: string;
+  /** Forgiven only when the failing resource's URL matches. */
+  url: RegExp;
+}
+
 /** What the teardown check is willing to forgive, set per test via `audit.allow()`. */
 export interface Allowances {
-  /** Substrings; a console error matching any of them is not a failure. */
-  consoleErrors?: string[];
-  /** Status codes that may legitimately appear (e.g. 404 for a deliberate probe). */
+  /**
+   * A console error matching any entry is not a failure: a plain string matches the
+   * message text anywhere, a `ScopedConsoleError` also requires the failing URL to match.
+   */
+  consoleErrors?: (string | ScopedConsoleError)[];
+  /**
+   * Status codes that may legitimately appear (e.g. 404 for a deliberate probe).
+   *
+   * **Reported, not enforced, and that is easy to misread** (D-355). `clientErrors` feeds
+   * the artifact summary and *no assertion reads it* - `assertClean` covers page errors,
+   * console errors, 5xx and failed requests, because those are what INTEGRATION_PLAN §2.6
+   * criterion 3 lists. A 4xx fails a journey only through the console error Chromium logs
+   * for it, so `consoleErrors` above is where the gate actually lives and this field
+   * changes only what the artifact's `clientErrors` line reads after a run.
+   */
   statuses?: number[];
   /** Skip the 5xx check entirely - only for tests whose subject *is* a 500. */
   serverErrors?: boolean;
@@ -56,6 +86,12 @@ export interface Allowances {
  * 422 detail, and a FastAPI validation error carries no PII.
  */
 const CAPTURE_BODIES = process.env.E2E_CAPTURE_BODIES === "1";
+
+/** Whether one allowance forgives one console record. See `ScopedConsoleError`. */
+function forgives(allowance: string | ScopedConsoleError, entry: ConsoleRecord): boolean {
+  if (typeof allowance === "string") return entry.text.includes(allowance);
+  return entry.text.includes(allowance.text) && allowance.url.test(entry.location);
+}
 
 export class AuditLog {
   private readonly startedAt = Date.now();
@@ -84,7 +120,7 @@ export class AuditLog {
     const allowed = this.allowances.consoleErrors ?? [];
     return this.console
       .filter((entry) => entry.type === "error")
-      .filter((entry) => !allowed.some((fragment) => entry.text.includes(fragment)));
+      .filter((entry) => !allowed.some((allowance) => forgives(allowance, entry)));
   }
 
   get serverErrors(): NetworkRecord[] {

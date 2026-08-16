@@ -25252,3 +25252,170 @@ Two things worth keeping from this:
 The placeholder is now located by role (`getByRole("status").filter({hasText: "Thinking…"})`)
 in one shared helper, so the next thing added inside it cannot repeat this. The three specs
 that used the exact-text idiom all moved to it.
+
+---
+
+### D-355 — Three ways the study walk could invent its own drift, and the one that hid a real 401 race
+
+**Date:** 2026-08-16 · **Status:** fixed (harness) · **Found by:** scoping C1 Phase 6 against the code rather than against ROADMAP's summary of it · **Files:** `e2e/fixtures/{capture,learning-flow,stub-chat}.ts`, `e2e/tests/learning/journey-student.spec.ts`, `e2e/tests/chat/error-states.spec.ts`
+
+#### The clause was chasing a mechanism that had already been retracted
+
+ROADMAP:2099 still prescribed the fix for C1 Phase 6's open clause: *"the walk's study-loop
+exit condition… still leans on its own count where the server's grading is authoritative."*
+That fix shipped as D-340 (`e73441a`) and **the drift survived it** — 2 of the 8 runs after,
+which is worse than the ~1-in-12 rate being chased. D-340 §2 had already retracted the
+mechanism in its own text: `serverPhase` stayed `study` across all twelve iterations, so the
+walk never "carried on past the end of the study phase". The ROADMAP row was never updated to
+match, so the next session would have started by re-fixing a fixed thing.
+
+#### What the walk could still do to itself
+
+Three, all in the harness, all removed here:
+
+1. **`studyAnswers` counted clicks, not answers.** `answerCurrentQuestion` returned true when
+   the two clicks landed. A submission the server refused still incremented the tally that the
+   reconciliation guard compares against server gradings. `awaitAcceptance` makes it count
+   acceptances; every other caller keeps the click-based meaning and its timing.
+2. **Refused submissions left no trace at all.** The verdict listener `return`ed on any
+   non-2xx. They are now recorded and asserted to be zero *before* the reconciliation guard,
+   because a refusal explains the drift and must report first or the guard names the wrong
+   cause.
+3. **The 409 allowance was never scoped by path, though its comment said it was.**
+   `audit.allow({consoleErrors: ["Failed to load resource"]})` matches the message *text*, and
+   Chromium puts the failing URL in the **location**. So the line that meant to forgive
+   AUD-F-02's post-finalize burst forgave every failed request in the walk — including a 409 on
+   `POST /answers`, the one request the journey exists to watch, and a documented live defect
+   (`last-question-double-submit.spec.ts`, staging 2026-08-06). Allowances can now carry a URL
+   pattern.
+
+#### Recorded, not changed: `Allowances.statuses` is reported, never asserted
+
+`clientErrors` feeds the artifact summary and **no assertion reads it** — `assertClean` covers
+page errors, console errors, 5xx and failed requests, which is what INTEGRATION_PLAN §2.6
+criterion 3 lists. So `audit.allow({statuses: [409]})` has always been documentation, and the
+console-error allowance is where the gate actually lives. Enforcing 4xx suite-wide is a real
+change with real blast radius; doing it in the same session that needs consecutive clean runs
+would confound the two. Written down instead.
+
+#### `study_progress` was NOT adopted as a second exit signal, having been planned as one
+
+`_study_progress` returns `None` outside the study phase — and also when the study-session id
+is missing or the row is unreadable. Breaking the loop on it would end walks early for reasons
+that have nothing to do with the phase, in exchange for a signal that would not have caught the
+observed drift anyway (the phase never left `study`). It is recorded in the per-iteration notes
+as evidence instead. Planned in the session plan, dropped on reading the function.
+
+#### And a real race the first staging run then exposed
+
+`error-states.spec.ts`'s 401 spec did `expect(thinkingPlaceholder).toHaveCount(0)` with nothing
+positive in front of it — a negative assertion that passes *instantly*, before the placeholder
+could render, so it does not mean "the turn finished". Under load the test ran ahead of the
+browser and installed its 401 route while the **first** ask's fetch was still being dispatched;
+Playwright matches routes when the request is issued, so the first question got the 401 meant
+for the second, the app correctly signed out, and the second `ask` spent 30s looking for a
+composer on the login screen. Fixed with a positive wait for the answer. Same family as D-354:
+an assertion that holds while checking nothing.
+
+---
+
+### D-356 — A student clicks "Watch a video" and a background narrative erases it ~1.5s later
+
+**Date:** 2026-08-16 · **Status:** ⛔ **open — characterised, not fixed** · **Found by:** chasing what looked like a flaky e2e spec · **Files (diagnosis):** `apps/learning-api/src/learning_api/routers/sessions.py`, `services/stage_narrative_scheduler.py`, `apps/learning-web/src/App.tsx`
+
+#### The measurement, which is what makes this a defect rather than a flake
+
+`video-intervention.spec.ts` failed in the first staging run of the session. Re-run twice with
+bodies captured: **one pass, one fail**, and the two `POST /respond` responses are
+*substantively identical* — status 200, `intervention.type = "video"`, the same real
+`video_url` (a Khan Academy linear-equations video), `stage_narrative: null` in both. **The
+server did the same correct thing in the run that passed and the run that failed.** What
+differs is only what the browser is left holding: at failure the page shows the study screen
+with no help panel at all.
+
+#### The mechanism, which is written in the code that causes it
+
+`build_deferred_narrative_snapshot` omits `intervention` and `assistance_question`. Every SSE
+frame **replaces the client's whole snapshot**, so a deferred `study_step` narrative arriving
+~1.5s after the choice erases the help panel. The client's condition makes the exposure precise:
+
+```
+helpOnScreen = phase === "study" && assistance_question !== null &&
+               (ladderOpen || (intervention != null && !dismissed))
+```
+
+`ladderOpen` means "the graph is paused" — and **video and solution both *close* the pause**, so
+for exactly those two branches the panel hangs entirely on `intervention != null`. One frame
+without it and the video is gone.
+
+**This was found once already and fixed one case short.** `stage_narrative_scheduler` skips the
+publish when `hint_ladder_awaiting_choice` is set, and its comment describes this exact wipe —
+*"the frame then wiped the hint a student had just asked for off their screen"*. That guard
+covers hints 1–2, where the ladder is still open. It cannot fire for a video or a solution,
+which are precisely the cases where the pause is already closed. The narrower reading —
+*"a study-transition narrative only fires when the turn advanced"* — is the same assumption in
+both places.
+
+#### Why it is recorded rather than fixed in this session
+
+Both obvious fixes have a **worse** failure mode than the bug:
+
+- **Server, carry the fields:** `last_intervention` is documented as going stale — it keeps a
+  previous question's help until something overwrites it — and `_assistance_question` resolves
+  from `last_study_attempt_id`. Gating on `last_intervention is not None` alone would either
+  suppress narratives on every turn after the first video, or pair the *new* question with the
+  *old* help.
+- **Server, extend the skip guard:** needs a signal that does not exist. The narrative payload
+  carries a stage, not the attempt it was scheduled for, so there is nothing to compare.
+- **Client, sticky help:** the deferred frame drops `assistance_question` too, so both have to
+  be held; and the terminal help case legitimately returns the *next* question in `items` while
+  showing help for the previous one (D-272), so the obvious key for expiring sticky state is
+  exactly the one that is not usable.
+
+Showing a student help for a question they already left is worse than briefly losing a video,
+and this is a launch journey. **The fix wants the missing signal — which attempt an intervention
+belongs to — and that is a scoped change, not a patch.** The evidence, reproduction and code path
+are all recorded, so the next session starts at the fix rather than at an investigation.
+
+#### What it costs today
+
+`video-intervention.spec.ts` is a **true positive** and will keep reddening whole staging runs at
+roughly one in two. C1 Phase 6's "staging e2e green as a whole run" clause therefore cannot close
+— and for the first time the reason is that *the product is wrong*, not that the harness is
+flaky. The spec now names D-356 in its failure message and drops a breadcrumb into the audit, so
+the next occurrence is read in seconds rather than re-derived.
+
+---
+
+### D-357 — The reconciler is scheduled, and the floor check caught a five-revision-stale apply first
+
+**Date:** 2026-08-16 · **Status:** applied and verified · **Files:** `terraform/modules/scheduled-jobs/main.tf`, `terraform/environments/staging/terraform.tfvars`
+
+`learning_sessions` (U7/D-332) had been reconciled only by hand. It now runs daily at
+**`cron(0 18 * * ? *)`**, first in the nightly order — ahead of `chat-purge` (18:10),
+`memory-consolidate` (Sun 18:30) and `retention-purge` (18:50). The ordering is the point:
+`checkpoint_retention_cli` reads eligibility from `learning_sessions` and its chat branch
+classifies a thread as chat by the **absence** of a row, so an unprojected learning thread is
+invisible to the learning windows and looks like chat to the other branch. That job stays
+unscheduled; scheduling it before this one would be actively unsafe.
+
+No new ops-task environment is needed (the D-092 unprefixed DSN components are already set) and
+it makes no model call, so the `youtube-sync` hazard — a job that succeeds while writing
+fabricated data — cannot apply here. `retry_attempts = 2`, matching the other deterministic jobs;
+idempotency is measured rather than assumed (a second run over dev's 36,929 rows wrote 0 in 40s
+against the first run's 4m00s).
+
+**The apply was not routine, and `make tfvars-floor-check` is why that was noticed.** It failed:
+the tfvars floor was `gha-70100623148d` while everything deployed was `gha-efea7d846d37`, and
+`terraform plan` wanted to **replace all three task definitions** and make the older image each
+family's latest revision. The ops-task half is the dangerous one, for the same reason as D-141:
+every schedule resolves that family un-pinned, so the next nightly firing would have run the
+stale image. Fifth instance of this shape, and the first caught by the check instead of by a
+near-miss.
+
+After bumping the floor the three replacements were still planned — `container_definitions`
+forces replacement — so they were **diffed as sets rather than assumed cosmetic**: identical
+image, zero environment variables gained or lost, zero values changed, zero secrets lost, on all
+three. Applied on that evidence, then read back from AWS rather than from Terraform's own report
+(the D-344 lesson): schedule `ENABLED`, correct cron and command, ops-task family latest now
+revision 127 on the **correct** image, and both services still running 133 / 131 untouched.

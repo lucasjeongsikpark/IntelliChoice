@@ -4,6 +4,7 @@ parent-dashboard history endpoint (SPEC §5.14.3).
 
 import asyncio
 from collections.abc import AsyncGenerator
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
@@ -32,7 +33,7 @@ from learning_api.routers.sessions import SessionSnapshotEvent
 from learning_api.routers.stream import _initial_snapshot
 from learning_api.services.session_events import SessionEventBus
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 MYSQL_URL = "mysql+aiomysql://intellichoice:intellichoice@localhost:3306"
 
@@ -124,6 +125,19 @@ def _other_option(correct: str) -> str:
         if option != correct:
             return option
     raise AssertionError("no alternate option available")
+
+
+def _stream_session_factory() -> async_sessionmaker[AsyncSession]:
+    """The factory `/stream` now opens its own short-lived session from (D-356).
+
+    A real one rather than a stub, matching chat's equivalent test: `session_scope` opens
+    the session *before* `_initial_snapshot` runs, so even the paths below - which fail
+    auth or read only the checkpoint - go through it. That is not new (the old
+    `Depends(get_db_session)` resolved before the handler body too), and pinning it with a
+    real factory keeps the test honest about what the endpoint actually does.
+    """
+    return create_session_factory(create_engine())
+
 
 
 def test_dev_token_issues_a_verifiable_token() -> None:
@@ -685,13 +699,21 @@ def test_stream_delivers_an_event_published_during_the_initial_read() -> None:
             return _StaleSnapshotFake(values)
 
     async def _run() -> list[str]:
+        # D-356: the endpoint opens its own short-lived session from
+        # `app.state.db_session_factory` rather than holding a request-scoped one for the
+        # life of the stream, so the fake request carries a factory. It is never called on
+        # this path (the snapshot below needs no database), so a factory that would fail if
+        # used is the honest fake - `SimpleNamespace` because only that attribute is read.
+        fake_request = SimpleNamespace(
+            app=SimpleNamespace(state=SimpleNamespace(db_session_factory=_stream_session_factory()))
+        )
         response = await stream_module.stream_session(
             session_id,
+            fake_request,  # type: ignore[arg-type]
             token,
             profile_adapter=None,  # type: ignore[arg-type] - unreachable: no student resolved
             events=bus,
             graph=_PublishingGraph(),  # type: ignore[arg-type]
-            db=None,  # type: ignore[arg-type] - unreachable on this path
             bedrock_gateway=None,  # type: ignore[arg-type] - narrative already present
         )
         frames = []
@@ -732,13 +754,16 @@ def test_stream_unsubscribes_when_the_initial_read_fails() -> None:
             raise AssertionError("token verification fails before any read")
 
     async def _run() -> None:
+        fake_request = SimpleNamespace(
+            app=SimpleNamespace(state=SimpleNamespace(db_session_factory=_stream_session_factory()))
+        )
         await stream_module.stream_session(
             "sess-aud-f-36-leak",
+            fake_request,  # type: ignore[arg-type]
             "not-a-valid-token",
             profile_adapter=None,  # type: ignore[arg-type]
             events=bus,
             graph=_NeverReached(),  # type: ignore[arg-type]
-            db=None,  # type: ignore[arg-type]
             bedrock_gateway=None,  # type: ignore[arg-type]
         )
 

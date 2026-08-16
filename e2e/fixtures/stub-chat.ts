@@ -65,9 +65,22 @@ export async function stubChat(page: Page, options: StubOptions): Promise<void> 
   }
 }
 
-/** Types a query and sends it, without waiting for any particular outcome. */
+/**
+ * Types a query and sends it, without waiting for any particular outcome.
+ *
+ * **The explicit wait is not decoration** (D-355). `fill()` auto-waits only for
+ * `actionTimeout` (15s local, 30s staging), and the first `ask` after a `goto` is racing
+ * React deciding *which screen to render*: the composer does not exist on the login
+ * screen, so a slow hydration is indistinguishable from "there is no composer". Measured
+ * once in a full local suite - the 401 spec failed here at 15s having passed in 596ms in
+ * isolation, after five minutes of learning journeys had loaded the same machine. A flake
+ * anywhere reddens a whole run, and this suite's runs are counted consecutively.
+ *
+ * It weakens nothing: a composer that never appears still fails, and now says so.
+ */
 export async function ask(page: Page, query: string): Promise<void> {
   const composer = page.locator("textarea");
+  await composer.waitFor({ state: "visible", timeout: 60_000 });
   await composer.fill(query);
   await page.getByRole("button", { name: /^send$/i }).click();
 }

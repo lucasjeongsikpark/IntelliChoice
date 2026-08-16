@@ -97,7 +97,34 @@ test("the video intervention resolves to a card or the no-video answer", async (
     .waitFor({ state: "visible", timeout: 30_000 })
     .then(() => true)
     .catch(() => false);
-  expect(resolved, "clicking 'Watch a video' never produced the video result screen").toBe(true);
+  // **When this fails it is a product defect with a known mechanism (D-356), not a flake.**
+  // Measured 2026-08-16 on staging, twice in four attempts, with the server proven correct:
+  // `POST /respond` returned 200 carrying `intervention.type="video"` and a real
+  // `video_url` in BOTH the passing and the failing run, byte-identical in substance. What
+  // differs is what the browser is left holding.
+  //
+  // `build_deferred_narrative_snapshot` (routers/sessions.py) omits `intervention` AND
+  // `assistance_question`, and every SSE frame *replaces* the client's whole snapshot - so
+  // a `study_step` narrative arriving ~1.5s later erases the help panel. The client's own
+  // condition (`App.tsx`: `ladderOpen || intervention != null`) makes the video and
+  // solution branches the exposed ones, because both *close* the pause and therefore have
+  // only `intervention` holding the panel up.
+  //
+  // `stage_narrative_scheduler` already guards this - `hint_ladder_awaiting_choice` skips
+  // the publish mid-ladder - and its comment describes this exact wipe for hints. The guard
+  // does not cover video or solution, which is where the pause is already closed.
+  if (!resolved) {
+    audit.note(
+      "D-356: the video panel was erased after /respond returned it - check for a " +
+        "deferred stage_narrative frame published after the video choice",
+    );
+  }
+  expect(
+    resolved,
+    "clicking 'Watch a video' never produced the video result screen. If /respond returned " +
+      "200 with intervention.type=video, this is D-356: a deferred narrative frame " +
+      "replaced the snapshot and dropped the help panel",
+  ).toBe(true);
 
   const panel = page.locator(".intervention-panel");
   // §5.11.6's two legitimate outcomes.

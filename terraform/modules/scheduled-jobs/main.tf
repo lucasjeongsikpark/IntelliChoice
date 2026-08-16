@@ -37,6 +37,28 @@ locals {
   # looks like after the fact: staging's entire RAG corpus is mock hash vectors because
   # ingestion ran with the mock, and nothing noticed for weeks.
   jobs = {
+    session-consolidate = {
+      # **First in the daily order, and the ordering is the point (D-356).** This projects
+      # finished learning threads out of their LangGraph checkpoint into `learning_sessions`
+      # (U7/D-332) - the row that carries `week_id`, the attendance fields and the spend,
+      # none of which had a durable home before it existed.
+      #
+      # The checkpoint-retention job (D-333) reads eligibility from `learning_sessions`, and
+      # its chat branch classifies a thread as chat by the *absence* of a row. So a learning
+      # thread this reconciler has never projected is invisible to the learning windows and
+      # looks like chat to the other branch. That job is deliberately unscheduled today;
+      # scheduling it before this one would be actively unsafe, which is why this lands
+      # first and alone.
+      schedule    = "cron(0 18 * * ? *)"
+      command     = ["python", "-m", "learning_api.services.session_consolidation_cli"]
+      description = "Project completed learning threads into learning_sessions (U7/D-332)."
+      # Idempotent by measurement, not by assumption: a second run over dev's 36,929 rows
+      # wrote 0 and took 40s against the first run's 4m00s.
+      retry_attempts = 2
+      # No model call at all, so the youtube-sync hazard below - a job that succeeds while
+      # writing fabricated data - cannot apply. Pure reads plus an upsert.
+      enabled = true
+    }
     chat-purge = {
       # Daily, not weekly. The cutoff is computed per run (`now - 90 days`), so a weekly
       # schedule would let a message sit up to 97 days against a 90-day promise.
