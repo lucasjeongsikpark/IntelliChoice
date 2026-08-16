@@ -45,7 +45,26 @@ export default defineConfig({
     // Staging goes through CloudFront; a cold cache behind an invalidation is slow.
     actionTimeout: isLocal ? 15_000 : 30_000,
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    // `grepInvert` is not optional: without it a `@mobile` spec runs on *both* projects, and
+    // on the desktop one it asserts a phone viewport it does not have.
+    {
+      name: "chromium",
+      grepInvert: /@mobile/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    // D-350: a second viewport, running only the specs that opt in by name (`@mobile`).
+    // Until this existed the suite was Desktop Chrome only, which is why chat-web shipped
+    // with **no width media query at all** and nobody saw it: at 360px the header crushed,
+    // the calendar dialog's three buttons collapsed, and the composer sat under the iOS home
+    // indicator. Scoped by grep rather than run wholesale - the point is to keep the layout
+    // honest, not to double a 75-test suite's wall clock.
+    {
+      name: "mobile",
+      grep: /@mobile/,
+      use: { ...devices["Pixel 7"] },
+    },
+  ],
 
   // Locally the harness owns the whole stack, so a run needs only `make up` first
   // (Postgres + MySQL). Against staging it starts nothing.

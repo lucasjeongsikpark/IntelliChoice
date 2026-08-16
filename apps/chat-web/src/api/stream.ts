@@ -19,7 +19,18 @@ export function openSessionStream(
   source.onopen = () => onStateChange?.("open");
   source.onerror = () => onStateChange?.("error");
   source.onmessage = (event) => {
-    onSnapshot(JSON.parse(event.data) as TurnSnapshot);
+    // D-216, ported from learning-web (D-347): an unparsable frame must not throw inside
+    // the event handler. Doing so kills no connection and logs nothing visible - it just
+    // silently stops snapshots from ever updating again, which in this app means a
+    // reloaded tab's `Thinking…` never resolves. Skipping one frame is safe: every frame
+    // is a full snapshot, so the next one supersedes whatever this one carried.
+    let snapshot: TurnSnapshot;
+    try {
+      snapshot = JSON.parse(event.data) as TurnSnapshot;
+    } catch {
+      return;
+    }
+    onSnapshot(snapshot);
   };
 
   return () => source.close();

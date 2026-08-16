@@ -4,6 +4,7 @@ import type { CalendarActionInterrupt } from "../types";
 interface Props {
   pending: CalendarActionInterrupt;
   busy: boolean;
+  error?: string | null;
   onChoose: (choice: "google" | "ics" | "cancel") => void;
 }
 
@@ -13,7 +14,7 @@ function formatDateTime(value: unknown): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
-export function CalendarActionModal({ pending, busy, onChoose }: Props) {
+export function CalendarActionModal({ pending, busy, error, onChoose }: Props) {
   const event = pending.calendar_event ?? {};
   const title = typeof event.title === "string" ? event.title : "Event";
   const location = typeof event.location === "string" ? event.location : null;
@@ -21,7 +22,11 @@ export function CalendarActionModal({ pending, busy, onChoose }: Props) {
 
   return (
     // Escape cancels: the other two buttons both act on the user's calendar (D-219).
-    <ApprovalModal titleId="calendar-action-title" onDismiss={() => onChoose("cancel")}>
+    <ApprovalModal
+      titleId="calendar-action-title"
+      error={error}
+      onDismiss={() => onChoose("cancel")}
+    >
       <h2 id="calendar-action-title">Add to your calendar?</h2>
       <div className="email-preview">
         <strong>{title}</strong>

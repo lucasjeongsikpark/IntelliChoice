@@ -3,6 +3,7 @@ from functools import lru_cache
 
 from fastapi import HTTPException, Request, status
 from intellichoice_adapters.fake_auth import JwtTokenVerifier, TokenError
+from intellichoice_db.repositories.cost_reservation import CostReservationRepository
 from intellichoice_shared.auth import Audience, TokenClaims, account_refusal_reason
 from intellichoice_shared.bedrock import BedrockGateway
 from intellichoice_shared.mcp import McpToolRegistry
@@ -86,6 +87,23 @@ def get_mcp_registry(request: Request) -> McpToolRegistry:
 
 def get_email_rate_limiter(request: Request) -> RateLimiter:
     return request.app.state.email_rate_limiter
+
+
+def get_message_rate_limiter(request: Request) -> RateLimiter:
+    """D-345's per-caller turn cap. A second limiter rather than a wider scope on the
+    escalation one: they bound different things at very different rates (5 deliberate
+    button presses an hour vs 120 questions), and sharing a counter would make either
+    number un-tunable without moving the other.
+    """
+    return request.app.state.message_rate_limiter
+
+
+def get_cost_ledger(request: Request) -> CostReservationRepository:
+    """D-345's per-day spend ceiling. Takes the session *factory*, not the request's
+    session: a reservation that does not commit until dependency teardown is invisible to
+    exactly the concurrent callers it exists to stop (AUD-X-08).
+    """
+    return CostReservationRepository(request.app.state.db_session_factory)
 
 
 async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:

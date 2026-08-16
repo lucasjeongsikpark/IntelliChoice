@@ -63,6 +63,7 @@ export function DevLoginScreen({ onLogin, onContinueAsGuest, busy, error }: Prop
       <label className="field">
         <span>Fixture account</span>
         <select
+          name="fixture"
           onChange={(e) => {
             const fixture = FIXTURE_IDS[Number(e.target.value)];
             if (fixture) {
@@ -85,7 +86,11 @@ export function DevLoginScreen({ onLogin, onContinueAsGuest, busy, error }: Prop
 
       <label className="field">
         <span>Role</span>
-        <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
+        <select
+          name="role"
+          value={role}
+          onChange={(e) => setRole(e.target.value as Role)}
+        >
           <option value="student">student</option>
           <option value="parent">parent</option>
           <option value="tutor">tutor</option>
@@ -95,7 +100,7 @@ export function DevLoginScreen({ onLogin, onContinueAsGuest, busy, error }: Prop
 
       <label className="field">
         <span>External id</span>
-        <input value={sub} onChange={(e) => setSub(e.target.value)} />
+        <input name="sub" value={sub} onChange={(e) => setSub(e.target.value)} />
       </label>
 
       {/* Only needed on a deployed environment (D-097). Left blank locally, where
@@ -106,6 +111,7 @@ export function DevLoginScreen({ onLogin, onContinueAsGuest, busy, error }: Prop
       <label className="field">
         <span>Staging secret (leave blank locally)</span>
         <input
+          name="staging-secret"
           type="password"
           autoComplete="off"
           placeholder="X-Staging-Token-Secret"

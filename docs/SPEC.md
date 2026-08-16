@@ -1966,8 +1966,46 @@ Response:
 ```text
 I can help with IntelliChoice programs, branches, schedules, volunteering,
 student learning, parent information and tutor or branch procedures.
-I cannot answer unrelated general-purpose questions.
+I can't help with that topic through this assistant. For anything else, your branch
+can point you to the right person.
 ```
+
+**Amended 2026-08-15 (D-351).** The final line was *"I cannot answer unrelated general-purpose
+questions."* Measured live: a parent asking how to request a refund for a donation made by
+mistake was told their question was an unrelated general-purpose one. The classification is
+correct — donations are not on the supported-topic list above, and D-351 deliberately did not
+add them — but the sentence describes the *asker's question* using the classifier's own label.
+The replacement keeps the actionable half and names a next step. The topic list is unchanged.
+
+### 5.19.5 Turn reason codes
+
+Every turn carries a machine-readable reason alongside its prose (D-351). The reason is the
+contract; the wording is not. A client must branch on the reason rather than infer the cause
+from `escalation_recommended`, `citations` and `access_hint` — that inference is how one
+message came to serve three different causes (AUD-C-19).
+
+| Reason | Meaning | Next step offered |
+|---|---|---|
+| `answer` | A grounded, citation-supported answer, or a deterministic success (calendar file, event listing, branch list) | — |
+| `no_approved_source` | Supported topic; the approved corpus does not answer it | Escalate to a branch manager |
+| `sources_conflict` | Approved sources disagree, so answering means choosing one | Escalate for confirmation |
+| `access_required` | Matching content exists behind a role the caller does not hold | Sign in |
+| `out_of_scope` | Not a topic this assistant covers (§5.19.4) | Ask the branch |
+| `human_action_required` | The turn resolved through a person's decision — an email sent, declined or failed | — |
+| `policy_restricted` | Refused by policy rather than knowledge: a rate limit, a declined consent | Retry later |
+| `system_error` | A failure on our side. Explicitly **not** a statement about the question (§5.29) | Retry |
+| `needs_clarification` | The assistant needs more from the caller — a ZIP code, which event | Supply it |
+
+Two rules bind this table:
+
+1. **No user-facing message may restate its own reason code.** An internal category is not a
+   sentence to read at a visitor.
+2. **`access_required` names no role and no document.** The response carries only the generic
+   message; the matching tier is selected server-side and logged, never returned. Naming it
+   tells an unauthenticated caller that a document restricted to that tier exists and mentions
+   their terms — a disclosure produced by a probe that runs *because* the pipeline already
+   declined, and one measured wrong in the field (AUD-C-25/D-179). Reversing this requires an
+   explicit decision, not an edit.
 
 ---
 

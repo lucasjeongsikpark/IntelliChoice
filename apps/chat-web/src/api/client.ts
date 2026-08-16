@@ -3,6 +3,19 @@ import type { ChatMeta, Role, TurnSnapshot } from "../types";
 export const API_BASE =
   (import.meta.env.VITE_CHAT_API_URL as string | undefined) ?? "http://localhost:8002";
 
+/**
+ * D-352: every request carries a deadline.
+ *
+ * There was no timeout anywhere in this client - no `AbortController`, no `AbortSignal`, no
+ * `signal` on any fetch - so a hung request left `busy` true, the composer disabled and
+ * `Thinking…` pulsing with no way out but a page reload. 55s is deliberately just above the
+ * server's own 50s turn deadline (D-346, itself set under CloudFront's 60s origin read
+ * timeout), so the ordering is: the server stops the work and answers, *then* this fires only
+ * if even that answer never arrives. A client timeout below the server's would abandon turns
+ * the backend was about to complete and pay for.
+ */
+export const REQUEST_TIMEOUT_MS = 55_000;
+
 export class ApiError extends Error {
   status: number;
   detail: unknown;
@@ -19,7 +32,14 @@ async function request<T>(path: string, token: string | null, init?: RequestInit
   if (init?.headers) Object.assign(headers, init.headers);
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  // D-352: a caller's own signal (the Cancel button) composes with the deadline, so whichever
+  // fires first aborts the request. `AbortSignal.any` rather than one wrapping the other,
+  // because a cancelled request and a timed-out one must both actually abort - chaining them
+  // by hand is how one of the two ends up ignored.
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers, signal });
   if (!res.ok) {
     // A `Response` body can only be consumed once - `res.json()` still reads (and
     // locks) the stream even when it throws on invalid JSON, so a `res.text()`
@@ -90,10 +110,18 @@ export function postMessage(
   // one. The server skips scope classification and goes to the escalation path, which
   // still rate-limits and still pauses for approval before anything is sent.
   escalate = false,
+  // D-348: this client's id for the turn. The server treats it as opaque and echoes it on
+  // the response and on every later snapshot, which is what lets the SSE handler tell which
+  // bubble a snapshot belongs under.
+  clientTurnId?: string,
+  // D-352: the Cancel affordance next to `Thinking…`. Only this call takes one - it is the
+  // only request that can plausibly run for tens of seconds.
+  signal?: AbortSignal,
 ): Promise<TurnSnapshot> {
   return request(`/chat/sessions/${chatSessionId}/messages`, token, {
     method: "POST",
-    body: JSON.stringify({ query, escalate }),
+    body: JSON.stringify({ query, escalate, client_turn_id: clientTurnId ?? null }),
+    signal,
   });
 }
 

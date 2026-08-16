@@ -112,8 +112,18 @@ test("a no-source refusal offers a real escalation, and it reaches the approval 
   // Posting a new/empty query here would email the administrator the wrong text, and
   // omitting the flag would send it back through the scope guard as a fresh question.
   expect(posted).toHaveLength(2);
-  expect(posted[0]).toEqual({ query: QUESTION, escalate: false });
-  expect(posted[1]).toEqual({ query: QUESTION, escalate: true });
+  expect(posted[0]).toMatchObject({ query: QUESTION, escalate: false });
+  expect(posted[1]).toMatchObject({ query: QUESTION, escalate: true });
+
+  // D-348 added `client_turn_id`, which this assertion caught by being an exact-shape check -
+  // so it is asserted rather than loosened away. The two ids must *differ*: the escalation
+  // appends a new transcript turn rather than mutating the refusal (the escalation is a
+  // separate action the user took), and reusing the first turn's id would make every later
+  // snapshot for it land on the wrong bubble.
+  const ids = posted.map((body) => (body as { client_turn_id?: string }).client_turn_id);
+  expect(ids[0], "the first turn sent no client turn id").toBeTruthy();
+  expect(ids[1], "the escalation sent no client turn id").toBeTruthy();
+  expect(ids[0]).not.toEqual(ids[1]);
 });
 
 test("an access hint offers no escalation (D-164's precedence rule)", async ({ page }) => {

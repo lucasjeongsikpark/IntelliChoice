@@ -13,6 +13,7 @@ hangs against it.
 
 import asyncio
 from collections.abc import AsyncGenerator
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
@@ -326,24 +327,30 @@ def test_stream_delivers_an_event_published_during_the_initial_read() -> None:
         engine = create_engine()
         try:
             session_factory = create_session_factory(engine)
-            async with session_factory() as session:
-                response = await stream_module.stream_session(
-                    session_id,
-                    events=bus,
-                    graph=_PublishingGraph(),  # type: ignore[arg-type]
-                    db=session,
-                    token=None,
-                )
-                frames = []
-                # `body_iterator` is typed as the broad `AsyncContentStream`; this
-                # endpoint's is always the async generator `event_stream()`.
-                iterator = cast(AsyncGenerator[str, None], response.body_iterator)
-                try:
-                    frames.append(await asyncio.wait_for(anext(iterator), timeout=2.0))
-                    frames.append(await asyncio.wait_for(anext(iterator), timeout=2.0))
-                finally:
-                    await iterator.aclose()
-                return [str(frame) for frame in frames]
+            # D-348: the endpoint now opens its own short-lived session from
+            # `app.state.db_session_factory` instead of holding a request-scoped one for the
+            # life of the stream, so the fake request carries the factory rather than a
+            # session. `SimpleNamespace` because only that one attribute is read.
+            fake_request = SimpleNamespace(
+                app=SimpleNamespace(state=SimpleNamespace(db_session_factory=session_factory))
+            )
+            response = await stream_module.stream_session(
+                session_id,
+                fake_request,  # type: ignore[arg-type]
+                events=bus,
+                graph=_PublishingGraph(),  # type: ignore[arg-type]
+                token=None,
+            )
+            frames = []
+            # `body_iterator` is typed as the broad `AsyncContentStream`; this
+            # endpoint's is always the async generator `event_stream()`.
+            iterator = cast(AsyncGenerator[str, None], response.body_iterator)
+            try:
+                frames.append(await asyncio.wait_for(anext(iterator), timeout=2.0))
+                frames.append(await asyncio.wait_for(anext(iterator), timeout=2.0))
+            finally:
+                await iterator.aclose()
+            return [str(frame) for frame in frames]
         finally:
             await engine.dispose()
 

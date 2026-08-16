@@ -27,6 +27,13 @@ from intellichoice_db.models.base import Base, new_uuid
 # code change, not a migration - the same posture `assessment_sessions.session_type` takes.
 SCOPE_STUDENT_REPORT = "student_report"
 SCOPE_TUTOR_CHAT = "tutor_chat"
+# D-345: chat-api's per-*day* ceiling, and the one scope here whose subject is not a person.
+# Its subject is the constant `SUBJECT_CHAT_API`, because the thing being bounded is the
+# app's daily bill rather than one caller's share of it - a chat caller may be anonymous,
+# and the only identifier an anonymous caller has is an IP, which must not be stored here
+# (see `rate_limit_events`, which HMACs its key for exactly this reason).
+SCOPE_CHAT_TURN = "chat_turn"
+SUBJECT_CHAT_API = "chat-api"
 
 
 class CostReservation(Base):

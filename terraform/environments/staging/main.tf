@@ -517,6 +517,15 @@ module "ecs_service_chat_api" {
   enable_latency_step_scaling = true
   alb_arn_suffix              = module.alb.alb_arn_suffix
 
+  # D-344 (stopgap, removed by the D-349 relay): chat-api's SSE bus is per-process, so a
+  # snapshot published on one task reaches only the clients connected to that task. At one
+  # replica that is invisible; the moment the latency policy above scales out, a client
+  # whose EventSource landed on another task stops being reached - the same shape D-334
+  # measured at 50% loss on learning-api. The scale-out signal is *Bedrock latency*, which
+  # is exactly what a slow turn produces, so this fires precisely when it hurts most.
+  # One task is ample at this traffic; the cap comes back to 3 once the relay lands.
+  autoscaling_max_capacity = 1
+
   # S39: see the matching comment on ecs_service_learning_api above.
   enable_otel_sidecar  = var.enable_otel_tracing
   otel_collector_image = local.otel_collector_image

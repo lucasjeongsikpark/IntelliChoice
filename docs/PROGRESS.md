@@ -7,6 +7,36 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**⏸ CHAT SERVICE: seven phases shipped, two things left open for you (2026-08-15, D-343 → D-353).**
+
+An end-to-end review of the chat service — code, terraform, e2e, plus a live chrome-devtools walk
+of staging — followed by six implementation phases. The happy path was already solid: zero console
+errors, correct role gating, citations, consent flows. What was broken sat in the failure paths,
+where nobody re-walks.
+
+Shipped: an app-wide spend ceiling and per-caller cap (there was **no per-day bound of any kind**,
+and a fresh session per question reset the only budget there was); a 50s turn deadline (the worst
+case was ~6 minutes against a client CloudFront cuts at 60s); a cross-replica SSE relay; four
+frontend dead-ends including a blank-turn class and a 401 that looped forever; the focus trap
+`ApprovalModal`'s docstring already claimed; one mobile breakpoint where there had been none; and a
+refusal-reason taxonomy that separates the classifier's label from what a visitor reads.
+
+**Open for a decision, both recorded rather than guessed:**
+
+1. **The access probe fires for 1 of 8 gated questions** (precision 5/5). Baseline measured and the
+   instrument committed (`scripts/measure_access_hint_live.py`). Tuning needs the offline rule sweep
+   as its own measured pass — AUD-C-20 bounds how far recall can move. **Not tuned.**
+2. **`chat-api` is pinned to one replica** (D-344) as a stopgap while the relay was built. The relay
+   has landed, so the pin should come off after the 2-replica staging verification — it is the last
+   step of that phase and is called out in the terraform comment.
+
+Carry-over: learning-api's `/stream` holds a request-scoped DB session for the life of the
+connection, the same defect D-348 fixed on chat (one app at a time); chat-api has no crash sink, so
+`ErrorBoundary` is console-only (an anonymous-first app needs a different auth answer than
+learning's token-gated endpoint).
+
+### Previous next session
+
 **⏸ U7 IS MEASURED, NOT BUILT (2026-08-14, D-331).** The design review and the staging dry-run are
 done; **no deletion code was written, deliberately**. The measurement changed the recommendation.
 

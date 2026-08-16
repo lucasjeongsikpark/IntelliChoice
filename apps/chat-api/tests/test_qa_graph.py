@@ -19,7 +19,8 @@ from chat_api.graph.nodes import (
     SERVICE_UNAVAILABLE_MESSAGE,
     TurnContext,
 )
-from chat_api.services import qa
+from chat_api.services import outcomes, qa
+from chat_api.services.outcomes import TurnReason
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
 from intellichoice_adapters.fake_auth import FakeTokenIssuer, JwtTokenVerifier
@@ -319,11 +320,18 @@ def test_anonymous_query_with_only_higher_role_content_yields_access_hint() -> N
             assert result["retrieved_chunk_ids"] == []
             assert result["citations"] == []
             assert result["escalation_recommended"] is False
+            # D-351: the hint no longer names the tier it found. `build_access_hint` still
+            # selects `branch_manager` and `explain_access` logs it - that is what keeps the
+            # probe measurable - but the caller reads one generic sentence, so a wrong
+            # selection can no longer become a wrong disclosure. Asserted as an *absence*
+            # here because the old assertion ("branch manager" appears in the message) is
+            # exactly the behaviour being removed.
+            assert result["reason"] == TurnReason.ACCESS_REQUIRED
             assert result["access_hint"] == {
                 "required_role": "branch_manager",
-                "message": result["access_hint"]["message"],
+                "message": outcomes.ACCESS_REQUIRED_MESSAGE,
             }
-            assert "branch manager" in result["access_hint"]["message"].lower()
+            assert "branch manager" not in result["access_hint"]["message"].lower()
             assert result["answer"] == result["access_hint"]["message"]
 
     asyncio.run(run())
@@ -505,12 +513,14 @@ def test_a_refusal_over_non_empty_retrieval_still_gets_the_access_hint() -> None
             assert result["retrieved_chunk_ids"]
             assert gateway.rag_answer_calls == 1
 
+            assert result["reason"] == TurnReason.ACCESS_REQUIRED
             assert result["access_hint"] == {
                 "required_role": "parent",
-                "message": result["access_hint"]["message"],
+                "message": outcomes.ACCESS_REQUIRED_MESSAGE,
             }
             assert result["answer"] == result["access_hint"]["message"]
-            assert "parent" in result["answer"].lower()
+            # D-351: was `assert "parent" in ...`. The tier is deliberately not disclosed.
+            assert "parent" not in result["answer"].lower()
             assert result["answer"] != qa.NO_SOURCE_MESSAGE
             # The gated chunk's own words never reach the caller - the probe returns
             # counts, not content.
@@ -682,7 +692,13 @@ def test_the_access_probe_degrades_to_keyword_only_when_its_embedding_fails() ->
             )
 
             assert gateway.embedding_calls == 2  # retrieval's, then the probe's
+            # D-351: the degraded keyword arm still *finds* the gated audience - what this
+            # test is about - and the reason code is how that is now observable from the
+            # result. The tier stays in state (and in the `access_hint_offered` log line);
+            # `AccessHintResponse` is what drops it at the API boundary.
+            assert result["reason"] == TurnReason.ACCESS_REQUIRED
             assert result["access_hint"]["required_role"] == "branch_manager"
+            assert result["access_hint"]["message"] == outcomes.ACCESS_REQUIRED_MESSAGE
             assert result["bedrock_spend_cents"] > 0.0
 
     asyncio.run(run())

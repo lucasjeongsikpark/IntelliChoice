@@ -34,8 +34,26 @@ class QAState(BaseModel):
     query: str | None = None
     standalone_query: str | None = None
 
+    # D-348: the client's own id for the turn that produced this state, echoed back on every
+    # response and on `/stream`'s initial snapshot so a browser can tell *which* turn a
+    # snapshot describes. Checkpointed rather than request-scoped precisely because the
+    # reconnect case is the one that needs it: after a reload the client rebuilds its
+    # transcript from storage and the only thing that can match a snapshot to a bubble is an
+    # id that survived in the checkpoint.
+    #
+    # Not the query text, which was the obvious alternative: `post_message` redacts free text
+    # (AUD-C-24) before it reaches this state, so a question containing an email address would
+    # arrive back differing from what the client typed and match nothing. A uuid carries no PII
+    # and cannot be altered in transit.
+    client_turn_id: str | None = None
+
     scope: str | None = None
     intent: str | None = None
+
+    # D-351: why this turn ended the way it did, as a `TurnReason` value. Set by whichever
+    # node produced `answer`, cleared with the rest of the last turn's result by
+    # `resolve_role`. This is the field a client branches on; `answer` is the words.
+    reason: str | None = None
 
     # AUD-C-07/AUD-C-08: set by any node that hit a `BedrockGatewayError` it had no
     # fallback for, and read only by that node's own router, which sends the turn to

@@ -5,14 +5,33 @@ import { AccessHintBanner } from "./AccessHintBanner";
 import { RichText } from "../components/RichText";
 import { WelcomeCard } from "./WelcomeCard";
 
+/**
+ * D-352: two browser-fragility fixes in four lines.
+ *
+ * The anchor was never appended to the document, and `revokeObjectURL` ran on the line after
+ * `click()` - synchronously, before the browser had necessarily started reading the blob.
+ * Chromium tolerates both, which is why the e2e suite (Chromium-only) has been asserting the
+ * button is *visible* and never that a download happens. Appending the anchor and revoking on
+ * a later tick is the shape that works everywhere.
+ */
+const STREAM_LABELS: Record<string, string> = {
+  idle: "Not connected yet",
+  connecting: "Connecting to live updates",
+  open: "Live updates connected",
+  error: "Live updates disconnected",
+};
+
 function downloadIcs(icsContent: string) {
   const blob = new Blob([icsContent], { type: "text/calendar" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = "intellichoice-event.ics";
+  link.style.display = "none";
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 interface Props {
@@ -22,10 +41,16 @@ interface Props {
   busy: boolean;
   streamState: "connecting" | "open" | "error";
   error: string | null;
+  /** D-347: an interrupt type this build has no dialog for. See `App.tsx`. */
+  unknownInterrupt: string | null;
   onSend: (query: string) => void;
   onRetry: (turnId: string) => void;
+  /** D-352: stop the turn currently in flight. */
+  onCancel: () => void;
   onEscalate: (query: string) => void;
   onLogout: () => void;
+  /** D-353: sign in from an access hint, keeping the conversation. */
+  onSignIn: () => void;
   onNewSession: () => void;
 }
 
@@ -36,14 +61,19 @@ export function ChatScreen({
   busy,
   streamState,
   error,
+  unknownInterrupt,
   onSend,
   onRetry,
+  onCancel,
   onEscalate,
   onLogout,
+  onSignIn,
   onNewSession,
 }: Props) {
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
+  // Before the first turn there is no stream to be connecting to - see the dot's comment.
+  const streamDotState = transcript.length === 0 ? "idle" : streamState;
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
@@ -58,13 +88,22 @@ export function ChatScreen({
 
   return (
     <div className="chat-page">
-      <div className="chat-header">
+      {/* D-350: `<header>`/`<main>` because chat-web had no landmark element anywhere - a
+          screen-reader user had an `h1` and then an undifferentiated run of text. */}
+      <header className="chat-header">
         <div className="chat-header-title">
           <img src={logoUrl} alt="IntelliChoice" className="app-logo" />
           <h1>IntelliChoice Q&amp;A</h1>
         </div>
         <div className="who">
-          <span className={`stream-dot ${streamState}`} />
+          {/* D-350: the dot was an empty `<span>` whose only signal was colour - invisible
+              to a screen reader and to a colour-blind reader alike. `idle` is a new state
+              rather than a style: `streamState` initialises to "connecting" while the effect
+              that opens the stream deliberately returns early until the first turn exists,
+              so a fresh session showed an indefinite "connecting" dot for a connection that
+              had never been attempted. Verified live before the fix (D-343). */}
+          <span className={`stream-dot ${streamDotState}`} aria-hidden="true" />
+          <span className="sr-only">{STREAM_LABELS[streamDotState]}</span>
           {who}
           {" · "}
           <button className="link" onClick={onNewSession}>
@@ -75,9 +114,19 @@ export function ChatScreen({
             sign out
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="message-list" ref={listRef}>
+      {/* D-350: the single biggest gap. An answer arriving changed the DOM with no
+          announcement at all, so a screen-reader user had to hunt for it manually. The
+          pattern is `learning-web`'s `TutorChatPanel`, which already did this correctly -
+          the codebase disagreeing with itself rather than an open question. */}
+      <main
+        className="message-list"
+        ref={listRef}
+        role="log"
+        aria-live="polite"
+        aria-label="Conversation"
+      >
         {transcript.length === 0 && (
           <>
             <p className="dim">
@@ -92,7 +141,17 @@ export function ChatScreen({
             <div className="message-row user">
               <div className="bubble">{turn.query}</div>
             </div>
-            {turn.response?.answer && (
+            {/* D-347: gated on `turn.response`, not `turn.response.answer`.
+                The old gate produced a **completely blank assistant turn** whenever a
+                response arrived with a null answer and no pending interrupt - the whole
+                bubble vanished, including the citations, the escalation banner, the access
+                hint and the follow-up chips that all live inside it, while `Thinking…`
+                below was simultaneously suppressed because `turn.response` was non-null.
+                Reachable in ordinary use: reload during a first turn restores a turn with
+                `response: null`, the SSE initial snapshot lands with the checkpointed
+                answer still unset, and the visitor is left with their own question and
+                nothing under it. */}
+            {turn.response && (
               <div className="message-row assistant">
                 <div className="bubble">
                   {/* D-219: was raw text, so `**bold**` showed its asterisks and the
@@ -107,9 +166,23 @@ export function ChatScreen({
                       rendering concern. Compared rather than assumed equal, so a backend
                       that ever writes a *different* answer alongside a hint still shows
                       both. */}
-                  {turn.response.answer !== turn.response.access_hint?.message && (
-                    <RichText text={turn.response.answer} />
-                  )}
+                  {turn.response.answer &&
+                    turn.response.answer !== turn.response.access_hint?.message && (
+                      <RichText text={turn.response.answer} />
+                    )}
+                  {/* The other half of the blank-turn fix: when the response carries no
+                      answer *and* nothing else in this bubble would render, say so. Checked
+                      against the same fields the bubble actually shows rather than against
+                      `answer` alone, so a turn that has citations or a hint but no prose
+                      keeps showing them instead of this line. */}
+                  {!turn.response.answer &&
+                    !turn.response.access_hint &&
+                    turn.response.citations.length === 0 &&
+                    !turn.response.escalation_recommended && (
+                      <span className="dim">
+                        No answer came back for that one. Try asking it again.
+                      </span>
+                    )}
                   {/* D-241: a citation is a *label*, not an action, and it used to be
                       impossible to tell. Measured on staging: `.citation-chip` and the
                       interactive `.chip` below rendered with the identical background
@@ -175,7 +248,7 @@ export function ChatScreen({
                   {turn.response.access_hint && (
                     <AccessHintBanner
                       hint={turn.response.access_hint}
-                      onLogin={onLogout}
+                      onLogin={onSignIn}
                     />
                   )}
                   {turn.response.ics_content && (
@@ -211,10 +284,39 @@ export function ChatScreen({
                 there is. */}
             {!turn.response && !turn.error && (
               <div className="message-row assistant">
-                <div className="bubble dim">Thinking…</div>
+                <div className="bubble dim" role="status">
+                  Thinking…
+                  {/* D-352: an answer takes 6-11s (measured live, D-343) with the composer
+                      disabled throughout, and until now there was no way out of that but a
+                      page reload - which then landed on the blank-turn path. */}
+                  <button
+                    className="link cancel-turn"
+                    type="button"
+                    onClick={onCancel}
+                  >
+                    Stop
+                  </button>
+                </div>
               </div>
             )}
-            {!turn.response && turn.error && (
+            {/* A stopped turn is not a failed one: no `role="alert"`, no apology, and the
+                action is "ask again" rather than "try again". */}
+            {!turn.response && turn.cancelled && (
+              <div className="message-row assistant">
+                <div className="bubble dim">
+                  {turn.error}
+                  <button
+                    className="secondary retry"
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onRetry(turn.id)}
+                  >
+                    Ask again
+                  </button>
+                </div>
+              </div>
+            )}
+            {!turn.response && turn.error && !turn.cancelled && (
               <div className="message-row assistant">
                 <div className="bubble turn-error" role="alert">
                   That message couldn't be sent. {turn.error}
@@ -231,12 +333,32 @@ export function ChatScreen({
             )}
           </div>
         ))}
-      </div>
+      </main>
+
+      {unknownInterrupt && (
+        <div className="escalation-banner" role="alert">
+          <span>
+            This conversation is waiting on something this version of the app can't show you.
+            Start a new chat to carry on.
+          </span>
+          <button className="secondary" type="button" onClick={onNewSession}>
+            Start a new chat
+          </button>
+        </div>
+      )}
 
       {error && <p className="error">{error}</p>}
 
       <div className="composer">
+        {/* D-350: no label, no `aria-label`, no `id` - Chrome DevTools flagged it live as
+            "a form field element should have an id or name attribute". Every other input in
+            this app is wrapped in `label.field`; the one people actually type into was not. */}
+        <label className="sr-only" htmlFor="chat-composer">
+          Ask a question
+        </label>
         <textarea
+          id="chat-composer"
+          name="chat-composer"
           value={draft}
           placeholder="Ask a question…"
           disabled={busy}

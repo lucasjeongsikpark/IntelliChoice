@@ -12,13 +12,13 @@ import asyncio
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from intellichoice_adapters.fake_auth import TokenError
 from intellichoice_shared.auth import Audience, account_refusal_reason
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from chat_api.dependencies import get_db_session, get_graph, get_session_events, get_token_verifier
+from chat_api.dependencies import get_graph, get_session_events, get_token_verifier
 from chat_api.graph.build import QAGraph
 from chat_api.services.session_events import ChatSessionEventBus
 
@@ -85,21 +85,30 @@ async def _initial_snapshot(
         confidence=state.get("confidence"),
         missing_information=state.get("missing_information"),
         escalation_recommended=state.get("escalation_recommended", False),
-        access_hint=AccessHintResponse(**access_hint) if access_hint else None,
+        # D-351: built field by field rather than `**access_hint`, because the state dict
+        # carries `required_role` and this is the boundary that must not pass it on.
+        access_hint=(
+            AccessHintResponse(message=access_hint["message"]) if access_hint else None
+        ),
         suggested_followups=followups,
         ics_content=state.get("ics_content"),
         pending_interrupt=(
             _pending_interrupt_preview(pending, state) if pending is not None else None
         ),
+        # D-348: read off the checkpoint, which is what makes the reconnect case work at
+        # all - after a reload the browser has rebuilt its transcript from storage and this
+        # is the only thing that says which bubble this snapshot belongs under.
+        client_turn_id=state.get("client_turn_id"),
+        reason=state.get("reason"),
     )
 
 
 @router.get("/{chat_session_id}/stream")
 async def stream_session(
     chat_session_id: str,
+    request: Request,
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
     graph: Annotated[QAGraph, Depends(get_graph)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
     token: Annotated[str | None, Query()] = None,
 ) -> StreamingResponse:
     # AUD-F-36 (found on learning-api's identical endpoint): subscribe BEFORE the
@@ -109,7 +118,16 @@ async def stream_session(
     # Bedrock call on connect) but `_suggested_followups` does real DB work inside it.
     queue = events.subscribe(chat_session_id)
     try:
-        initial = await _initial_snapshot(chat_session_id, graph, token, db)
+        # D-348: a short-lived session from the factory rather than `Depends(get_db_session)`.
+        # A dependency-with-yield is torn down *after* the response finishes, and an SSE
+        # response never finishes - so the request's session, and the transaction
+        # `_suggested_followups` autobegins inside it, stayed checked out and
+        # idle-in-transaction for as long as the browser tab was open. The pool is 10 + 10
+        # overflow, so **20 concurrent SSE connections exhausted it** and every other request
+        # on that replica blocked. The keep-alive loop below needs no database at all.
+        session_factory = request.app.state.db_session_factory
+        async with session_factory() as db:
+            initial = await _initial_snapshot(chat_session_id, graph, token, db)
     except BaseException:
         events.unsubscribe(chat_session_id, queue)
         raise
