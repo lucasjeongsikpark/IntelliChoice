@@ -65,8 +65,25 @@ because each attempt surfaced one more independent race and stopped:
 | 3 | 2 clean | **discarded as non-evidence (D-362)** — 47.5 min against a 6.1 min norm, two 15-min timeouts, zero server-side errors |
 | 4 | 2 clean | D-361 — the hint spec was measuring the chooser, not the hint |
 | 5 | 1 clean | D-363 (the click never landed) and **D-364, a real 502** |
+| 6 | 0 clean | **D-365 — the drift, named at last** |
 
-**D-364 is the one to read.** `sse-reconnect` failed on the teardown's zero-5xx rule, not its
+**D-365 is the answer to the question the clause has been asking since D-321.** D-355's
+instrumentation fired on its first real staging walk and printed the cause: `409 item ... has
+already been answered`, twice, same item. A *correct* answer opens no pause, so nothing made the
+loop wait; it re-answered the item still on screen. Under the old harness that was invisible
+three times over — counted as an answer, dropped from the verdicts, forgiven by the allowance —
+which is **exactly** `answered - graded == N` with the phase never leaving `study`. Fixed;
+3 consecutive walks at `refused=0, answered=4, graded=4`.
+
+**And the full suite then showed a second cause.** In isolation the walk is clean; in a whole
+run it took 7 refusals, because `journey-student` shares `studentPresent` with **ten specs** on
+an environment where sessions persist. `config.ts` already states the remedy — *"each walk gets
+its own student"* — and D-288 applied it to the four band walks and the refresh test while
+leaving the walk that named the finding on the shared fixture. **Next step: add
+`student-ext-10` to `mysql_fixtures.py`, point the main walk at it, re-seed staging.** It needs
+a deploy and a re-seed, which is why it is queued rather than done.
+
+**D-364 is the other one to read.** `sse-reconnect` failed on the teardown's zero-5xx rule, not its
 own assertion: a **502 on `POST /exam/viewed` that the application never logged**.
 `HTTPCode_ELB_5XX_Count` shows exactly **1.0** over the same three hours and there were no task
 restarts — the signature of a connection-level fault. Cause: the ALB's idle timeout is **120s**
