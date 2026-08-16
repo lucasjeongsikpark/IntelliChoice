@@ -51,6 +51,33 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _help_is_on_screen(values: dict) -> bool:
+    """Whether the student is currently looking at a hint, solution or video (D-358).
+
+    **Two conditions, because the pause covers only one of them.**
+    `hint_ladder_awaiting_choice` means the graph is parked on `intervention_choice`, which
+    is true while the ladder is open — hints 1 and 2. It is false at every *terminal* rung:
+    hint 3 of 3, any solution, any video all close the pause and hand back the next
+    question while the help stays on screen. `App.tsx` renders help on
+    `ladderOpen || intervention != null` for exactly that reason, and this is the
+    server-side reading of the same thing.
+
+    **The second condition is a pairing, not a presence check.** `last_intervention` goes
+    stale on purpose — `submit_answer` advances `last_study_attempt_id` without clearing it
+    — so "there is an intervention" stays true long after the student has moved on. Asking
+    whether it belongs to the *current* attempt is what makes this a question about the
+    screen rather than about history, and it is why D-358 added the companion channel
+    instead of reading `last_intervention` alone. Getting that wrong in the permissive
+    direction erases a student's video; getting it wrong in the other direction silently
+    suppresses every narrative after the first hint of the session.
+    """
+    if values.get("hint_ladder_awaiting_choice"):
+        return True
+    if values.get("last_intervention") is None:
+        return False
+    return values.get("last_intervention_attempt_id") == values.get("last_study_attempt_id")
+
+
 class BackgroundStudyNarrativeScheduler:
     """Generates a deferred study-transition narrative in a detached task and publishes
     the resulting snapshot over the SSE bus. Constructed once in the app lifespan.
@@ -122,21 +149,23 @@ class BackgroundStudyNarrativeScheduler:
             # question already served rather than the state mid-turn.
             config: RunnableConfig = {"configurable": {"thread_id": learning_session_id}}
             snapshot = await self._graph_getter().aget_state(config)
-            if snapshot.values.get("hint_ladder_awaiting_choice"):
-                # D-272, second layer. The publish below omits `pending_interrupt`,
-                # `intervention` and `assistance_question` — deliberately, per this class's
-                # docstring, because "a study-transition narrative only fires when the turn
-                # advanced". That was a claim about *when narratives fire*, and it stopped
-                # being true the moment a stale marker could fire one during a pause: the
-                # frame then wiped the hint a student had just asked for off their screen.
+            if _help_is_on_screen(snapshot.values):
+                # D-272, second layer; widened by D-358. The publish below omits
+                # `pending_interrupt`, `intervention` and `assistance_question` —
+                # deliberately, per this class's docstring, because "a study-transition
+                # narrative only fires when the turn advanced". That was a claim about
+                # *when narratives fire*, and it stopped being true the moment a stale
+                # marker could fire one during a pause: the frame then wiped the hint a
+                # student had just asked for off their screen.
                 #
                 # The stale marker itself is fixed in `nodes._study_narrative_update`. This
                 # is the belt: whatever schedules a narrative, it must never be published
-                # over an open hint ladder. Nothing is lost — the durable `stage_transitions`
-                # row is already written, and the narrative was a between-questions message
-                # for a moment that is no longer between questions.
+                # over help the student is reading. Nothing is lost — the durable
+                # `stage_transitions` row is already written, and the narrative was a
+                # between-questions message for a moment that is no longer between
+                # questions.
                 logger.info(
-                    "stage_narrative_publish_skipped_mid_ladder learning_session=%s",
+                    "stage_narrative_publish_skipped_help_on_screen learning_session=%s",
                     learning_session_id,
                 )
                 return

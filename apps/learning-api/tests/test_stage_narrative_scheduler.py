@@ -26,6 +26,7 @@ from learning_api.services import flow
 from learning_api.services.session_events import SessionEventBus
 from learning_api.services.stage_narrative_scheduler import (
     BackgroundStudyNarrativeScheduler,
+    _help_is_on_screen,
 )
 from sqlalchemy import delete, text
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -218,3 +219,59 @@ def _resolved(value: object):
         return value
 
     return _coro()
+
+
+def test_the_publish_is_skipped_while_the_student_is_reading_a_video() -> None:
+    """D-358: the terminal rungs close the pause, and the old guard only saw the pause.
+
+    Measured on staging before the fix: `POST /respond` returned 200 with a real video, and
+    a deferred `study_step` frame ~1.5s later replaced the client's whole snapshot without
+    `intervention`, erasing the video the student had just asked for. Roughly one run in
+    two. `hint_ladder_awaiting_choice` is **false** here - that is the whole point, and the
+    reason the D-272 guard could not fire.
+    """
+    values = {
+        "phase": "study",
+        "hint_ladder_awaiting_choice": False,
+        "last_intervention": {"type": "video", "video_title": "Solving two-step equations"},
+        "last_intervention_attempt_id": "attempt-7",
+        "last_study_attempt_id": "attempt-7",
+    }
+    assert _help_is_on_screen(values), (
+        "a video the student is looking at was not recognised as help on screen, so the "
+        "deferred narrative frame would publish over it and blank the panel (D-358)"
+    )
+
+
+def test_a_stale_intervention_does_not_suppress_the_narrative() -> None:
+    """The falsification, and the one that matters more than the test above.
+
+    Skipping whenever `last_intervention` is set would be trivially "safe" and would
+    silently disable deferred narratives for the rest of the session, because that channel
+    is never cleared - `submit_answer` moves `last_study_attempt_id` on and leaves the help
+    behind. A guard that always fires is not a guard.
+    """
+    values = {
+        "phase": "study",
+        "hint_ladder_awaiting_choice": False,
+        # The help from a question the student has since answered and moved past.
+        "last_intervention": {"type": "video", "video_title": "An earlier question's video"},
+        "last_intervention_attempt_id": "attempt-7",
+        "last_study_attempt_id": "attempt-8",
+    }
+    assert not _help_is_on_screen(values), (
+        "a stale intervention from a previous question suppressed the narrative - the "
+        "pairing with the current attempt is what stops this guard swallowing everything"
+    )
+
+
+def test_an_open_ladder_still_suppresses_the_narrative() -> None:
+    """D-272's original case, kept: hints 1-2 leave the graph paused and the panel up."""
+    assert _help_is_on_screen({"hint_ladder_awaiting_choice": True})
+
+
+def test_a_turn_with_no_help_publishes_normally() -> None:
+    """The common path - a correct answer, nothing on screen to protect."""
+    assert not _help_is_on_screen(
+        {"phase": "study", "hint_ladder_awaiting_choice": False, "last_intervention": None}
+    )

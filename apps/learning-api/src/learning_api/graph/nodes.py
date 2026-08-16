@@ -1249,6 +1249,8 @@ async def intervention_choice(state: LearningState, runtime: Runtime[TurnContext
             "assistance_level_by_variant": assistance_levels,
             "hint_ladder_awaiting_choice": True,
             "last_intervention": last_intervention,
+            # D-358: written with the help, never apart from it. See the channel's comment.
+            "last_intervention_attempt_id": state.last_study_attempt_id,
             "bedrock_spend_cents": bedrock_spend_cents,
             "pending_hint_personalization": pending_personalization,
             # D-272: this branch never reaches `_study_narrative_update`, so it clears the
@@ -1295,6 +1297,13 @@ async def intervention_choice(state: LearningState, runtime: Runtime[TurnContext
         "last_items": _items_payload(result.items) if result.items is not None else None,
         "last_message": result.message,
         "last_intervention": last_intervention,
+        # D-358, and this is the branch that made the channel necessary. The terminal
+        # rungs - hint 3 of 3, any solution, any video - *close* the pause, so
+        # `hint_ladder_awaiting_choice` goes false here while the help stays on screen.
+        # Anything asking "is help showing?" from that flag alone gets the wrong answer for
+        # exactly these three cases, which is how a deferred narrative frame came to erase
+        # a video the student had just asked for.
+        "last_intervention_attempt_id": state.last_study_attempt_id,
         "bedrock_spend_cents": bedrock_spend_cents,
         "assistance_level_by_variant": assistance_levels,
         "hint_ladder_awaiting_choice": False,

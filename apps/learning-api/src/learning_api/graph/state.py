@@ -66,6 +66,16 @@ class LearningState(BaseModel):
     # §5.11.6, S8) - a plain dict so the checkpointer doesn't need a schema per
     # intervention type; `routers/sessions.py` shapes it into a typed response.
     last_intervention: dict | None = None
+    # **Which attempt `last_intervention` was written for** (D-358). The channel above goes
+    # stale by design: `submit_answer` moves `last_study_attempt_id` on to the next question
+    # without clearing the help, so "is there an intervention?" and "is that intervention
+    # the one on screen?" are different questions and only the second one is useful to a
+    # background publisher deciding whether it is about to erase something.
+    #
+    # Written next to `last_intervention` in both `intervention_choice` branches, and never
+    # written anywhere else - if the two ever disagree the pairing is meaningless, which is
+    # what `_assistance_question`'s docstring warns about in the general case.
+    last_intervention_attempt_id: str | None = None
     # S26 (SPEC §5.10.3/§5.13.3, plan §18-L7): the most recently generated stage
     # narrative (`pre_outro`/`study_step`/`study_outro`/`post_outro` - `pre_intro` fires
     # from the SSE connect path, outside a graph turn, so it's never written here; see
