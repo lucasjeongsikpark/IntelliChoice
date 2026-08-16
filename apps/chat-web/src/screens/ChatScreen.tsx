@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ChatMeta, ChatTurn } from "../types";
+import type { ChatMeta, ChatTurn, TurnSnapshot } from "../types";
 import { MAX_QUERY_CHARS } from "../api/errors";
 import logoUrl from "../../../../packages/ui-brand/assets/logo.png";
 import { AccessHintBanner } from "./AccessHintBanner";
@@ -53,6 +53,43 @@ interface Props {
   /** D-353: sign in from an access hint, keeping the conversation. */
   onSignIn: () => void;
   onNewSession: () => void;
+}
+
+/**
+ * Whether a snapshot describes a turn that has **finished**, as opposed to one the server is
+ * still working on (D-379).
+ *
+ * **The defect this closes.** `resolve_role` clears `answer`, `citations`, `reason` and the
+ * rest at turn *start*, while `client_turn_id` is already in the checkpoint. `/stream` emits
+ * its initial snapshot on every connect with no "is a turn running?" guard, so a reload two
+ * seconds into a 6-11s question restored a turn whose response was present and empty. D-348's
+ * matcher found the id, matched confidently, and committed it - and the bubble rendered *"No
+ * answer came back for that one. Try asking it again."* Following that instruction produced a
+ * 409, and seconds later the real answer overwrote the refusal.
+ *
+ * In a product where a refusal is a first-class outcome, that **fabricates one** and instructs
+ * an action that fails.
+ *
+ * `reason` is the discriminator and it is server-authored: cleared to null on entry, and set
+ * by every terminal node (`ANSWER`, `NO_APPROVED_SOURCE`, `OUT_OF_SCOPE`, `ACCESS_REQUIRED`,
+ * `POLICY_RESTRICTED`, `NEEDS_CLARIFICATION`, `HUMAN_ACTION_REQUIRED`, `SYSTEM_ERROR`). So
+ * `reason === null` means "not finished" rather than "finished with nothing to say".
+ *
+ * D-351 added that field describing it as *"the field a client should branch on"* and no
+ * component read it. This is the first one.
+ *
+ * The fallbacks matter for old checkpoints: a session checkpointed before `reason` existed has
+ * none, so anything else that renders is also accepted as evidence the turn completed.
+ */
+function isFinishedTurn(response: TurnSnapshot): boolean {
+  return (
+    response.reason !== null ||
+    Boolean(response.answer) ||
+    Boolean(response.access_hint) ||
+    response.citations.length > 0 ||
+    response.escalation_recommended ||
+    Boolean(response.pending_interrupt)
+  );
 }
 
 export function ChatScreen({
@@ -152,7 +189,7 @@ export function ChatScreen({
                 `response: null`, the SSE initial snapshot lands with the checkpointed
                 answer still unset, and the visitor is left with their own question and
                 nothing under it. */}
-            {turn.response && (
+            {turn.response && isFinishedTurn(turn.response) && (
               <div className="message-row assistant">
                 <div className="bubble">
                   {/* D-219: was raw text, so `**bold**` showed its asterisks and the
@@ -176,6 +213,9 @@ export function ChatScreen({
                       against the same fields the bubble actually shows rather than against
                       `answer` alone, so a turn that has citations or a hint but no prose
                       keeps showing them instead of this line. */}
+                  {/* D-379: reachable only for a turn that genuinely finished with nothing
+                      renderable - `isFinishedTurn` above keeps an in-flight snapshot out of
+                      this bubble entirely, which is what used to manufacture a refusal. */}
                   {!turn.response.answer &&
                     !turn.response.access_hint &&
                     turn.response.citations.length === 0 &&
@@ -232,10 +272,32 @@ export function ChatScreen({
                           sitting above a flat claim that nothing had been answered.
                           Citations are the honest discriminator here: the model can only
                           produce one by quoting a real approved passage. */}
+                      {/* D-379: the client stopped re-deriving what the server already
+                          said. `reason` is the field D-351 added *"to branch on"*, and this
+                          banner was the last place still inferring from
+                          `escalation_recommended` + `citations.length` - the exact triple
+                          AUD-C-19 was about.
+
+                          Two outcomes it got wrong. On `sources_conflict` the server answers
+                          "The documents I found disagree with each other on this, so I don't
+                          want to guess" **with verified citations attached**, and this line
+                          added "I couldn't answer all of that from an approved source"
+                          underneath - contradicting the sentence above it, because sources
+                          were found and nothing was partly answered. On
+                          `no_approved_source` the server's own answer already says it, so
+                          the visitor read the same refusal twice in two phrasings.
+
+                          Suppressed whenever the server wrote prose of its own, on the same
+                          reasoning D-220 used for the access hint: the API keeps carrying the
+                          text for non-browser clients, and the de-duplication is a rendering
+                          concern. The fallback line survives for a turn that recommends
+                          escalation with nothing written. */}
                       <span>
-                        {turn.response.citations.length > 0
-                          ? "I couldn't answer all of that from an approved source."
-                          : "I couldn't answer that from an approved source."}
+                        {turn.response.answer
+                          ? null
+                          : turn.response.citations.length > 0
+                            ? "I couldn't answer all of that from an approved source."
+                            : "I couldn't answer that from an approved source."}
                       </span>
                       <button
                         className="secondary escalate"
@@ -283,7 +345,7 @@ export function ChatScreen({
                 409, 401 or dropped connection left this bubble on screen permanently -
                 a §2.6 criterion-3 stuck state reachable from the most ordinary failure
                 there is. */}
-            {!turn.response && !turn.error && (
+            {(!turn.response || !isFinishedTurn(turn.response)) && !turn.error && !turn.cancelled && (
               <div className="message-row assistant">
                 <div className="bubble dim" role="status">
                   Thinking…

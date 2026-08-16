@@ -26361,3 +26361,54 @@ situation before escalating is the realistic case.
 Both halves: `maxLength` on the composer so the browser prevents it, and the 422 rule as the
 backstop for anything that bypasses the control. `MAX_QUERY_CHARS` is exported from one place and
 mirrors the server's field, rather than being written as a bare number in two files.
+
+---
+
+### D-379 — The refusal that never happened, and the field added "to branch on" that nothing read
+
+**Date:** 2026-08-16 · **Status:** fixed · **Files:** `apps/chat-web/src/screens/ChatScreen.tsx`
+
+The audit's last P1, and its companion P2 — one field fixes both.
+
+#### A mid-turn reload manufactured a refusal
+
+`resolve_role` clears `answer`, `citations`, `reason` and the rest at turn *start*, while
+`client_turn_id` is already in the checkpoint. `/stream` emits its initial snapshot on every
+connect with **no "is a turn running?" guard**, so a reload two seconds into a 6–11 s question
+restored a turn whose response was present and empty. D-348's matcher found the id, matched
+confidently, and committed it — and the bubble rendered *"No answer came back for that one. Try
+asking it again."*
+
+Following that instruction produced a 409, and seconds later the real answer overwrote the
+refusal. **In a product where a refusal is a first-class outcome, this fabricated one and
+instructed an action that fails.** The same path fires on any `EventSource` auto-reconnect
+during a turn, which D-349 confirmed is live.
+
+**`reason` is the discriminator, and it is server-authored.** Cleared to null on entry, set by
+every terminal node. So `reason === null` means *"not finished"* rather than *"finished with
+nothing to say"* — a distinction the client had no way to make before, and the reason it guessed
+wrong.
+
+#### D-351 added that field describing it as "the field a client should branch on"
+
+Nothing read it. Verified by grep: zero non-comment hits across `chat-web/src`. The escalation
+banner was still inferring from `escalation_recommended` + `citations.length` — **the exact
+triple AUD-C-19 was written about** — and got two outcomes wrong:
+
+- **`sources_conflict`**: the server answers *"The documents I found disagree with each other on
+  this, so I don't want to guess"* **with verified citations attached**, and the banner added
+  *"I couldn't answer all of that from an approved source"* underneath. Sources *were* found and
+  nothing was partly answered — the banner contradicted the sentence above it.
+- **`no_approved_source`**: the server's answer already says it, so the visitor read the same
+  refusal twice in two phrasings.
+
+Suppressed whenever the server wrote prose of its own, on D-220's reasoning for the access hint:
+the API keeps carrying the text for non-browser clients, and de-duplication is a rendering
+concern.
+
+#### Why the spec that names this case did not catch it
+
+`sse-reconnect.spec.ts:133` stubs the initial frame with `answer: "Recovered from the
+checkpoint."` — **a completed answer, which the real server cannot emit for a turn still in
+flight.** The spec named the case and then stubbed the one variant that passes. Fifth instance
+today of a check that is correct and no longer checks.
