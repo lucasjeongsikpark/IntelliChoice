@@ -26633,7 +26633,19 @@ blank lines into breaks with no space around them, so a multi-paragraph grounded
 as one undifferentiated block. That is fixed.
 
 Sources: **all citations rendered inline**, so six of them built a block as tall as the answer.
-Three stay inline; the rest go behind a `<details>` that states the count. Provenance is not
+Three stay inline; the rest go behind a `<details>` that states the count.
+
+**And the first version of that did not collapse anything.** Verified on the deployed build with
+`getClientRects()`: `details.open` read `false` while all three hidden chips still had layout
+boxes, so the change had added a "3 more sources" label *above sources that were still fully
+visible* — strictly worse than the wall it replaced. The cause is cascade precedence, not
+`<details>`: a closed disclosure hides its non-summary children through a **UA** rule, and the
+author's `.citations { display: flex }` outranks it. Fixed with an explicit
+`.citations-more:not([open]) .citations { display: none }`.
+
+Worth naming because of what caught it. `details.open === false` is true, the summary renders,
+and a screenshot at the default width looks plausible; every check short of **measuring
+geometry** would have called this shipped and fixed. Provenance is not
 reduced, it stops outweighing the thing the visitor asked for. `<details>` rather than a custom
 toggle because it is keyboard- and screen-reader-operable with no JavaScript.
 

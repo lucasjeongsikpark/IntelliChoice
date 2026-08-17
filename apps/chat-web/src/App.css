@@ -321,6 +321,18 @@ button.link {
   margin-top: 0;
 }
 
+/* **Without this the disclosure does not disclose anything** — it renders the summary *and*
+   every chip, which is strictly worse than the wall it replaced.
+ *
+ * A closed `<details>` hides its non-summary children through a UA rule, and an author
+ * `display: flex` on `.citations` outranks it: author styles beat UA styles. Measured on the
+ * deployed build with `getClientRects()`, which is the only reason it was caught — `details.open`
+ * read `false` while all three hidden chips still had layout boxes, so every check short of
+ * measuring geometry would have called this fixed. */
+.citations-more:not([open]) .citations {
+  display: none;
+}
+
 .citations-label {
   /* D-350: 11px at 0.7 opacity is ~7.7:1 - passing, but marginal at that size and it is a
      label a reader has to resolve to know what the chips beside it are. 12px at 0.85 costs
