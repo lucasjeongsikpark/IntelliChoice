@@ -247,6 +247,30 @@ to rot, because nothing fails when it does.)*
   load, with zero task restarts and a clean application log. Both apps now pass **125**, so the
   backend always outlives the reuse window and the ALB is the side that closes. A 5xx with no
   server-side trace is the signature to remember: it is a connection-level fault, not the app.
+- **Every request that invokes the graph carries both a deadline and a per-thread claim, and
+  both live in one helper** (D-374, D-376). Three bounds have to nest or the outer one is
+  decorative: the turn deadline (**50 s**) sits under the browser's request timeout (**55 s**),
+  which sits under CloudFront's `origin_read_timeout` (**60 s**) — and the deadline must also sit
+  under the worst-case gateway ladder (3 × 20 s + 1.5 s backoff = **61.5 s**), which is the thing
+  it exists to bound. Each of those was a comment in a different file and none was checked; the
+  ordering is now asserted as arithmetic in `test_turn_deadline.py`. The **per-thread advisory
+  claim** (`pg_try_advisory_xact_lock`) is a try-lock rather than a blocking one, held in Postgres
+  so it works across replicas, and it is applied at the *same* call sites as the deadline on
+  purpose: learning ended up with neither while chat had both, and the way that recurs is a new
+  `ainvoke` picking up one and missing the other. A test asserts exactly one direct
+  `graph.ainvoke` remains — the helper's own.
+- **A log line is not observability; a metric filter and an alarm are** (D-377). The
+  infrastructure layer here has been thoroughly alarmed for a long time while the application
+  layer was thoroughly *logged* and almost entirely unalarmed — every application-level P1 in the
+  2026-08-16 audit was a well-named structured event that nothing read, including a browser crash
+  sink built two days earlier for exactly that purpose. The standing rule: **when a failure path
+  is added, the event name is half the work and the `aws_cloudwatch_log_metric_filter` is the
+  other half.** Three corollaries worth keeping: `background_*_failed` is a naming convention a
+  single wildcard filter consumes, so new detached tasks are covered for free; a nightly job must
+  emit `<job>_job_complete` with its counts, because "it ran" and "it did anything" are different
+  questions and `print()` answers neither; and a heartbeat alarm on a scheduled job is the one
+  place `treat_missing_data = "breaching"` is correct — the exit-code alarm cannot see a job that
+  never starts, so there the **absence of data is the incident**.
 - **An alarm that reaches ALARM through `treat_missing_data` carries no metric *value*, and a
   step-scaling policy cannot act on one** (AUD-F-33, D-182). Both scale-in legs alarm on ALB
   `TargetResponseTime`, which publishes nothing when there are no requests, and
