@@ -331,8 +331,15 @@ button.link {
   font-weight: 400;
   line-height: 1.6;
   letter-spacing: normal;
-  /* A measure, not a width. Long lines are the other half of why this was hard to read. */
-  max-width: 60ch;
+  /* A measure, not a width. Long lines are the other half of why this was hard to read.
+   *
+   * D-382: 60ch -> 72ch. Measured in an 880px panel: the stem rendered **659px wide above
+   * 822px options**, so the question stopped 163px short of the answers directly beneath it
+   * and the panel read as mostly empty — the "it barely uses the box" complaint, and a real
+   * one. 72ch (~825px at 17px) lines the two edges up. Still a measure: typographic guidance
+   * puts comfortable reading at 45-75 characters, so this moves within the range rather than
+   * abandoning it, and the panel's own 880px cap is what keeps it there on a wide monitor. */
+  max-width: 72ch;
   margin: 0 0 20px;
 }
 
@@ -632,6 +639,46 @@ button.link {
 
 /* On a phone the three stages stack their text; the hints go, since vertical space is the
    scarce thing there and the labels alone carry the sequence. */
+/* D-382: **a short viewport, which is not the same thing as a narrow one.**
+ *
+ * `.journey-stage-hint` already carries the rule this enforces — *"it must never push the bar
+ * tall enough to shove the question below the fold"* — and the only query that acted on it was
+ * `max-width: 700px`. A 1280x577 laptop is wide and short, matches nothing, and measured
+ * exactly the failure the comment warns about: journey bar **159px** (69 stages + 50 skill
+ * progress + 40 padding), question stem starting at **y=256**, and a 840px document in a 577px
+ * window. Nearly half the screen spent on orientation before the student reads a word.
+ *
+ * Height is the axis that decides whether the question and its options fit together, so height
+ * is what this queries. Nothing here removes information — the stage labels, the position
+ * marker and the skill progress all stay; only the second-line hints and some padding go. */
+@media (max-height: 820px) {
+  .journey-stage-hint {
+    display: none;
+  }
+
+  .journey {
+    gap: 6px;
+    padding: 8px 14px;
+  }
+
+  .journey-study {
+    padding-top: 6px;
+  }
+
+  .app-main {
+    padding: 12px 24px;
+    gap: 10px;
+  }
+
+  .panel {
+    padding: 18px 24px;
+  }
+
+  .question-stem {
+    margin-bottom: 12px;
+  }
+}
+
 @media (max-width: 700px) {
   .journey-stage-hint {
     display: none;
@@ -639,6 +686,25 @@ button.link {
 
   .journey-stage {
     padding: 6px 8px;
+  }
+
+  /* D-382: a stepper, not three cards. Measured at 390x844 with the hints already hidden:
+     each stage was 104px wide, which is too narrow for "Warm-up" or "Check-in" on one line,
+     so every label wrapped and the bar stood at **179px** — taller on a phone than on a
+     desktop, and 21% of the viewport before the question. Showing the label for the current
+     stage only is the conventional mobile treatment and loses nothing: the done/current state
+     is already carried by the marker glyph and by the `sr-only` "(you are here)" text, so a
+     screen reader still gets all three names and their states. */
+  .journey-stage:not(.current) {
+    flex: 0 0 auto;
+  }
+
+  .journey-stage:not(.current) .journey-stage-text {
+    display: none;
+  }
+
+  .journey-stage-label {
+    white-space: nowrap;
   }
 
   /* D-381: reclaim the vertical space that pushed the exam's primary action off a phone.

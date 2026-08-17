@@ -131,6 +131,143 @@ SEED_SUGGESTIONS: list[ChatSuggestion] = [
         sort_order=1,
         active=True,
     ),
+    # --- D-382: the pool was 14 rows, 7 of them visible to a guest ---------------
+    #
+    # Follow-up chips are drawn from this catalog by category, so a pool that small
+    # returned the same three generic prompts after every answer - and, before the
+    # client-side filter added in the same change, prompts the visitor had just used.
+    #
+    # **Every row below names a section that exists in `knowledge-content/manifests`.**
+    # That is what makes a suggestion safe to show: tapping it has to produce an answer,
+    # and the fastest way to break trust in a chip is to have it return "I don't have an
+    # approved source for that yet". The audience column matches the document's own, so a
+    # guest is never offered a question only a parent can have answered.
+    # Grounded in "Privacy Notice".
+    ChatSuggestion(
+        id="public-general-privacy",
+        role_audience="public",
+        category="general",
+        prompt_text="How is my information kept private?",
+        sort_order=7,
+        active=True,
+    ),
+    # Grounded in "AI Use Notice".
+    ChatSuggestion(
+        id="public-general-ai",
+        role_audience="public",
+        category="general",
+        prompt_text="How does IntelliChoice use AI?",
+        sort_order=8,
+        active=True,
+    ),
+    # Grounded in "Enrollment FAQ".
+    ChatSuggestion(
+        id="public-general-enroll",
+        role_audience="public",
+        category="general",
+        prompt_text="How do I enroll a student?",
+        sort_order=9,
+        active=True,
+    ),
+    # Grounded in "Our Team".
+    ChatSuggestion(
+        id="public-general-team",
+        role_audience="public",
+        category="general",
+        prompt_text="Who runs IntelliChoice?",
+        sort_order=10,
+        active=True,
+    ),
+    # Grounded in "Branch Directory / Contact Guide".
+    ChatSuggestion(
+        id="public-branches-contact",
+        role_audience="public",
+        category="branches",
+        prompt_text="How do I contact a particular branch?",
+        sort_order=11,
+        active=True,
+    ),
+    # Grounded in "Academic Calendar".
+    ChatSuggestion(
+        id="public-calendar-term",
+        role_audience="public",
+        category="calendar",
+        prompt_text="When does the next term start?",
+        sort_order=12,
+        active=True,
+    ),
+    # Grounded in "Academic Calendar".
+    ChatSuggestion(
+        id="public-calendar-closures",
+        role_audience="public",
+        category="calendar",
+        prompt_text="Are there any upcoming closures?",
+        sort_order=13,
+        active=True,
+    ),
+    # Grounded in "Volunteer Guide".
+    ChatSuggestion(
+        id="public-volunteering-role",
+        role_audience="public",
+        category="volunteering",
+        prompt_text="What do volunteers actually do?",
+        sort_order=14,
+        active=True,
+    ),
+    # Grounded in "Volunteer Guide".
+    ChatSuggestion(
+        id="public-volunteering-start",
+        role_audience="public",
+        category="volunteering",
+        prompt_text="How do I start volunteering?",
+        sort_order=15,
+        active=True,
+    ),
+    # Grounded in "Student Participation Guide".
+    ChatSuggestion(
+        id="public-participation-expect",
+        role_audience="public",
+        category="student_participation",
+        prompt_text="What is expected of students who join?",
+        sort_order=16,
+        active=True,
+    ),
+    # Grounded in "Attendance Policy".
+    ChatSuggestion(
+        id="parent-participation-attend",
+        role_audience="parent",
+        category="student_participation",
+        prompt_text="How is my child's attendance recorded?",
+        sort_order=17,
+        active=True,
+    ),
+    # Grounded in "Understanding Your Child's Learning Report".
+    ChatSuggestion(
+        id="parent-general-report",
+        role_audience="parent",
+        category="general",
+        prompt_text="How do I read my child's learning report?",
+        sort_order=18,
+        active=True,
+    ),
+    # Grounded in "Code of Conduct".
+    ChatSuggestion(
+        id="student-general-conduct",
+        role_audience="student",
+        category="general",
+        prompt_text="What are the rules I need to follow?",
+        sort_order=19,
+        active=True,
+    ),
+    # Grounded in "Learning Platform Guide".
+    ChatSuggestion(
+        id="student-general-platform",
+        role_audience="student",
+        category="general",
+        prompt_text="How do I use the learning platform?",
+        sort_order=20,
+        active=True,
+    ),
 ]
 
 

@@ -271,6 +271,22 @@ to rot, because nothing fails when it does.)*
   questions and `print()` answers neither; and a heartbeat alarm on a scheduled job is the one
   place `treat_missing_data = "breaching"` is correct — the exit-code alarm cannot see a job that
   never starts, so there the **absence of data is the incident**.
+- **A layout constraint about vertical fit must be queried on height, not width** (D-382).
+  `.journey-stage-hint` carried the rule in words — *"must never push the bar tall enough to
+  shove the question below the fold"* — and the only media query enforcing it was
+  `max-width: 700px`. **A 1280x577 laptop is wide and short**, matches nothing, and measured
+  exactly the failure: 159px of orientation chrome, the question starting at y=332, and an 840px
+  document in a 577px window. Mobile was *worse* than desktop (179px) because narrow stages wrap
+  their labels, which is the same mistake in the other direction — a width query cannot see that
+  either. When the requirement is "these two things must be visible together", query the axis the
+  requirement is about, and measure the result rather than assuming the breakpoint covered it.
+- **A suggestion chip is a promise that the system can answer it** (D-382). Follow-up prompts are
+  drawn from a hand-authored catalog, and every row exists because it names a section that is
+  actually in `knowledge-content/manifests` with a matching audience. The failure mode is not a
+  bad-looking chip, it is a chip that returns *"I don't have an approved source for that yet"* —
+  one tap that teaches the visitor the suggestions are decorative. So the catalog's constraint is
+  answerability first and phrasing second, and anything generated later (from retrieved chunks,
+  say) has to be validated against retrieval before it is offered, not after.
 - **A test that re-implements the thing it tests will agree with it about doing nothing**
   (D-381). `useFocusTrap`'s `inert` half had never worked in learning-web — ported with
   chat-web's overlay class name, and reading `#root`'s children while learning mounts its dialogs

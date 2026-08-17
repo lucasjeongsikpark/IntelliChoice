@@ -280,7 +280,24 @@ function App() {
   const { reset: resetChat, ...chat } = useTutorChat(
     snapshot?.pending_interrupt?.question_variant_id ?? null,
   );
-  const [interventionDismissed, setInterventionDismissed] = useState(false);
+  /**
+   * Which help the student has dismissed, identified rather than flagged (D-382).
+   *
+   * **This was a boolean reset by an effect, and the reset is one render too late.** On a
+   * *terminal* choice — any solution, any video, hint 3 of 3 — the server closes the pause and
+   * returns the help together with the next question, so `ladderOpen` is false and the render
+   * depends entirely on this value. If the student had dismissed help on an earlier question
+   * the boolean was still `true` at that moment, so the first render after the response showed
+   * **the next question with no help at all**; only afterwards did the effect flip it and the
+   * panel appear. On a fast machine that is a flicker. On a school tablet it is long enough to
+   * read, and it is exactly what a student would describe as "I pressed hint and it just went
+   * to the next question".
+   *
+   * Keying the dismissal to the help it dismissed removes the window rather than shortening
+   * it: new help has a different key, so it is un-dismissed *by construction*, in the same
+   * render that delivers it. No effect, nothing to fire late.
+   */
+  const [dismissedHelpKey, setDismissedHelpKey] = useState<string | null>(null);
   // D-217's `lastStudyQuestionRef` is gone (D-272). It was a render-time cache of the last
   // study question the client had seen, kept because the intervention snapshots did not
   // carry one - a guess at something the server knew. `snapshot.assistance_question` is
@@ -315,11 +332,9 @@ function App() {
   // Both now update at the action site (`onSubmit`/`onChoose` below), which runs exactly
   // once per student action. Un-dismissing on new content is all that legitimately keys
   // off the snapshot.
-  useEffect(() => {
-    if (snapshot?.intervention) {
-      setInterventionDismissed(false);
-    }
-  }, [snapshot?.intervention]);
+  // D-382: the "un-dismiss on new content" effect that used to live here is gone. It was the
+  // late half of the race described on `dismissedHelpKey`; identifying the dismissed help
+  // makes the reset unnecessary rather than faster.
 
   // AUD-F-01: `ExamScreen` lists both of these in effect dependency arrays (the overview
   // poll and the view-time autosave), so an inline arrow - a new identity on every render -
@@ -667,10 +682,22 @@ function App() {
         // and at every solution and video - so the layout collapsed to a lone narrow panel
         // exactly when the student had the most to read. Reproduced locally 2026-08-10.
         const assistanceQuestion = snapshot.assistance_question ?? null;
+        // D-382: identifies *this* help — the question it belongs to, what kind it is, and
+        // which rung. Two hints on the same question are different help; the same hint
+        // re-delivered by an SSE echo is not. See `dismissedHelpKey`.
+        const helpKey =
+          snapshot.intervention == null || assistanceQuestion === null
+            ? null
+            : [
+                assistanceQuestion.question_variant_id,
+                snapshot.intervention.type,
+                snapshot.intervention.hint_level ?? 0,
+              ].join(":");
         const helpOnScreen =
           snapshot.phase === "study" &&
           assistanceQuestion !== null &&
-          (ladderOpen || (snapshot.intervention != null && !interventionDismissed));
+          (ladderOpen ||
+            (snapshot.intervention != null && helpKey !== null && helpKey !== dismissedHelpKey));
 
         const examView = (
           <ExamScreen
@@ -745,7 +772,7 @@ function App() {
                   if (served) recordAssistance(choice);
                 })
             }
-            onDismiss={() => setInterventionDismissed(true)}
+            onDismiss={() => setDismissedHelpKey(helpKey)}
             // D-272: the *question's* variant id, not the pause's. `pending
             // .question_variant_id` is absent on a `/respond`-resumed ladder round (S21's
             // documented gap), and since this prop is what decides whether the tutor chat

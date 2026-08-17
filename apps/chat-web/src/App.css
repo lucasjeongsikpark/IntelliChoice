@@ -241,6 +241,30 @@ button.link {
   padding: 12px 16px;
   white-space: pre-line;
   font-size: 15px;
+  /* **No `line-height` here, and that is a correction rather than an omission** (D-382).
+     This rule first set 1.6, on the reasoning that a bubble with no leading of its own
+     inherits "the app's tighter default". Measured on the deployed page before shipping:
+     the computed value is **25.5px at 15px — 1.7** — inherited from an ancestor, so the
+     "fix" would have made a long answer marginally *tighter*. Leaving it inherited. */
+}
+
+/* An answer wraps at a measure; a one-line question does not need one. Applied only to the
+   assistant side so the visitor's own short messages keep hugging their text.
+   Measured: at the 720px column 85% is already ~68ch, so this changes nothing today and
+   exists to hold the measure if `.chat-page` is ever widened. */
+.message-row.assistant .bubble {
+  max-width: min(85%, 68ch);
+}
+
+/* Paragraph rhythm — the part of the readability complaint that *was* real in the markup.
+   `white-space: pre-line` turns the model's blank lines into breaks with no space around
+   them, so a multi-paragraph grounded answer arrives as one undifferentiated block. */
+.bubble p {
+  margin: 0 0 0.75em;
+}
+
+.bubble p:last-child {
+  margin-bottom: 0;
 }
 
 .message-row.user .bubble {
@@ -261,6 +285,40 @@ button.link {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
+  align-items: baseline;
+}
+
+/* D-382: sources are collapsed past the first few.
+ *
+ * Showing every citation inline is right when there are two and wrong when there are six:
+ * the chips wrap into a block as tall as the answer, and the thing the visitor came for
+ * ends up above a wall of document titles. Provenance still matters, so nothing is removed —
+ * the rest go behind a disclosure that states the count. `<details>` rather than a custom
+ * toggle: it is keyboard- and screen-reader-operable with no JavaScript, and its open state
+ * survives re-render because the browser owns it. */
+.citations-more {
+  font-size: 12px;
+}
+
+.citations-more > summary {
+  cursor: pointer;
+  color: var(--accent-on-tint);
+  padding: 3px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-control, 6px);
+  list-style: none;
+}
+
+.citations-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.citations-more[open] > summary {
+  margin-bottom: 6px;
+}
+
+.citations-more .citations {
+  margin-top: 0;
 }
 
 .citations-label {

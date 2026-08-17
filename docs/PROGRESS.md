@@ -7,6 +7,45 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**✅ SIX THINGS A USER REPORTED THAT FOUR AUDIT WALKS AND A GREEN SUITE MISSED
+(2026-08-17, D-382).**
+
+Reported directly after the D-381 deploy. None were found by the four `agent-browser` walks, the
+48-finding audit, or a green Playwright suite — and that contrast is the finding worth keeping:
+**the walks optimised for breadth of surface, and this list is what a person notices in ten
+minutes of actually using the product.**
+
+**Fixed:** the terminal-choice render race that shows the next question with no help for one
+frame (keyed the dismissal to the help instead of a boolean an effect resets late); the exam
+screen's wasted space (journey bar **159→113px**, stem **659→791px**, document **840→737px** at
+1280x577, mobile **179→134px** via a proper stepper); sources drowning the answer (three inline,
+the rest behind a counted `<details>`); and repeating follow-up chips (pool **14→28**, every new
+row grounded in a section that exists, plus a client-side filter against the transcript).
+
+**Two corrections I owe the record.** The hint bug as described was **not reproducible** on the
+deployed build — hint 1, 2, 3-of-3 and a solution all walked correctly through the real UI, so
+what shipped is a fix for a race of the same shape, not a confirmed diagnosis. And my own
+line-height "fix" was **disproved by measurement**: the bubble already computes 1.7, so the
+change would have made long answers tighter and was removed before shipping.
+
+**The axis lesson, which generalises past this list:** `.journey-stage-hint` already carried the
+rule "must never push the bar tall enough to shove the question below the fold", and the only
+query enforcing it was `max-width: 700px`. **A 1280x577 laptop is wide and short.** When a
+constraint is about whether two things fit together vertically, the query has to be about height.
+
+**Explicitly not done** (D-382 §6): the chips are grounded and non-repeating but not
+conversation-*aware*. That needs candidates generated from the chunks retrieved this turn and
+validated against what retrieval can serve. The right shape is known — a detached task publishing
+over SSE, as stage narratives do — and was deliberately not half-built, because that pattern is
+the direct source of the D-356/D-358/D-369/D-373/D-381 family.
+
+**Still open from the two audits:** the SSE relay's asyncpg concurrency and `create_task` GC
+hazard, 500s bypassing both middlewares, per-student spend attribution, SSE telemetry,
+interpolated log messages, the `exc_info` PII hazard, the single-inbox alarm target, and the
+`docs/AUDIT_LIVE_2026_08_17.md` P3 list.
+
+### Previous — the live browser audit
+
 **✅ A LIVE BROWSER AUDIT OF THE DEPLOYED BUILD — 48 FINDINGS, BOTH P1s FIXED
 (2026-08-17, D-381).**
 
@@ -60,7 +99,7 @@ asyncpg concurrency and `create_task` GC hazard, 500s bypassing both middlewares
 spend attribution, SSE telemetry, interpolated log messages, the `exc_info` PII hazard, and the
 single-inbox alarm target.
 
-### Previous — the four-way audit's ten P1s
+### Earlier — the four-way audit's ten P1s
 
 **✅ THE AUDIT'S TEN P1s ARE CLOSED, AND THE PATTERN BEHIND THEM IS NAMED
 (2026-08-16, D-373 → D-380).**
