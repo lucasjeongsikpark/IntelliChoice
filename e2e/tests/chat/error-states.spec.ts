@@ -66,6 +66,59 @@ test.describe("failures the visitor can read and recover from", () => {
     expect(text).toMatch(/answer the prompt above first/i);
   });
 
+  // The last two 409s in chat-web's table, added when the V3 close-out enumerated the rules and
+  // found these had no rendered evidence (2026-08-17). Both matter for the same reason the
+  // pending-interrupt case above does: all three are 409s, `friendlyError` picks between them on a
+  // substring, and the catch-all is what a visitor reads when none of the specific ones match.
+  test("a 409 for a turn already in flight says to wait, not to retry", async ({ page, audit }) => {
+    await stubChat(page, { message: SHAPES["grounded answer"] });
+    audit.allow({ statuses: [409], consoleErrors: ["Failed to load resource"] });
+    await page.route("**/chat/sessions/*/messages", (route) =>
+      route.fulfill({
+        status: 409,
+        contentType: "application/json",
+        // `sessions.py`'s `TURN_ALREADY_RUNNING_MESSAGE`, verbatim - the D-374 turn lock's own
+        // wording, pinned server-side by `test_error_detail_contract.py`.
+        body: JSON.stringify({
+          detail:
+            "This conversation is already working on a question. Wait for it to finish before " +
+            "sending another.",
+        }),
+      }),
+    );
+    await page.goto(CHAT_WEB);
+    await ask(page, "What are the Saturday hours?");
+
+    const turn = page.locator(".bubble.turn-error");
+    await expect(turn).toBeVisible();
+    await expect(turn).toContainText(/still working on your last question/i);
+  });
+
+  test("a 409 nobody wrote a rule for still says something about this conversation", async ({
+    page,
+    audit,
+  }) => {
+    await stubChat(page, { message: SHAPES["grounded answer"] });
+    audit.allow({ statuses: [409], consoleErrors: ["Failed to load resource"] });
+    await page.route("**/chat/sessions/*/messages", (route) =>
+      route.fulfill({
+        status: 409,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "some conflict nobody has written a sentence for yet" }),
+      }),
+    );
+    await page.goto(CHAT_WEB);
+    await ask(page, "What are the Saturday hours?");
+
+    const turn = page.locator(".bubble.turn-error");
+    await expect(turn).toBeVisible();
+    // The catch-all, not the generic line: a 409 is always *about the conversation's state*, and
+    // "something went wrong" would lose the only useful thing the status carries.
+    await expect(turn).toContainText(/didn't fit where this conversation is/i);
+    // And never the raw detail.
+    await expect(turn).not.toContainText(/nobody has written a sentence/i);
+  });
+
   test("a 429 tells the visitor to wait rather than showing a limiter's wording", async ({
     page,
     audit,
