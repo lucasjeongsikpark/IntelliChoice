@@ -341,6 +341,42 @@ clear the backlog in one pass.
 > binary packages from one source — Trivy's `Total: 9` counts rows. The inflated number is what made
 > this look like a triage rather than a one-line change.
 
+## 12. ⏳ OPEN — video help sends a minor to youtube.com, and the alternative is not obviously safer
+
+> **Raised 2026-08-17 while planning V9.** The audit filed this as `AUD-L-16` (P3): "Video help sends
+> a minor to the full youtube.com watch page in a new tab"
+> (`apps/learning-web/src/screens/InterventionScreen.tsx:379`). On a platform whose primary users are
+> K-12 students that is more than cosmetic — the destination carries a recommendations rail,
+> comments, autoplay-next and ads, none of which this project controls.
+>
+> **It is listed here rather than fixed because the code already decided it, in the other direction,
+> with a reason.** `VideoContent`'s docstring: *"Deliberately **not** an embedded player. An
+> `<iframe>` would put a third-party frame that can set cookies and autoplay in front of a minor,
+> inside a page that otherwise loads nothing external; that is a privacy decision, not a layout one,
+> and it is not this change's to make."* Overriding that silently would be making a child-safety
+> call on the user's behalf, twice over.
+>
+> **The trade is real in both directions:**
+> - **Link out (today).** The child leaves for youtube.com — unmoderated surroundings and Google's
+>   tracking — but our page loads nothing third-party, sets no third-party cookie, and the departure
+>   is visible and deliberate ("opens in a new tab" is on the card).
+> - **Embed `youtube-nocookie.com/embed/<id>`** with `rel=0`. No comments, no unrelated
+>   recommendations rail, the student never leaves the app — at the cost of a third-party frame
+>   inside a page that currently has none, plus a CSP `frame-src` entry, and storage still gets set
+>   on interaction. "nocookie" defers tracking; it does not remove it.
+> - **Interstitial then link.** Cheapest, changes nothing structural, and mostly moves responsibility
+>   onto a child reading a warning.
+>
+> **Recommendation: the embed, scoped narrowly** — `youtube-nocookie`, `rel=0`, no autoplay, and the
+> existing card kept as the click target so the student still chooses to start it. The comments and
+> the recommendations rail are the part of youtube.com that is actually unsafe for this audience,
+> and they are what the embed removes; the cookie objection is the weaker of the two harms and is
+> partly addressable. But this is a judgement about children and privacy, not an engineering
+> preference, so it is yours.
+>
+> **Cost of deferring:** every student who asks for a video keeps landing on youtube.com. There is no
+> code risk in waiting.
+
 ## Not decisions — already settled, listed to stop them being re-litigated
 
 - **Auto-approval with no spot-check sampling** (D-289). A 20-item-per-wave sample was recommended

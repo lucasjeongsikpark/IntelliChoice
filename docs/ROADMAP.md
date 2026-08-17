@@ -2702,3 +2702,28 @@ the intruder's "success" was a legitimately unowned thread.
 on staging and are stated skips locally · the probe is falsified by removing each boundary · no
 learning session is started, so the shared exam fixtures stay untouched · the one unavoidable cost
 (a single chat turn, because an owned thread cannot exist without one) is written down.
+
+### Session V9 — The crash-reporting loop ✅ *(done 2026-08-17, D-389)*
+
+The last of the audit's never-walked paths, and **walking it found a defect within minutes** — the
+same as V1 and V3, which is the argument for finishing that list rather than moving to the P3 tail.
+
+**Outcome: crash reports had never reached the sink in local development.** Both apps posted to a
+bare relative `ENDPOINT`, so the report resolved against the *page's* origin — the vite dev server —
+and 404'd. It works on staging only because the SPA and API share a CloudFront distribution, which is
+a hand-maintained terraform choice that D-385 has just shown breaks silently. Fixed to go through
+`API_BASE` like every other call, in both apps, with no rationale for the exception found anywhere.
+
+**The test corrected itself twice**: it first polled `page.on("request")` and passed, then failed
+teardown with `net::ERR_ABORTED` — counting attempts, not acknowledgements (D-288, one layer down),
+so it now asserts the **202**. And two mechanisms named in its own comments were wrong and were
+replaced with the measured errors.
+
+**Also raised, not fixed:** `AUD-L-16` (video help opens `youtube.com` for a minor) is now
+**OPEN_DECISIONS #12**. The code deliberately chose a link over an embed with a stated privacy
+reason, so this is a judgement about children and third-party frames, not a patch to apply quietly.
+
+**Done when:** a real render crash in each app renders the fallback rather than a blank page · the
+report is asserted **landed**, not merely sent · the deliberate `react_render_crash` console error is
+allowed rather than asserted away, because the code says it should be loud · the server log shows the
+§5.30 redaction applied to a real crash stack.

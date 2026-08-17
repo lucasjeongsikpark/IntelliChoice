@@ -49,10 +49,20 @@ clauses that justify it are staging-only — `/dev/token` refusing to mint witho
 `/metrics`, `/openapi.json`, `/docs`, which checks D-385's terraform claim against reality. Both of
 its first-run failures were the probe itself, caught by its own positive controls.
 
+**V9 (D-389) walked the ErrorBoundary loop and it was broken.** Both apps posted crash reports to a
+bare relative path, so in local development every report 404'd against the vite dev server — the loop
+has never worked where a developer would look for it. It works on staging only because the SPA and
+API share a distribution, which is exactly the kind of hand-maintained assumption D-385 found breaking
+twice. Fixed to go through `API_BASE`. The test corrected itself twice on the way: it counted
+*requests* until teardown reported `net::ERR_ABORTED`, and two crash mechanisms named in its own
+comments were wrong. **`AUD-L-16` was raised as OPEN_DECISIONS #12 rather than patched**, because the
+code chose the link over an embed deliberately and reversing that is a child-safety judgement.
+
 **Recommended next, in priority order:** (1) the audit's remaining never-walked paths — the
-exam timer, the calendar interrupt's `.ics` branch, the ErrorBoundary loop, and learning-web's
+exam timer, the calendar interrupt's `.ics` branch, and learning-web's
 tutor-chat browser leg (deferred in V7 with its reason: the invariant is held server-side and the
-walk costs a full pre-exam); (2) the P2/P3 backend tail, still last — of which the only non-cosmetic
+walk costs a full pre-exam); (2) **OPEN_DECISIONS #12**, which needs your judgement, not code;
+(3) the P2/P3 backend tail, still last — of which the only non-cosmetic
 item is **`AUD-L-16`, video help opening the full `youtube.com` watch page for a minor**, and
 `EDGE-CHAT-02`'s real root cause, that chat has no liveness timer or reconnect control where
 learning-web has both.

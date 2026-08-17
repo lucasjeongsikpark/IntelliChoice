@@ -27023,3 +27023,52 @@ so the shared exam fixtures (D-288) are untouched.
 
 **Falsified before being believed:** pointing the "other student" at the caller's own id, and giving
 the intruder the owner's token, each turn their assertion red; the unmodified spec passes.
+
+## D-389 — V9: the crash-reporting loop had never worked in local development (accepted, 2026-08-17)
+
+**The last of the audit's never-walked paths, and walking it found a defect within minutes** — the
+same pattern as V1 and V3, and the reason that list was worth finishing.
+
+**What was untested:** both apps have `ErrorBoundary.componentDidCatch` → `reportClientError` →
+`POST /{app}/client-errors`, and **nothing exercised it**. `test_client_errors.py` in each API proves
+the endpoint works *if something calls it*; no test anywhere proved anything does. A boundary that
+catches but never reports looks identical to a working one from the browser, and it makes every
+client crash invisible — which is the gap U5/D-328 built the sink to close.
+
+**The defect: `fetch(ENDPOINT, …)` with a bare relative path**, in both apps, where every other call
+goes through `API_BASE`. A relative URL resolves against the *page's* origin, so:
+
+  - **local dev**: the SPA is on `:5173`/`:5174` and the API on `:8001`/`:8002`, so every crash
+    report 404'd against the vite dev server. The loop has never worked in the one environment where
+    a developer would look for it.
+  - **staging/production**: same CloudFront distribution, `/{app}/*` routed to the ALB, so it works —
+    which is why nothing noticed.
+
+Not a production defect, then, but a real one, and fragile in a specific way: it depends on the SPA
+and API sharing an origin, which is a terraform choice made in hand-maintained pattern lists that
+D-385 has just shown break silently. Fixed to `fetch(\`${API_BASE}${ENDPOINT}\`, …)`; no rationale for
+the relative form was recorded anywhere, in either app.
+
+**Watched failing before the fix**, which is how it was found rather than argued: the first run of
+`crash-reporting.spec.ts` reported `POST /learning/client-errors → 404` from the vite origin.
+
+**The test's own correction, and it is the D-288 lesson one layer down.** The first version polled
+`page.on("request")` and *passed*, then failed teardown with
+`POST /learning/client-errors - net::ERR_ABORTED`. Counting requests proves a report was *issued*;
+only the response proves it *landed*, and a report that never lands leaves exactly the blind spot the
+sink exists to remove. It now asserts the **202**.
+
+**Two predictions in the spec's own comments were wrong and were corrected to the measured strings**:
+the induced errors are `topics.filter is not a function` and
+`Cannot read properties of undefined (reading 'filter')`, not the `groupTopics` map and
+`citations.slice` that were written down first. Same rule as D-386 — quote what the run produced.
+
+**Evidence the whole path works, from the server's own log:** `student_external_id: "student-ext-4"`
+on the learning report, `is_anonymous: true` on the chat one, the component stack intact, and every
+URL in the stack rendered as `[redacted-url]` — the §5.30 redaction applied to a real crash report
+for the first time.
+
+**Deliberately not asserted here:** that the console is clean. `componentDidCatch` logs
+`react_render_crash` on purpose ("a crash that destroyed the UI *should* fail that criterion
+loudly"), so this file allows that string instead — the opposite of `pii-typed-by-a-visitor.spec.ts`,
+and for a documented reason.

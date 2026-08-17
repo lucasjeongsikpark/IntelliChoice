@@ -13,8 +13,19 @@
  * failure path here ends in a swallowed promise.
  */
 
+import { API_BASE } from "../api/client";
+
 const TOKEN_KEY = "intellichoice.chat_token";
 const SESSION_ID_KEY = "intellichoice.chat_session_id";
+/**
+ * D-389: **absolute, via `API_BASE`, not a bare relative path.** The first walk of the crash loop
+ * found every report 404ing against the vite dev server, because a relative URL resolves to the
+ * *page's* origin - which is the API's origin only when the two are served together. On staging
+ * they are (one CloudFront distribution, `/{app}/*` routed to the ALB), so this worked there and
+ * has never worked in local development, the one place a developer would look for it. Every other
+ * call in these apps already goes through `API_BASE`; this one was the exception, and no reason
+ * for being one was recorded.
+ */
 const ENDPOINT = "/chat/client-errors";
 
 /**
@@ -51,7 +62,7 @@ export function reportClientError({ message, stack, traceId }: ClientErrorReport
 
   // `void` plus a `catch` rather than `await`: nothing may wait on this, and an unhandled
   // rejection here would re-enter through `main.tsx`'s listener.
-  void fetch(ENDPOINT, {
+  void fetch(`${API_BASE}${ENDPOINT}`, {
     method: "POST",
     headers,
     body: JSON.stringify({

@@ -131,4 +131,10 @@ the dashboard, which has no role gating; the calendar interrupt's three branches
 > against staging with no findings, and the two clauses that justify it are ones no pytest can make:
 > `/dev/token` refuses to mint without the shared secret on the running service, and the CDN exposes
 > none of `/metrics`, `/openapi.json`, `/docs`. Still un-walked from this paragraph: the exam timer,
-> the calendar `.ics` branch, the ErrorBoundary loop, and learning-web's tutor-chat browser leg.
+> the calendar `.ics` branch, and learning-web's tutor-chat browser leg.
+>
+> **The ErrorBoundary loop closed 2026-08-17 (D-389), and it was broken.** Both apps posted crash
+> reports to a bare relative path, so every report 404'd against the vite dev server in local
+> development; it worked on staging only because the SPA and API share a distribution. Fixed to use
+> `API_BASE`. `AUD-L-16` from the P3 list below is now **OPEN_DECISIONS #12** — the link-versus-embed
+> choice was made deliberately with a privacy reason, so reversing it is a judgement, not a patch.
