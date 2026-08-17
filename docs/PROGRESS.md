@@ -7,6 +7,61 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**✅ THE AUDIT'S TEN P1s ARE CLOSED, AND THE PATTERN BEHIND THEM IS NAMED
+(2026-08-16, D-373 → D-380).**
+
+A four-way audit of both apps (UI/UX × 2, timing, observability) found **46 findings, 44 new** —
+[AUDIT_2026_08_16.md](AUDIT_2026_08_16.md) — and all four sweeps independently reported the same
+structure. **The two apps have been fixed in alternating directions and nobody tracked the
+symmetry.** D-347 recorded one direction and named the cause; the reverse was equally true,
+recorded nowhere, and extended to the backends D-347 never covered. **Seven fixes, one direction.**
+
+Shipped as five PRs, deployed as `gha-6841d9d9b169`, verified on staging: **88 passed / 7 skipped,
+zero 5xx**, and the four new application alarms reading OK on real data.
+
+**The worst one, and it had been sitting in plain sight.** D-358's pairing signal and D-369's
+re-read went to the *narrative* scheduler only, so **D-356's defect was untouched in the hint
+personalizer** — a student clicks "Watch a video", sees it, and ~1 s later hint text replaces it.
+Unrecoverable, unlike D-356: a terminal rung closes the pause, nothing republishes, and
+`_initial_snapshot` gates `intervention` on `hint_ladder_awaiting_choice`, so a refresh shows *no
+help at all*. D-356 was treated as a launch blocker and fixed twice across two sessions while the
+sibling publisher was never opened.
+
+**Two P1s a student hits on an ordinary bad network.** learning-web had no request deadline
+anywhere *and* serialises the whole UI behind one request, so a stalled Submit left the student
+able to neither answer nor submit — the state D-241 says must never exist. And nothing acted on a
+401, while a token lives one hour and a session is 25–40 questions, so mid-session expiry was the
+*normal* path and no reachable screen offered a sign-in.
+
+**Observability had one shape:** the infrastructure layer is thoroughly alarmed and the
+application layer is thoroughly logged and almost entirely unalarmed. Every P1 there was a
+well-named log line nothing read — including the crash sink built two days earlier *specifically*
+so a student's blank screen would reach someone. Live from staging: that day's consolidation job
+added **0 facts, dropped 3,181 events and spent 14.11 cents**, reported only in `print()`. And
+there was no dead-man's switch anywhere — the existing alarm watches exit ≠ 0, which cannot see a
+job that never runs.
+
+**Two process failures of mine, both owned rather than quietly repaired:**
+
+- I merged PR #301 **with a failing check**. My wait loop tested that checks had *settled*, not
+  that they had *passed*, and merged unconditionally. `main` was red until #302.
+- The failure existed because **I verified with a different command than CI runs** —
+  `tsc --noEmit` from the app directory instead of `npm run build` (`tsc -b`). Both apps are now
+  checked with CI's own command.
+
+**Also corrected: a third recorded decision that outlived its premise.** D-187 accepted raw topic
+ids on the dashboard as "cosmetic" when the label map covered nearly the whole bank; the C1 waves
+took the bank to 33 topics while the map stayed at 3, so **30 of 33 showed a student their
+internal id**. Joins OPEN_DECISIONS #1 and the Phase 6 clause from earlier today.
+
+**Remaining, and it is the P2/P3 tail rather than anything blocking:** chat's Stop that does not
+stop the server, the approval modal's overflow, composer focus loss, the SSE relay's asyncpg
+concurrency and `create_task` GC hazard, 500s bypassing both middlewares, per-student spend
+attribution, SSE telemetry, interpolated log messages, the `exc_info` PII hazard, the single-inbox
+alarm target, and the P3 list. All catalogued in the audit doc with evidence locations.
+
+### Previous — C1 Phase 6 closed
+
 **✅ C1 PHASE 6 IS CLOSED — THE LAST ENGINEERING CLAUSE IN THE ROADMAP
 (2026-08-16, D-367 → D-370).**
 
