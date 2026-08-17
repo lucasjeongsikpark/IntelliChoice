@@ -4,7 +4,7 @@
 # present for `uv sync` to resolve it the same way `make test`/CI already do.
 #   docker build -f apps/chat-api/Dockerfile -t chat-api .
 
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 RUN pip install --no-cache-dir "uv>=0.9"
 
@@ -31,7 +31,7 @@ COPY knowledge-content/ knowledge-content/
 # present, not just its manifest.
 RUN uv sync --frozen --all-packages --no-dev
 
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 # D-384: patch the base image's OS packages - see the matching, more detailed comment in
 # apps/learning-api/Dockerfile for the measurement and the reproducibility cost. Identical
