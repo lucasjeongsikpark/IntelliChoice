@@ -10769,6 +10769,28 @@ time.
 session; learning-web's unmatchable 400 `["attendance"]` rule (deleted); chat-web's unreachable 504
 rule (a real path — `sessions.py:544`).
 
+**Verified on the deployed build too, and the staging run is where the walk earned its keep a
+second time.** `gha-df79b290bf65` (deploy run 32053946200, both ECS rollouts COMPLETED at 2/2 and
+1/1, MySQL fixture re-seed exit 0). The three cheap specs passed in **12.9 s**; the terminal walk
+passed on its **third** attempt in **1.3 min** — pre-exam 10 accepted, study 18 answers / 14 pauses
+(**hint 5, solution 5, video 4**, zero §5.11.6 fallbacks), post-exam 10 accepted, buckets
+`{pre_exam:10, study:18, post_exam:10}`, gain pre=7 → post=1, **2 dashboard fetches and the path
+staying at `/dashboard`** against 4-and-a-bounce before the fix. Zero console errors, zero 5xx.
+The chat escalation note reads `paused for approval: true`, so the **real** Bedrock scope guard
+routed it and the first UI approval of a gate on a deployed build went through.
+
+**Both staging failures were mine, and the second one is embarrassing in a useful way.** Run 1:
+the post-exam counted 9 of 10 because the study loop exits on a `serverPhase` set by a `response`
+listener, and when that listener ran after `answerCurrentQuestion`'s own `waitForResponse` the loop
+answered the post-exam's first question and the acceptance landed in the study bucket — latency
+widens the window, which is why three local runs never saw it. Run 2: I bucketed on `items == null`,
+reasoning from `_submit_post_exam_answer`'s `AnswerResult(items=None)` — and the **wire** disagrees,
+because the router fills `items` from `result["last_items"]`, graph state that survives from the
+last serving. That is *reasoning from the raiser instead of the response*, which is the precise
+mistake the ARCHITECTURE invariant added in this same session is about. The working discriminator
+was documented all along: `is_correct` is `null` for an exam answer and a real bool for a study
+answer (D-064), and `journey-student.spec.ts` already says so.
+
 **Verification:** `make lint` (ruff) and `make typecheck` (pyright, 0 errors) clean · `make test`
 **1681 passed / 2 skipped / 1 xfailed** in 7:29, against a 1675 baseline — the six new contract
 tests · full local Playwright suite **103 passed, 0 failed, 0 skipped** in 5.8 min, against a 97
