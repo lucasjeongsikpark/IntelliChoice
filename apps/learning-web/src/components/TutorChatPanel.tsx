@@ -31,7 +31,15 @@ export interface ChatTranscript {
   messages: ChatMessage[];
   sending: boolean;
   error: string | null;
-  send: (text: string, call: () => Promise<ChatMessageResult | null>) => Promise<void>;
+  /**
+   * Resolves to whether the message was **accepted** (D-380). Was `Promise<void>`, so the
+   * panel could not tell a delivered question from a lost one and cleared the box either
+   * way, costing the student their typing on every failure.
+   */
+  send: (
+    text: string,
+    call: () => Promise<ChatMessageResult | null>,
+  ) => Promise<boolean>;
 }
 
 interface TutorChatPanelProps {
