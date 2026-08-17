@@ -26571,3 +26571,93 @@ the access-hint precondition was never met and part of it contradicts D-351. `ED
 green dot through a partition is likely an artifact of browser offline emulation — the sibling
 walk reached the opposite conclusion about the same mechanism — though the underlying gap (chat
 has no liveness timer and no reconnect control, where learning-web has both) is real and open.
+
+### D-382 — Six things a user reported that four audits and a green suite missed
+
+**Date:** 2026-08-17 · **Status:** fixed (one item partially — see §6) · **Files:** `learning-web/src/{App.tsx,App.css}`, `chat-web/src/{App.css,screens/ChatScreen.tsx}`, `chat-api/src/chat_api/services/suggestions_seed.py`
+
+Reported directly by the user after the D-381 deploy, none of them found by the four
+`agent-browser` walks, the 48-finding audit, or a green Playwright suite. Worth stating plainly:
+the walks optimised for *breadth of surface* and this list is what a person notices in *ten
+minutes of actually using the thing*.
+
+#### 1. "Press hint and the hint doesn't appear — the next question does"
+
+**Not reproduced on the deployed build, and I want that recorded rather than implied.** Driven
+live through the real UI: hint 1, hint 2, hint 3-of-3 and a solution all rendered correctly with
+the question held in place. The API path was walked separately — at the terminal rung the server
+returns the help *and* the next question in one response (`pending_interrupt: null`,
+`items[0]` a new variant, `assistance_question` still the old one), which is by design.
+
+What was found instead is a **render race that produces exactly this symptom**, and it is now
+gone. `interventionDismissed` was a boolean reset by an effect. On a terminal choice — any
+solution, any video, hint 3 of 3 — `ladderOpen` is false, so the render depends entirely on that
+boolean, and if the student had dismissed help on an earlier question it was still `true` for the
+first render after the response: **the next question, with no help**. The effect then flipped it
+and the panel appeared. Fast machine, a flicker; school tablet, long enough to read and report.
+
+Keyed the dismissal to the help it dismissed (`question:type:level`) instead. New help has a new
+key, so it is un-dismissed *by construction* in the same render that delivers it — no effect, no
+window. Whether this was the user's bug is unproven; that it was **a** bug of that exact shape is
+not.
+
+#### 2. The question box barely used its box
+
+Measured at 1280x577 rather than eyeballed: journey bar **159px**, question stem starting at
+**y=332**, an **840px document in a 577px window**, and a **659px stem above 822px options**.
+
+Two causes, both fixed. The stem's `max-width: 60ch` is a deliberate reading measure, but it left
+the question 163px short of the answers directly beneath it — 72ch lines them up and stays inside
+the 45-75ch range. And `.journey-stage-hint`'s own comment says it *"must never push the bar tall
+enough to shove the question below the fold"* while the only rule enforcing that was
+`max-width: 700px`. **A 1280x577 laptop is wide and short.** Height is the axis that decides
+whether a question and its options fit together, so a `max-height: 820px` query now compacts the
+bar. After: journey **113px**, stem **791px**, document **737px**, options ending 10px below the
+fold instead of 91px.
+
+Mobile was worse than desktop — **179px**, because at 390px each stage is 104px wide and every
+label wrapped. Now a conventional stepper: the current stage keeps its label, the others are
+markers. **134px**, and the `sr-only` "(you are here)" means a screen reader still gets all three.
+
+#### 3-4. RAG answers were hard to read, and sources drowned them
+
+**One of my own claims here did not survive measurement, and the correction is the useful part.**
+This entry first said `.bubble` had no leading of its own and inherited "the app's tighter
+default", and set 1.6. Measured on the deployed page before shipping: the computed value is
+already **25.5px at 15px — 1.7**, inherited from an ancestor. The "fix" would have made long
+answers marginally *tighter*, so it was removed. The 68ch measure is likewise a no-op at today's
+720px column (85% is already ~68ch) and is kept only to hold the measure if the column widens.
+
+What *was* real in the markup is paragraph rhythm: `white-space: pre-line` turns the model's
+blank lines into breaks with no space around them, so a multi-paragraph grounded answer arrives
+as one undifferentiated block. That is fixed.
+
+Sources: **all citations rendered inline**, so six of them built a block as tall as the answer.
+Three stay inline; the rest go behind a `<details>` that states the count. Provenance is not
+reduced, it stops outweighing the thing the visitor asked for. `<details>` rather than a custom
+toggle because it is keyboard- and screen-reader-operable with no JavaScript.
+
+#### 5. Follow-up chips repeated themselves
+
+Root cause was arithmetic, not logic: **the authored pool is 14 rows and a guest can see 7**, so
+after two turns the same generic prompts came back — including ones just used. Two changes. The
+pool is now 28, and **every new row names a section that exists in
+`knowledge-content/manifests`** (Privacy Notice, AI Use Notice, Enrollment FAQ, Attendance Policy,
+Code of Conduct…), because the fastest way to break trust in a suggestion chip is for it to return
+"I don't have an approved source for that yet". Audience matches each document's own, so a guest
+is never offered a question only a parent can have answered.
+
+And the client filters chips against the transcript. **Client-side deliberately**: `QAState`
+carries only the current turn, so the conversation is something the browser holds and the server
+does not — `_suggested_followups` can only exclude the single query it was handed.
+
+#### 6. What is *not* done, and should not be read as done
+
+The chips no longer repeat and are grounded. They are **not conversation-aware** in the sense
+asked for — "based on what we have discussed, what would I wonder next". That needs either a much
+larger authored pool or candidates generated from the chunks retrieved this turn and then
+validated against what retrieval can actually serve. The second is the better design and the
+right shape is known — generate in a detached task and publish over SSE, as the learning app does
+for stage narratives, so the answer's latency is untouched. It is deliberately not half-built
+here: that pattern is the direct source of the D-356/D-358/D-369/D-373/D-381 family, and adding
+another background publisher on a tired afternoon is how a sixth one gets written.

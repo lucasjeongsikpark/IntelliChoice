@@ -55,6 +55,38 @@ interface Props {
   onNewSession: () => void;
 }
 
+/** How many sources sit inline before the rest are collapsed (D-382). Three is the point at
+ *  which the chips start wrapping onto a second row in the 720px column. */
+const INLINE_CITATIONS = 3;
+
+function citationLabel(c: TurnSnapshot["citations"][number]): string {
+  return (
+    c.document_title +
+    (c.section_title ? ` — ${c.section_title}` : "") +
+    (c.page_number ? `, p.${c.page_number}` : "")
+  );
+}
+
+/**
+ * Follow-up chips worth showing: on topic by construction, and not something the visitor has
+ * already asked (D-382).
+ *
+ * The server picks these from a small hand-authored pool by category, and **that pool is 14
+ * rows, 7 of them visible to a guest** — so after two or three turns the same generic prompts
+ * came back every time, including ones the visitor had just used. Filtering against the
+ * transcript is done here rather than server-side for a concrete reason: `QAState` carries
+ * only the current turn, so the conversation is something the *client* holds and the server
+ * does not. `_suggested_followups` can only exclude the single query it was passed.
+ *
+ * This makes the chips stop repeating. It does not make them conversation-*aware* — that
+ * needs a larger pool or generated candidates validated against what retrieval can actually
+ * answer, which is a design decision rather than a filter. Recorded in D-382.
+ */
+function unaskedFollowups(prompts: string[], transcript: ChatTurn[]): string[] {
+  const asked = new Set(transcript.map((t) => t.query.trim().toLowerCase()));
+  return prompts.filter((p) => !asked.has(p.trim().toLowerCase()));
+}
+
 /**
  * Whether a snapshot describes a turn that has **finished**, as opposed to one the server is
  * still working on (D-379).
@@ -293,26 +325,46 @@ export function ChatScreen({
                       follow-up button looking like a second button, and clicking it did
                       nothing. Named and restyled rather than made clickable: these sources
                       are internal approved documents, and several have no URL to open. */}
+                  {/* D-382: the first few inline, the rest behind a disclosure. Six sources
+                      rendered as six wrapping chips built a block as tall as the answer, so
+                      the thing the visitor asked for sat above a wall of document titles.
+                      Nothing is hidden from them - the summary states the count and opens
+                      with a keypress - but provenance stops outweighing the answer. */}
                   {turn.response.citations.length > 0 && (
-                    <div
-                      className="citations"
-                      aria-label={
-                        turn.response.citations.length === 1
-                          ? "Source for this answer"
-                          : "Sources for this answer"
-                      }
-                    >
-                      <span className="citations-label">
-                        {turn.response.citations.length === 1 ? "Source" : "Sources"}
-                      </span>
-                      {turn.response.citations.map((c, i) => (
-                        <span className="citation-chip" key={i}>
-                          {c.document_title}
-                          {c.section_title ? ` — ${c.section_title}` : ""}
-                          {c.page_number ? `, p.${c.page_number}` : ""}
+                    <>
+                      <div
+                        className="citations"
+                        aria-label={
+                          turn.response.citations.length === 1
+                            ? "Source for this answer"
+                            : "Sources for this answer"
+                        }
+                      >
+                        <span className="citations-label">
+                          {turn.response.citations.length === 1 ? "Source" : "Sources"}
                         </span>
-                      ))}
-                    </div>
+                        {turn.response.citations.slice(0, INLINE_CITATIONS).map((c, i) => (
+                          <span className="citation-chip" key={i}>
+                            {citationLabel(c)}
+                          </span>
+                        ))}
+                      </div>
+                      {turn.response.citations.length > INLINE_CITATIONS && (
+                        <details className="citations-more">
+                          <summary>
+                            {turn.response.citations.length - INLINE_CITATIONS} more source
+                            {turn.response.citations.length - INLINE_CITATIONS === 1 ? "" : "s"}
+                          </summary>
+                          <div className="citations">
+                            {turn.response.citations.slice(INLINE_CITATIONS).map((c, i) => (
+                              <span className="citation-chip" key={i}>
+                                {citationLabel(c)}
+                              </span>
+                            ))}
+                          </div>
+                        </details>
+                      )}
+                    </>
                   )}
                   {/* D-164: this used to read "try asking to contact an administrator",
                       which put the work back on the user and depended on the scope guard
@@ -383,9 +435,9 @@ export function ChatScreen({
                       Download .ics
                     </button>
                   )}
-                  {turn.response.suggested_followups.length > 0 && (
+                  {unaskedFollowups(turn.response.suggested_followups, transcript).length > 0 && (
                     <div className="suggestion-chips">
-                      {turn.response.suggested_followups.map((prompt) => (
+                      {unaskedFollowups(turn.response.suggested_followups, transcript).map((prompt) => (
                         <button
                           key={prompt}
                           className="chip"
