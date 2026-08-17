@@ -58,11 +58,21 @@ twice. Fixed to go through `API_BASE`. The test corrected itself twice on the wa
 comments were wrong. **`AUD-L-16` was raised as OPEN_DECISIONS #12 rather than patched**, because the
 code chose the link over an embed deliberately and reversing that is a child-safety judgement.
 
-**Recommended next, in priority order:** (1) the audit's remaining never-walked paths — the
-exam timer, the calendar interrupt's `.ics` branch, and learning-web's
-tutor-chat browser leg (deferred in V7 with its reason: the invariant is held server-side and the
-walk costs a full pre-exam); (2) **OPEN_DECISIONS #12**, which needs your judgement, not code;
-(3) the P2/P3 backend tail, still last — of which the only non-cosmetic
+**OPEN_DECISIONS #12 is decided and shipped (D-390): keep the link, add an interstitial.** The user
+chose the middle option over my embed recommendation, and it holds up — the embed removes the
+comments and recommendations rail but puts a third-party frame inside a page that loads nothing
+external today, which is the property the original docstring was protecting. The card stays a real
+anchor with a real `href` (the click is intercepted, not the element replaced), so middle-click,
+screen readers and the existing spec assertion all keep working; a middle-click bypasses the step,
+accepted and written down.
+
+**Recommended next, in priority order:** (1) the two remaining never-walked paths, both measured and
+both drivable — **the exam timer running out** (`ExamTimer` takes `remainingSeconds` from the server,
+so a stubbed small value drives it; the stake is a student who can neither answer, since an expired
+exam 409s, nor submit if `handleExpire` fails) and **the calendar `.ics` download**, whose own D-352
+comment admits the suite "has been asserting the button is *visible* and never that a download
+happens", so that fix shipped unverified; then learning-web's tutor-chat browser leg (deferred in V7
+with its reason); (2) the P2/P3 backend tail, still last — of which the only non-cosmetic
 item is **`AUD-L-16`, video help opening the full `youtube.com` watch page for a minor**, and
 `EDGE-CHAT-02`'s real root cause, that chat has no liveness timer or reconnect control where
 learning-web has both.

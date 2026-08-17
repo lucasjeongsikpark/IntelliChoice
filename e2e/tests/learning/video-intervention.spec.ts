@@ -144,6 +144,30 @@ test("the video intervention resolves to a card or the no-video answer", async (
     // D-314: the counter must say "suggested", never "watched" - the product cannot know whether
     // a student watched anything, and claiming so in a parent-visible number would be a lie.
     expect(meta).not.toMatch(/watched/i);
+
+    // OPEN_DECISIONS #12 (decided 2026-08-17): clicking does not leave for YouTube immediately -
+    // it shows a step that says where the student is about to go and who controls it. Asserted
+    // here rather than in a new spec because reaching a video card costs a full walk, and this
+    // one has already paid it.
+    //
+    // The card stays a real anchor with a real href (checked above) and the click is intercepted,
+    // so middle-click and "open in new tab" still work. That is why this assertion and the href
+    // assertion above can both be true.
+    await card.click();
+    const leaving = panel.locator(".video-leaving");
+    await expect(leaving, "clicking the card left for YouTube with no warning step").toBeVisible();
+    await expect(leaving).toContainText(/isn.t part of intellichoice/i);
+    const openIt = leaving.getByRole("link", { name: /open the video/i });
+    await expect(openIt).toHaveAttribute("href", href ?? "");
+    await expect(openIt).toHaveAttribute("target", "_blank");
+    // `rel="noreferrer"` matters on a page a minor is signed into: it stops the destination
+    // learning where the click came from, and stops it reaching back through `window.opener`.
+    await expect(openIt).toHaveAttribute("rel", /noreferrer/);
+
+    // "Stay here" must actually return the student to the lesson rather than being decoration.
+    await leaving.getByRole("button", { name: /stay here/i }).click();
+    await expect(leaving).toBeHidden();
+    audit.note("VIDEO INTERSTITIAL | shown on click, dismissed by Stay here");
   } else {
     const text = (await panel.innerText()).trim();
     audit.note(`NO VIDEO FOR THIS SKILL | fallback=${JSON.stringify(text.slice(0, 160))}`);

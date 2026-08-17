@@ -992,6 +992,29 @@ button.link {
   color: var(--text);
 }
 
+/* OPEN_DECISIONS #12: the step between the card and YouTube. Deliberately plain - it is a
+   sentence and two controls, not a modal: a dialog that traps focus mid-exam is a heavier
+   interruption than the thing it is warning about. */
+.video-leaving {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border, #d6d9e0);
+  border-radius: 8px;
+  background: var(--surface-muted, #f6f7f9);
+}
+
+.video-leaving-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.video-leaving-actions a.primary {
+  display: inline-block;
+  text-decoration: none;
+}
+
 /* The choices as one block with its own spacing, so the buttons read as a set of options
    rather than as a stack that happens to be adjacent to the content above it. */
 .assistance-choices {

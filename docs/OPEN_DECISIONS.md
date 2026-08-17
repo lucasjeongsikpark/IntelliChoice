@@ -341,7 +341,7 @@ clear the backlog in one pass.
 > binary packages from one source — Trivy's `Total: 9` counts rows. The inflated number is what made
 > this look like a triage rather than a one-line change.
 
-## 12. ⏳ OPEN — video help sends a minor to youtube.com, and the alternative is not obviously safer
+## 12. ✅ DECIDED 2026-08-17 — keep the link, add an interstitial (option B)
 
 > **Raised 2026-08-17 while planning V9.** The audit filed this as `AUD-L-16` (P3): "Video help sends
 > a minor to the full youtube.com watch page in a new tab"
@@ -376,6 +376,19 @@ clear the backlog in one pass.
 >
 > **Cost of deferring:** every student who asks for a video keeps landing on youtube.com. There is no
 > code risk in waiting.
+>
+> **Outcome: option B, the interstitial** (D-390). The recommendation above was the embed; the user
+> chose the middle option, and the reasoning holds up on its own terms — the embed's benefit (no
+> comments, no recommendations rail) is real, but it buys that by putting a third-party frame inside
+> a page that today loads nothing external, which is the property `VideoContent`'s original docstring
+> was protecting. The interstitial keeps that property intact and makes the departure explicit
+> instead of implicit.
+>
+> Implemented so the card stays a real anchor with a real `href` — the click is intercepted, not the
+> element replaced — so middle-click and "open in new tab" still work, screen readers still announce
+> a link, and `video-intervention.spec.ts`'s existing href assertion still holds. **A power user can
+> still bypass the step with a middle-click; that is accepted rather than overlooked**, since the
+> destination is the same one the plain click leads to.
 
 ## Not decisions — already settled, listed to stop them being re-litigated
 

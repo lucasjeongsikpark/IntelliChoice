@@ -69,7 +69,7 @@ open**: chat has no liveness timer and no reconnect control, where learning-web 
 - **`AUD-L-09`** (P3) Raw ISO week ids and a raw attendance enum in the parent-facing blocked list
 - **`AUD-L-10`** (P3) Generated student report dumps 39 skills as one comma run-on and shows raw, denominator-less scores · `apps/learning-web/src/components/ReportView.tsx:47` (S)
 - **`AUD-L-11`** (P3) "Review" column promises something to open but no history row is clickable · `apps/learning-web/src/screens/StudentDashboardScreen.tsx:733` (M)
-- **`AUD-L-16`** (P3) Video help sends a minor to the full youtube.com watch page in a new tab · `apps/learning-web/src/screens/InterventionScreen.tsx:379` (M)
+- **`AUD-L-16`** ✅ **resolved 2026-08-17 (D-390)** — the link stays, with an interstitial in front of it naming where the student is going and who controls it. The embed was the other candidate and was declined; OPEN_DECISIONS #12 carries both arguments.
 - **`EDGE-CHAT-04`** (P3) Stream disconnection is conveyed only to screen readers and by an 8px colour-only dot
 - **`EDGE-CHAT-07`** (P3) The send-failure message is printed twice - once in the transcript bubble and once in the banner above the com · `apps/chat-web/src/screens/ChatScreen.tsx:413` (S)
 
