@@ -93,6 +93,25 @@ to rot, because nothing fails when it does.)*
   worth knowing about *before* it ships, because it means nothing can show the sentence is
   reachable either.
 
+  **The fixture is part of the invariant** (D-386). "Quoted from the raiser" has to include the case
+  where the raiser sends *nothing*: both specs injected `{"detail": "rate limit exceeded"}` for the
+  429, and the limiter they named returns a bare `Response` with only `Retry-After`. An invented
+  body is the same defect wearing test clothing — the rule matched itself, and the empty-body path
+  through `client.ts` had never run.
+
+- **Whether a request reaches the app is decided by two hand-maintained lists, and both fail
+  silently** (D-385). CloudFront's `api_path_patterns` selects which paths go to the ALB origin
+  instead of the SPA bucket, and the ALB listener rule's `path_patterns` selects which reach a
+  target group. An unlisted path therefore does not 404 at the edge: the default behaviour serves
+  **S3 with a SPA-fallback function and `GET, HEAD` only**, so a GET returns cached `index.html`
+  with the wrong content type and a POST returns a CloudFront 405; at the ALB an unlisted path gets
+  the listener's fixed 404. Every test in this repo talks to an app directly, so none of it is
+  exercised — and the class has shipped twice, found by a user both times (`/dev/token` routed by
+  priority instead of by app, S32/D-084; and the "S3 XML 404 from a CloudFront routing gap" that
+  `client.ts`'s parse comment records). `test_deployed_route_admission_parity.py` in each app now
+  requires every served path to be admitted by both layers or named unreachable, and requires
+  `/metrics`, `/healthz`, `/readyz` and the docs trio to be admitted by neither.
+
 - **Every gate that judges an authored item must apply the *same* predicate, and "same" means
   one function — not one intention** (D-312, and it has now cost content six times). Four places
   decide whether an item's answer is acceptable: the **design** pre-check (§3b stage 1), the

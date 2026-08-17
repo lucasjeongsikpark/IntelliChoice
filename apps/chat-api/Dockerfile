@@ -33,8 +33,12 @@ RUN uv sync --frozen --all-packages --no-dev
 
 FROM python:3.12-slim AS runtime
 
-# Known base-image gap, not fixed here: see the matching, more detailed comment in
-# apps/learning-api/Dockerfile (identical base image, identical finding, S33/D-089).
+# D-384: patch the base image's OS packages - see the matching, more detailed comment in
+# apps/learning-api/Dockerfile for the measurement and the reproducibility cost. Identical
+# base image, identical finding, and both scans failed together.
+RUN apt-get update \
+    && apt-get -y upgrade \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --uid 10001 appuser
 WORKDIR /app

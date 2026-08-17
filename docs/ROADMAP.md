@@ -2585,3 +2585,74 @@ remains open and is *not* what the escalation path would have shown.
 **Done when:** every rule in both `errors.ts` files has rendered in a test or is recorded as
 unreachable with a reason · the substrings are pinned server-side · no raw wire text or identifier
 reaches a student.
+
+## Milestone 12 — A green baseline and the contracts nobody was testing *(D-384 → D-386, 2026-08-17)*
+
+Milestone 11 closed the audit's three coverage gaps and ended with a red `main` it had not caused,
+plus two carry-over items. This milestone takes all three, and **two of the three turned out to be
+narrower than the note that requested them** — which is the reusable result: a carry-over written
+from reasoning about the code is a hypothesis, and measuring it first was cheaper than implementing
+it.
+
+### Session V4 — Make `main` green ✅ *(done 2026-08-17, D-384)*
+
+`security-scan.yml` gates on *fixable* CRITICAL/HIGH, so Debian publishing `util-linux
+2.41.5-0+deb13u1` converted a tolerated finding into a failing one on a commit that touched no
+Dockerfile.
+
+**Outcome:** `apt-get update && apt-get -y upgrade && rm -rf /var/lib/apt/lists/*` in both runtime
+stages, replacing a comment that had said "rebuild once Debian/the upstream image ships fixes". The
+option was chosen *after* measuring, and the measurement overturned OPEN_DECISIONS #11's own written
+recommendation: no fixed base digest exists (`python:3.12-slim` still ships `2.41-5`), so pin-and-bump
+could not clear the gate today, while the fix was already the archive Candidate. Also corrected: it is
+**one** CVE across nine binary packages, not nine CVEs — Trivy's `Total: 9` counts rows.
+
+**Done when:** the gate's own contract passes with the change and fails without it, measured with the
+same tool and flags CI uses (`--severity CRITICAL,HIGH --ignore-unfixed --exit-code 1`: probe exit 0,
+bare base exit 1) · the reproducibility cost is written down where the next reader will find it · CI's
+two container scans pass on the branch.
+
+### Session V5 — Guard the two layers that admit a request ✅ *(done 2026-08-17, D-385)*
+
+**A narrowing correction to the audit's second list.** "Never exercised: cross-account authorization
+(IDOR) against the deployed stack; the cross-role RAG denial matrix" is true of the *live walks* and
+not of the suite: ownership 403/404s are covered in `test_auth.py` and `test_stream_and_history.py`,
+the audience filter has 74 assertions across `test_rag_search.py` and `test_retrieval.py` in both
+directions, and the edge's worst case — an authenticated response cached at the CDN — is already
+configured away (`CachingDisabled` + `AllViewer` on every API behaviour).
+
+What no test touched is **admission**: two hand-maintained pattern lists per app decide whether a
+request reaches the app at all, and both fail silently. An unlisted path at CloudFront falls to the
+default S3 behaviour, so a GET returns cached `index.html` and a POST returns 405; an unlisted path
+at the ALB gets the listener's fixed 404. This class has shipped twice already, both times found by a
+user rather than a test (the `/dev/token` priority bug in S32/D-084, and the "S3 XML 404 from a
+CloudFront routing gap" recorded in `client.ts`).
+
+**Outcome:** `test_deployed_route_admission_parity.py` in both apps, parsing the staging terraform.
+Falsified in three directions before being believed. Its first run failed one of my own assertions —
+that the two lists differ — because folding in the header-conditioned `/dev/token` rule makes the
+effective sets equal; the honest assertion is the asymmetry in *mechanism*.
+
+**Done when:** every served path is admitted by both layers or named unreachable with a reason · the
+ops and docs paths are admitted by neither (both directions, D-221) · the route walk has a
+non-vacuity control, because FastAPI 0.141's nested `_IncludedRouter` makes the obvious walk miss
+every router · a new prefix fails with the lists to edit named in the message.
+
+### Session V6 — The 429, and what was actually missing ✅ *(done 2026-08-17, D-386)*
+
+**The carry-over was wrong about the expensive part.** "A genuine 429 has never rendered; the message
+limiter is 120/hour, too expensive to drive" — the server side was already driven three times over by
+`test_turn_containment.py` via a settings override, plus both 20/minute client-error sinks and the
+global middleware's own unit test. The planned tests would have duplicated existing coverage.
+
+**Outcome: the fixtures were the defect.** Both browser specs injected
+`{"detail": "rate limit exceeded"}`, a string no limiter sends, in a file whose docstring forbids
+exactly that. The global middleware returns a bare `Response` with **no body**. Now rendered: a
+bodyless 429 (learning-web, and one of chat-web's two cases) and `TOO_MANY_TURNS_MESSAGE` verbatim.
+The bodyless case is new evidence, not a rewording — no test had driven an empty error body through
+`client.ts`'s read-once-then-parse path, and it is the likelier 429 in production because the limiter
+is per-IP and school branches share an egress address (D-087).
+
+**Done when:** every injected 429 body is one the server really sends · the bodyless shape renders the
+friendly sentence and not the server's own words · the correction to the carry-over's premise is
+written down rather than quietly dropped.

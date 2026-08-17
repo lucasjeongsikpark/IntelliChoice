@@ -43,6 +43,13 @@ interface Case {
   status: number;
   /** The response body, exactly as the server would send it. */
   detail: unknown;
+  /**
+   * Send **no body at all**, ignoring `detail` — the shape the global rate-limit middleware
+   * really returns (D-386). Every other raiser in this table goes through FastAPI's
+   * `HTTPException`, which always writes `{"detail": ...}`; the middleware writes a bare
+   * `Response`, so it is the one row whose honest fixture is empty.
+   */
+  bodiless?: true;
   /** What the student must read. */
   expected: RegExp;
   /** Where the quoted detail comes from. */
@@ -108,11 +115,21 @@ const CASES: Case[] = [
     source: "routers/sessions.py (session lookup) - the D-381 rule",
   },
   {
-    name: "429 too many requests",
+    // **D-386: this row used to invent its body, which is the one thing this file's docstring
+    // forbids.** It sent `{"detail": "rate limit exceeded"}` and named the global middleware as
+    // the source - and that middleware returns `Response(status_code=429,
+    // headers={"Retry-After": ...})` with **no body**, so the quoted string was one no limiter in
+    // this system has ever sent. The rule matches on status alone (`detail: null`), so the
+    // sentence was right by luck rather than by evidence: nothing here had driven an *empty*
+    // error body through `client.ts`'s read-once-then-parse path. It is also the 429 a real
+    // student is most likely to meet, because the limiter is keyed per IP and D-087 recorded that
+    // school branches put many students behind one egress address.
+    name: "429 from the global per-IP middleware, which sends no body",
     status: 429,
-    detail: "rate limit exceeded",
+    detail: null,
+    bodiless: true,
     expected: /a lot at once/i,
-    source: "intellichoice_shared/rate_limit.py's global middleware",
+    source: "intellichoice_shared/rate_limit.py:121 - a bare Response, Retry-After only",
   },
   {
     name: "500 our fault",
@@ -163,11 +180,15 @@ test("every error sentence a student can be shown actually renders", async ({ pa
   const rendered: string[] = [];
   for (const testCase of CASES) {
     await page.route("**/learning/sessions/*/topics", (route) =>
-      route.fulfill({
-        status: testCase.status,
-        contentType: "application/json",
-        body: JSON.stringify({ detail: testCase.detail }),
-      }),
+      route.fulfill(
+        testCase.bodiless
+          ? { status: testCase.status }
+          : {
+              status: testCase.status,
+              contentType: "application/json",
+              body: JSON.stringify({ detail: testCase.detail }),
+            },
+      ),
     );
 
     await topic.click();

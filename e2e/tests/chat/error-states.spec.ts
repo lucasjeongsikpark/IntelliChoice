@@ -119,26 +119,53 @@ test.describe("failures the visitor can read and recover from", () => {
     await expect(turn).not.toContainText(/nobody has written a sentence/i);
   });
 
-  test("a 429 tells the visitor to wait rather than showing a limiter's wording", async ({
-    page,
-    audit,
-  }) => {
-    await stubChat(page, { message: SHAPES["grounded answer"] });
-    audit.allow({ statuses: [429], consoleErrors: ["Failed to load resource"] });
-    await page.route("**/chat/sessions/*/messages", (route) =>
-      route.fulfill({
-        status: 429,
-        contentType: "application/json",
-        body: JSON.stringify({ detail: "rate limit exceeded" }),
-      }),
-    );
-    await page.goto(CHAT_WEB);
-    await ask(page, "What are the Saturday hours?");
+  /**
+   * D-386: both bodies below are the two a `POST /messages` 429 really has, replacing an invented
+   * `{"detail": "rate limit exceeded"}` that neither limiter sends.
+   *
+   *  - `TOO_MANY_TURNS_MESSAGE` is `sessions.py`'s per-caller cap, pinned server-side by
+   *    `test_the_per_caller_cap_refuses_a_flood_and_names_the_remedy`, which drives a real 429 by
+   *    lowering `chat_message_rate_limit_max_per_window` to 2. Quoted verbatim here so a change to
+   *    that constant shows up as a diff on this line.
+   *  - the bodyless variant is `intellichoice_shared/rate_limit.py`'s global per-IP middleware,
+   *    which returns a bare `Response` with only `Retry-After`. It is the likelier of the two in
+   *    production (D-087: one school branch, one egress IP) and the one no test had driven through
+   *    `client.ts`'s read-once-then-parse path.
+   *
+   * The server's own wording is *also* fit to read, which is exactly why the assertion is that the
+   * client's sentence is what renders: "the raw detail happened to be acceptable" is how raw wire
+   * text reaches a child on the day someone rewrites the constant.
+   */
+  const TOO_MANY_TURNS_MESSAGE =
+    "You've asked a lot of questions in a short time. Please wait a little while before " +
+    "asking another.";
 
-    const turn = page.locator(".bubble.turn-error");
-    await expect(turn).toBeVisible();
-    await expect(turn).toContainText(/wait a moment/i);
-  });
+  for (const [name, body] of [
+    ["the per-caller cap's own message", JSON.stringify({ detail: TOO_MANY_TURNS_MESSAGE })],
+    ["no body at all, as the global middleware sends", undefined],
+  ] as const) {
+    test(`a 429 with ${name} tells the visitor to wait in the app's own words`, async ({
+      page,
+      audit,
+    }) => {
+      await stubChat(page, { message: SHAPES["grounded answer"] });
+      audit.allow({ statuses: [429], consoleErrors: ["Failed to load resource"] });
+      await page.route("**/chat/sessions/*/messages", (route) =>
+        route.fulfill(
+          body === undefined
+            ? { status: 429 }
+            : { status: 429, contentType: "application/json", body },
+        ),
+      );
+      await page.goto(CHAT_WEB);
+      await ask(page, "What are the Saturday hours?");
+
+      const turn = page.locator(".bubble.turn-error");
+      await expect(turn).toBeVisible();
+      await expect(turn).toContainText(/that was a lot of questions at once/i);
+      await expect(turn).not.toContainText(/please wait a little while/i);
+    });
+  }
 
   // The last two rules in chat-web's table with no rendered evidence (V3, 2026-08-17). Both are
   // status-only rules, so neither can suffer D-378's substring problem - but "cannot be

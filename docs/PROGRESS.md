@@ -7,6 +7,38 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**✅ `main` IS GREEN, AND TWO OF THE THREE CARRY-OVER ITEMS WERE NARROWER THAN THE NOTE THAT
+ASKED FOR THEM (2026-08-17, D-384 → D-386 — ROADMAP Milestone 12, V4–V6).**
+
+The reusable result is not any of the three fixes. It is that **a carry-over item written from
+reasoning about the code is a hypothesis**, and measuring each one before implementing it cost
+minutes and cancelled two sessions' worth of redundant work:
+
+- **V4 — `main` is green.** Both runtime stages now run `apt-get -y upgrade`. The measurement
+  overturned OPEN_DECISIONS #11's own recommendation: `python:3.12-slim` still ships `util-linux
+  2.41-5`, so there was **no fixed digest to pin to** and pin-and-bump would have made the red
+  reproducible rather than green, while the fix was already the archive `Candidate`. Proven both
+  directions with CI's own tool and flags — probe image exit 0, bare base exit 1.
+- **V5 — the authorization gap was in a different place than the audit said.** Ownership 403/404s
+  and 74 audience-filter assertions already exist, in both directions, and the CDN never caches an
+  authenticated response. What nothing tested is **admission**: two hand-maintained pattern lists
+  per app, both failing silently (an unlisted path returns cached `index.html` on GET, 405 on POST,
+  or the ALB's fixed 404). That class has shipped twice, found by a user both times.
+  `test_deployed_route_admission_parity.py` now guards it in both apps.
+- **V6 — the server side of the 429 was never the gap; the fixtures were.** Both browser specs
+  injected `{"detail": "rate limit exceeded"}`, which **no limiter sends**, in a file whose own
+  docstring forbids inventing bodies. The real shapes now render: bodyless (the global per-IP
+  middleware) and `TOO_MANY_TURNS_MESSAGE` verbatim.
+
+**Recommended next, in priority order:** (1) the **live** half of the authorization matrix, now that
+the config half is guarded — one cross-account probe against the deployed stack, worth doing because
+it is the only layer V5 cannot reach, and cheap; (2) the audit's remaining never-walked paths, of
+which **PII redaction** is the one that matters for a K-12 platform (no walk has ever typed an email
+address or a phone number) — the exam timer, the calendar interrupt's `.ics` branch and the
+ErrorBoundary loop are the rest; (3) the P2/P3 backend tail, still last.
+
+### Previous — the three coverage blind spots (Milestone 11)
+
 **✅ THE THREE COVERAGE BLIND SPOTS ARE CLOSED, AND CLOSING THEM FOUND THREE DEFECTS
 (2026-08-17, D-383 — ROADMAP Milestone 11, V1–V3).**
 
@@ -45,7 +77,18 @@ student does. The real blocker was that walk's 12-iteration loop cap.
 limiter is 120/hour, the global one 6000/60 s, and the escalation limiter is **in-graph** (a 200
 carrying `RATE_LIMITED_MESSAGE`, not a 429) — so the cheap path would not have produced one at all.
 
-**⚠️ `main` is red on both container scans, and it is not this session's doing** (OPEN_DECISIONS #11).
+> **Corrected the next day (D-386).** The paragraph above is wrong about the expensive part: the
+> server side was already driven three times over by `test_turn_containment.py`, which lowers
+> `chat_message_rate_limit_max_per_window` to 2 and asserts a real 429. What was actually missing was
+> fixture fidelity — both specs injected a detail string no limiter sends, and the global middleware
+> sends **no body at all**. The escalation-limiter sentence stands.
+
+**✅ RESOLVED the same day by V4/D-384** — the paragraph below is kept because the diagnosis is the
+reusable part, and because it names the one measurement that turned out to matter (the gate fires only
+when a fix exists). What it recommends is *not* what was done: see D-384 for why pinning by digest
+could not have worked that day.
+
+**⚠️ `main` was red on both container scans, and it was not that session's doing** (OPEN_DECISIONS #11).
 `security-scan.yml` gates on `ignore-unfixed: true`, so it fires only when a fix exists — and Debian
 published `util-linux 2.41.5-0+deb13u1`, turning **one HIGH CVE the gate was correctly ignoring into
 fixable and therefore gating**. Trivy prints `Total: 9` per image because it counts rows — the same
@@ -10761,6 +10804,53 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### Three carry-over items, measured before being built (2026-08-17, D-384 → D-386)
+
+**Built:** the runtime `apt-get -y upgrade` layer in both Dockerfiles;
+`test_deployed_route_admission_parity.py` in `learning-api` and `chat-api` (10 tests); corrected 429
+fixtures in `error-vocabulary.spec.ts` and `error-states.spec.ts`.
+
+**The session's actual result is that two of the three items shrank when measured, and saying so was
+worth more than the code.** V4's own recommendation in OPEN_DECISIONS #11 was overturned by two
+one-line container checks: no fixed base digest existed, so pinning could not clear the gate that
+day. V5's premise — "authorization has never been exercised" — was true only of the live walks;
+ownership 403/404s and 74 audience assertions already existed, and the real hole was **admission**
+through two hand-maintained terraform pattern lists. V6's premise was wrong about the expensive part
+entirely: `test_turn_containment.py` had been driving a real 429 via a settings override all along,
+and the defect was that both browser specs injected a detail string **no limiter sends**.
+
+**Verification:** `make lint` (ruff) and `make typecheck` (pyright, 0 errors) clean · `make test`
+green · both browser specs re-run locally (`error-states.spec.ts` 14 passed, `error-vocabulary.spec.ts`
+1 passed) with the vite log line `[api] 429 ` and an empty detail as the proof the bodyless body
+really was absent · V4 proven with CI's own tool and flags in both directions (probe exit 0, bare base
+exit 1) and all nine packages verified moving to `2.41.5-0+deb13u1` with apt exit 0 · V5 falsified in
+three directions (a new `/reports/*` route fails classification, `/metrics` added to the edge list
+fails the leak check, a broken walk fails the non-vacuity control) with an unpatched control passing.
+
+**Two of my own errors, both caught by the work itself:** the guard's first run failed my assertion
+that the two pattern lists differ — folding in the header-conditioned `/dev/token` rule makes the
+effective sets equal, so the honest claim is the asymmetry in mechanism. And the route walk initially
+missed **all six routers**, because FastAPI 0.141 keeps included routers as nested `_IncludedRouter`
+objects; `{r.path for r in app.routes}` would have made every assertion in the file vacuous while
+reading correctly, which is D-378's shape a fourth time. Both are now pinned by tests.
+
+**⚠️ One unexplained flake, recorded rather than waved away.** `test_session_results_endpoint.py::
+test_a_completed_sessions_results_are_readable_by_id` failed once in a full run, then passed in
+isolation, passed in a `-k "results or admission"` slice, passed in the whole 415-test learning-api
+suite, and passed in a clean full re-run (**1691 passed**). Nothing this session touches can reach it.
+It matters anyway, because this repo has already had a "flake" that was the product (D-355 → D-357),
+and that test drives an entire session through the graph — the kind of path where a real
+order-dependence hides. **Its traceback is gone because I piped `make test` through `tail -12`**, so
+the one run that failed is the one run I cannot read: capture full output for any run whose failure
+would need diagnosing. If it recurs, the first suspects are the `session_id[:8]` idempotency keys
+(a shortened prefix shared with every other session in the same database) and the study loop's
+60-step bound.
+
+**Carry-over:** the **live** cross-account probe (the one layer V5 cannot reach); **PII redaction has
+never been walked** — no test has typed an email address or a phone number into either app, which for
+a K-12 platform is the most valuable of the audit's remaining never-walked paths; the flake above;
+then the exam timer, the calendar `.ics` branch, and the ErrorBoundary → client-error loop.
 
 ### The three blind spots, and the three defects behind them (2026-08-17, D-383)
 

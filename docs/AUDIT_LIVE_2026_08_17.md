@@ -105,3 +105,14 @@ cross-role RAG **denial** matrix (only the positive direction was sampled); PII 
 typed an email address or a phone number); the exam timer running out; the student's own view of
 the dashboard, which has no role gating; the calendar interrupt's three branches including the
 `.ics` download; and the ErrorBoundary → client-error reporting loop.
+
+> **Narrowed 2026-08-17 by D-385, and the two authorization items are smaller than they read.** The
+> suite already covers ownership 403/404s (`test_auth.py`, `test_stream_and_history.py`) and the
+> audience filter in *both* directions (74 assertions across `test_rag_search.py` and
+> `test_retrieval.py`); the CDN also never caches an authenticated response (`CachingDisabled` +
+> `AllViewer` on every API behaviour). So "against the deployed stack" is the whole of what is left,
+> and the part of it that a test can hold is now held by
+> `test_deployed_route_admission_parity.py` — the two terraform pattern lists that decide whether a
+> request reaches the app at all, which nothing had checked and which has broken twice in production.
+> What remains genuinely un-walked from this paragraph: one live cross-account probe, and **PII
+> redaction**, which is the one worth doing next on a platform whose users are minors.

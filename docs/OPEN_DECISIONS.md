@@ -291,7 +291,7 @@ clear the backlog in one pass.
 
 ---
 
-## 11. ⏳ OPEN — `main` is red on both container scans, and the fix is a judgement about Dockerfiles
+## 11. ✅ DECIDED 2026-08-17 — option B, and the measurement overturned this item's own recommendation
 
 > **Raised 2026-08-17 by the V1–V3 close-out, and not caused by it.** `security-scan.yml`'s two
 > container-scan jobs fail on `4768e6f`. The gate is `ignore-unfixed: true`, so it fires **only when
@@ -324,10 +324,22 @@ clear the backlog in one pass.
 > - **C. Pin-and-bump by digest** with Dependabot's `docker` ecosystem doing the bumping. Keeps
 >   reproducibility and automates the refresh, at the cost of a PR every time the base moves.
 >
-> **Recommendation: C, with B as a targeted one-line stopgap if `main` must be green sooner.** C is
-> the shape the workflow comment already assumes, and it is the only option that keeps "what is in
-> this image" answerable from the repo. **Not done in-session** because it changes a deploy artifact
-> and the session's approved scope was coverage.
+> **Recommendation as written: C, with B as a targeted one-line stopgap if `main` must be green
+> sooner.** C is the shape the workflow comment already assumes, and it is the only option that keeps
+> "what is in this image" answerable from the repo. **Not done in-session** because it changes a
+> deploy artifact and the session's approved scope was coverage.
+>
+> **Outcome (2026-08-17, D-384): B, because two measurements made C impossible today.**
+> `python:3.12-slim` still ships `util-linux 2.41-5`, so **there is no fixed digest to pin to** — C
+> would have made the red reproducible, not green. And `apt-cache policy` inside that image reports
+> `Candidate: 2.41.5-0+deb13u1`, so the fix is already in the archive and a runtime upgrade clears it
+> now. The recommendation above was written from the options' *shapes* without checking which of them
+> the world currently allows; the ranking was defensible and the timing was wrong. C stays the better
+> long-term shape and nothing in B blocks adopting it when upstream republishes.
+>
+> Also corrected here: this item said "9 HIGH CVEs". It is **one** CVE (`CVE-2026-53615`) across nine
+> binary packages from one source — Trivy's `Total: 9` counts rows. The inflated number is what made
+> this look like a triage rather than a one-line change.
 
 ## Not decisions — already settled, listed to stop them being re-litigated
 

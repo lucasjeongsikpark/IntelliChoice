@@ -26818,3 +26818,111 @@ and `journey-student.spec.ts` states it in as many words.
 The general lesson is narrower than "test your tests": **a harness that classifies traffic is a
 client of the API, and it is subject to the same invariant as the app's error rules.** Both of my
 mistakes were confident readings of a service function that the router reshapes on the way out.
+
+## D-384 — Milestone 12/V4: the base image is patched in the runtime stage, not pinned (accepted, 2026-08-17)
+
+**The red that raised it was not ours.** `security-scan.yml`'s two container scans failed on `main`
+at `4768e6f` while the identical content had passed nine minutes earlier on a branch. The gate is
+`ignore-unfixed: true` — it fires **only when a fix exists** — so publishing a fix is what turns a
+tolerated finding into a failure. Debian published `util-linux 2.41.5-0+deb13u1`, and Trivy's
+`Total: 9 (HIGH: 9)` is **nine rows, one CVE**: `CVE-2026-53615`, an integer overflow in
+`libblkid/src/partitions/dos.c`, against the nine binary packages built from that source
+(`bsdutils libblkid1 liblastlog2-2 libmount1 libsmartcols1 libuuid1 login mount util-linux`). An
+earlier note in PROGRESS called it "9 HIGH CVEs"; that was wrong by 9×, and it mattered because it
+made the fix look like a triage instead of a one-liner.
+
+**The measurement flipped the recommendation this file's sibling had already written.**
+OPEN_DECISIONS #11 recommended option C, pin-and-bump by digest with Dependabot. Then:
+
+  - `docker run --rm python:3.12-slim dpkg-query -W util-linux` → **`2.41-5`**. No fixed base digest
+    exists yet, so pinning cannot clear the gate today; it would only make the red reproducible.
+  - `apt-cache policy util-linux` inside that image → **`Candidate: 2.41.5-0+deb13u1`**. The fix is
+    already in the archive, so a runtime upgrade can clear it now.
+
+So option **B**: `apt-get update && apt-get -y upgrade && rm -rf /var/lib/apt/lists/*` in both
+runtime stages. Verified two ways before committing: in a throwaway container all nine packages move
+to `2.41.5-0+deb13u1` with exit 0, and a one-layer probe image built from `python:3.12-slim` plus
+that line scores `trivy --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1` → **exit 0**, where
+the bare base image gives **exit 1**. Both directions, same tool and flags CI uses.
+
+**The cost, which is why it was a decision and not a fix:** image contents now depend on *when* the
+build ran, so rebuilding the same commit is no longer byte-identical. Accepted — provenance is
+already recorded per deploy (`APP_BUILD_SHA`, immutable ECR tags), and `upgrade` rather than
+`dist-upgrade` cannot add or remove packages, only advance patch versions. Pinning by digest stays
+the better long-term shape and becomes available the day upstream republishes; nothing here blocks it.
+
+**Architecture note, measured while checking whether the arch caveat mattered:** it does not.
+`runtime_platform` is ARM64 and `deploy-staging.yml` builds `platforms: linux/arm64`, so the local
+arm64 verification was on the same architecture the deployed image runs.
+
+## D-385 — Milestone 12/V5: the two deployment layers that admit a request are now guarded by tests (accepted, 2026-08-17)
+
+**The audit asked for a live authorization matrix; the measurement said the gap is elsewhere.** Its
+"never exercised: cross-account authorization (IDOR) against the deployed stack; the cross-role RAG
+denial matrix" reads as a coverage hole, and below the deployed layer it is not one — ownership
+403/404s exist in `test_auth.py` and `test_stream_and_history.py`, and the audience filter has 74
+assertions across `test_rag_search.py` and `test_retrieval.py`, both directions. The edge's worst
+case is also already configured away: every API behaviour uses `CachingDisabled` with the
+`AllViewer` origin request policy, so no authenticated response is cached.
+
+**What is genuinely unguarded is admission, and it is hand-maintained in two places per app:**
+
+  1. CloudFront `api_path_patterns`. The **default** behaviour points at the SPA's S3 bucket with a
+     SPA-fallback function and `GET, HEAD` only — so an unlisted path does not 404. A GET returns
+     **cached `index.html`**, a POST returns a CloudFront **405**.
+  2. The ALB listener rule's `path_patterns`. The listener's default action is a fixed `404`.
+
+Neither is exercised by any other test in this repo, because every test talks to the app directly.
+**This failure class has already shipped once and a user found it**: the comment above
+`aws_lb_listener_rule.dev_token_learning` records that a path-only rule sent every `/dev/token` call
+to whichever app's rule had the lower priority, "found live via a real 'Not found' bug report during
+S32/D-084". `client.ts`'s read-once-then-parse comment records a second one — "a non-JSON error body
+(an S3 XML 404, from a CloudFront routing gap) hit this exact path".
+
+`test_deployed_route_admission_parity.py` in both apps parses the staging terraform and asserts, per
+app: every served path is admitted by **both** layers or is named in `_DELIBERATELY_UNREACHABLE`;
+`/metrics`, `/healthz`, `/readyz` and FastAPI's docs trio are admitted by **neither** (D-221's
+both-directions rule — `/metrics` behind a public cache is an operational leak and `/openapi.json`
+publishes the whole surface); and `/dev/token` is in the edge list but *not* the service's own list,
+because it is disambiguated by the `X-IntelliChoice-App` header. A new route under an existing prefix
+stays free; a new prefix fails with the two lists to edit.
+
+**Two things the guard has already earned.** Its own first run failed an assertion of mine that the
+two pattern lists differ — folding in the dedicated `/dev/token` rule makes the effective admission
+*sets* equal, so the honest assertion is the asymmetry in mechanism, not in contents. And the route
+walk needed `test_the_route_walk_is_not_vacuous`: FastAPI 0.141 keeps included routers as nested
+`_IncludedRouter` objects, so `{r.path for r in app.routes}` finds the five routes registered
+directly on `app` and **misses all six routers** — a vacuous guard that looks correct, D-378's shape
+again. Falsified in three directions before being believed: a new `/reports/*` route fails
+classification, adding `/metrics` to the edge list fails the leak check, and a broken walk fails the
+non-vacuity check, with an unpatched control still passing.
+
+## D-386 — Milestone 12/V6: the 429 fixtures were inventing a body no limiter sends (accepted, 2026-08-17)
+
+**The carry-over overstated the gap, and the correction is worth more than the tests it cancels.**
+PROGRESS said "a genuine HTTP 429 has never rendered… the message limiter is 120/hour, too expensive
+to drive". The server side was already driven, cheaply and repeatedly:
+`test_the_per_caller_cap_refuses_a_flood_and_names_the_remedy` lowers
+`chat_message_rate_limit_max_per_window` to 2 and asserts a real 429 whose detail equals
+`TOO_MANY_TURNS_MESSAGE`; two sibling tests drive the same limiter; both client-error sinks are
+20/minute in process and are tested past the cap; and `test_rate_limit.py` covers the global
+middleware's 429 and `Retry-After`. Writing the planned V6 tests would have duplicated all of it.
+
+**What was actually wrong is smaller and real: the fixtures.** Both browser specs injected
+`{"detail": "rate limit exceeded"}` — a string **no limiter in this system sends** — while
+`error-vocabulary.spec.ts`'s own docstring requires every detail to be "quoted from the raiser,
+with its source named, because a fixture body invented to match a rule proves only that the rule
+matches itself". The 429 row named the global middleware as its source, and that middleware returns
+`Response(status_code=429, headers={"Retry-After": ...})` with **no body at all**.
+
+So the two real shapes now render instead: a bodyless 429 (learning-web, and one of chat-web's two
+cases) and `TOO_MANY_TURNS_MESSAGE` quoted verbatim (chat-web). The bodyless one is new evidence
+rather than a rewording — nothing had driven an **empty** error body through `client.ts`'s
+read-once-then-parse path, and it is the likelier 429 in production because the limiter is keyed per
+IP and D-087 recorded that school branches put many students behind one egress address. Both pass;
+the vite log line `[api] 429 ` with an empty detail is what proves the body really was absent.
+
+**Checked and found sound, rather than assumed:** a bodyless 429 still matches, because
+`friendlyError` treats `rule.detail === null` as "status alone" and `client.ts` keeps the unparseable
+body as raw text instead of throwing. That was worth verifying rather than reasoning about — it is
+the same shape as D-378, where a rule that read correctly could not fire.

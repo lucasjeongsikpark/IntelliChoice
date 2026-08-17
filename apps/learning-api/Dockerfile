@@ -39,16 +39,29 @@ RUN uv sync --frozen --all-packages --no-dev
 
 FROM python:3.12-slim AS runtime
 
-# Known base-image gap, not fixed here: python:3.12-slim's OS-level packages
-# (perl-base, ncurses, util-linux) carry several CRITICAL/HIGH CVEs with no upstream
-# Debian fix published yet (re-confirmed via a real `trivy image` scan, S33/D-089 - the
-# exact CVE set has grown since S32's original `docker scout cves` check, expected for a
-# base-image-level backlog like this, not a regression). Tried removing perl-base - apt
-# refuses (marked Essential; forcing removal risks destabilizing the base image for CVEs
-# this app's own code never exercises, since nothing here invokes perl/ncurses/
-# util-linux). Tracked automatically now via `.github/workflows/security-scan.yml`'s
-# Trivy gate (fails on any *fixable* CRITICAL/HIGH - see that file's comment) and ECR's
-# scan-on-push (S32/D-084); rebuild once Debian/the upstream image ships fixes.
+# D-384: patch the base image's OS packages here, in the runtime stage. This replaces a
+# comment that ended "rebuild once Debian/the upstream image ships fixes" - that is exactly
+# what happened, and it turned the CI gate red rather than green, because
+# `.github/workflows/security-scan.yml` fires on *fixable* CRITICAL/HIGH: on 2026-08-17
+# Debian published `util-linux 2.41.5-0+deb13u1`, which flipped CVE-2026-53615 from
+# "ignored, no fix exists" to gating across the nine binary packages built from that one
+# source (Trivy prints `Total: 9` because it counts rows, not CVEs).
+#
+# Measured before choosing this over the alternatives (OPEN_DECISIONS #11): `python:3.12-slim`
+# still ships util-linux 2.41-5, so there was **no fixed base digest to pin to**, while the
+# fix was already the archive Candidate - so pin-and-bump could not clear it today and this
+# can. Verified in a throwaway container that `apt-get -y upgrade` moves all nine to
+# 2.41.5-0+deb13u1 with exit 0 (on arm64; the amd64 archive carries the same source version).
+#
+# The cost, stated because it is what made this a decision rather than a fix: image contents
+# now depend on *when* the build ran, so rebuilding the same commit is no longer
+# byte-identical. Accepted - staying patched matters more than bit-reproducibility for an
+# image whose provenance is already recorded per deploy (APP_BUILD_SHA + immutable ECR tags).
+# `upgrade`, not `dist-upgrade`: it applies point-release security fixes and will not add or
+# remove packages, so it cannot quietly change what is in the image beyond patch versions.
+RUN apt-get update \
+    && apt-get -y upgrade \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --uid 10001 appuser
 WORKDIR /app
