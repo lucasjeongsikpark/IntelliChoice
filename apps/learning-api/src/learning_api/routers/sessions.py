@@ -566,9 +566,13 @@ async def _assistance_question(
 
     Deliberately *not* derived from `last_intervention` alone. That channel goes stale - it
     keeps a previous question's solution until something overwrites it, which is exactly the
-    hazard `stream._initial_snapshot` already gates behind `hint_ladder_awaiting_choice`
-    (D-216, "the D-215 §4 defect, in reverse"). Reading it here without a caller-supplied
-    gate would reintroduce that bug in a new place.
+    hazard `stream._initial_snapshot` gates against (D-216, "the D-215 §4 defect, in
+    reverse"). Reading it here without a caller-supplied gate would reintroduce that bug in a
+    new place. That gate is `help_is_on_screen` since D-381, not the bare
+    `hint_ladder_awaiting_choice` this used to name: the flag is false at every terminal rung,
+    so gating on it alone discarded a video or a solution on refresh. The staleness protection
+    is unchanged - `help_is_on_screen`'s second clause pairs the intervention with the current
+    attempt, which is the same question this docstring is about.
 
     Two reads, both by primary key, both on a path that has already done several. Returning
     `None` on any miss rather than raising: a missing attempt or variant means the left

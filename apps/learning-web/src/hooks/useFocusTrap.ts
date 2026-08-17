@@ -77,14 +77,42 @@ export function useFocusTrap(dialogRef: RefObject<HTMLElement | null>): void {
   // from hit-testing at once, which a keydown handler cannot do for a mouse. Applied to
   // `#root`'s children other than this dialog's own subtree, so it composes with whatever the
   // app renders rather than depending on a particular DOM shape.
+  //
+  // **`OVERLAY` lists this app's own class names, and that is the bug this line once was.**
+  // The port from chat-web kept `.modal-overlay` — chat's class. learning-web has never used
+  // it: its dialogs sit in `.modal-backdrop` and `.narrative-overlay`. So `closest` always
+  // returned null, `overlay` fell back to the dialog itself, and the one `#root` child that
+  // *contains* the dialog was filtered out as its own ancestor — leaving nothing inert. The
+  // trap's keyboard half worked, which is why nobody noticed the pointer half did not.
+  //
+  // **And it walks ancestors rather than reading `#root`'s children.** These dialogs render
+  // deep inside the tree — `AttendanceScreen`'s sits in `.panel`, several levels down — so
+  // `#root`'s only child always contained the dialog and was always filtered out as its own
+  // ancestor. The list came back empty every time. Marking each ancestor's *siblings* inert,
+  // from the overlay up to `<body>`, is the shape that does not depend on where the dialog
+  // happens to be mounted.
   useEffect(() => {
     const dialog = dialogRef.current;
-    const overlay = dialog?.closest(".modal-overlay") ?? dialog ?? null;
-    const siblings = ([...(document.getElementById("root")?.children ?? [])] as HTMLElement[])
-      .filter((element) => element !== overlay && !element.contains(overlay as Node));
-    for (const element of siblings) element.inert = true;
+    const OVERLAY = ".modal-backdrop, .narrative-overlay, .modal-overlay";
+    const overlay = (dialog?.closest(OVERLAY) ?? dialog) as HTMLElement | null;
+    if (overlay === null) return;
+
+    const marked: HTMLElement[] = [];
+    for (let node: HTMLElement | null = overlay; node && node !== document.body; ) {
+      const parent: HTMLElement | null = node.parentElement;
+      if (parent === null) break;
+      for (const sibling of [...parent.children] as HTMLElement[]) {
+        // `inert` is already-true-safe to skip: restoring it to false on cleanup would
+        // un-inert something an outer dialog set, if two are ever open at once.
+        if (sibling !== node && !sibling.inert) {
+          sibling.inert = true;
+          marked.push(sibling);
+        }
+      }
+      node = parent;
+    }
     return () => {
-      for (const element of siblings) element.inert = false;
+      for (const element of marked) element.inert = false;
     };
   }, [dialogRef]);
 }

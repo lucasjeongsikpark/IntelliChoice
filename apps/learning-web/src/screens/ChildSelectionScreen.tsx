@@ -15,6 +15,17 @@ interface Props {
    */
   onCancel?: () => void;
   /**
+   * Sign out, offered on the paths that deliberately have no `onCancel` (D-381).
+   *
+   * The comment above is right that there is nothing to go *back* to at login-time
+   * resolution — and the conclusion drawn from it was that the screen needs no exit at all,
+   * which left a parent with two or more children on a screen whose only controls were their
+   * children's names. If they had signed in as the wrong account, or simply did not want to
+   * start a session, the only way out was closing the tab. Leaving is not going back, and it
+   * is always available everywhere else in this app.
+   */
+  onSignOut?: () => void;
+  /**
    * The failure of the selection this screen performs, rendered inside it (D-380).
    *
    * **D-216 §5 fixed exactly this class and did not include this screen.** It gave `error`
@@ -34,6 +45,7 @@ export function ChildSelectionScreen({
   busy,
   title = "Who's learning today?",
   onCancel,
+  onSignOut,
 }: Props) {
   return (
     <div className="panel">
@@ -63,6 +75,13 @@ export function ChildSelectionScreen({
       {onCancel && (
         <button className="link" disabled={busy} onClick={onCancel}>
           Cancel
+        </button>
+      )}
+      {/* Only when there is no Cancel: two ways off one screen is a choice the parent does
+          not need, and Cancel is the better one wherever it exists. */}
+      {!onCancel && onSignOut && (
+        <button className="link" disabled={busy} onClick={onSignOut}>
+          Sign out
         </button>
       )}
     </div>

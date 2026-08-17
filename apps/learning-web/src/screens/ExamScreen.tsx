@@ -174,6 +174,11 @@ export function ExamScreen({
   const [selected, setSelected] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  // Held separately from `error` because it outlives it: `error` is the hook's per-request
+  // state and the student has usually moved on by the time they read it, whereas "question 5
+  // was not saved" stays true until they go back and answer question 5. Cleared on the next
+  // successful submit.
+  const [saveFailure, setSaveFailure] = useState<string | null>(null);
 
   // AUD-F-02: `POST /exam/finalize` closes the exam server-side, but this screen stays
   // mounted until the phase-change snapshot arrives over SSE. Anything it sends in that
@@ -457,6 +462,7 @@ export function ExamScreen({
     const submittedOrder = currentDisplayOrder;
     const responseTimeMs = Date.now() - viewStartRef.current;
     const accepted = onSubmit(currentItem.question_variant_id, chosen, responseTimeMs);
+    setSaveFailure(null);
     setAnsweredSelections((prev) => ({ ...prev, [currentDisplayOrder]: chosen }));
     setStatusMessage(`Answer submitted for question ${shownQuestionNumber}.`);
     setSelected(null);
@@ -493,9 +499,16 @@ export function ExamScreen({
         delete next[submittedOrder];
         return next;
       });
-      setStatusMessage(
-        `Question ${submittedOrder + 1} was not saved. Go back and answer it again.`,
-      );
+      // **Announced *and* shown** (D-381). D-378 wrote this sentence into the `sr-only`
+      // status region only, so the sole visible line was `friendlyError`'s — and on the
+      // commonest failure, the 55s deadline, that line used to read "Your progress is saved".
+      // The student was told the opposite of what had happened, by the one message they could
+      // see, while the true one was invisible to them. The optimistic advance to the next
+      // question compounds it: by the time the error renders it sits under a *different*
+      // question, so naming the number is what makes it actionable.
+      const message = `Question ${submittedOrder + 1} was not saved. Go back and answer it again.`;
+      setStatusMessage(message);
+      setSaveFailure(message);
     }
   }
 
@@ -696,7 +709,10 @@ export function ExamScreen({
         })}
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {/* The rollback notice wins over the transport error, because it is the specific
+          consequence of it: "that took too long" explains the cause, "question 5 was not
+          saved" tells the student what to do. Both are true; only one is actionable. */}
+      {(saveFailure ?? error) && <p className="error">{saveFailure ?? error}</p>}
 
       {!isReadOnly && (
         <>

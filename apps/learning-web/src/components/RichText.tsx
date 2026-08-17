@@ -37,6 +37,7 @@ export function RichText({ text, maxChars }: Props) {
         const shown = token.text.length <= budget ? token.text : token.text.slice(0, budget);
         budget -= token.text.length;
         if (token.bold) return <strong key={index}>{shown}</strong>;
+        if (token.italic) return <em key={index}>{shown}</em>;
         if (token.code) return <code key={index}>{shown}</code>;
         return <span key={index}>{shown}</span>;
       })}

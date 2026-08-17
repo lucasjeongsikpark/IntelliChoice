@@ -31,6 +31,10 @@ deployed apps sharing auth from the existing `go.intellichoice.org` system:
   stays deterministic, and the five falsification checks that gate it. Read before adding any
   hint- or solution-quality scoring — two such scorers already exist and §1 explains why neither
   worked.
+- [docs/AUDIT_LIVE_2026_08_17.md](docs/AUDIT_LIVE_2026_08_17.md) — what four live browser walks over
+  the *deployed* build found (D-381), what was fixed, and the three coverage blind spots that
+  matter more than the remaining items. Read the coverage section before adding tests: the
+  Playwright suite was green on the same build that carried both P1s.
 - [docs/OPEN_DECISIONS.md](docs/OPEN_DECISIONS.md) — everything still open that needs a **judgement** rather
   than more code: ten decisions with options, a recommendation, and what deferring each one costs.
   Read before asking "what should I work on next" — the answer is often "ask the user".

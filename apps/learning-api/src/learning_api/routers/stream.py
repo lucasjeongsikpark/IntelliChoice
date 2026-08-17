@@ -38,6 +38,7 @@ from learning_api.dependencies import (
 from learning_api.graph.build import LearningGraph
 from learning_api.services import stage_narrative
 from learning_api.services.session_events import SessionEventBus
+from learning_api.services.stage_narrative_scheduler import help_is_on_screen
 
 from .sessions import (
     InterventionContentResponse,
@@ -76,6 +77,23 @@ async def _maybe_fire_pre_intro(
     """
     student_external_id = state.get("student_external_id")
     if student_external_id is None:
+        return None, [], None
+    # **`pre_intro` means "before the pre-exam", and the phase is what says so** (D-381).
+    #
+    # Firing was gated only on "the checkpoint has no narrative", which is also true part-way
+    # through a session whose last stage narrative has not been written yet. A student
+    # resuming at Skill 2 of 4 was greeted with *"Welcome to math practice! You're starting an
+    # exciting journey…"* - measured live 2026-08-16. Harmless-looking, and it tells a student
+    # who has already sat a ten-question exam that they are at the beginning; the whole point
+    # of a stage narrative is that it knows which stage it is.
+    #
+    # Written as a **denylist of phases that are past the intro** rather than an allowlist of
+    # phases that are before it. An allowlist would also have suppressed the greeting on a
+    # first connect that legitimately lands mid-`pre_exam` - the AUD-F-26 race, where the
+    # browser opens `EventSource` as the exam is starting - which is a behaviour change nobody
+    # asked for. A new phase added later should keep today's behaviour by default; only the
+    # ones named here are known to be too late for a welcome.
+    if state.get("phase") in {"study", "post_exam", "completed", "blocked", "error"}:
         return None, [], None
     profile = await profile_adapter.get_student_profile(student_external_id)
     if profile is None:
@@ -213,22 +231,36 @@ async def _initial_snapshot(
         ),
         # D-216: re-serve the paid intervention content a refresh would otherwise discard
         # (the student was re-shown the bare chooser, and choosing again is a second
-        # Bedrock call). Gated on `hint_ladder_awaiting_choice` - only mid-ladder is
-        # `last_intervention` guaranteed to belong to the currently-paused question;
-        # ungated, a previous question's solution could resurface over a new pause
-        # (the D-215 §4 defect, in reverse).
+        # Bedrock call). Gated so a *previous* question's solution cannot resurface over a
+        # new pause (the D-215 §4 defect, in reverse).
+        #
+        # **D-381: that gate was `hint_ladder_awaiting_choice`, which is false exactly when
+        # the most expensive help is on screen.** The terminal rungs - hint 3 of 3, any
+        # solution, any video - close the pause and hand back the next question while the
+        # help stays up; `intervention_choice` says so in its own comment. So a refresh in
+        # that state served no intervention at all, and since the study phase has no
+        # navigator the student came back on the *next* question with the explanation they
+        # were reading unreachable. They had spent their one intervention on nothing.
+        # `help_is_on_screen` is the predicate the narrative scheduler already used for this
+        # exact question, and it keeps the anti-resurfacing property: its second clause pairs
+        # `last_intervention` with the current attempt.
         intervention=(
             InterventionContentResponse.from_dict(state["last_intervention"])
-            if state.get("hint_ladder_awaiting_choice")
-            and state.get("last_intervention") is not None
+            if help_is_on_screen(state) and state.get("last_intervention") is not None
             else None
         ),
         # D-272: gated on the *pause*, not on `hint_ladder_awaiting_choice`. A reconnect
         # that lands on the intervention menu has no intervention yet - that is the state
         # this whole change exists for - and the checkpoint's retained `last_items` is the
         # right question only by luck. This names it.
+        #
+        # D-381: `or help_is_on_screen(state)` for the same reason as `intervention` above -
+        # help on screen after a terminal rung is not a pause, and the question it belongs to
+        # still has to be named or the restored help sits beside the wrong stem.
         assistance_question=await _assistance_question(
-            db, state, help_open=_is_intervention_pause(pending)
+            db,
+            state,
+            help_open=_is_intervention_pause(pending) or help_is_on_screen(state),
         ),
         study_progress=await _study_progress(db, state),
         attendance_resolution=state.get("attendance_resolution"),

@@ -116,6 +116,52 @@ test.describe("failures the visitor can read and recover from", () => {
     await expect(page.locator(".bubble.turn-error")).toContainText("try again tomorrow");
   });
 
+  test("an over-length question is told it is too long, not that something went wrong", async ({
+    page,
+    audit,
+  }) => {
+    // **The test D-378 shipped without, and the reason it shipped broken.** D-378 added a 422
+    // rule keyed on the field name `query`, on the stated premise that the flattened detail
+    // "contains the field". It does not: Pydantic v2 puts the field name only in
+    // `loc: ["body", "query"]` and its `msg` names no field, so the rule could never match and
+    // every over-length question fell through to the generic line — the exact outcome D-378
+    // existed to prevent. Found in the *deployed bundle* by a live audit on 2026-08-16.
+    //
+    // The body below is Pydantic's real 422 shape, copied from what `AskMessageRequest.query`'s
+    // `max_length=2000` actually emits. That fidelity is the whole test: a hand-simplified
+    // `{detail: "query too long"}` would have passed against the broken code.
+    await stubChat(page, { message: SHAPES["grounded answer"] });
+    audit.allow({ statuses: [422], consoleErrors: ["Failed to load resource"] });
+    await page.route("**/chat/sessions/*/messages", (route) =>
+      route.fulfill({
+        status: 422,
+        contentType: "application/json",
+        body: JSON.stringify({
+          detail: [
+            {
+              type: "string_too_long",
+              loc: ["body", "query"],
+              msg: "String should have at most 2000 characters",
+              ctx: { max_length: 2000 },
+            },
+          ],
+        }),
+      }),
+    );
+    await page.goto(CHAT_WEB);
+    await ask(page, "What are the Saturday hours?");
+
+    const turn = page.locator(".bubble.turn-error");
+    await expect(turn).toBeVisible();
+    const text = (await turn.textContent()) ?? "";
+    audit.note(`422 rendered as: ${text.trim()}`);
+    // Names the limit, so "try again" is advice the visitor can actually act on.
+    await expect(turn).toContainText(/too long/i);
+    await expect(turn).toContainText("2000");
+    // And is not the generic line, which is what the defect produced.
+    expect(text).not.toContain("Something didn't go through");
+  });
+
   test("a turn whose answer is null renders something rather than nothing", async ({
     page,
     audit,

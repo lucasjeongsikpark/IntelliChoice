@@ -100,6 +100,25 @@ export function useChatSession(
     sessionStorage.setItem(TRANSCRIPT_KEY, JSON.stringify(transcript));
   }, [transcript]);
 
+  // **Keep the owner stamp current when the identity changes without a remount** (D-381).
+  //
+  // `clearSessionIfOwnedByAnotherSubject` runs only in the `useState` initialiser above, which
+  // is exactly right for a fresh load and blind to an in-app sign-in. D-353's "Log in" button
+  // on an access hint is precisely that: it clears the token keys, keeps the transcript on
+  // purpose, and the visitor signs in as somebody else in the same mounted tree. `OWNER_KEY`
+  // stayed at the guest value, so the *next* reload saw owner `""` against sub `tutor-ext-1`
+  // and deleted the session and the transcript - destroying the conversation D-353 exists to
+  // preserve, one reload later than anyone would look. Measured live 2026-08-16.
+  //
+  // Re-stamping without clearing is safe for every path that reaches here, and there are only
+  // two: this one, where keeping the transcript is the entire point, and logout-then-sign-in,
+  // where `handleLogout` has already called `endSession()` so there is nothing left to
+  // inherit. The cross-identity protection itself is unchanged and still lives in the
+  // initialiser, where a genuinely new page load is judged.
+  useEffect(() => {
+    sessionStorage.setItem(OWNER_KEY, sub ?? "");
+  }, [sub]);
+
   useEffect(() => {
     if (!sessionId || streamReadyFor !== sessionId) return;
     setStreamState("connecting");
@@ -127,6 +146,21 @@ export function useChatSession(
             ? prev.findLastIndex((turn) => turn.id === id)
             : prev.length - 1;
           if (index < 0) return prev;
+          // **A turn the visitor stopped stays stopped** (D-381). `cancelTurn` aborts the
+          // client's fetch and nothing else - there is no cancel endpoint, so the graph runs
+          // to completion under its 50s deadline and publishes a finished snapshot. That
+          // snapshot arrived here and silently replaced "You stopped this question." with an
+          // answer to a question the visitor had explicitly withdrawn. Observed live
+          // 2026-08-16: Stop, then the refusal-with-escalation-button appeared seconds later.
+          // `retryTurn` clears `cancelled`, so "Ask again" still works.
+          //
+          // **A pause is the exception, and it has to be.** `App` reads `pending_interrupt`
+          // off the *last turn's* response to decide whether to render a modal, so dropping a
+          // paused snapshot would hide the dialog while the graph stays parked on its
+          // `interrupt()` - and every later question would 409 on "pending interrupt" with
+          // nothing on screen to resolve. Suppressing an answer the visitor withdrew is
+          // honest; suppressing a question the server is asking them deadlocks the session.
+          if (prev[index].cancelled && !snapshot.pending_interrupt) return prev;
           // Clearing `error` matters: a turn that failed at the HTTP layer but whose
           // graph run actually completed gets its real answer over SSE, and leaving the
           // error bubble beside it would show a failure next to its own result.
@@ -342,6 +376,10 @@ export function useChatSession(
     sessionStorage.removeItem(SESSION_ID_KEY);
     sessionIdRef.current = null;
     setSessionId(null);
+    // Same reasoning as `endSession` (D-381): the banner described the session being left.
+    // Here the transcript stays, so a stale error above a preserved conversation would be
+    // read as a failure of *that* conversation.
+    setError(null);
     setStreamReadyFor(null);
   }, []);
 
@@ -351,6 +389,12 @@ export function useChatSession(
     sessionIdRef.current = null;
     setSessionId(null);
     setTranscript([]);
+    // D-381: the page-level banner is per-request state that outlived the conversation it
+    // described. "New chat" cleared the transcript and left "We can't reach the server right
+    // now" sitting above an empty welcome screen, reporting a failure of a session that no
+    // longer exists. `run()` only clears this when the *next* request starts, which on a
+    // fresh screen may be never.
+    setError(null);
     setStreamReadyFor(null);
   }, []);
 

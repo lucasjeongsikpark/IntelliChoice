@@ -7,6 +7,61 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**✅ A LIVE BROWSER AUDIT OF THE DEPLOYED BUILD — 48 FINDINGS, BOTH P1s FIXED
+(2026-08-17, D-381).**
+
+Four `agent-browser` walks over `gha-6841d9d9b169` (41 flows, 101 screenshots) returned **48
+findings, 42 unique** — 2 P1, 14 P2, 32 P3. All 36 that were code-mapped came back CONFIRMED
+against source; none were refuted. Full report and fix plan in the session scratchpad; the
+decision entry is D-381.
+
+**The single most useful fact: the Playwright suite was green on that exact build hours earlier
+— 88 passed / 7 skipped — with both P1s live in it.** So Batch 0 of the fix plan ("run the suite
+against staging") was dropped as already-done-and-passing rather than repeated; what the suite
+covers is now a known quantity rather than an assumption.
+
+**Both P1s are fixed, and only one was a regression.** D-378's 422 rule could never match,
+because `detailText` discards the `loc` that carries the field name — verified in the *deployed
+bundle*, so a stale artifact was ruled out. The other, a 401 looping forever on the dashboard, is
+**not** a regression of D-375: that fix was deliberately scoped to the mutation path, and this is
+the identical defect in the read paths it never reached. The §1 "fixed in one direction" pattern,
+recurring one day after it was named.
+
+**Three findings were worse than their severity suggested.** Both human-approval gates — the
+screens that email a minor's name, grade and branch — rendered their *decline* button off-screen.
+`useFocusTrap`'s `inert` half had never worked in learning-web at all (ported with chat's class
+name, reading `#root`'s children while the dialogs mount deeper), and **the e2e test could not
+have caught it** because it re-implemented the hook's own expression. And `_initial_snapshot`
+gated restored help on `hint_ladder_awaiting_choice`, which is false at exactly the terminal
+rungs — D-356's family in the third place it lives.
+
+**Also fixed:** the session id moved to `localStorage` (closing a tab was orphaning a completed
+pre-exam that the server had kept all along), a stopped chat turn no longer gets overwritten by
+the answer the visitor withdrew, a paused turn no longer renders a fabricated refusal under an
+open consent dialog, `--accent-on-tint` closes a 4.38:1 AA failure across 14 rules in both apps,
+and unknown paths in both apps stop rendering the app under a URL that means nothing.
+
+**What the audit says about coverage, which outlives every item in it:** nothing terminal has
+ever been completed — no walk, manual or automated, has reached the post-exam results screen, and
+`journey-student.spec.ts` stops short of it *by design*. Every approval gate was declined and none
+approved, so the second half of rule 4 is unverified (staging wires `FakeEmailTransport`
+unconditionally, so the caution was unnecessary). Every failure was injected client-side, so the
+server-side error vocabulary — 5xx, four rate limiters, eight hand-written 409 messages — has
+never rendered. **That is the next session's work, and it is worth more than the P3 remainder.**
+
+**Two findings deliberately not acted on.** `AUD-CHAT-05` rests on turns that returned cited
+answers, so the access-hint precondition was never met and part of it contradicts D-351.
+`EDGE-CHAT-02`'s green dot through a partition is likely an artifact of browser offline emulation
+— the sibling walk concluded the opposite about the same mechanism — though the underlying gap is
+real: chat has no liveness timer and no reconnect control where learning-web has both.
+
+**Still open from the 2026-08-16 audit** (unchanged, all backend/observability): the SSE relay's
+asyncpg concurrency and `create_task` GC hazard, 500s bypassing both middlewares, per-student
+spend attribution, SSE telemetry, interpolated log messages, the `exc_info` PII hazard, and the
+single-inbox alarm target.
+
+### Previous — the four-way audit's ten P1s
+
 **✅ THE AUDIT'S TEN P1s ARE CLOSED, AND THE PATTERN BEHIND THEM IS NAMED
 (2026-08-16, D-373 → D-380).**
 

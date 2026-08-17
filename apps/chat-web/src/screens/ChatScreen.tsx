@@ -110,12 +110,30 @@ export function ChatScreen({
 }: Props) {
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   // Before the first turn there is no stream to be connecting to - see the dot's comment.
   const streamDotState = transcript.length === 0 ? "idle" : streamState;
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [transcript]);
+
+  // D-381: put focus back in the composer when the turn finishes. The textarea is `disabled`
+  // while busy, and disabling the focused element moves focus to `<body>` - so after every
+  // send a keyboard-only visitor had to Tab past "new chat", "sign out" and every follow-up
+  // chip in the transcript to ask a second question. Measured live: seven presses on a
+  // two-turn conversation, and it grows with the conversation.
+  //
+  // Guarded on the composer being enabled and nothing else holding focus, so this cannot
+  // steal focus from an approval dialog that opened as the turn paused.
+  useEffect(() => {
+    if (busy) return;
+    const active = document.activeElement;
+    const focusIsLoose = active === null || active === document.body;
+    if (focusIsLoose && composerRef.current?.disabled === false) {
+      composerRef.current.focus({ preventScroll: true });
+    }
+  }, [busy]);
 
   function submit() {
     const query = draft.trim();
@@ -148,9 +166,27 @@ export function ChatScreen({
             new chat
           </button>
           {" · "}
-          <button className="link" onClick={onLogout}>
-            sign out
-          </button>
+          {/* D-381: a guest is not signed in, so "sign out" was both meaningless and
+              destructive - `handleLogout` calls `endSession()`, so it silently binned the
+              conversation of someone who had never signed in to anything, with no
+              confirmation and no undo. "New chat" beside it already does the one thing they
+              might have wanted. Signing *in* is the action a guest can actually take, and it
+              is the one the access hint offers, so this offers the same. */}
+          {who === "guest" ? (
+            // "sign in", not "log in" — symmetric with the "sign out" it replaces, and
+            // deliberately *not* the same words as `AccessHintBanner`'s "Log in". Two
+            // controls with an identical accessible name, doing the same thing, on screen at
+            // once is a thing to avoid on its own; it also made
+            // `getByRole("button", {name: /^log in$/i})` ambiguous, which is how the
+            // duplication announced itself.
+            <button className="link" onClick={onSignIn}>
+              sign in
+            </button>
+          ) : (
+            <button className="link" onClick={onLogout}>
+              sign out
+            </button>
+          )}
         </div>
       </header>
 
@@ -158,13 +194,19 @@ export function ChatScreen({
           announcement at all, so a screen-reader user had to hunt for it manually. The
           pattern is `learning-web`'s `TutorChatPanel`, which already did this correctly -
           the codebase disagreeing with itself rather than an open question. */}
-      <main
-        className="message-list"
-        ref={listRef}
-        role="log"
-        aria-live="polite"
-        aria-label="Conversation"
-      >
+      {/* D-381: `role="log"` sits on an inner element, not on `<main>`. An explicit role
+          *replaces* the implicit one, so putting `log` on `<main>` removed the page's only
+          main landmark - the exact thing D-350 added `<main>` for. A screen-reader user's
+          "skip to main content" had nothing to skip to. Both properties are real now: the
+          landmark is the element, the live region is the list inside it. */}
+      <main className="chat-main">
+        <div
+          className="message-list"
+          ref={listRef}
+          role="log"
+          aria-live="polite"
+          aria-label="Conversation"
+        >
         {transcript.length === 0 && (
           <>
             <p className="dim">
@@ -215,15 +257,34 @@ export function ChatScreen({
                       keeps showing them instead of this line. */}
                   {/* D-379: reachable only for a turn that genuinely finished with nothing
                       renderable - `isFinishedTurn` above keeps an in-flight snapshot out of
-                      this bubble entirely, which is what used to manufacture a refusal. */}
+                      this bubble entirely, which is what used to manufacture a refusal.
+
+                      D-381: **except a paused one, which is how the refusal came back.**
+                      `isFinishedTurn` counts `pending_interrupt` as finished (line 91) so the
+                      bubble renders - but a paused turn has nothing else in it, because
+                      `resolve_role` clears `answer`/`reason`/`citations`/`access_hint` at turn
+                      entry and a node that pauses on `interrupt()` never returns. So every
+                      field this guard tests is empty *by construction* while the consent or
+                      approval dialog is still open, and the visitor read "no answer came back,
+                      try asking it again" underneath a question the server was mid-way through.
+                      Following that instruction spends a second paid turn. Observed live on
+                      both the location-consent and email-approval paths, 2026-08-16. */}
                   {!turn.response.answer &&
                     !turn.response.access_hint &&
                     turn.response.citations.length === 0 &&
-                    !turn.response.escalation_recommended && (
+                    !turn.response.escalation_recommended &&
+                    (turn.response.pending_interrupt ? (
+                      /* Wording matches errors.ts's 409 rule ("Answer the prompt above first,
+                         then you can carry on"), so the transcript and the error the composer
+                         would show describe the same situation in the same words. */
+                      <span className="dim" role="status">
+                        Waiting for your answer to the prompt above.
+                      </span>
+                    ) : (
                       <span className="dim">
                         No answer came back for that one. Try asking it again.
                       </span>
-                    )}
+                    ))}
                   {/* D-241: a citation is a *label*, not an action, and it used to be
                       impossible to tell. Measured on staging: `.citation-chip` and the
                       interactive `.chip` below rendered with the identical background
@@ -396,6 +457,7 @@ export function ChatScreen({
             )}
           </div>
         ))}
+        </div>
       </main>
 
       {unknownInterrupt && (
@@ -422,6 +484,7 @@ export function ChatScreen({
         <textarea
           id="chat-composer"
           name="chat-composer"
+          ref={composerRef}
           value={draft}
           // D-378: the browser stops this before the server has to. The 422 rule in
           // `errors.ts` stays as the backstop for anything that bypasses the control -
@@ -441,6 +504,17 @@ export function ChatScreen({
           Send
         </button>
       </div>
+      {/* D-381: `maxLength` silently swallows anything past the limit - paste a long
+          question and the tail vanishes with no notice at all, which is worse than the 422
+          it replaced because nothing tells the visitor their question was shortened. Shown
+          only as the limit approaches, so it is not permanent clutter on a one-line ask. */}
+      {draft.length >= MAX_QUERY_CHARS * 0.9 && (
+        <p className="dim composer-count" role="status">
+          {draft.length === MAX_QUERY_CHARS
+            ? `Maximum length reached (${MAX_QUERY_CHARS} characters). Anything longer will not be included.`
+            : `${MAX_QUERY_CHARS - draft.length} characters left.`}
+        </p>
+      )}
     </div>
   );
 }

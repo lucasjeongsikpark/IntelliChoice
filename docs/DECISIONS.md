@@ -26473,3 +26473,101 @@ heading *and* the fallback message rendered — the product had behaved correctl
 spec passed in **4.8 s**; re-run with nothing else competing, the full suite was **95 passed in
 4.9 min**. Machine contention, measured rather than assumed — which is the standard this audit
 spent the day arguing for.
+
+### D-381 — What a live browser found that a green suite did not
+
+**Date:** 2026-08-17 · **Status:** fixed · **Files:** `learning-web/src/{api/{client.ts,errors.ts},App.tsx,App.css,hooks/{useLearningSession.ts,useFocusTrap.ts},lib/markdown.ts,components/RichText.tsx,screens/{AttendanceScreen,ChildSelectionScreen,ExamScreen,StudentDashboardScreen,TopicSelectScreen}.tsx}`, `chat-web/src/{api/errors.ts,App.css,main.tsx,hooks/useChatSession.ts,lib/markdown.ts,components/{ApprovalModal,RichText}.tsx,screens/ChatScreen.tsx}`, `learning-api/src/learning_api/{routers/{stream.py,sessions.py},services/stage_narrative_scheduler.py}`, `packages/ui-brand/tokens.css`, `e2e/tests/{chat/{accessibility,error-states,interaction}.spec.ts,learning/expired-token-recovery.spec.ts}`, `learning-api/tests/test_stream_and_history.py`
+
+Four `agent-browser` walks over the deployed staging build `gha-6841d9d9b169` — 41 flows, 101
+screenshots — returned **48 findings, 42 unique**. Every one of the 36 that were code-mapped came
+back CONFIRMED against source; none were refuted.
+
+**The context that matters more than the count: the Playwright suite was green on that same build,
+88 passed / 7 skipped, hours earlier.** Both P1s were live in it. This is not a failure of the
+suite so much as a statement of what it covers — and the coverage critique below is the more
+durable output of the exercise.
+
+#### The two P1s, and only one of them was a regression
+
+**`detailText` discarded the field name, so D-378's 422 rule could never match.** Pydantic v2 puts
+the field in `loc: ["body","query"]` and its `msg` names none; the rule matched on `"query"`. The
+comment above it asserted the opposite — *"`detailText` already unpacks the validation array into
+a readable string containing the field"* — which is why nobody re-checked it. Confirmed in the
+**deployed bundle** rather than inferred, ruling out a stale CloudFront artifact. Fixed with a
+separate `matchText`: the rules want a wide haystack, the 503 pass-through wants a sentence shown
+to a parent, and folding `loc` into one function would have put a JSON path on screen.
+
+**A 401 on the dashboard looped forever.** `isSignedOut` had exactly one caller —
+`useLearningSession.run()`, the graph-mutation path. The dashboard's three GETs rendered *"You've
+been signed out"* above a **Try again** that re-fired the same dead token, and the token stayed in
+`localStorage` so a reload skipped the login screen too. **Not a regression of D-375**: that fix
+was scoped to mutations on purpose. This is the same defect in the paths it never reached — the
+§1 "fixed in one direction" pattern of the 2026-08-16 audit, recurring within the same day. Moved
+into `client.ts`'s `request()`, where a call site cannot miss it.
+
+#### Both approval gates hid the decline button
+
+The screens that send a real email naming a minor, their grade and their branch. chat's modal had
+no `max-height` and no `overflow` while `ApprovalModal` locks body scroll — at a 480px viewport
+both buttons were unreachable by pointer, with Escape the only exit. learning's was **not a dialog
+at all**: inline page flow, 775px of document in a 577px viewport, "Don't send" entirely outside
+it, and the only partly-visible control was the one that sends. An approval whose decline is
+off-screen is not an approval.
+
+#### The focus trap's `inert` half had never worked in learning-web
+
+Ported from chat-web with chat's class name (`.modal-overlay`; learning uses `.modal-backdrop`),
+and reading `#root`'s children while learning mounts its dialogs several levels deeper — so the
+one child was filtered out as the dialog's own ancestor and the list came back empty every time.
+The keyboard half worked, which is why nobody noticed. **The e2e test could not have caught it**:
+it re-implemented the hook's own expression and asserted the result, so it agreed with the
+implementation about doing nothing, with `siblings.length > 0` as the only guard. Both apps now
+walk ancestors, and the test asserts a real control's focusability instead.
+
+#### D-356's family, in the third place it lives
+
+`_initial_snapshot` gated restored help on `hint_ladder_awaiting_choice` — **false at exactly the
+rungs that cost the most**. Any video, any solution, hint 3 of 3 close the pause while the help
+stays on screen; `intervention_choice` says so in its own comment. So a refresh served no
+intervention, and since study has no navigator the student came back on the *next* question with
+the explanation unreachable, their one intervention spent on nothing. `help_is_on_screen` — the
+predicate the narrative scheduler already used for this question — is now public and used at both
+call sites. The regression test was **verified to fail against the old gate** before being kept.
+
+#### Closing the tab abandoned the session
+
+The learning session id lived in `sessionStorage` only, and no endpoint answers "which session is
+this student part-way through". A completed pre-exam became unreachable — proven recoverable by
+writing the id back by hand, which resumed at Skill 2 of 4. Moved to `localStorage`; the
+shared-device concern that motivated the original choice is `clearSessionIfOwnedByAnotherSubject`,
+which stops being belt-and-braces and becomes the mechanism. Two follow-ons that only mattered
+once the id outlives the tab: the ownership check now also runs on an identity change with no
+remount, and it no longer clears on `sub === null` — the login screen is where a student sits
+after an expiry, and D-375 keeps that session on purpose.
+
+#### A contrast failure that was a token, not a rule
+
+`button:hover` set only `background`, so every variant overriding `color` hovered to **1.18:1** —
+the label does not dim, it disappears — and touch devices latch `:hover` after a tap. Separately,
+`--accent` on `--accent-bg` measured **4.38:1 on the panel and 4.06:1 on the page**, below AA, at
+**fourteen** rules across the two apps including every secondary button at rest. Lowering the
+tint's alpha cannot fix that (the foreground is ~4.4:1 on the bare page), so `--accent-on-tint`
+was added, reusing `--accent-hover`'s already-approved value rather than shifting the brand.
+
+#### What this says about coverage
+
+The critic's finding, which outlives every item above: **nothing terminal has ever been
+completed.** No walk reached post-exam or the results screen, and `journey-student.spec.ts` stops
+short of it *by design* — so the results screen, the learning-gain wording and the pre→post
+comparison have no live evidence from any source in this project's history. Every approval gate
+was declined and none approved, leaving the second half of rule 4 unverified (staging wires
+`FakeEmailTransport` unconditionally, so the caution was unnecessary). And every failure was
+injected client-side, so the server-side error vocabulary — 5xx, four rate limiters, eight
+hand-written 409 messages — has never rendered, in a codebase that records a past incident where
+exactly that copy leaked a raw session id to a child.
+
+Two findings were **not** acted on. `AUD-CHAT-05` rests on turns that returned cited answers, so
+the access-hint precondition was never met and part of it contradicts D-351. `EDGE-CHAT-02`'s
+green dot through a partition is likely an artifact of browser offline emulation — the sibling
+walk reached the opposite conclusion about the same mechanism — though the underlying gap (chat
+has no liveness timer and no reconnect control, where learning-web has both) is real and open.

@@ -82,6 +82,18 @@ const RULES: Rule[] = [
     message: "This isn't available for your account.",
   },
   {
+    // D-381: a 404 fell through to GENERIC — "Something didn't go through. Give it another
+    // try in a moment." A dead `/results/<id>` link is the case that reaches this, and it is
+    // the one failure in the app that **retrying can never fix**: the session does not exist,
+    // is not this student's, or predates the results endpoint. The old line advised an action
+    // that was guaranteed useless and named no alternative, while the screen's own buttons
+    // ("Back to start", "View progress dashboard") went unmentioned. Says what is true and
+    // points at what is on screen.
+    status: 404,
+    detail: null,
+    message: "We couldn't find this. It may have been from a different account, or it may not exist any more.",
+  },
+  {
     status: 400,
     detail: ["attendance"],
     message: "Attendance for this week hasn't been confirmed yet.",
@@ -106,7 +118,14 @@ export function friendlyError(error: unknown): string {
   // when the network is fine and the server is merely slow. `TimeoutError` is what
   // `AbortSignal.timeout` raises; `AbortError` is a caller-initiated cancel.
   if (error instanceof DOMException && error.name === "TimeoutError") {
-    return "That took too long to answer. Your progress is saved — try again in a moment.";
+    // **No claim about saved state.** This sentence read "Your progress is saved — try again
+    // in a moment" until a live audit measured what a timed-out `POST /answers` actually
+    // does: D-378 *rolls the answer back*, so the reassurance was false at exactly the moment
+    // it mattered, and the accurate sentence D-378 writes was `sr-only`. `REQUEST_TIMEOUT_MS`
+    // applies to every request, reads and writes alike, so this string cannot know whether
+    // anything was saved — the caller can, and `ExamScreen` now says so visibly.
+    // chat-web's sibling line never made the claim; this was learning-web's own divergence.
+    return "That took too long to answer. Try again in a moment.";
   }
   if (!(error instanceof ApiError)) {
     // A thrown `TypeError: Failed to fetch` is what a dropped connection looks like here.
@@ -118,7 +137,7 @@ export function friendlyError(error: unknown): string {
     return "Something broke on our side. It's not you — try again in a moment.";
   }
 
-  const detail = detailText(error).toLowerCase();
+  const detail = matchText(error).toLowerCase();
   for (const rule of RULES) {
     if (rule.status !== error.status) continue;
     if (rule.detail === null || rule.detail.some((fragment) => detail.includes(fragment))) {
@@ -129,10 +148,37 @@ export function friendlyError(error: unknown): string {
 }
 
 /**
+ * The haystack the `RULES` substrings are searched in — `detailText` plus each validation
+ * entry's `loc` path.
+ *
+ * **Ported from chat-web, where the missing `loc` made a shipped rule unmatchable** (D-378,
+ * found live 2026-08-16). There is no 422 rule in this file *yet*, so today this behaves
+ * identically to `detailText` for every detail these routes actually return. It is here
+ * because the trap is invisible until someone writes that rule: Pydantic puts the field name
+ * only in `loc`, so a rule matching on a field name silently never fires. This file is where
+ * chat-web's `detailText` was copied from in the first place, which is how the defect
+ * travelled; keeping the two structurally identical is what stops the next copy repeating it.
+ */
+function matchText(error: ApiError): string {
+  const { detail } = error;
+  if (!Array.isArray(detail)) return detailText(error);
+  return detail
+    .map((entry) => {
+      if (entry === null || typeof entry !== "object") return String(entry);
+      const { msg, loc } = entry as { msg?: unknown; loc?: unknown };
+      const path = Array.isArray(loc) ? loc.join(".") : "";
+      return path === "" ? String(msg) : `${path}: ${String(msg)}`;
+    })
+    .join("; ");
+}
+
+/**
  * `ApiError.detail` is already unwrapped from FastAPI's `{"detail": ...}` envelope
  * (`client.ts`), but a 422 carries an *array* of validation errors rather than a string,
  * and `String(...)` on that yields `[object Object]` - which is how this class of bug
  * showed up before. Flattening here keeps the substring rules above honest.
+ *
+ * Deliberately drops `loc`: this is the display shape. `matchText` is the matching shape.
  */
 function detailText(error: ApiError): string {
   const { detail } = error;

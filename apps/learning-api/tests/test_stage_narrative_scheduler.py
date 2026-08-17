@@ -26,7 +26,7 @@ from learning_api.services import flow
 from learning_api.services.session_events import SessionEventBus
 from learning_api.services.stage_narrative_scheduler import (
     BackgroundStudyNarrativeScheduler,
-    _help_is_on_screen,
+    help_is_on_screen,
 )
 from sqlalchemy import delete, text
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -237,7 +237,7 @@ def test_the_publish_is_skipped_while_the_student_is_reading_a_video() -> None:
         "last_intervention_attempt_id": "attempt-7",
         "last_study_attempt_id": "attempt-7",
     }
-    assert _help_is_on_screen(values), (
+    assert help_is_on_screen(values), (
         "a video the student is looking at was not recognised as help on screen, so the "
         "deferred narrative frame would publish over it and blank the panel (D-358)"
     )
@@ -259,7 +259,7 @@ def test_a_stale_intervention_does_not_suppress_the_narrative() -> None:
         "last_intervention_attempt_id": "attempt-7",
         "last_study_attempt_id": "attempt-8",
     }
-    assert not _help_is_on_screen(values), (
+    assert not help_is_on_screen(values), (
         "a stale intervention from a previous question suppressed the narrative - the "
         "pairing with the current attempt is what stops this guard swallowing everything"
     )
@@ -267,12 +267,12 @@ def test_a_stale_intervention_does_not_suppress_the_narrative() -> None:
 
 def test_an_open_ladder_still_suppresses_the_narrative() -> None:
     """D-272's original case, kept: hints 1-2 leave the graph paused and the panel up."""
-    assert _help_is_on_screen({"hint_ladder_awaiting_choice": True})
+    assert help_is_on_screen({"hint_ladder_awaiting_choice": True})
 
 
 def test_a_turn_with_no_help_publishes_normally() -> None:
     """The common path - a correct answer, nothing on screen to protect."""
-    assert not _help_is_on_screen(
+    assert not help_is_on_screen(
         {"phase": "study", "hint_ladder_awaiting_choice": False, "last_intervention": None}
     )
 
@@ -281,7 +281,7 @@ def test_a_turn_with_no_help_publishes_normally() -> None:
 def test_help_arriving_after_the_guard_still_suppresses_the_publish() -> None:
     """D-369: the guard asked the right question at the wrong moment.
 
-    Every test above checks `_help_is_on_screen` as a **predicate**. None of them checks
+    Every test above checks `help_is_on_screen` as a **predicate**. None of them checks
     **when** it is evaluated, and that is where the remaining failures lived: the scheduler
     read the checkpoint once, then opened a session and queried the study rows to build the
     snapshot, and only then published. A student clicking "Watch a video" in that gap

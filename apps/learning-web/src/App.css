@@ -163,6 +163,41 @@ button:hover:not(:disabled) {
   background: var(--accent-hover);
 }
 
+/* D-381: every variant that overrides `color` needs its own hover, because the rule above
+   sets only `background`.
+ *
+ * Measured live in dark mode: a hovered Skip/Flag/Submit-exam button rendered
+ * `rgb(124,200,128)` text on `rgb(147,214,150)` — **1.18:1**, against 6.2:1 at rest. The
+ * label does not dim, it *disappears*. Light mode was ~1.2:1. The cause is specificity:
+ * `button:hover:not(:disabled)` is (0,2,1) and `button.secondary` is (0,1,1), so the hover
+ * wins the background and leaves the variant's `color` paired with a colour it was never
+ * chosen against.
+ *
+ * Worse on touch, which is where these students are: iOS and Android latch `:hover` after a
+ * tap, so a tablet user can be left with unreadable exam controls until they tap elsewhere.
+ *
+ * Each pairing below is one that already exists at rest somewhere in this file, so no new
+ * colour is introduced and none needs re-checking. */
+button.secondary:hover:not(:disabled) {
+  /* The resting *primary* pairing. */
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+button.link:hover:not(:disabled) {
+  /* A text link must not become a solid block on hover; it stays transparent and the accent
+     carries the affordance. */
+  background: none;
+  color: var(--accent);
+}
+
+.option:hover:not(:disabled) {
+  /* The tint used for a *selected* option, so hover previews selection instead of inverting
+     the row. `--text-h` on `--accent-bg` is the same pairing `.option-key` already uses. */
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -170,7 +205,7 @@ button:disabled {
 
 button.secondary {
   background: var(--accent-bg);
-  color: var(--accent);
+  color: var(--accent-on-tint);
 }
 
 button.link {
@@ -245,6 +280,11 @@ button.link {
   border-radius: var(--radius-control);
   padding: 14px;
   margin-bottom: 12px;
+  /* D-381: the body is the only unbounded part of the approval, so it is the part that
+     scrolls. Without this the two buttons were pushed past the fold and "Don't send" was
+     entirely off-screen - on the screen that sends an email naming a minor. */
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .email-preview pre {
@@ -265,7 +305,7 @@ button.link {
 
 .phase-chip {
   background: var(--accent-bg);
-  color: var(--accent);
+  color: var(--accent-on-tint);
   border-radius: 999px;
   padding: 3px 10px;
   font-weight: 600;
@@ -361,9 +401,9 @@ button.link {
 }
 
 .option.selected {
-  border-color: var(--accent);
+  border-color: var(--accent-on-tint);
   background: var(--accent-bg);
-  color: var(--accent);
+  color: var(--accent-on-tint);
   font-weight: 600;
 }
 
@@ -486,7 +526,7 @@ button.link {
 }
 
 .journey-stage.current {
-  border-color: var(--accent);
+  border-color: var(--accent-on-tint);
   background: var(--accent-bg);
 }
 
@@ -600,6 +640,28 @@ button.link {
   .journey-stage {
     padding: 6px 8px;
   }
+
+  /* D-381: reclaim the vertical space that pushed the exam's primary action off a phone.
+     Measured at 375x667: the stem, four options and the nav bar filled the viewport, so
+     "Submit answer" and half the options sat below the fold with nothing indicating they
+     were there. A student who does not scroll cannot answer. Only padding and spacing
+     change - no reflow, no reordering, and nothing outside this breakpoint. */
+  .app-main {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .option {
+    padding: 11px 12px;
+  }
+
+  .question-stem {
+    font-size: 16px;
+  }
 }
 
 /* D-272: the locked question shown beside a hint or solution. Not buttons (nothing to
@@ -617,7 +679,7 @@ button.link {
 
 .option.locked.chosen {
   opacity: 1;
-  border-color: var(--accent);
+  border-color: var(--accent-on-tint);
   background: var(--accent-bg);
 }
 
@@ -715,7 +777,7 @@ button.link {
 }
 
 .hint-rung.current {
-  border-color: var(--accent);
+  border-color: var(--accent-on-tint);
   background: var(--accent-bg);
   font-weight: 700;
   color: var(--text-h);
@@ -792,7 +854,7 @@ button.link {
   height: 20px;
   border-radius: 999px;
   background: var(--accent-bg);
-  color: var(--accent);
+  color: var(--accent-on-tint);
   font-size: 11px;
   font-weight: 700;
 }
@@ -829,7 +891,7 @@ button.link {
   border-radius: var(--radius-control);
   background: var(--accent-bg);
   font-size: 17px;
-  color: var(--accent);
+  color: var(--accent-on-tint);
 }
 
 .solution-answer-label {
@@ -937,7 +999,7 @@ button.link {
 
 .assistance-mode.active {
   background: var(--accent-bg);
-  color: var(--accent);
+  color: var(--accent-on-tint);
   font-weight: 600;
 }
 
@@ -1040,7 +1102,7 @@ button.link {
 .chat-bubble.student {
   align-self: flex-end;
   background: var(--accent-bg);
-  color: var(--accent);
+  color: var(--accent-on-tint);
 }
 
 .chat-bubble.tutor {
@@ -1295,7 +1357,7 @@ ul {
 
 .exam-nav-item.status-answered {
   background: var(--accent-bg);
-  color: var(--accent);
+  color: var(--accent-on-tint);
   border-style: solid;
 }
 
@@ -1360,6 +1422,26 @@ ul {
   box-shadow: var(--shadow);
   padding: 24px;
   text-align: left;
+  /* 48px = the backdrop's 24px padding, twice. `dvh` so a mobile URL bar retracting does
+     not park the action row underneath it. */
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+}
+
+/* A dialog whose body scrolls while its heading and buttons stay put. Used by the email
+   approval (D-381), where the caller-supplied body is the only part that can be long: the
+   column is the flex container, `.email-preview` is the one item allowed to shrink, and
+   `.modal-actions` sits below it and is therefore always in view. */
+.email-approval-modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .modal h2 {
@@ -1708,7 +1790,7 @@ ul {
   padding: 14px 16px;
   border-radius: var(--radius-control);
   background: var(--accent-bg);
-  color: var(--accent);
+  color: var(--accent-on-tint);
   font-weight: 600;
 }
 
