@@ -47,8 +47,10 @@ carrying `RATE_LIMITED_MESSAGE`, not a 429) — so the cheap path would not have
 
 **⚠️ `main` is red on both container scans, and it is not this session's doing** (OPEN_DECISIONS #11).
 `security-scan.yml` gates on `ignore-unfixed: true`, so it fires only when a fix exists — and Debian
-published `2.41.5-0+deb13u1` for `util-linux`/`bsdutils`/`libblkid1`/`libmount1`/`libuuid1`, turning
-**9 HIGH CVEs the gate was correctly ignoring into fixable and therefore gating** ones. The identical
+published `util-linux 2.41.5-0+deb13u1`, turning **one HIGH CVE the gate was correctly ignoring into
+fixable and therefore gating**. Trivy prints `Total: 9` per image because it counts rows — the same
+`CVE-2026-53615` against the nine binary packages built from that source — so one upstream fix clears
+all nine, and every option in #11 is a one-liner. The identical
 content passed both scans at 18:45:51 on the branch and failed at 18:55:22 on `main`, nine minutes
 later, and #310 touched no Dockerfile. Exploitability here is essentially nil (an integer overflow in
 `libblkid`'s DOS partition parsing, in a container that never parses partitions) but a red `main` is

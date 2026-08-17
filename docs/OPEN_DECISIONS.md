@@ -295,9 +295,12 @@ clear the backlog in one pass.
 
 > **Raised 2026-08-17 by the V1–V3 close-out, and not caused by it.** `security-scan.yml`'s two
 > container-scan jobs fail on `4768e6f`. The gate is `ignore-unfixed: true`, so it fires **only when
-> a fix exists** — which is exactly what changed: Debian published `2.41.5-0+deb13u1` for
-> `util-linux`, `bsdutils`, `libblkid1`, `libmount1` and `libuuid1`, so **9 HIGH CVEs that the gate
-> was correctly ignoring became fixable and therefore gating**. The workflow's own comment
+> a fix exists** — which is exactly what changed: Debian published `util-linux 2.41.5-0+deb13u1`, so
+> **one HIGH CVE the gate was correctly ignoring became fixable and therefore gating**. Trivy reports
+> `Total: 9` in each image because it counts *rows*: the same `CVE-2026-53615` against the nine binary
+> packages built from that one source — `bsdutils`, `libblkid1`, `liblastlog2-2`, `libmount1`,
+> `libsmartcols1`, `libuuid1`, `login`, `mount`, `util-linux`. One upstream fix clears all nine rows,
+> which is why every option below is a one-liner. The workflow's own comment
 > anticipated this: it says the hard gate is scoped to fixable CVEs and that Dependabot's `docker`
 > ecosystem should pick up a new base-image digest "once one exists".
 >
