@@ -10615,6 +10615,77 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
 
 ## Session log
 
+### The audit, and the seven fixes that only ever went one direction (2026-08-16, D-373 → D-380)
+
+**Four independent sweeps over both apps** — learning-web UI/UX, chat-web UI/UX, timing/races
+across both stacks, and observability with live AWS reads — producing
+[AUDIT_2026_08_16.md](AUDIT_2026_08_16.md): **46 findings, 44 new.** Then the fix pass:
+**all 10 P1s and 12 P2/P3 items closed.**
+
+**All four sweeps independently reported the same structure**, and it outranks any single
+finding: *the two apps have been fixed in alternating directions and nobody tracked the
+symmetry.* D-347 recorded one direction and named the cause — two independently deployed
+frontends with a no-shared-code posture diverge silently — and the reverse was equally true,
+recorded nowhere, and had spread to the backends D-347 never covered. Seven fixes, one direction.
+
+**Fixed:**
+
+- **D-373** — D-356's defect, untouched in the *hint* personalizer. D-358's pairing signal and
+  D-369's re-read went to the narrative scheduler only. Unrecoverable here, unlike D-356: a
+  terminal rung closes the pause, nothing republishes, and `_initial_snapshot` gates
+  `intervention` on `hint_ladder_awaiting_choice`, so a refresh shows *no help at all*. The two
+  existing tests could not have caught it — both leave `last_intervention` unset.
+- **D-374** — no request deadline anywhere in learning, server or client. learning-web serialises
+  the whole UI behind one request, so a stalled Submit left the student able to neither answer nor
+  submit: the state D-241 says must never exist. Also closed a gap D-352 left in *both* apps — it
+  added chat's timeout and never taught `friendlyError` about the `DOMException` it raises.
+- **D-375** — nothing acted on a 401, while a token lives one hour and a session is 25–40
+  questions. Plus a focus trap that was only half shipped in both learning modals.
+- **D-376** — no advisory lock in learning-api at all; two tabs on one session could invoke one
+  LangGraph thread concurrently.
+- **D-377** — the application layer, alarmed. 26 → 34 alarms, verified in applied AWS state.
+- **D-378 / D-379** — three controls that could never succeed, and a failed answer that still
+  locked the question, silently making the pre-exam score, the learning gain and the parent report
+  wrong by one item.
+- **D-380** — 30 of 33 topics showed a student their internal id; the exam timer interrupted a
+  screen reader sixty times in the final minute; the tutor chat flattened three failures and ate
+  the student's typing.
+
+**Verification:** CI's full suite on `main` at `f0a9634` — **1674 passed / 2 skipped / 1 xfailed**
+(1653 at the day's start) · `make lint` clean · `make typecheck` 0 errors · both frontends
+`npm run build` clean · local `make e2e` 95 passed · staging **88 passed / 7 skipped, zero 5xx** at
+`gha-6841d9d9b169` · the four new application alarms reading OK on real data · D-373's three new
+tests falsified against the reverted predicate.
+
+**Spend:** ~90¢ on the probe re-sweep earlier in the day; the fix pass itself added only the usual
+few cents per staging walk.
+
+**Two process failures, owned rather than quietly repaired:** I merged PR #301 **with a failing
+check** — my wait loop tested that checks had *settled*, not that they had *passed* — and `main`
+was red until #302. That check was failing because **I verified with a different command than CI
+runs** (`tsc --noEmit` from the app directory instead of `npm run build`). Both are recorded in
+D-380's commit and in the PR that repaired it.
+
+**One measurement rather than a shrug:** a local suite came back 94/1 in 15.2 minutes against a
+5-minute norm. The page snapshot at the timeout showed the product had behaved correctly; the spec
+passed in 4.8 s alone; re-run with nothing competing, 95 passed in 4.9 min. Machine contention,
+measured. The same discipline settled "did the advisory lock slow the suite?" — 150.7 s with,
+148.2 s without.
+
+**Carry-over:** the P2/P3 tail, all catalogued in the audit doc with evidence locations and now
+annotated with status — chat's Stop that does not stop the server, the approval modal's overflow,
+composer focus loss, the SSE relay's asyncpg concurrency and `create_task` GC hazard, 500s
+bypassing both middlewares, per-student spend attribution, SSE telemetry, interpolated log
+messages, the `exc_info` PII hazard, and the single-inbox alarm target.
+
+**The lesson the day kept producing, in six places:** *a check can be correct and no longer
+check.* A spec that names a case and stubs the one variant that passes. A metric label designed
+and never emitted. A decision accepted as "cosmetic and rare" whose premise expired when the bank
+grew from 3 topics to 33. A guard asking the right question a moment too early. An assertion that
+covers the first caller and not the retry. The common cause is that each fix ended at the log
+line, the assertion or the entry — and not at the thing that would notice when it stopped being
+true.
+
 ### C1 Phase 6 closes, and the last two defects were both "the right check at the wrong moment" (2026-08-16, D-367 → D-371)
 
 **The roadmap's last engineering clause is ✅.** Five consecutive clean full staging runs at
