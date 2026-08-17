@@ -45,6 +45,17 @@ student does. The real blocker was that walk's 12-iteration loop cap.
 limiter is 120/hour, the global one 6000/60 s, and the escalation limiter is **in-graph** (a 200
 carrying `RATE_LIMITED_MESSAGE`, not a 429) — so the cheap path would not have produced one at all.
 
+**⚠️ `main` is red on both container scans, and it is not this session's doing** (OPEN_DECISIONS #11).
+`security-scan.yml` gates on `ignore-unfixed: true`, so it fires only when a fix exists — and Debian
+published `2.41.5-0+deb13u1` for `util-linux`/`bsdutils`/`libblkid1`/`libmount1`/`libuuid1`, turning
+**9 HIGH CVEs the gate was correctly ignoring into fixable and therefore gating** ones. The identical
+content passed both scans at 18:45:51 on the branch and failed at 18:55:22 on `main`, nine minutes
+later, and #310 touched no Dockerfile. Exploitability here is essentially nil (an integer overflow in
+`libblkid`'s DOS partition parsing, in a container that never parses partitions) but a red `main` is
+its own cost: **the next session cannot tell a real regression from this one.** Needs a judgement
+about Dockerfiles, not more code — see OPEN_DECISIONS #11 for the three options and the
+recommendation.
+
 ### Previous — six things a user reported
 
 **✅ SIX THINGS A USER REPORTED THAT FOUR AUDIT WALKS AND A GREEN SUITE MISSED
@@ -10810,6 +10821,14 @@ written against real requests rather than constructed bodies.
   instrumentation in the walk** (the request count and the path before/after the click), not from
   the database. When a click "does nothing", measure whether the target mounted before theorising
   about why it did not.
+
+**Recommended next session, in priority order:** (1) **decide OPEN_DECISIONS #11** so `main` is green
+again — it is a Dockerfile judgement, not code, and a red `main` blinds the next session; (2) the
+**never-exercised authorization matrix** against the deployed stack — a cross-account IDOR probe and
+the cross-role RAG *denial* direction, both cheap and both security-relevant for a K-12 platform,
+and both still on the audit's second list; (3) the genuine 429, which needs a limiter that can
+actually be tripped rather than the escalation path. The P2/P3 backend tail is still the *last*
+thing worth doing.
 
 **Carry-over:** a genuine HTTP 429 has still never rendered, and the reason is worth reading before
 someone tries the obvious thing — the escalation limiter is in-graph and returns a **200**, so six

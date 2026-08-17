@@ -2568,6 +2568,15 @@ from their raisers; `error-states.spec.ts` gains the 403 and 504 cases; and
 `test_error_detail_contract.py` in **both** APIs drives real requests so the substrings the clients
 match on are pinned to what the servers actually send.
 
+**Closed against an enumeration, not against a feeling.** The end-of-session check counted the rules
+in both tables programmatically (comment lines stripped, because a rule quoted inside a comment
+counts itself): **learning-web 10, chat-web 8**. That found two chat 409s with no rendered evidence
+— `["already working on a question"]` and the catch-all — which were covered rather than waived,
+because at ~20 lines each the cheaper honest option was to close the clause instead of marking it
+partial. Final state: 18 of 18 rules rendered, except learning-web's 401, which is excluded *with a
+reason* (D-375 makes it sign the student out rather than render a sentence;
+`expired-token-recovery.spec.ts` owns that path).
+
 **Explicitly not done:** a genuine HTTP 429 is reachable only through the message limiter (120/hour
 — too expensive to drive) or the global middleware (6000/60 s, a load test); the escalation limiter
 is **in-graph** and returns a 200 with `RATE_LIMITED_MESSAGE`, not a 429, so "render the real 429"

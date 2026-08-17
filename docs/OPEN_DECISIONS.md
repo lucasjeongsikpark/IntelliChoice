@@ -291,6 +291,41 @@ clear the backlog in one pass.
 
 ---
 
+## 11. ⏳ OPEN — `main` is red on both container scans, and the fix is a judgement about Dockerfiles
+
+> **Raised 2026-08-17 by the V1–V3 close-out, and not caused by it.** `security-scan.yml`'s two
+> container-scan jobs fail on `4768e6f`. The gate is `ignore-unfixed: true`, so it fires **only when
+> a fix exists** — which is exactly what changed: Debian published `2.41.5-0+deb13u1` for
+> `util-linux`, `bsdutils`, `libblkid1`, `libmount1` and `libuuid1`, so **9 HIGH CVEs that the gate
+> was correctly ignoring became fixable and therefore gating**. The workflow's own comment
+> anticipated this: it says the hard gate is scoped to fixable CVEs and that Dependabot's `docker`
+> ecosystem should pick up a new base-image digest "once one exists".
+>
+> **The proof it is external, not ours:** the identical content passed both scans at **18:45:51** on
+> the branch and failed at **18:55:22** on `main`, nine minutes later. `#310` changed three files,
+> none of them a Dockerfile or a dependency.
+>
+> **Exploitability for this workload is essentially nil**, and that should shape the urgency rather
+> than the decision: the CVE is an integer overflow in `libblkid`'s DOS partition parsing, and a
+> FastAPI/uvicorn container never parses disk partitions. But a red `main` is its own cost — the
+> next session cannot tell a real regression from this.
+>
+> **Options:**
+> - **A. Wait for the upstream base rebuild.** `apps/*/Dockerfile` use the plain `python:3.12-slim`
+>   tag, so a build picks the fix up as soon as Docker Hub republishes it. Zero change here; `main`
+>   stays red for days, and nothing distinguishes this failure from a new one.
+> - **B. Install security updates in the runtime stage** (`apt-get -y upgrade`, or a targeted
+>   `--only-upgrade util-linux`). Clears it now and keeps clearing it. The cost is real and is the
+>   reason this is a decision rather than a fix: it makes image contents depend on when the build
+>   ran, which is the reproducibility property the pinned base tag exists to provide.
+> - **C. Pin-and-bump by digest** with Dependabot's `docker` ecosystem doing the bumping. Keeps
+>   reproducibility and automates the refresh, at the cost of a PR every time the base moves.
+>
+> **Recommendation: C, with B as a targeted one-line stopgap if `main` must be green sooner.** C is
+> the shape the workflow comment already assumes, and it is the only option that keeps "what is in
+> this image" answerable from the repo. **Not done in-session** because it changes a deploy artifact
+> and the session's approved scope was coverage.
+
 ## Not decisions — already settled, listed to stop them being re-litigated
 
 - **Auto-approval with no spot-check sampling** (D-289). A 20-item-per-wave sample was recommended
