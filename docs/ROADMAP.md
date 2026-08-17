@@ -2656,3 +2656,26 @@ is per-IP and school branches share an egress address (D-087).
 **Done when:** every injected 429 body is one the server really sends · the bodyless shape renders the
 friendly sentence and not the server's own words · the correction to the carry-over's premise is
 written down rather than quietly dropped.
+
+### Session V7 — The PII item, measured ✅ *(done 2026-08-17, D-387)*
+
+The audit's highest-value never-walked path, on a platform whose users are minors. **Measuring it
+first shrank it for the third time this milestone**, and what remained was not where the note pointed.
+
+**Already held, found by reading rather than by testing:** the redactor is unit-tested, every Bedrock
+payload is structurally floored, all four free-text entry points redact at the request boundary, and
+learning's tutor chat asserts the persisted row. Neither app serves a transcript back, so the raw
+words never leave the tab and the "your own message came back redacted" failure cannot occur.
+
+**Outcome — two things worth having.** The location invariant now covers the forms its own docstring
+claims: `LocationConsentChoice` promises it for "whichever single form the caller supplies" and both
+existing tests supplied `latitude`/`longitude` only, so `zip_code`, `city` and `address` were claimed
+and unheld. All three pass, with a non-vacuity control. And `pii-typed-by-a-visitor.spec.ts` asserts
+the typed PII leaves the page exactly once — **whose first version was wrong**: an injected
+`?q=` beacon passed it, because `encodeURIComponent` turns `@` into `%40`. It searches the decoded URL
+now, and the injected beacon fails it.
+
+**Done when:** the location invariant covers every form the docstring claims · the browser assertion
+is falsified by an injected second carrier rather than assumed · the console is checked separately
+from the console-*error* teardown · what was left undone (learning-web's tutor-chat browser leg) is
+recorded with its reason.
