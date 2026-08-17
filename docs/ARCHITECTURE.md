@@ -73,6 +73,26 @@ to rot, because nothing fails when it does.)*
   its regression test manufactures the window with `route.continue()` rather than waiting to be
   lucky.
 
+- **A client rule that matches on the *content* of a server response is unverified until a test
+  drives the server to produce it** (D-383, and it has now shipped three unreachable rules). Both
+  web clients map a failure to a sentence by matching on **status plus a substring of the detail**,
+  because one endpoint returns 409 for five different situations. Nothing checked that the
+  substrings appear in anything the server sends, and three rules turned out to be unmatchable by
+  construction: chat-web's 422 keyed on a field name Pydantic puts only in `loc` (D-378, found by a
+  live browser a month later), learning-web's 400 keyed on the word "attendance" that no
+  `HTTPException` in that API has ever carried (the gate answers **200** with `phase: "blocked"`),
+  and chat-web's 504 rule sitting *below* an unconditional `status >= 500` return so a real
+  gateway timeout said "something broke on our side".
+
+  Each one reads correctly, which is why review cannot catch them: reviewing a rule re-reads the
+  rule. The mechanical form is a **pair** of tests, and neither half is sufficient — the e2e spec
+  renders each sentence from a body quoted at its raiser (`error-vocabulary.spec.ts`,
+  `error-states.spec.ts`), and `test_error_detail_contract.py` in each API drives a real request to
+  the failure so the substring is pinned to what the wire actually carries. Adding a rule to an
+  `errors.ts` means adding a case to both. A rule whose situation cannot be driven from a test is
+  worth knowing about *before* it ships, because it means nothing can show the sentence is
+  reachable either.
+
 - **Every gate that judges an authored item must apply the *same* predicate, and "same" means
   one function — not one intention** (D-312, and it has now cost content six times). Four places
   decide whether an item's answer is acceptable: the **design** pre-check (§3b stage 1), the

@@ -7,6 +7,46 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**✅ THE THREE COVERAGE BLIND SPOTS ARE CLOSED, AND CLOSING THEM FOUND THREE DEFECTS
+(2026-08-17, D-383 — ROADMAP Milestone 11, V1–V3).**
+
+D-381's audit ended by saying its three coverage gaps mattered more than its own P3 list. They did.
+**Each gap, once closed, immediately produced a defect every existing test agreed with.**
+
+- **V1 — nothing terminal had ever been completed.** A walk now reaches the post-exam results screen
+  in ~50 s and checks its numbers against the server's own `learning_gain`. It found that **"View
+  progress dashboard" cannot work on a completed session**: the effect that puts the finished session
+  in the URL lists `location.pathname` in its dependencies and `view` is derived from the path, so
+  the dashboard mounted, fired four requests, and was replaced back within a frame — on the one
+  screen whose copy says to go and look there. Fixed, and falsified by reverting the guard.
+- **V2 — every gate had been declined, never approved.** The audit's phrasing was broader than the
+  truth: both gates were already approved at the **API** level. What had never happened is approving
+  **through the UI**, so the confirmation copy, the dialog closing, **§5.6.4's "session remains
+  blocked" after approval**, and chat's composer-released-after-approval are now asserted.
+- **V3 — two error rules could never fire.** learning-web's `{400, ["attendance"]}` was unmatchable
+  (the gate answers 200 with `phase: "blocked"`), and chat-web's `{504}` rule sat below an
+  unconditional `status >= 500` return, so a real 504 from `_invoke_with_deadline` told the visitor
+  "something broke on our side" instead of "try asking it more simply".
+
+**The pattern worth keeping: that is three occurrences of D-378's shape** — a rule that reads
+correctly, cannot match, and is invisible to review because reviewing it re-reads the rule rather
+than the wire. The remedy is a *pair* of tests, never one: `test_error_detail_contract.py` in both
+APIs drives real requests so the substrings are pinned to what the server sends, and
+`error-vocabulary.spec.ts` renders all eleven learning-web sentences from details quoted at their
+raisers.
+
+**A stated correction to a comment that had misdirected this work for weeks:** `journey-student`'s
+docstring says it stops short of the results screen because "the study phase never reaches the
+mastery bar". It does reach it — `MAX_ATTEMPTS_PER_SKILL = 4` resolves a line as `unresolved` and the
+plan moves on, so five skills × four attempts is a hard bound of 20 study answers whatever the
+student does. The real blocker was that walk's 12-iteration loop cap.
+
+**Still open, and named rather than implied:** a genuine HTTP **429** has never rendered. The message
+limiter is 120/hour, the global one 6000/60 s, and the escalation limiter is **in-graph** (a 200
+carrying `RATE_LIMITED_MESSAGE`, not a 429) — so the cheap path would not have produced one at all.
+
+### Previous — six things a user reported
+
 **✅ SIX THINGS A USER REPORTED THAT FOUR AUDIT WALKS AND A GREEN SUITE MISSED
 (2026-08-17, D-382).**
 
@@ -10708,6 +10748,53 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### The three blind spots, and the three defects behind them (2026-08-17, D-383)
+
+**The session was "close the coverage gaps", and every gap had something behind it.** That is the
+result worth keeping: these were not tidy-up items. Each one was a *class* of thing no test could
+see, and each produced a live defect within minutes of being looked at.
+
+**Built:** `e2e/tests/learning/journey-terminal.spec.ts` (the first walk in this project's history
+to reach the post-exam results screen — ~50 s locally, pre-exam 10 accepted / study 15 answers with
+12 ladder pauses / post-exam 10 accepted), `attendance-email-approved.spec.ts`,
+`escalation-approved.spec.ts` (real backend), `error-vocabulary.spec.ts` (all 11 learning-web
+sentences), two 
+`test_error_detail_contract.py` files, plus 403/504 cases in `error-states.spec.ts`. Fixtures
+`student-ext-11`/`parent-ext-4` (terminal) and `student-ext-12` (unmarked attendance); the ladder
+helper now takes the rung, which is why all three assistance counters have evidence for the first
+time.
+
+**Fixed:** the results-URL effect that made "View progress dashboard" impossible on a completed
+session; learning-web's unmatchable 400 `["attendance"]` rule (deleted); chat-web's unreachable 504
+rule (a real path — `sessions.py:544`).
+
+**Verification:** `make lint` (ruff) and `make typecheck` (pyright, 0 errors) clean · `make test`
+**1681 passed / 2 skipped / 1 xfailed** in 7:29, against a 1675 baseline — the six new contract
+tests · full local Playwright suite **103 passed, 0 failed, 0 skipped** in 5.8 min, against a 97
+baseline, with `journey-terminal` at **49.0 s** inside the whole run and every pre-existing spec
+unchanged in status. The dashboard fix was **falsified by reverting the guard** — the path went
+straight back to `/results/:id` — before being believed, and both new pytest contract files were
+written against real requests rather than constructed bodies.
+
+**Two mistakes of mine, both instructive:**
+
+- The error-vocabulary spec first injected on `POST /answers` and read "Question 1 was not saved" —
+  **the app behaving correctly and the test asking the wrong screen.** `ExamScreen` renders
+  `saveFailure ?? error` on purpose (D-378/D-381). Moved to the topic screen.
+- I spent a stretch hunting the dashboard button through the dev Postgres, whose `learning_sessions`
+  table has no row for the walk's student. That was my own artifact — `POST /sessions` writes
+  nothing and the domain row is not the graph's state. **The mechanism came from two lines of
+  instrumentation in the walk** (the request count and the path before/after the click), not from
+  the database. When a click "does nothing", measure whether the target mounted before theorising
+  about why it did not.
+
+**Carry-over:** a genuine HTTP 429 has still never rendered, and the reason is worth reading before
+someone tries the obvious thing — the escalation limiter is in-graph and returns a **200**, so six
+escalations would not have produced a 429 at all. Everything else from the two audits is unchanged
+(the SSE relay's asyncpg concurrency and `create_task` GC hazard, 500s bypassing both middlewares,
+per-student spend attribution, SSE telemetry, interpolated log messages, the `exc_info` PII hazard,
+the single-inbox alarm target, and the `AUDIT_LIVE_2026_08_17.md` P3 list).
 
 ### The live audit, and six things a user found in ten minutes (2026-08-17, D-381 → D-382)
 

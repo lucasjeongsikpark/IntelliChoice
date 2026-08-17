@@ -28,9 +28,19 @@ const FIXTURE_IDS: { label: string; role: Role; sub: string }[] = [
   // The main journey walk's own student and parent (D-365). Kept in step with `e2e/config.ts`
   // deliberately: the comment at the top of this list is about exactly this drift.
   { label: "Student — Kai Journey (grade 3, present)", role: "student", sub: "student-ext-10" },
+  // The terminal walk's own student and parent (V1). This is the one student whose sessions
+  // reach `completed`, so signing in as them by hand will usually land on a results screen
+  // rather than the start screen - that is the fixture working, not a fault.
+  { label: "Student — Lena Terminal (grade 3, present)", role: "student", sub: "student-ext-11" },
+  {
+    label: "Student — Milo Unmarked (grade 3, not marked yet)",
+    role: "student",
+    sub: "student-ext-12",
+  },
   { label: "Parent — Priya One (1 linked child)", role: "parent", sub: "parent-ext-1" },
   { label: "Parent — Paul Two (2 linked children)", role: "parent", sub: "parent-ext-2" },
   { label: "Parent — Pia Three (1 linked child, Kai)", role: "parent", sub: "parent-ext-3" },
+  { label: "Parent — Rae Four (1 linked child, Lena)", role: "parent", sub: "parent-ext-4" },
 ];
 
 /**

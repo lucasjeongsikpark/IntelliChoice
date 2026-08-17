@@ -121,7 +121,25 @@ export function friendlyError(error: unknown): string {
     const detail = detailText(error);
     if (detail) return detail;
   }
-  if (error.status >= 500) {
+  // **The 5xx catch-all, minus any status that has a rule of its own** (V3, 2026-08-17).
+  //
+  // This used to be an unconditional `status >= 500`, which sat *above* the rule loop and
+  // therefore made the `{status: 504}` rule below unreachable: its sentence had never rendered
+  // and never could. Same class as D-378 and as learning-web's deleted `["attendance"]` rule -
+  // a rule that reads correctly, is never matched, and is invisible until something asks the
+  // question out loud. Found by `tests/chat/error-states.spec.ts`'s new 504 case, which failed
+  // against this file before the `!RULES.some(...)` clause existed.
+  //
+  // It matters to a visitor rather than only to tidiness. `sessions.py:544` returns **504** with
+  // `TURN_TIMED_OUT_MESSAGE` when `_invoke_with_deadline` stops a slow turn, and CloudFront
+  // returns a detail-less 504 for the same underlying condition. "Something broke on our side"
+  // sends them to try the identical long question again; "That took too long to answer. Try
+  // asking it again, or more simply." names the one thing that might work.
+  //
+  // Deliberately **not** extended into the 503 pass-through above: the server's 504 text is fine,
+  // but so is ours, and passing a detail through is how wire text reaches a user - the 503 branch
+  // accepts that exposure only because D-345's own messages are the only 503s this app produces.
+  if (error.status >= 500 && !RULES.some((rule) => rule.status === error.status)) {
     return "Something broke on our side. It's not you — try again in a moment.";
   }
 

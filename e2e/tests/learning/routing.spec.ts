@@ -10,12 +10,18 @@
  * already finalized - the address bar disagreeing with the session state is a worse defect than
  * the one being fixed. The URL owns only "session flow vs dashboard"; the phase owns the rest.
  *
- * **And `/results` is not covered, because it is not bookmarkable and cannot be yet.**
- * `ResultsScreen` is handed `gain`/`hintCount`/`solutionCount`/`videoCount` off the live
- * snapshot, and there is no endpoint that serves a completed session's results by id. ROADMAP U4
- * lists "dashboard and results are bookmarkable"; the dashboard half is real (it fetches by
- * student id) and the results half needs API surface that does not exist. Recorded here rather
- * than papered over with a route that only works while the session happens to be live.
+ * **`/results` used to be uncovered here "because it is not bookmarkable and cannot be yet". That
+ * stopped being true on 2026-08-15 and this comment did not (corrected 2026-08-17, V1/D-383).**
+ * D-338 added `GET /learning/sessions/{id}/results` and `BookmarkedResultsScreen`, so the results
+ * half of U4's "dashboard and results are bookmarkable" is real. It is covered by
+ * `journey-terminal.spec.ts`, which is the only spec that can reach a completed session, and this
+ * file stays scoped to "session flow vs dashboard".
+ *
+ * The correction is worth more than the sentence. A stale *"cannot be done"* comment costs more
+ * than a stale fact, because the next person reads it and stops: `journey-student.spec.ts`
+ * carried one saying the study phase "never reaches the mastery bar", which is why nothing walked
+ * to the results screen for weeks — the bound is arithmetic (5 skills × 4 attempts) and had been
+ * reachable all along.
  */
 
 import { FIXTURES, LEARNING_WEB } from "../../config";

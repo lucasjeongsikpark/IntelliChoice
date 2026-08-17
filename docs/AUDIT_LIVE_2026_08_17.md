@@ -75,6 +75,17 @@ open**: chat has no liveness timer and no reconnect control, where learning-web 
 
 ## The coverage gaps, which matter more than the remaining items
 
+> **✅ All three are closed (2026-08-17, D-383 — ROADMAP Milestone 11).** They were worth more than
+> this document's P3 list, and the evidence is that **each one produced a defect within minutes of
+> being looked at**: the results screen's "View progress dashboard" could not work on a completed
+> session, learning-web's 400 `["attendance"]` rule was unmatchable, and chat-web's 504 rule was
+> unreachable below an unconditional 5xx return. One item is deliberately still open — a genuine
+> HTTP 429 has never rendered, and the escalation limiter is in-graph (a 200), so the obvious cheap
+> path would not have produced one.
+>
+> Also corrected: gap 2's phrasing below is broader than the truth. Both approval gates were already
+> approved at the **API** level; what had never happened is approving through the UI.
+
 Three blind spots, none of them a bug and all of them a reason bugs survive:
 
 1. **Nothing terminal has ever been completed.** No walk — manual or automated, in this project's

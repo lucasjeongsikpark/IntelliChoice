@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./App.css";
 import * as api from "./api/client";
@@ -159,8 +159,35 @@ function App() {
   // same session's pre-completion URL, which the graph will not serve again.
   const completedSessionId =
     session.snapshot?.phase === "completed" ? session.snapshot.learning_session_id : null;
+  /**
+   * **Which completed session this effect has already redirected for, so it redirects once
+   * instead of pinning the URL** (V1, found live 2026-08-17 by the first walk in this
+   * project's history to reach the results screen).
+   *
+   * `view` is derived from the path (line 67) and `setView` is a `navigate`, so *every* screen
+   * change on this app is a path change - and this effect lists `location.pathname` in its
+   * dependencies. On a completed session that made the two fight: the student clicks "View
+   * progress dashboard", the path becomes `/dashboard`, this effect re-fires, sees a path that
+   * is not the results URL, and replaces it straight back. Measured in the walk: the dashboard
+   * *did* mount and fired **4 requests** before being thrown away, and the screen never
+   * changed - so from the student's side the button simply does nothing.
+   *
+   * Which makes it worse than a dead button: `ResultsScreen` ends with "N skills to strengthen
+   * — see the progress dashboard for details", so the one screen that tells a student to go
+   * look is the one screen that cannot take them there. `BookmarkedResultsScreen`'s copy of the
+   * button had the same fate whenever a live completed snapshot was behind it.
+   *
+   * A ref rather than dropping `location.pathname` from the deps: the effect still needs to
+   * read the current path to know whether the redirect is necessary at all, and a lint-silenced
+   * stale read is how this class of bug gets re-introduced. What the guard encodes is the
+   * intent D-338 always had - *put the finished session in the URL when it finishes* - which is
+   * once per session, not once per navigation.
+   */
+  const redirectedResultsFor = useRef<string | null>(null);
   useEffect(() => {
     if (completedSessionId === null) return;
+    if (redirectedResultsFor.current === completedSessionId) return;
+    redirectedResultsFor.current = completedSessionId;
     const target = `${RESULTS_PATH}/${encodeURIComponent(completedSessionId)}`;
     if (location.pathname !== target) navigate(target, { replace: true });
   }, [completedSessionId, location.pathname, navigate]);

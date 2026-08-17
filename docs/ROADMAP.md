@@ -2505,3 +2505,74 @@ backlog into an untracked one. This has been re-derived as a fresh finding at le
 answer key, an item contradicting its own judge rating, an unservable path. D-341 tested the one
 behaviour the parking depends on (`_closest_to_recommended` never returns empty, so an unstocked
 tier stays servable); if that ever breaks it is a real defect and D-342 does not cover it.
+
+## Milestone 11 — The coverage the audits named *(D-383, planned and executed 2026-08-17)*
+
+The 2026-08-17 live audit ([AUDIT_LIVE_2026_08_17.md](AUDIT_LIVE_2026_08_17.md) §"The coverage gaps")
+ended with three blind spots and the claim that they mattered more than its own P3 list. PROGRESS
+named them the next session's work. This milestone is that session, one clause per blind spot.
+
+**Why these three and not the P3 tail:** each one is a *class* of thing no test could see, and the
+day before had just demonstrated the cost — 48 audit findings and six more from ten minutes of real
+use, all on a build whose suite was green.
+
+### Session V1 — Walk to the results screen ✅ *(done 2026-08-17, D-383)*
+
+Nothing terminal had ever been completed: no walk in this project's history, automated or manual,
+had reached the post-exam results screen, so every number and sentence on it had shipped unrendered.
+
+**Outcome:** `e2e/tests/learning/journey-terminal.spec.ts` walks sign-in → pre-exam → study →
+post-exam → results in **~50 s** locally, and the screen's numbers are asserted against the server's
+own `learning_gain` payload rather than merely being present. **One real defect found and fixed**
+(D-383 §1): the effect that puts a finished session in the URL listed `location.pathname` in its
+dependencies, and `view` is derived from the path — so "View progress dashboard" mounted the
+dashboard, fired four requests, and was replaced back to `/results/:id` within a frame. The screen's
+own copy says to go and look there. Falsified by reverting the guard.
+
+**Done when:** the results screen renders in a test · its pre/post numbers and all three assistance
+counters are checked against the server · no internal skill id on screen · both branches of the
+"up from" clause exercised (both were: 4→0 and 2→5) · the dashboard button verified to *stay* on the
+dashboard.
+
+### Session V2 — Approve an approval gate ✅ *(done 2026-08-17, D-383)*
+
+Every gate had been declined and none approved, so the second half of CLAUDE.md rule 4 was
+unverified.
+
+**Outcome, with a correction to the audit's phrasing:** at the **API** level both gates were already
+covered (`test_attendance_ask_branch_manager_end_to_end`, `test_admin_escalation`) — the send, the
+recipient, the `InterruptApproval` row. What had never happened is approving **through the UI**, so
+two specs now do: `attendance-email-approved.spec.ts` (confirmation copy, dialog closes, and the one
+that matters — **§5.6.4's "session remains blocked" after approval**) and
+`escalation-approved.spec.ts` against the real backend (confirmation in the transcript, and the
+composer becoming usable again, which is the deadlock only a browser can see).
+
+**Done when:** one gate per app approved in a browser · the confirmation rendered · the gate still
+closed afterwards · the composer released · staging's unconditional `FakeEmailTransport` recorded as
+the reason this was always safe.
+
+### Session V3 — Make the error vocabulary render ✅ *(done 2026-08-17, D-383)*
+
+Every failure had been injected client-side, so the hand-written per-status sentences had never been
+on a screen.
+
+**Outcome: two unreachable rules found, both the D-378 shape.** learning-web's
+`{status: 400, detail: ["attendance"]}` could never match — the gate answers **200** with
+`phase: "blocked"`, so no detail has ever carried that word (deleted). chat-web's `{status: 504}`
+rule sat *below* an unconditional `status >= 500` return, so a real 504 from
+`_invoke_with_deadline` told the visitor "something broke on our side" instead of "try asking it
+more simply" (fixed by exempting statuses that have a rule of their own).
+
+Shipped: `error-vocabulary.spec.ts` renders **all 11** learning-web sentences with details quoted
+from their raisers; `error-states.spec.ts` gains the 403 and 504 cases; and
+`test_error_detail_contract.py` in **both** APIs drives real requests so the substrings the clients
+match on are pinned to what the servers actually send.
+
+**Explicitly not done:** a genuine HTTP 429 is reachable only through the message limiter (120/hour
+— too expensive to drive) or the global middleware (6000/60 s, a load test); the escalation limiter
+is **in-graph** and returns a 200 with `RATE_LIMITED_MESSAGE`, not a 429, so "render the real 429"
+remains open and is *not* what the escalation path would have shown.
+
+**Done when:** every rule in both `errors.ts` files has rendered in a test or is recorded as
+unreachable with a reason · the substrings are pinned server-side · no raw wire text or identifier
+reaches a student.

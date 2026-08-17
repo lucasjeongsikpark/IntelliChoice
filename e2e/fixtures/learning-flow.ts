@@ -37,6 +37,20 @@ export const NARRATIVE_OVERLAY = ".narrative-overlay";
 const pauseOpenedByLastAnswer = new WeakMap<Page, boolean>();
 const answersListenerInstalled = new WeakSet<Page>();
 
+/** SPEC §5.11.3's three ways forward from a wrong answer. */
+export type LadderRung = "hint" | "solution" | "video";
+
+/**
+ * Quoted from `InterventionScreen.tsx:144-152`, and anchored on the words a student reads
+ * rather than on a test id, so a copy change that alters the offer is a failure here rather
+ * than a silent no-op.
+ */
+const RUNG_BUTTON: Record<LadderRung, RegExp> = {
+  hint: /get a hint/i,
+  solution: /show the solution/i,
+  video: /watch a video/i,
+};
+
 /** Idempotent: `answerCurrentQuestion` calls this, so every caller gets it without opting in. */
 function trackLadderPauses(page: Page): void {
   if (answersListenerInstalled.has(page)) return;
@@ -383,8 +397,16 @@ export async function dismissNarrativeIfPresent(page: Page): Promise<boolean> {
  *
  * SPEC §5.11.3 gives a wrong answer exactly three ways forward - Hint / Solution /
  * Video - so there is deliberately no "decline" at the first pause and a journey must
- * pick one. This takes a hint, then leaves the ladder: "I'll try again now" resumes the
- * graph, "Got it — next question" is the terminal dismiss. False if no pause is up.
+ * pick one. This takes the requested rung (a hint unless told otherwise), then leaves the
+ * ladder: "I'll try again now" resumes the graph, "Got it — next question" is the terminal
+ * dismiss. False if no pause is up.
+ *
+ * **`rung` exists because "hint" was hard-coded here, and that is why two of the three
+ * assistance counters on the results screen had no live evidence** (the V1 coverage gap).
+ * Every walk in the suite spent hints and only hints, so `solutionCount` and `videoCount`
+ * were rendered from numbers no test had ever moved off zero - and the one defect this class
+ * has already produced in the wild was a *counter* defect ("Videos watched: 1" for a video
+ * that was only ever displayed, ResultsScreen.tsx:59-65).
  */
 export async function clearInterventionIfPresent(
   page: Page,
@@ -410,6 +432,12 @@ export async function clearInterventionIfPresent(
    * becoming the fix by accident, which would spend the failure this is meant to explain.
    */
   note?: (message: string) => void,
+  /**
+   * Which rung to spend at the *first* pause, where all three are offered and the screen is
+   * `intervention === null` (InterventionScreen.tsx:143-165). A reopened pause has a
+   * different button set and is left to the exit path below either way.
+   */
+  rung: LadderRung = "hint",
 ): Promise<boolean> {
   const firstPause = page.getByRole("heading", { name: /want a hand/i });
   const content = page.locator(".intervention-panel");
@@ -501,7 +529,8 @@ export async function clearInterventionIfPresent(
   if (pauseCount === 0 && panelCount === 0) return false;
 
   if ((await firstPause.count()) > 0) {
-    await stableClick(page.getByRole("button", { name: /get a hint/i }));
+    if (note) note(`ladder: spending the "${rung}" rung`);
+    await stableClick(page.getByRole("button", { name: RUNG_BUTTON[rung] }));
   }
 
   // The requested hint does not reliably survive to be read: a later SSE snapshot
