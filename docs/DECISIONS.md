@@ -26976,3 +26976,50 @@ open discrepancy" after T-02 was dispositioned, while the table below said **Ope
 already warns, in as many words, that "a summary line that agrees with the claim you want to make,
 sitting above a table that contradicts it, is how a rubric passes itself" — and it had happened to
 its own heading, in launch-gate evidence a reader would take at face value.
+
+## D-388 — V8: the authorization probe is scoped to deployed *configuration*, because the matrix itself is already tested (accepted, 2026-08-17)
+
+**The fifth carry-over in a row that shrank when measured.** "Cross-account authorization (IDOR)
+against the deployed stack" reads like missing coverage. The matrix is covered:
+`test_another_students_results_are_refused`, `test_parent_cannot_select_unlinked_student`,
+`test_a_parent_cannot_read_the_topic_list_of_a_child_it_is_not_linked_to`,
+`test_student_cannot_select_another_student`, `test_dashboard_endpoint_rejects_a_student_requesting…`,
+`test_an_anonymous_caller_cannot_continue_an_owned_thread`. Repeating those live measures the same
+code twice.
+
+So `e2e/tests/security/deployed-authorization.spec.ts` is scoped to what a pytest **structurally
+cannot** reach — places where deployed *configuration* could differ from code that is provably
+correct. Two clauses are staging-only and are the reason the file exists:
+
+  - **`/dev/token` refuses to mint without the shared secret.** If the task definition ever loses
+    `STAGING_TOKEN_SECRET_*`, that endpoint becomes an unauthenticated token mint for any role on a
+    system whose users are minors. The pytest proves the code refuses; only a live call proves the
+    running service is configured to. Measured: **404 on both apps**, and the control (the same call
+    *with* the secret) still mints.
+  - **The CDN exposes none of `/metrics`, `/openapi.json`, `/docs`.** D-385 asserts they are absent
+    from `api_path_patterns`; this asserts the deployed edge behaves that way. Config and reality are
+    different claims.
+
+Result: **6 of 6 pass against staging**, no findings. That is a measurement, not an empty run,
+because every rejection carries a positive control on the same URL — a 404 from a misspelled path
+and a 404 from an ownership check are otherwise indistinguishable (D-101 §5).
+
+**Both of the probe's first-run failures were the probe, and the controls are what said so.**
+
+  1. `GET /students/{id}/report` failed its *control*. That route is a **POST** that generates a
+     report through Bedrock, so the GET returns 405 — and without the control, the paired assertion
+     ("another student gets ≥400") would have **passed for the wrong reason**. Dropped from the
+     probe with the reason written next to it.
+  2. The chat clause reported an intruder succeeding. It was not: `_assert_session_access` reads
+     `user_external_id` out of the **graph snapshot**, which does not exist until the first turn
+     runs, so a freshly created session is genuinely unowned and anyone may claim it — that
+     function's own docstring says "a new anonymous session is one `POST /chat/sessions` away". The
+     probe now runs an owner turn first, which doubles as the positive control.
+
+**Cost, corrected from the plan:** one real chat turn on staging, not zero. Establishing an owned
+thread requires it, which is a fact about the ownership model rather than an incidental expense. No
+learning session is started at all — the probe uses the read-only dashboard and session-list routes,
+so the shared exam fixtures (D-288) are untouched.
+
+**Falsified before being believed:** pointing the "other student" at the caller's own id, and giving
+the intruder the owner's token, each turn their assertion red; the unmodified spec passes.

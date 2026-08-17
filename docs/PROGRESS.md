@@ -41,12 +41,21 @@ assertion **failed its own falsification first**: an injected `?q=` beacon passe
 `encodeURIComponent` turns `@` into `%40` — the same shape as the audit probe that matched
 `CAST(blob AS text)` and certified msgpack coordinates as clean.
 
-**Recommended next, in priority order:** (1) the **live** half of the authorization matrix, now that
-the config half is guarded — one cross-account probe against the deployed stack, worth doing because
-it is the only layer V5 cannot reach, and cheap; (2) the audit's remaining never-walked paths — the
+**V8 (D-388) closed the live authorization probe, and it shrank for the fifth time.** The matrix is
+covered by six pytest tests, so the probe was scoped to deployed *configuration* instead:
+`e2e/tests/security/deployed-authorization.spec.ts`, **6 of 6 against staging, no findings**. The two
+clauses that justify it are staging-only — `/dev/token` refusing to mint without the shared secret
+(a missing env var there is an unauthenticated token mint for any role), and the CDN exposing none of
+`/metrics`, `/openapi.json`, `/docs`, which checks D-385's terraform claim against reality. Both of
+its first-run failures were the probe itself, caught by its own positive controls.
+
+**Recommended next, in priority order:** (1) the audit's remaining never-walked paths — the
 exam timer, the calendar interrupt's `.ics` branch, the ErrorBoundary loop, and learning-web's
 tutor-chat browser leg (deferred in V7 with its reason: the invariant is held server-side and the
-walk costs a full pre-exam); (3) the P2/P3 backend tail, still last.
+walk costs a full pre-exam); (2) the P2/P3 backend tail, still last — of which the only non-cosmetic
+item is **`AUD-L-16`, video help opening the full `youtube.com` watch page for a minor**, and
+`EDGE-CHAT-02`'s real root cause, that chat has no liveness timer or reconnect control where
+learning-web has both.
 
 ### Previous — the three coverage blind spots (Milestone 11)
 

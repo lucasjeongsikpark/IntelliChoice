@@ -2679,3 +2679,26 @@ now, and the injected beacon fails it.
 is falsified by an injected second carrier rather than assumed · the console is checked separately
 from the console-*error* teardown · what was left undone (learning-web's tutor-chat browser leg) is
 recorded with its reason.
+
+### Session V8 — The deployed authorization probe ✅ *(done 2026-08-17, D-388)*
+
+The audit's second-list item: "cross-account authorization (IDOR) against the deployed stack, never
+exercised". **The fifth carry-over this milestone to shrink when measured** — the matrix is covered
+by six pytest tests, so the probe is scoped to what a pytest structurally cannot reach: deployed
+*configuration* diverging from code that is provably correct.
+
+**Outcome: 6 of 6 pass against staging, no findings.** The two clauses that justify the file are
+staging-only — `/dev/token` refusing to mint without the shared secret (a missing env var there would
+make it an unauthenticated token mint for any role, on a platform whose users are minors), and the
+CDN exposing none of `/metrics`, `/openapi.json`, `/docs`, which is D-385's terraform assertion
+checked against reality.
+
+**Both first-run failures were the probe, caught by its own controls**: `/students/{id}/report` is a
+POST that spends Bedrock, so a GET returns 405 and the paired assertion would have passed for the
+wrong reason; and chat ownership is established by the *first turn*, not by creating the session, so
+the intruder's "success" was a legitimately unowned thread.
+
+**Done when:** every rejection has a positive control on the same URL · the staging-only clauses run
+on staging and are stated skips locally · the probe is falsified by removing each boundary · no
+learning session is started, so the shared exam fixtures stay untouched · the one unavoidable cost
+(a single chat turn, because an owned thread cannot exist without one) is written down.
