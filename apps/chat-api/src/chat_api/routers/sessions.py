@@ -82,6 +82,12 @@ TURN_ALREADY_RUNNING_MESSAGE = (
     "This conversation is already working on a question. Wait for it to finish before "
     "sending another."
 )
+# Named for the same reason its three neighbours are, and one more (V3, 2026-08-17): chat-web
+# matches on the substring "pending interrupt" to choose "Answer the prompt above first, then you
+# can carry on", and while this text was inline there was nothing a test could reference - so a
+# reword here would have quietly turned that sentence into the generic line, which is D-378's
+# failure mode. Pinned by `tests/test_error_detail_contract.py`.
+PENDING_INTERRUPT_MESSAGE = "a pending interrupt must be resolved via /respond before continuing"
 
 
 class CreateSessionResponse(BaseModel):
@@ -386,7 +392,7 @@ async def _reject_if_paused(
     if _pending_task_interrupt(snapshot) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="a pending interrupt must be resolved via /respond before continuing",
+            detail=PENDING_INTERRUPT_MESSAGE,
         )
     return snapshot.values
 

@@ -158,12 +158,31 @@ export const FIXTURES = {
    * resumed a session another spec had left mid-study.
    */
   studentJourney: { role: "student", sub: "student-ext-10" },
+  /**
+   * The terminal walk's own student (V1), same shape as `studentJourney` so the only
+   * difference between the two walks is where they stop.
+   *
+   * **The isolation reason here is stronger than every other student's.** The others can be
+   * resumed mid-flight, so sharing one costs time and confusing evidence. This walk drives a
+   * session to `completed`, and a finished session cannot be carried on with: a second spec
+   * signing in as this student would find a results screen and no way to start.
+   */
+  studentTerminal: { role: "student", sub: "student-ext-11" },
+  /**
+   * The email-approval walk's own student (V2): no attendance row, so §5.4.4's gate fires on
+   * the routine "not marked yet" path. Separate from `studentUnknownAttendance`, which
+   * `journey-attendance.spec.ts` drives to a *decline* - there is one gate per student per
+   * week and two specs must not answer it differently.
+   */
+  studentUnknownEmail: { role: "student", sub: "student-ext-12" },
   /** One linked child - exercises the auto-select path. */
   parentOneChild: { role: "parent", sub: "parent-ext-1" },
   /** Two linked children - exercises the child_selection interrupt. */
   parentTwoChildren: { role: "parent", sub: "parent-ext-2" },
   /** `studentJourney`'s parent. Its own, so `parentOneChild` stays a one-child fixture. */
   parentJourney: { role: "parent", sub: "parent-ext-3" },
+  /** `studentTerminal`'s parent, its own for the same AUD-F-22 reason. Not walked yet. */
+  parentTerminal: { role: "parent", sub: "parent-ext-4" },
 } as const;
 
 export const TOPIC_ID = "linear_equations";

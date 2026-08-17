@@ -93,11 +93,18 @@ const RULES: Rule[] = [
     detail: null,
     message: "We couldn't find this. It may have been from a different account, or it may not exist any more.",
   },
-  {
-    status: 400,
-    detail: ["attendance"],
-    message: "Attendance for this week hasn't been confirmed yet.",
-  },
+  // **A `{status: 400, detail: ["attendance"]}` rule used to sit here and could never fire**
+  // (V3, 2026-08-17). No `HTTPException` in learning-api has ever carried the word "attendance"
+  // in a detail, because the gate is not an error: `check_attendance_gate` answers **200** with
+  // `phase: "blocked"` and `attendance.UNKNOWN_MESSAGE`/`BLOCKED_MESSAGE`, which
+  // `AttendanceScreen` renders directly. So the sentence "Attendance for this week hasn't been
+  // confirmed yet." was unreachable, and the 400s this API does return ("unknown topic …",
+  // "unknown question variant …") fell to GENERIC either way.
+  //
+  // Same class as D-378 and found the same way its fix should have been checked: by asking what
+  // the server actually sends. Every remaining substring rule above is now pinned by a driven
+  // request in `apps/learning-api/tests/test_error_detail_contract.py`, including a test that
+  // asserts no 400 mentions attendance - **add a case there when you add a rule here.**
   { status: 429, detail: null, message: "That was a lot at once — wait a moment and try again." },
 ];
 

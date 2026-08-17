@@ -87,6 +87,65 @@ test.describe("failures the visitor can read and recover from", () => {
     await expect(turn).toContainText(/wait a moment/i);
   });
 
+  // The last two rules in chat-web's table with no rendered evidence (V3, 2026-08-17). Both are
+  // status-only rules, so neither can suffer D-378's substring problem - but "cannot be
+  // unmatchable" is not the same as "has ever been seen", and the sibling file's audit of
+  // learning-web found a rule that had never rendered *and* could never match.
+  test("a 403 says whose conversation it is, not that something went wrong", async ({
+    page,
+    audit,
+  }) => {
+    await stubChat(page, { message: SHAPES["grounded answer"] });
+    audit.allow({ statuses: [403], consoleErrors: ["Failed to load resource"] });
+    await page.route("**/chat/sessions/*/messages", (route) =>
+      route.fulfill({
+        status: 403,
+        contentType: "application/json",
+        // Quoted from `_assert_session_access`, which is what a thread-ownership mismatch
+        // raises - AUD-C-01's own defect, so this is the body a real cross-account attempt gets.
+        body: JSON.stringify({ detail: "not authorized for this chat session" }),
+      }),
+    );
+    await page.goto(CHAT_WEB);
+    await ask(page, "What are the Saturday hours?");
+
+    const turn = page.locator(".bubble.turn-error");
+    await expect(turn).toBeVisible();
+    await expect(turn).toContainText(/belongs to a different account/i);
+    // The remedy has to be on screen, because there is nothing else the visitor can do here.
+    await expect(turn).toContainText(/start a new chat/i);
+  });
+
+  test("a 504 suggests asking again more simply", async ({ page, audit }) => {
+    await stubChat(page, { message: SHAPES["grounded answer"] });
+    audit.allow({ statuses: [504], consoleErrors: ["Failed to load resource"], serverErrors: true });
+    await page.route("**/chat/sessions/*/messages", (route) =>
+      route.fulfill({
+        status: 504,
+        contentType: "application/json",
+        // Deliberately *not* the server's own `TURN_TIMED_OUT_MESSAGE`: a detail-less or
+        // terse 504 is what CloudFront returns for the same condition, and it is the case that
+        // shows whether the client has a sentence of its own or is merely echoing the server's.
+        body: JSON.stringify({ detail: "gateway timeout" }),
+      }),
+    );
+    await page.goto(CHAT_WEB);
+    await ask(page, "What are the Saturday hours?");
+
+    const turn = page.locator(".bubble.turn-error");
+    await expect(turn).toBeVisible();
+    // **This failed against `main`, and the failure is the finding.** `friendlyError` returned the
+    // 5xx line for every status >= 500 *before* consulting the rules, so the `{status: 504}` rule
+    // was unreachable: "Something broke on our side" for a turn that had simply taken too long,
+    // which sends the visitor to retry the identical long question. `sessions.py:544` really does
+    // return 504 (`_invoke_with_deadline`), so this was a live path, not a hypothetical one.
+    await expect(turn).toContainText(/took too long/i);
+    await expect(turn).not.toContainText(/broke on our side/i);
+    // And the wire text stays off the screen - the 503 pass-through is scoped to 503 for exactly
+    // this reason.
+    await expect(turn).not.toContainText(/gateway timeout/i);
+  });
+
   test("a 503 with a server-written sentence is passed through, not replaced", async ({
     page,
     audit,

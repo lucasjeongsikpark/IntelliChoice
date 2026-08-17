@@ -26673,3 +26673,114 @@ right shape is known — generate in a detached task and publish over SSE, as th
 for stage narratives, so the answer's latency is untouched. It is deliberately not half-built
 here: that pattern is the direct source of the D-356/D-358/D-369/D-373/D-381 family, and adding
 another background publisher on a tired afternoon is how a sixth one gets written.
+
+---
+
+### D-383 — The three coverage blind spots, closed (accepted, 2026-08-17)
+
+**Status:** accepted. Supersedes nothing; executes the "next session's work" that D-381 §coverage
+named and PROGRESS repeated.
+
+D-381's audit ended by saying its three coverage gaps mattered more than its own P3 list. This is
+that work. All three are closed, and closing them turned up **three defects that every existing
+test agreed with** — which is the argument for the milestone rather than any individual fix.
+
+#### 1. The results screen had never rendered, and its own recommended button did not work
+
+`journey-student.spec.ts:28-44` states why it stops before the results screen: the walk answers
+first-option, so "the study phase never reaches the mastery bar". **That reason is wrong, and
+measuring it is what unblocked this.** A wrong answer does not stall a skill line — after
+`MAX_ATTEMPTS_PER_SKILL = 4` attempts `ladder_step` returns `exhausted`, the line is labelled
+`unresolved`, and `_serve_next_base_or_complete` moves on. Five target skills × four attempts is a
+hard bound of 20 study answers *whatever the student does*. The real blocker was that walk's
+12-iteration loop cap, and a wrong answer costs two iterations (answer, then clear the pause).
+
+So `journey-terminal.spec.ts` walks the whole cycle in ~50 s locally. On its first pass to the
+results screen it found this:
+
+> **The effect that puts a finished session in the URL listed `location.pathname` in its
+> dependencies, and `view` is derived from the path.** Clicking "View progress dashboard"
+> navigated to `/dashboard`; the effect re-fired, saw a path that was not `/results/:id`, and
+> replaced it straight back. The dashboard *did* mount and fired four requests before being thrown
+> away, so from the student's side the button does nothing at all — on the one screen whose copy
+> says "N skills to strengthen — see the progress dashboard for details".
+
+Fixed with a `useRef` that records which completed session has already been redirected for, which
+is the once-per-session intent D-338 always had. **Falsified by reverting the guard**: the path
+went back to `/results/:id` and the screen with it.
+
+**Two assertion lessons from the same spec.** First: it initially failed on `answerWholeExam`
+returning **9** for a post-exam the network log showed had taken **10** accepted answers, with the
+navigator marking all ten answered. `answerCurrentQuestion` reports success from
+`stableClick(submit)`, so a click that lands and whose element then detaches counts as a failure.
+The spec now counts acknowledgements, which is what D-288 already said about a different helper —
+*count what the server took, not what the harness clicked*. Second: the ladder helper hard-coded
+"Get a hint", which is exactly why `solutionCount` and `videoCount` had no evidence; it now takes
+the rung, and the walk rotates all three so the counters are checked against what the server
+served — including a §5.11.6 video with no catalog entry, which must **not** count.
+
+#### 2. "Never approved" was true of the browser and false of the system
+
+The audit's phrasing was broader than the truth, and the narrower version is the useful one.
+`test_attendance_ask_branch_manager_end_to_end` and `test_admin_escalation` already approve at the
+API level and assert the send, the recipient and the `InterruptApproval` row. Duplicating that
+would have added nothing.
+
+What had never happened is approving **through the UI**, so three things were unverified: the
+confirmation copy, the dialog closing on an approval, and — the one that matters — that approving
+leaves the session **blocked**. SPEC §5.6.4 says it must: the email asks a manager to check a
+record, it does not establish attendance. A build that unblocked the exam on approval would have
+been a fail-closed violation reachable by clicking the button the screen recommends, and every
+existing test would still have passed. For chat, the browser-only property is that the composer
+becomes usable again (`busy={busy || pendingIsKnown}`); an approval that failed to clear the pause
+would leave the visitor with a permanently disabled composer.
+
+`student-ext-12` exists because gate resolution is per student per week: `journey-attendance`
+drives that gate to a *decline*, and two specs answering one gate differently is D-288's class.
+
+#### 3. Two error rules that could never fire, found by asking what the server sends
+
+**learning-web's `{status: 400, detail: ["attendance"]}`.** No `HTTPException` in learning-api has
+ever carried that word — `check_attendance_gate` answers **200** with `phase: "blocked"` and its own
+message, which `AttendanceScreen` renders. The 400s this API does return ("unknown topic …",
+"unknown question variant …") fell to GENERIC either way. Deleted.
+
+**chat-web's `{status: 504}`.** `friendlyError` returned the 5xx line for every `status >= 500`
+*before* consulting the rules, so the 504 rule was unreachable. That is a live path, not a
+hypothetical: `sessions.py:544` returns 504 with `TURN_TIMED_OUT_MESSAGE` when
+`_invoke_with_deadline` stops a slow turn, and CloudFront returns a detail-less 504 for the same
+condition. The visitor was told "something broke on our side" — which sends them to retry the
+identical long question — instead of "try asking it again, or more simply". Fixed by exempting
+statuses that have a rule of their own; **not** by extending the 503 pass-through, because passing
+a detail through is how wire text reaches a user and D-345's messages are the only 503s this app
+writes.
+
+**Both are D-378's shape, and that is now three occurrences of one pattern:** a rule that reads
+correctly, cannot match, and is invisible to review because reviewing it re-reads the rule rather
+than the wire. The remedy is the pair of tests, not either one: `test_error_detail_contract.py` in
+both APIs drives real requests so the substrings are pinned to what the server sends, and
+`error-vocabulary.spec.ts` renders all eleven learning-web sentences from details quoted at their
+raisers. Either alone is the half-check that let D-378 ship.
+
+#### 4. Two things I got wrong on the way, recorded because the shape recurs
+
+The error-vocabulary spec first injected on `POST /answers` and read "Question 1 was not saved. Go
+back and answer it again." — **the app behaving correctly and the test asking the wrong screen.**
+`ExamScreen` renders `saveFailure ?? error` deliberately (D-378/D-381): the per-question sentence
+outlives the request and names the question, where the per-status line had once claimed "Your
+progress is saved" about an answer that had just been rolled back. Moved to the topic screen, which
+renders `friendlyError`'s output directly.
+
+And I spent a stretch chasing the dashboard button through the *dev Postgres*, whose
+`learning_sessions` table has no row for the walk's student. That was my own artifact: `POST
+/sessions` writes nothing, the domain row is not the graph's state, and none of it was evidence
+about the defect. The mechanism came from two lines of instrumentation in the walk — the request
+count and the path before/after the click — not from the database.
+
+#### 5. What is *not* closed
+
+A genuine HTTP **429** still has not rendered. The message limiter is 120/hour (too expensive to
+drive), the global middleware is 6000/60 s (a load test), and the escalation limiter is
+**in-graph** — it returns a 200 carrying `RATE_LIMITED_MESSAGE`, so the obvious cheap path would
+not have produced a 429 at all. The 429 *rule* renders in `error-vocabulary.spec.ts` from an
+injected body; what is unproven is that a limiter fires and the client maps its real response.

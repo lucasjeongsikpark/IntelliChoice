@@ -1,7 +1,7 @@
 """Fixture data for the dev-fake MySQL (SPEC §5.4.1 tables).
 
-3 parents (1-child, 2-child, and the journey walk's own) + 10 students, 2 branches, and
-attendance covering present / absent / unknown (no row).
+4 parents (1-child, 2-child, and one each for the two full walks) + 12 students, 2
+branches, and attendance covering present / absent / unknown (no row).
 
 Students 1-4 cover the *gate* cases (present/absent/unknown/unlinked). Students 5-9 exist
 for the e2e walks (D-288): the original four are grades 2-5 only, so the 6-8 and
@@ -15,6 +15,18 @@ Student 10 is the last of that family and the one D-288 missed (D-365 §2). The 
 files** - so in a whole-suite run it resumed sessions other specs had left mid-study and
 took 7 refused submissions against 0 in isolation. It is the walk that *named* the
 isolation finding, and it was the last one still sharing.
+
+Student 11 is the *terminal* walk's own, and it needs to be its own for a reason none of
+the others have: it is the only walk that drives a session to `completed`. Every other
+student can be picked up mid-flight and carried on with; a finished session is finished,
+so a second spec signing in as this student would find a results screen and no way to
+start the walk it came to do. Its parent exists for the same reason PARENT_JOURNEY does -
+see that comment - and is not walked this session.
+
+Student 12 is the email-approval walk's own, and the isolation reason is different again:
+there is one attendance gate per student per week, `journey-attendance.spec.ts` answers it
+by *declining*, and the V2 walk answers it by *approving*. Sharing one student would mean
+whichever spec ran second found a gate the first had already spent.
 """
 
 from sqlalchemy import text
@@ -32,6 +44,10 @@ PARENT_TWO_CHILDREN = "parent-ext-2"
 # into a two-child parent and the auto-select journey starts failing for a reason that has
 # nothing to do with what it tests.
 PARENT_JOURNEY = "parent-ext-3"
+# The terminal walk's own parent, for the same AUD-F-22 reason as PARENT_JOURNEY: linking
+# student 11 to either existing one-child parent would break the auto-select contract
+# `journey-parent.spec.ts` asserts.
+PARENT_TERMINAL = "parent-ext-4"
 
 STUDENT_ONLY_CHILD = "student-ext-1"  # child of PARENT_ONE_CHILD, attendance: present
 STUDENT_FIRST_CHILD = "student-ext-2"  # child of PARENT_TWO_CHILDREN, attendance: absent
@@ -50,6 +66,15 @@ STUDENT_RESUME = "student-ext-9"  # grade 3, attendance: present - the refresh t
 # parent - the same shape as STUDENT_ONLY_CHILD it replaces, so the walk's band, topic and
 # parent-report coverage are unchanged and only the sharing goes away.
 STUDENT_JOURNEY = "student-ext-10"  # grade 3, attendance: present, child of PARENT_JOURNEY
+# The terminal walk's own student (V1). Grade 3, present, one linked parent - deliberately
+# the same shape as STUDENT_JOURNEY, so the only difference between the two walks is where
+# they stop, and a difference in what they find cannot be blamed on the fixture.
+STUDENT_TERMINAL = "student-ext-11"  # grade 3, attendance: present, child of PARENT_TERMINAL
+# The email-approval walk's own student (V2): **no attendance row**, so the §5.4.4 gate fires
+# on the routine "not marked yet" path (D-152 §2). Its own rather than shared with
+# STUDENT_SECOND_CHILD, which `journey-attendance.spec.ts` drives to a *decline*: one gate per
+# student per week, and two specs answering it differently is the D-288 class of interference.
+STUDENT_UNKNOWN_EMAIL = "student-ext-12"  # grade 3, attendance: unknown (no row)
 
 BRANCH_MAIN = "branch-ext-1"
 BRANCH_NORTH = "branch-ext-2"
@@ -146,6 +171,29 @@ _USERS = [
         "grade": "3",
         "branch_external_id": BRANCH_MAIN,
     },
+    {
+        "external_id": PARENT_TERMINAL,
+        "role": "parent",
+        "display_name": "Rae Four",
+        "grade": None,
+        "branch_external_id": None,
+    },
+    {
+        "external_id": STUDENT_TERMINAL,
+        "role": "student",
+        "display_name": "Lena Terminal",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_UNKNOWN_EMAIL,
+        "role": "student",
+        "display_name": "Milo Unmarked",
+        "grade": "3",
+        # BRANCH_MAIN because the §5.6.4 draft is addressed to `branch.manager_email` - a
+        # student with no branch has nobody to ask, which is a different case entirely.
+        "branch_external_id": BRANCH_MAIN,
+    },
 ]
 
 _PARENT_CHILD_LINKS = [
@@ -155,6 +203,7 @@ _PARENT_CHILD_LINKS = [
         "child_external_ids": [STUDENT_FIRST_CHILD, STUDENT_SECOND_CHILD],
     },
     {"parent_external_id": PARENT_JOURNEY, "child_external_ids": [STUDENT_JOURNEY]},
+    {"parent_external_id": PARENT_TERMINAL, "child_external_ids": [STUDENT_TERMINAL]},
 ]
 
 _BRANCHES = [
@@ -200,6 +249,9 @@ _ATTENDANCE = [
     {"student_external_id": STUDENT_BAND_912, "status": "present"},
     {"student_external_id": STUDENT_RESUME, "status": "present"},
     {"student_external_id": STUDENT_JOURNEY, "status": "present"},
+    {"student_external_id": STUDENT_TERMINAL, "status": "present"},
+    # STUDENT_UNKNOWN_EMAIL intentionally has no attendance row -> unknown, same as
+    # STUDENT_SECOND_CHILD. Two students share that shape on purpose; see its comment above.
 ]
 
 
