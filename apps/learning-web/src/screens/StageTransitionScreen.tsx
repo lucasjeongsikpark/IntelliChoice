@@ -104,8 +104,16 @@ export function StageTransitionScreen({ narrative, evidence, stage, onContinue }
               {(stage && EVIDENCE_TITLE[stage]) ?? NEUTRAL_EVIDENCE_TITLE}
             </h2>
             <ul className="narrative-evidence-list">
-              {evidence.map((line) => (
-                <li key={line}>{line}</li>
+              {/* D-391: keyed by position, not by the sentence. `evidence` is server-written
+                  prose, and nothing guarantees two lines differ - a student with two skills left
+                  unresolved gets the same sentence twice, which React reports as "Encountered two
+                  children with the same key" and handles by duplicating or **omitting** a child.
+                  A silently missing line on the screen that explains a student's own progress is
+                  the failure mode, and it surfaced in a `journey-terminal` run only because that
+                  walk happened to leave two skills unresolved. The list is render-only and never
+                  reordered or edited, so the index is a stable key here. */}
+              {evidence.map((line, index) => (
+                <li key={index}>{line}</li>
               ))}
             </ul>
           </section>

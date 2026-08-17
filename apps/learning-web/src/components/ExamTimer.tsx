@@ -25,18 +25,33 @@ export function ExamTimer({ remainingSeconds, onExpire }: Props) {
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      setDisplay((prev) => {
-        if (prev === null || prev <= 0) return prev;
-        const next = prev - 1;
-        if (next <= 0 && !firedRef.current) {
-          firedRef.current = true;
-          onExpireRef.current?.();
-        }
-        return next;
-      });
+      setDisplay((prev) => (prev === null || prev <= 0 ? prev : prev - 1));
     }, 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  /**
+   * D-391: expiry fires from an effect, and **not** from inside the `setDisplay` updater.
+   *
+   * Two things were wrong with calling it there, and the first walk of this path found both.
+   * React runs updater functions during the render phase, so `onExpire()` - which is
+   * `ExamScreen.handleExpire`, and calls `setStatusMessage`/`setModalOpen` - was a setState
+   * into another component mid-render: "Cannot update a component (`ExamScreen`) while
+   * rendering a different component (`ExamTimer`)". It happened to work and is the shape that
+   * stops working under concurrent rendering.
+   *
+   * The worse one is the guard: the updater returned early on `prev <= 0`, so a countdown that
+   * *arrives* at zero never fired at all. That is reachable by a plain reload after time ran
+   * out - `remaining_seconds` comes back 0, nothing auto-finalizes, and `submit_answer` 409s
+   * every attempt. Exactly the "unable to answer AND unable to submit" trap `ExamScreen`'s own
+   * comment describes. Keying the effect on `display` covers both the tick to zero and the
+   * arrival at zero, and `firedRef` still makes it once per countdown.
+   */
+  useEffect(() => {
+    if (display === null || display > 0 || firedRef.current) return;
+    firedRef.current = true;
+    onExpireRef.current?.();
+  }, [display]);
 
   if (display === null) return null;
   const minutes = Math.floor(display / 60);

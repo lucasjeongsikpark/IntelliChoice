@@ -75,6 +75,10 @@ STUDENT_TERMINAL = "student-ext-11"  # grade 3, attendance: present, child of PA
 # STUDENT_SECOND_CHILD, which `journey-attendance.spec.ts` drives to a *decline*: one gate per
 # student per week, and two specs answering it differently is the D-288 class of interference.
 STUDENT_UNKNOWN_EMAIL = "student-ext-12"  # grade 3, attendance: unknown (no row)
+# The exam-expiry walk's own student (V10). Grade 3, present - it needs to clear the gate and
+# reach the exam, and then it *finalizes* one, which is why it cannot share: a completed exam
+# is the one session state another spec cannot simply resume past (D-288).
+STUDENT_EXPIRY = "student-ext-13"  # grade 3, attendance: present
 
 BRANCH_MAIN = "branch-ext-1"
 BRANCH_NORTH = "branch-ext-2"
@@ -186,6 +190,13 @@ _USERS = [
         "branch_external_id": BRANCH_MAIN,
     },
     {
+        "external_id": STUDENT_EXPIRY,
+        "role": "student",
+        "display_name": "Eli Expiry",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
         "external_id": STUDENT_UNKNOWN_EMAIL,
         "role": "student",
         "display_name": "Milo Unmarked",
@@ -250,6 +261,7 @@ _ATTENDANCE = [
     {"student_external_id": STUDENT_RESUME, "status": "present"},
     {"student_external_id": STUDENT_JOURNEY, "status": "present"},
     {"student_external_id": STUDENT_TERMINAL, "status": "present"},
+    {"student_external_id": STUDENT_EXPIRY, "status": "present"},
     # STUDENT_UNKNOWN_EMAIL intentionally has no attendance row -> unknown, same as
     # STUDENT_SECOND_CHILD. Two students share that shape on purpose; see its comment above.
 ]
