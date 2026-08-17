@@ -371,23 +371,61 @@ function SolutionContent({ intervention }: { intervention: InterventionContent }
  * they are about to open.
  */
 function VideoContent({ intervention }: { intervention: InterventionContent }) {
+  const [confirming, setConfirming] = useState(false);
+
   return (
     <>
       <div className="intervention-head">
         <h2>Video</h2>
       </div>
       {intervention.video_url ? (
-        <a
-          className="video-card"
-          href={intervention.video_url}
-          target="_blank"
-          rel="noreferrer"
-        >
-          <span className="video-card-title">{intervention.video_title}</span>
-          <span className="video-card-meta">
-            {intervention.video_source} · opens in a new tab
-          </span>
-        </a>
+        <>
+          {/* Still a real anchor with a real `href`, deliberately: middle-click and
+              "open in new tab" keep working, screen readers still announce a link, and
+              `video-intervention.spec.ts` still reads the href off this element. The click is
+              intercepted rather than the element replaced. */}
+          <a
+            className="video-card"
+            href={intervention.video_url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(event) => {
+              event.preventDefault();
+              setConfirming(true);
+            }}
+          >
+            <span className="video-card-title">{intervention.video_title}</span>
+            <span className="video-card-meta">
+              {intervention.video_source} · opens in a new tab
+            </span>
+          </a>
+          {confirming && (
+            <div className="video-leaving" role="group" aria-label="Before you open this video">
+              {/* OPEN_DECISIONS #12, decided 2026-08-17: keep the link, add this step. The
+                  embed was the other candidate and was declined - see that entry for the
+                  trade. Plain language on purpose (SPEC §5.10.3): a student should not have
+                  to parse "third-party content" to understand what is about to happen. */}
+              <p className="intervention-lead">
+                This opens YouTube in a new tab. YouTube isn&apos;t part of IntelliChoice, so
+                what it shows next — other videos, comments, ads — isn&apos;t chosen by us.
+              </p>
+              <div className="video-leaving-actions">
+                <a
+                  className="primary"
+                  href={intervention.video_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setConfirming(false)}
+                >
+                  Open the video
+                </a>
+                <button type="button" onClick={() => setConfirming(false)}>
+                  Stay here
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         // The §5.11.6 fallback. It is a real answer ("nothing verified for this skill
         // yet"), so it reads as one rather than as an error.

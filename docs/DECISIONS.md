@@ -27072,3 +27072,38 @@ for the first time.
 `react_render_crash` on purpose ("a crash that destroyed the UI *should* fail that criterion
 loudly"), so this file allows that string instead — the opposite of `pii-typed-by-a-visitor.spec.ts`,
 and for a documented reason.
+
+## D-390 — OPEN_DECISIONS #12: the link stays, with a step in front of it (accepted, 2026-08-17)
+
+**The user chose the middle option over my recommendation, and the reasoning is sound.** I
+recommended a scoped `youtube-nocookie` embed; the decision was the interstitial. The embed's benefit
+is real — it removes the comments and the unrelated recommendations rail, which are the parts of
+youtube.com that are actually unsafe for this audience — but it buys that by putting a third-party
+frame inside a page that today loads nothing external, and that property is exactly what
+`VideoContent`'s original docstring was protecting ("that is a privacy decision, not a layout one").
+The interstitial keeps the property and makes the departure explicit rather than implicit.
+
+**Shape of the change, and why it is not a modal.** A sentence and two controls rendered inline
+under the card: *"This opens YouTube in a new tab. YouTube isn't part of IntelliChoice, so what it
+shows next — other videos, comments, ads — isn't chosen by us."* then "Open the video" / "Stay here".
+A focus-trapping dialog in the middle of a study session is a heavier interruption than the thing it
+warns about, and this screen is reached by a student who is already stuck.
+
+**The card stays a real anchor.** The click is intercepted (`preventDefault` → reveal the step), the
+element is not replaced by a button. Three things fall out of that: middle-click and "open in new
+tab" keep working, screen readers still announce a link, and `video-intervention.spec.ts`'s existing
+`href` assertion still holds rather than needing to be weakened to accommodate the change. **A
+middle-click bypasses the step**, which is accepted rather than missed — the destination is the same
+one the plain click leads to, and the alternative is breaking link semantics to close a gap that a
+deliberate power-user gesture opens.
+
+**Language chosen against SPEC §5.10.3.** "Isn't part of IntelliChoice" and a list of what YouTube
+might show, rather than "third-party content" or a policy sentence: the reader is a K-12 student who
+should not have to decode the warning to act on it.
+
+**Tested where the walk already is.** Reaching a video card costs a full walk through the exam and
+into an intervention, so the assertions were added to `video-intervention.spec.ts` rather than to a
+new spec: the step appears on click, "Open the video" carries the same `href` with `target="_blank"`
+and `rel="noreferrer"` (which on a page a minor is signed into is what stops the destination learning
+where the click came from, and stops it reaching back through `window.opener`), and "Stay here"
+actually dismisses it.
