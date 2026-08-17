@@ -28,6 +28,18 @@ from intellichoice_db.repositories.study import StudyRepository
 class CompletedSessionSummary:
     learning_gain_id: str
     topic_id: str | None
+    # D-380: the *display* name, resolved server-side from the curriculum.
+    #
+    # `learning-web/src/topics.ts` held a hand-maintained id->label map and its own docstring
+    # named the cost: "would need a new field on the history endpoint to lose this map".
+    # D-187 accepted the drift as "cosmetic" when the map covered nearly everything; the C1
+    # generation waves took the bank to 33 topics and the map stayed at 3, so **30 of 33
+    # rendered their raw internal id** (`g4_multiplication_division`) on a screen a student
+    # and a parent both read. The premise expired and nothing re-checked it.
+    #
+    # Resolved here for the same reason `unresolved_skill_names` is: the curriculum is the
+    # authority on what a thing is called, and SPEC §5.10.3 keeps internal ids internal.
+    topic_name: str | None
     pre_raw_score: float
     post_raw_score: float
     raw_gain: float
@@ -77,6 +89,19 @@ async def _skill_name(curriculum_repo: CurriculumRepository, skill_id: str) -> s
     return skill.name if skill is not None else skill_id
 
 
+async def _topic_name(curriculum_repo: CurriculumRepository, topic_id: str | None) -> str | None:
+    """The mirror of `_skill_name`, which existed for skills and never for topics (D-380).
+
+    Falls back to the id rather than to None: a topic retired from the curriculum still has
+    completed sessions in a student's history, and showing the id is worse than showing a
+    name but far better than showing a blank cell where their work used to be.
+    """
+    if topic_id is None:
+        return None
+    topic = await curriculum_repo.get_topic(topic_id)
+    return topic.name if topic is not None else topic_id
+
+
 async def _completed_session_summary(
     gain: LearningGain, study_repo: StudyRepository, curriculum_repo: CurriculumRepository
 ) -> CompletedSessionSummary:
@@ -84,6 +109,7 @@ async def _completed_session_summary(
     return CompletedSessionSummary(
         learning_gain_id=gain.learning_gain_id,
         topic_id=gain.topic_id,
+        topic_name=await _topic_name(curriculum_repo, gain.topic_id),
         pre_raw_score=gain.pre_raw_score,
         post_raw_score=gain.post_raw_score,
         raw_gain=gain.raw_gain,

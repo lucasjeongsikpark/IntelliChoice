@@ -26412,3 +26412,64 @@ concern.
 checkpoint."` — **a completed answer, which the real server cannot emit for a turn still in
 flight.** The spec named the case and then stubbed the one variant that passes. Fifth instance
 today of a check that is correct and no longer checks.
+
+---
+
+### D-380 — The P2 sweep, and a label map whose premise expired
+
+**Date:** 2026-08-16 · **Status:** fixed · **Files:** `learning-api/services/history.py`, `routers/students.py`, `learning-web/src/{topics.ts,types.ts,screens/StudentDashboardScreen.tsx,components/ExamTimer.tsx,hooks/useTutorChat.ts,components/TutorChatPanel.tsx,screens/ChildSelectionScreen.tsx,App.tsx}`
+
+#### 30 of 33 topics showed a student their internal id
+
+`topics.ts` held a hand-maintained three-entry map. **D-187 accepted the drift as "cosmetic (an
+unlisted topic renders its id)"** — true when the map covered nearly the whole bank, and the C1
+generation waves then took the bank to **33 topics while the map stayed at 3**. So the dashboard's
+Topic column read `g4_multiplication_division` at a student and at their parent, and because the
+*picker* uses the server's `TopicOption.name`, they chose "Word Problems" and read
+`g3_word_problems` back out of their own history.
+
+The rare path had become the default and nothing re-examined the premise. **Third instance today
+of a recorded decision outliving the reasoning it was accepted on** (OPEN_DECISIONS #1, the Phase
+6 clause, and now this).
+
+The fix is the one the file's own docstring named — *"would need a new field on the history
+endpoint to lose this map"*. `topic_name` is resolved from the curriculum in `history.py`, beside
+`unresolved_skill_names`, which had always been done properly. `_topic_name` is the exact mirror
+of the `_skill_name` helper that already existed; only topics never got one.
+
+The client keeps **no map**. Its fallback humanises the id (`g4_word_problems` → "G4 Word
+Problems") rather than looking it up, deliberately — a second table would recreate the drift.
+
+#### The exam timer interrupted a screen reader sixty times in the last minute
+
+`aria-live="assertive"` interrupts whatever is being spoken, *by definition*, and it was tied to a
+1-second interval for the final 60 seconds — exactly when the student is trying to read the
+question. Now `polite` (waits for a pause) and only at the 60/30/10-second marks, which is what a
+sighted student gets from glancing at the clock. The visual urgency styling is unchanged.
+
+#### The tutor chat flattened three failures and ate the student's typing
+
+Every other call site routes through `friendlyError`; this one had a hard-coded *"Chat is having
+trouble right now — try again in a moment"*, so a 429, a 401 and a 503 read identically and a
+student told to try again did, against a limit that would keep refusing or a token that was dead.
+And `setInput("")` ran before the await, so a failed send left the question as a bubble with no
+reply and an empty box.
+
+`send` now reports acceptance — **including the quiet path**, where `run()` returns `null` without
+throwing, which is how the typing was lost on the most ordinary failure.
+
+#### `ChildSelectionScreen` had no error surface
+
+D-216 §5 fixed exactly this class — *"a refused/failed choice used to show nothing at all"* — for
+`AttendanceScreen` and `AssistancePanel`, and did not include this screen, which calls the same
+`session.respond`. On the two paths that deliberately omit `onCancel` there was no Cancel, no
+Back, and now no error either: the card un-disabled and nothing else happened.
+
+#### One measurement, because a local run went red
+
+The full local suite came back 94/1 in **15.2 minutes** against a 5-minute norm, failing
+`video-intervention` on a 300 s test timeout. The page snapshot at the timeout showed the Video
+heading *and* the fallback message rendered — the product had behaved correctly. In isolation the
+spec passed in **4.8 s**; re-run with nothing else competing, the full suite was **95 passed in
+4.9 min**. Machine contention, measured rather than assumed — which is the standard this audit
+spent the day arguing for.

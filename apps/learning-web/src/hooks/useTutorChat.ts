@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { friendlyError } from "../api/errors";
 import type { ChatMessageResult, ChatViz } from "../api/client";
 
 export interface ChatMessage {
@@ -60,8 +61,8 @@ export function useTutorChat(questionVariantId: string | null) {
     async (
       text: string,
       call: () => Promise<ChatMessageResult | null>,
-    ): Promise<void> => {
-      if (sending) return;
+    ): Promise<boolean> => {
+      if (sending) return false;
       setSending(true);
       setError(null);
       // Optimistic: the student's own words appear immediately, which is what makes the
@@ -74,7 +75,7 @@ export function useTutorChat(questionVariantId: string | null) {
       });
       try {
         const result = await call();
-        if (!activeRef.current) return;
+        if (!activeRef.current) return false;
         if (result) {
           setRecord((prev) =>
             prev.questionVariantId === questionVariantId
@@ -88,12 +89,24 @@ export function useTutorChat(questionVariantId: string | null) {
               : prev,
           );
         }
-      } catch {
-        if (!activeRef.current) return;
-        setError("Chat is having trouble right now — try again in a moment.");
+        // D-380: `run()` returns null on any failure and sets the page-level error, so a
+        // null result is a failed send even though nothing was thrown here. Reporting it as
+        // success is how the student's typing was thrown away on the quietest failure path.
+        return result !== null;
+      } catch (err) {
+        if (!activeRef.current) return false;
+        // D-380: was a single hard-coded "try again in a moment" for every failure, so a 429
+        // (rate-limited), a 401 (signed out) and a 503 read identically - and a student told
+        // to try again did, repeatedly, against a limit that would keep refusing or a token
+        // that was dead. Every other call site in this app routes through `friendlyError`;
+        // this one was the exception, and `friendlyError` is imported nowhere in this file.
+        setError(friendlyError(err));
+        // D-380: reported so the panel can put the student's text back in the box.
+        return false;
       } finally {
         if (activeRef.current) setSending(false);
       }
+      return true;
     },
     [sending, questionVariantId],
   );

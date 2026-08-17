@@ -190,6 +190,8 @@ export interface ExamOverview {
 export interface CompletedSessionSummary {
   learning_gain_id: string;
   topic_id: string | null;
+  /** D-380: resolved server-side from the curriculum, so the client keeps no label map. */
+  topic_name: string | null;
   pre_raw_score: number;
   post_raw_score: number;
   raw_gain: number;
