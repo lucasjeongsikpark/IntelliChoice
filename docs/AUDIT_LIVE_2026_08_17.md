@@ -124,6 +124,11 @@ the dashboard, which has no role gating; the calendar interrupt's three branches
 > `LocationConsentChoice`'s non-persistence invariant covered `latitude`/`longitude` but not the
 > `zip_code`/`city`/`address` forms its own docstring claims, and no browser had checked that typed
 > PII leaves the page exactly once. Both now exist; `pii-typed-by-a-visitor.spec.ts` failed its own
-> falsification first, for a percent-encoding reason worth reading in D-387. Still un-walked from this
-> paragraph: the live cross-account probe, the exam timer, the calendar `.ics` branch, the
-> ErrorBoundary loop, and learning-web's tutor-chat browser leg.
+> falsification first, for a percent-encoding reason worth reading in D-387.
+>
+> **The live cross-account probe closed the same day too (D-388), scoped to deployed configuration
+> rather than to the matrix.** `e2e/tests/security/deployed-authorization.spec.ts` passes 6 of 6
+> against staging with no findings, and the two clauses that justify it are ones no pytest can make:
+> `/dev/token` refuses to mint without the shared secret on the running service, and the CDN exposes
+> none of `/metrics`, `/openapi.json`, `/docs`. Still un-walked from this paragraph: the exam timer,
+> the calendar `.ics` branch, the ErrorBoundary loop, and learning-web's tutor-chat browser leg.
