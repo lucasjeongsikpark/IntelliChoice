@@ -26784,3 +26784,37 @@ drive), the global middleware is 6000/60 s (a load test), and the escalation lim
 **in-graph** — it returns a 200 carrying `RATE_LIMITED_MESSAGE`, so the obvious cheap path would
 not have produced a 429 at all. The 429 *rule* renders in `error-vocabulary.spec.ts` from an
 injected body; what is unproven is that a limiter fires and the client maps its real response.
+
+#### 6. Addendum — the staging verification, and two harness failures of mine (2026-08-17, same day)
+
+Deployed as `gha-df79b290bf65` (run 32053946200, both ECS rollouts COMPLETED, fixture re-seed exit
+0) and the four new specs were run against it. The three cheap ones passed in 12.9 s. **The
+terminal walk passed on its third attempt** (1.3 min): pre-exam 10 accepted, study 18 answers /
+14 pauses with hint 5 / solution 5 / video 4 and no §5.11.6 fallbacks, post-exam 10 accepted,
+buckets `{pre_exam:10, study:18, post_exam:10}`, and — the point of the exercise — **2 dashboard
+fetches with the path staying at `/dashboard`**, against 4 fetches and an instant bounce before the
+fix. The chat escalation paused for approval under the **real** scope guard, so the first UI
+approval of a gate on a deployed build is done.
+
+Both failures were the harness, and the second is worth more than the first.
+
+**Run 1 — a listener-ordering race that only latency exposes.** The post-exam counted 9 of 10 while
+the navigator showed all ten answered and locked. The study loop exits on `serverPhase`, which a
+`response` listener sets; when that listener ran *after* `answerCurrentQuestion`'s own
+`waitForResponse` resolved, the loop read a stale phase, answered the post-exam's first question,
+and the acceptance landed on the study side of a before/after subtraction. Three local runs never
+saw it — the same "local runs cannot see this class" note ARCHITECTURE already carries for
+AUD-C-02, AUD-F-19 and AUD-F-21.
+
+**Run 2 — I reasoned from the raiser instead of the response, in the session where I wrote the
+invariant against doing that.** The fix bucketed on `items == null`, quoting
+`_submit_post_exam_answer`'s `AnswerResult(items=None)` (flow.py:965-967). The wire says otherwise:
+the router fills `items` from `result["last_items"]`, which is graph state surviving from the last
+serving (sessions.py:1364). Staging returned `{pre_exam:10, study:24}` and **zero** post-exam
+answers. The correct discriminator was already documented — D-064 withholds `is_correct` for an
+exam answer, masked by the phase it was *submitted* in, so `null` means exam and a bool means study,
+and `journey-student.spec.ts` states it in as many words.
+
+The general lesson is narrower than "test your tests": **a harness that classifies traffic is a
+client of the API, and it is subject to the same invariant as the app's error rules.** Both of my
+mistakes were confident readings of a service function that the router reshapes on the way out.

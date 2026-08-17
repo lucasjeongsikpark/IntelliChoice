@@ -130,11 +130,49 @@ test("a student walks all the way to the results screen (the V1 coverage gap)", 
    * would change every caller's meaning. Counting acknowledgements here costs one listener and
    * makes the assertion say what it means.
    */
-  let answersAccepted = 0;
-  page.on("response", (response) => {
+  /**
+   * Accepted submissions **bucketed by what the server said the answer was**, not by when this
+   * listener happened to run.
+   *
+   * **A plain running total failed on staging and passed locally three times, which is the
+   * signature of a listener-ordering race rather than a defect.** The measurement: the post-exam
+   * navigator showed all ten items "answered, locked" while the post-exam bucket held **9**. The
+   * study loop exits when `serverPhase` reaches `post_exam`, and `serverPhase` is set from a
+   * `response` listener — so when the listener ran *after* `answerCurrentQuestion`'s own
+   * `waitForResponse` resolved, the loop read a stale phase, answered the post-exam's first
+   * question, and that acceptance landed in the study side of a before/after subtraction. Extra
+   * latency makes the window wider, which is why the local runs never saw it.
+   *
+   * **The discriminator is `is_correct`, and my first attempt at it was wrong in a way worth
+   * keeping written down.** I bucketed on `items == null`, reasoning from
+   * `_submit_post_exam_answer`'s `AnswerResult(items=None)` (flow.py:965-967) — and the *wire* says
+   * otherwise, because the router fills `items` from `result["last_items"]`, which is graph state
+   * that survives from the last serving (sessions.py:1364). Result on staging: `{pre_exam: 10,
+   * study: 24}` and **zero** post-exam answers. Reasoning from the raiser instead of the response
+   * is the exact mistake this session's own ARCHITECTURE invariant is about, made while writing it.
+   *
+   * `is_correct` is the field that actually carries the phase: D-064 withholds correctness for a
+   * pre/post-exam answer, masked by the phase the answer was **submitted** in (sessions.py:1363),
+   * so an exam answer is `null` and a study answer is a real bool. `journey-student.spec.ts` states
+   * this already — *"`is_correct` is the phase filter, not just the verdict"* — and it handles the
+   * transition cleanly: the study answer that builds the post-exam was submitted in `study`, so it
+   * is a bool and lands in the study bucket even though its `phase` reads `post_exam`.
+   */
+  const acceptedByPhase = new Map<string, number>();
+  page.on("response", async (response) => {
     if (response.request().method() !== "POST" || !response.url().endsWith("/answers")) return;
-    if (response.status() < 300) answersAccepted += 1;
+    if (response.status() >= 300) return;
+    try {
+      const body = (await response.json()) as { phase?: unknown; is_correct?: unknown };
+      const phase = typeof body.phase === "string" ? body.phase : "(unknown)";
+      // A real bool means the server graded it as a study answer, whatever phase it reports.
+      const key = typeof body.is_correct === "boolean" ? "study" : phase;
+      acceptedByPhase.set(key, (acceptedByPhase.get(key) ?? 0) + 1);
+    } catch {
+      acceptedByPhase.set("(unparsed)", (acceptedByPhase.get("(unparsed)") ?? 0) + 1);
+    }
   });
+  const accepted = (phase: string) => acceptedByPhase.get(phase) ?? 0;
 
   page.on("response", async (response) => {
     if (response.status() >= 300) return;
@@ -171,11 +209,12 @@ test("a student walks all the way to the results screen (the V1 coverage gap)", 
   await expect(page.locator(".phase-chip")).toHaveText(/pre-exam/i, { timeout: 60_000 });
   const preReported = await answerWholeExam(page);
   // Bounded wait: the last click's response can still be in flight when the helper returns.
-  await expect.poll(() => answersAccepted, { timeout: 15_000 }).toBeGreaterThanOrEqual(10)
+  await expect
+    .poll(() => accepted("pre_exam"), { timeout: 15_000 })
+    .toBeGreaterThanOrEqual(10)
     .catch(() => undefined);
-  const preAccepted = answersAccepted;
-  audit.note(`pre-exam: ${preAccepted} accepted (helper reported ${preReported})`);
-  expect(preAccepted, "the pre-exam is SPEC §5.9.2's fixed 10-item set").toBe(10);
+  audit.note(`pre-exam: ${accepted("pre_exam")} accepted (helper reported ${preReported})`);
+  expect(accepted("pre_exam"), "the pre-exam is SPEC §5.9.2's fixed 10-item set").toBe(10);
   await finalizeExam(page);
 
   // ---- study --------------------------------------------------------------------------
@@ -274,15 +313,16 @@ test("a student walks all the way to the results screen (the V1 coverage gap)", 
   // ---- post-exam ----------------------------------------------------------------------
   await settleToInteractiveScreen(page);
   await expect(page.locator(".phase-chip")).toHaveText(/post-exam/i, { timeout: 60_000 });
-  const beforePost = answersAccepted;
   const postReported = await answerWholeExam(page);
   await expect
-    .poll(() => answersAccepted - beforePost, { timeout: 15_000 })
+    .poll(() => accepted("post_exam"), { timeout: 15_000 })
     .toBeGreaterThanOrEqual(10)
     .catch(() => undefined);
-  const postAccepted = answersAccepted - beforePost;
-  audit.note(`post-exam: ${postAccepted} accepted (helper reported ${postReported})`);
-  expect(postAccepted, "the post-exam is §5.13.1's parallel-form 10-item set").toBe(10);
+  audit.note(
+    `post-exam: ${accepted("post_exam")} accepted (helper reported ${postReported}); ` +
+      `all buckets ${JSON.stringify(Object.fromEntries(acceptedByPhase))}`,
+  );
+  expect(accepted("post_exam"), "the post-exam is §5.13.1's parallel-form 10-item set").toBe(10);
   await finalizeExam(page);
 
   // ---- the results screen, at last ----------------------------------------------------
