@@ -10709,6 +10709,58 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
 
 ## Session log
 
+### The live audit, and six things a user found in ten minutes (2026-08-17, D-381 → D-382)
+
+**Two halves, and the second one is the lesson.**
+
+**First: four `agent-browser` walks over the *deployed* build** `gha-6841d9d9b169` — 41 flows, 101
+screenshots — returning **48 findings, 42 unique** (2 P1, 14 P2, 32 P3). All 36 that were
+code-mapped came back CONFIRMED against source, none refuted. 34 fixed
+([AUDIT_LIVE_2026_08_17.md](AUDIT_LIVE_2026_08_17.md) accounts for every one). **The Playwright
+suite was green on that same build hours earlier — 88 passed / 7 skipped — with both P1s live in
+it**, so the fix plan's "run the suite against staging" step was dropped as already-done rather
+than repeated.
+
+**Then the user reported six defects none of that had found**, in ten minutes of ordinary use: a
+hint that appeared to skip to the next question, an exam panel wasting its space, unreadable RAG
+answers, sources drowning them, repeating suggestion chips, and device coverage. Five fixed with
+measured before/after numbers; the sixth deliberately deferred (D-382 §6).
+
+**Verification.** `make test` **1675 passed / 2 skipped / 1 xfailed**; local e2e **97 passed**;
+`ruff` + `pyright` clean; both frontends pass CI's own `npm run lint` *and* `npm run build`;
+staging e2e **89 passed / 7 skipped** on the D-381 build. CI green on every merged commit. Layout
+numbers measured on live pages with `getBoundingClientRect`, not estimated.
+
+**Shipped:** `gha-ccb63db77795` (D-381), `gha-5fbce17b59bf` (D-382), `gha-13efd740fb56` (the
+collapse fix) — each verified from ECS, not from the deploy workflow's own report. PRs #305, #306,
+#307.
+
+**Four of the session's defects were mine, and the split is the useful part.** The ones caught
+were caught by *measuring geometry* or by reverting a fix to prove the test fails. The ones shipped
+broken were shipped because I reasoned about the code instead of running it:
+
+- **Merged PR #301 on a red check** — the wait loop tested that checks had *settled*, not passed.
+  Every later merge used an explicit `if non-passing == 0` guard.
+- **A duplicate "log in" control** — my guest-header fix collided with `AccessHintBanner`'s, which
+  the e2e caught as a strict-mode violation. Two controls with one accessible name is a UI defect,
+  not just a selector problem.
+- **A `line-height: 1.6` "fix"** the deployed page disproved: it already computes 1.7, so the
+  change would have made long answers *tighter*. Reverted before shipping.
+- **A sources disclosure that disclosed nothing** — `details.open === false` was true while all
+  hidden chips still had layout boxes, because an author `display: flex` outranks the UA rule.
+  Caught only by `getClientRects()`; a screenshot looked right.
+
+**And a process failure to own:** `13efd74` went to `main` **with no PR**, because I stayed on
+`main` after merging #307. CI passed afterwards and history was not rewritten to hide it, but it
+bypassed the guard used all session.
+
+**Carry-over.** The hint symptom as the user described it is **unconfirmed** — hint 1, 2, 3-of-3
+and a solution all walked correctly through the real UI, so what shipped fixes a race of that
+shape, not a confirmed diagnosis. Conversation-aware suggestions are deferred by choice
+(D-382 §6): they need candidates generated from the turn's retrieved chunks and validated against
+retrieval, published from a detached task — the pattern behind five consecutive publish races
+here, so not worth half-building. Plus the P2/P3 remainder in both audit docs.
+
 ### The audit, and the seven fixes that only ever went one direction (2026-08-16, D-373 → D-380)
 
 **Four independent sweeps over both apps** — learning-web UI/UX, chat-web UI/UX, timing/races
