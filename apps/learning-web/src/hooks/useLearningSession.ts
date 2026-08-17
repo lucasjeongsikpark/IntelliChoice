@@ -10,6 +10,32 @@ const STUDENT_ID_KEY = "intellichoice.selected_student_id";
 const OWNER_KEY = "intellichoice.session_owner_sub";
 
 /**
+ * Where an in-flight session lives: `localStorage`, so it outlives the tab (D-381).
+ *
+ * **This was `sessionStorage`, and closing the tab silently abandoned the session.** Measured
+ * live 2026-08-16: a student completed the 10-question pre-exam, reached the study phase,
+ * closed the tab, signed back in, and got the topic chooser and the first-time narrative -
+ * *"Welcome to math practice! You're starting an exciting journey…"*. The work was not lost,
+ * it was **unreachable**: writing the old id back by hand resumed at Skill 2 of 4 instantly.
+ * `POST /learning/sessions` always mints a new thread and no endpoint answers "which session
+ * is this student part-way through", so the id in this browser is the only handle that
+ * exists. A tab close, a browser restart, a crash or a low-memory tab eviction all lose it -
+ * and a K-12 student on a shared classroom device does all four.
+ *
+ * The reason `sessionStorage` was originally chosen - a shared branch device restoring the
+ * previous student's session - is already handled by `clearSessionIfOwnedByAnotherSubject`
+ * below, which compares the stored owner against the signed-in sub before any render sees the
+ * id. That guard was written as belt-and-braces for a per-tab store; it is now the actual
+ * mechanism, which is why it runs in the state initialisers rather than an effect.
+ *
+ * The other consequence is deliberate: two tabs now share one session rather than starting
+ * two. That is the better failure - concurrent turns are serialised by the per-thread advisory
+ * lock (D-374) into a readable 409, whereas two independent sessions for one student produce
+ * two exams and one of them is thrown away.
+ */
+const sessionStore: Pick<Storage, "getItem" | "setItem" | "removeItem"> = localStorage;
+
+/**
  * Drop a stored session that belongs to somebody else, before anything reads it.
  *
  * Found on staging 2026-08-07 by signing in as one fixture student and then another in the
@@ -21,25 +47,37 @@ const OWNER_KEY = "intellichoice.session_owner_sub";
  * survived every reload. On a branch's shared device that is a permanent wedge for the next
  * student to sit down.
  *
- * Recording the owner is enough to prevent it: `sessionStorage` is per-tab, so the only way
- * these keys can be stale is an identity change within the tab, which is exactly what this
- * compares. Runs at module scope of the hook's initializers rather than in an effect so no
- * render ever sees the other student's id.
+ * Recording the owner is what prevents it, and since D-381 that is load-bearing rather than
+ * belt-and-braces: these keys live in `localStorage` now (see `sessionStore`), so they outlive
+ * the tab and this comparison is the *only* thing standing between the next student to sit
+ * down and the previous one's session. Runs in the hook's state initializers rather than in an
+ * effect so no render ever sees the other student's id; the effect beside `endSession` covers
+ * the other case, an identity change with no remount.
  */
 function clearSessionIfOwnedByAnotherSubject(sub: string | null): void {
-  const owner = sessionStorage.getItem(OWNER_KEY);
+  const owner = sessionStore.getItem(OWNER_KEY);
   if (sub !== null && owner === sub) return;
-  if (owner === null && sessionStorage.getItem(SESSION_ID_KEY) === null) return;
-  sessionStorage.removeItem(SESSION_ID_KEY);
-  sessionStorage.removeItem(STUDENT_ID_KEY);
-  sessionStorage.removeItem(OWNER_KEY);
+  // **Nobody signed in is not somebody else** (D-381). `sub === null` is the login screen,
+  // which is exactly where a student sits after a token expiry - and `handleSignedOut`
+  // deliberately keeps the session so signing back in resumes the same question (D-375).
+  // Clearing here broke that promise for anyone who reloaded before signing back in, because
+  // this function ran with `sub === null`, matched neither early return, and binned a session
+  // whose owner had not changed at all. Harmless-looking while the id died with the tab
+  // anyway; load-bearing now that it does not. The decision is simply deferred: the next
+  // sign-in supplies a real `sub` and this comparison runs properly then.
+  if (sub === null) return;
+  if (owner === null && sessionStore.getItem(SESSION_ID_KEY) === null) return;
+  sessionStore.removeItem(SESSION_ID_KEY);
+  sessionStore.removeItem(STUDENT_ID_KEY);
+  sessionStore.removeItem(OWNER_KEY);
 }
 
-// The whole point of persisting `sessionId` in `sessionStorage` (survives a refresh,
-// cleared when the tab closes) is SPEC Phase 11's "Done when": a page refresh must
-// restore exact position. On mount, if a session id is already stored, opening the SSE
+// The whole point of persisting `sessionId` is SPEC Phase 11's "Done when": a page refresh
+// must restore exact position. On mount, if a session id is already stored, opening the SSE
 // stream alone restores the snapshot - no replay of prior actions needed, since
-// `/stream` reads the live LangGraph checkpoint on connect (see D-032).
+// `/stream` reads the live LangGraph checkpoint on connect (see D-032). D-381 widened
+// "refresh" to "this browser": see `sessionStore` for why a tab close was losing sessions
+// that the server had kept all along.
 export function useLearningSession(
   token: string | null,
   sub: string | null,
@@ -47,10 +85,10 @@ export function useLearningSession(
 ) {
   const [sessionId, setSessionId] = useState<string | null>(() => {
     clearSessionIfOwnedByAnotherSubject(sub);
-    return sessionStorage.getItem(SESSION_ID_KEY);
+    return sessionStore.getItem(SESSION_ID_KEY);
   });
   const [studentId, setStudentId] = useState<string | null>(() =>
-    sessionStorage.getItem(STUDENT_ID_KEY),
+    sessionStore.getItem(STUDENT_ID_KEY),
   );
   // S26 (found via live verification): the checkpoint doesn't exist until
   // `resolve_student` runs (the `/student` call `chooseStudent` makes) - connecting
@@ -118,12 +156,12 @@ export function useLearningSession(
   // `endSession` (so the start screen's dashboard button does not vanish when a session
   // ends - the finding's "backing out does not help"), and is forgotten only on logout.
   const rememberStudent = useCallback((id: string) => {
-    sessionStorage.setItem(STUDENT_ID_KEY, id);
+    sessionStore.setItem(STUDENT_ID_KEY, id);
     setStudentId(id);
   }, []);
 
   const forgetStudent = useCallback(() => {
-    sessionStorage.removeItem(STUDENT_ID_KEY);
+    sessionStore.removeItem(STUDENT_ID_KEY);
     setStudentId(null);
   }, []);
 
@@ -179,9 +217,9 @@ export function useLearningSession(
     if (!token) return null;
     return run(async () => {
       const snap = await api.createSession(token);
-      sessionStorage.setItem(SESSION_ID_KEY, snap.learning_session_id);
+      sessionStore.setItem(SESSION_ID_KEY, snap.learning_session_id);
       // Stamped with the session, never separately, so the pair cannot drift.
-      if (sub !== null) sessionStorage.setItem(OWNER_KEY, sub);
+      if (sub !== null) sessionStore.setItem(OWNER_KEY, sub);
       sessionIdRef.current = snap.learning_session_id;
       setSessionId(snap.learning_session_id);
       // A brand-new session's checkpoint doesn't exist until `chooseStudent` below
@@ -381,16 +419,38 @@ export function useLearningSession(
   // what made the start screen's dashboard button disappear the moment a parent backed
   // out of a session. Logout calls `forgetStudent` explicitly.
   const endSession = useCallback(() => {
-    sessionStorage.removeItem(SESSION_ID_KEY);
+    sessionStore.removeItem(SESSION_ID_KEY);
     // The owner stamp is meaningless without a session and would otherwise make the next
     // `clearSessionIfOwnedByAnotherSubject` look at a key with nothing behind it.
-    sessionStorage.removeItem(OWNER_KEY);
+    sessionStore.removeItem(OWNER_KEY);
     sessionIdRef.current = null;
     setSessionId(null);
     setCheckpointReady(false);
     setSnapshot(null);
     setExamOverview(null);
   }, []);
+
+  // **The ownership check, repeated when the identity changes without a remount** (D-381).
+  //
+  // `clearSessionIfOwnedByAnotherSubject` runs in the state initialisers, which is the right
+  // place for a page load and blind to a sign-in inside a mounted tree. That gap was survivable
+  // while the session lived in `sessionStorage`, because the id died with the tab. It is not
+  // survivable now that it lives in `localStorage`: the one path that reaches here is a token
+  // expiry (`handleSignedOut` deliberately keeps the session so the *same* student resumes),
+  // and if a *different* student then signs in on that device, the stale id would open a
+  // stream against the first student's session. The server refuses it correctly with a 403 -
+  // and a fail-closed refusal the client cannot recover from is a wedged app, which is the
+  // exact incident this function's docstring records from 2026-08-07.
+  //
+  // A deliberate logout never reaches this: `handleLogout` calls `endSession()` first.
+  useEffect(() => {
+    if (sub === null) return;
+    const owner = sessionStore.getItem(OWNER_KEY);
+    if (owner === null || owner === sub) return;
+    endSession();
+    sessionStore.removeItem(STUDENT_ID_KEY);
+    setStudentId(null);
+  }, [sub, endSession]);
 
   return {
     sessionId,

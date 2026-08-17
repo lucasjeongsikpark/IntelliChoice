@@ -51,8 +51,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _help_is_on_screen(values: dict) -> bool:
+def help_is_on_screen(values: dict) -> bool:
     """Whether the student is currently looking at a hint, solution or video (D-358).
+
+    **Public, and imported by `routers/stream.py` as well** (D-381). It was private to this
+    module, which is how the SSE reconnect gate came to answer the same question with a
+    different and wrong rule: `_initial_snapshot` tested `hint_ladder_awaiting_choice` alone,
+    so a refresh while a *terminal* rung was on screen - any video, any solution, hint 3 of 3 -
+    served no intervention and no assistance question, and the student came back on the next
+    question with the explanation they were reading gone and no way to reach it. Measured live
+    2026-08-16. One predicate, three call sites, no third reading of it.
 
     **Two conditions, because the pause covers only one of them.**
     `hint_ladder_awaiting_choice` means the graph is parked on `intervention_choice`, which
@@ -149,7 +157,7 @@ class BackgroundStudyNarrativeScheduler:
             # question already served rather than the state mid-turn.
             config: RunnableConfig = {"configurable": {"thread_id": learning_session_id}}
             snapshot = await self._graph_getter().aget_state(config)
-            if _help_is_on_screen(snapshot.values):
+            if help_is_on_screen(snapshot.values):
                 # D-272, second layer; widened by D-358. The publish below omits
                 # `pending_interrupt`, `intervention` and `assistance_question` —
                 # deliberately, per this class's docstring, because "a study-transition
@@ -209,7 +217,7 @@ class BackgroundStudyNarrativeScheduler:
                 # from *another replica* landing in that gap remains possible in principle;
                 # it is not closed here and is not claimed to be.
                 latest = await self._graph_getter().aget_state(config)
-                if _help_is_on_screen(latest.values):
+                if help_is_on_screen(latest.values):
                     logger.info(
                         "stage_narrative_publish_skipped_help_arrived_late learning_session=%s",
                         learning_session_id,

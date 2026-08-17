@@ -24,6 +24,7 @@ export function RichText({ text }: Props) {
     <span style={{ whiteSpace: "pre-line" }}>
       {tokenize(text).map((token, index) => {
         if (token.bold) return <strong key={index}>{token.text}</strong>;
+        if (token.italic) return <em key={index}>{token.text}</em>;
         if (token.code) return <code key={index}>{token.text}</code>;
         return <span key={index}>{token.text}</span>;
       })}

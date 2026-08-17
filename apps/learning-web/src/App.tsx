@@ -88,8 +88,21 @@ function App() {
   //
   // `replace` rather than `push`, so this does not insert a history entry the student has to
   // press Back through twice to leave the app.
+  // D-381: and any path this app does not serve is normalised the same way, rather than
+  // silently rendering the session screen underneath a URL that promises something else.
+  // There is no `<Routes>` here - the screen is chosen from `location.pathname` - so an
+  // unknown path fell through every `startsWith` and landed on the session branch by default.
+  // Measured live: `/results/nonexistent-page-xyz` and `/totally/bogus` both rendered the
+  // exam with the bogus URL still in the address bar, so a mistyped or dead link looked like
+  // it had worked and a bookmark of it would keep "working" while meaning nothing.
+  // `replace`, so Back still leaves the app rather than stepping through the dead URL.
   useEffect(() => {
-    if (location.pathname === "/") navigate(SESSION_PATH, { replace: true });
+    const path = location.pathname;
+    const known =
+      path === SESSION_PATH ||
+      path.startsWith(DASHBOARD_PATH) ||
+      path.startsWith(`${RESULTS_PATH}/`);
+    if (!known) navigate(SESSION_PATH, { replace: true });
   }, [location.pathname, navigate]);
 
 
@@ -123,8 +136,18 @@ function App() {
     setRole(null);
   }, []);
 
+  // Every authenticated request, not just the graph mutations the hook wraps. D-375 wired
+  // `handleSignedOut` into `useLearningSession.run()` only, which left the dashboard's three
+  // GETs rendering "You've been signed out" beside a Try again button that re-fired the dead
+  // token forever - see `setUnauthorizedHandler`'s docstring for the measurement.
+  useEffect(() => {
+    api.setUnauthorizedHandler(handleSignedOut);
+    return () => api.setUnauthorizedHandler(null);
+  }, [handleSignedOut]);
+
   // `sub` is passed so the hook can drop a `sessionStorage` session belonging to a previous
-  // sign-in in this tab - see `clearSessionIfOwnedByAnotherSubject`.
+  // sign-in in this tab - see `clearSessionIfOwnedByAnotherSubject`. The hook keeps its own
+  // `onSignedOut` because it also cancels the in-flight turn's local state.
   const session = useLearningSession(token, sub, handleSignedOut);
 
   // U4/D-338: put the finished session in the URL the moment it completes, so the screen the
@@ -209,6 +232,12 @@ function App() {
   // "no list yet" and must not look the same: leaving the screen on "Loading topics…"
   // forever is a spinner that lies about what is happening.
   const [topicsFailed, setTopicsFailed] = useState(false);
+  // D-381: bumping this re-runs the fetch below, so the failure can offer a button instead of
+  // asking the student to refresh. Every other failure in this app offers something to press;
+  // this screen ended with *zero* interactive elements — `querySelectorAll('button')` came
+  // back empty on staging — so "please refresh" was the only way forward and the student had
+  // to know what that meant.
+  const [topicsRetry, setTopicsRetry] = useState(0);
   const topicPhase = snapshot?.phase === "student_selected";
   const topicSessionId = topicPhase ? (snapshot?.learning_session_id ?? null) : null;
 
@@ -232,7 +261,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [token, topicSessionId]);
+  }, [token, topicSessionId, topicsRetry]);
 
   const [streak, setStreak] = useState(0);
   // Persisted per learning session rather than held in React state: a mid-session refresh
@@ -448,10 +477,15 @@ function App() {
         if (childCandidates.length > 1) {
           return (
             <ChildSelectionScreen
-          error={session.error}
+              error={session.error}
               candidates={childCandidates}
               busy={false}
               onSelect={(studentId) => rememberStudent(studentId)}
+              // D-381: the only exit from this screen. It has no Cancel by design (there is
+              // nothing to go back to before a child is resolved), which left a parent whose
+              // account has two or more children facing a screen whose every control was a
+              // child's name - no way to leave if they had signed in as the wrong account.
+              onSignOut={handleLogout}
             />
           );
         }
@@ -597,6 +631,7 @@ function App() {
             busy={session.busy}
             error={session.error}
             onSelect={(topicId) => void session.chooseTopic(topicId)}
+            onRetry={() => setTopicsRetry((n) => n + 1)}
           />
         );
       }

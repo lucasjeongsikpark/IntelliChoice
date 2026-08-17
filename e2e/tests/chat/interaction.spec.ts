@@ -78,6 +78,71 @@ test("signing in from an access hint keeps the conversation", async ({ page, aud
   );
   expect(sessionId).toBeNull();
   audit.note("access-hint sign-in: transcript kept, anonymous session id dropped");
+
+  // **And it must still be there after the sign-in completes and the tab reloads** (D-381).
+  //
+  // The assertions above stop at the login screen, which is where the defect starts. The
+  // owner stamp is written only by `clearSessionIfOwnedByAnotherSubject`, in a `useState`
+  // initialiser that already ran - so signing in without a remount left it at the guest value
+  // `""`. Nothing was visibly wrong. On the *next* reload the initialiser compared `""`
+  // against the new sub, judged the conversation to belong to somebody else, and deleted the
+  // transcript D-353 had just gone to the trouble of preserving. Measured live 2026-08-16:
+  // `{visibleTurns: 0, storedTurns: 0, owner: "tutor-ext-1", sid: null}`.
+  //
+  // **The sign-in has to happen in the mounted tree, with no navigation.** Writing the
+  // identity keys and reloading looks equivalent and is not: a reload re-runs the `useState`
+  // initialiser, which is the path that already worked. The defect lives in the *other* path
+  // — an identity that changes while the hook stays mounted — so the form has to be driven.
+  // `/dev/token` is stubbed rather than called so this holds on staging too, where the
+  // endpoint is secret-gated (D-097) and the screen expects a human to type the secret.
+  await page.route("**/dev/token", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ token: "signed.in.token" }),
+    }),
+  );
+  await page
+    .locator("label.field")
+    .filter({ hasText: "Role" })
+    .locator("select")
+    .selectOption("tutor");
+  await page
+    .locator("label.field")
+    .filter({ hasText: /External id/i })
+    .locator("input")
+    .fill("tutor-ext-1");
+  await page.getByRole("button", { name: /^sign in$/i }).click();
+  await expect(page.getByRole("button", { name: /^sign in$/i })).toHaveCount(0, {
+    timeout: 15_000,
+  });
+
+  // **Polled, not read once.** The stamp is written by a `useEffect`, which React runs after
+  // paint - so the sign-in button disappearing (a completed render) does not mean the effect
+  // has run. Reading synchronously passed on an idle machine and failed inside the full
+  // suite, which is the definition of a flake, and it was mine rather than the app's: a
+  // sub-millisecond window between paint and effect is not a defect a student can hit.
+  await expect
+    .poll(
+      () => page.evaluate(() => sessionStorage.getItem("intellichoice.chat_owner")),
+      {
+        message:
+          "the owner stamp stayed stale, so the next reload will bin the conversation as someone else's",
+      },
+    )
+    .toBe("tutor-ext-1");
+
+  // The assertion that actually mattered: this reload is the one that used to delete the
+  // conversation the visitor had just signed in to continue.
+  await page.reload();
+  const afterSignIn = await page.evaluate(() =>
+    sessionStorage.getItem("intellichoice.chat_transcript"),
+  );
+  expect(
+    afterSignIn,
+    "the conversation the visitor signed in to continue was deleted after signing in",
+  ).toContain("attendance policy");
+  audit.note("access-hint sign-in: transcript survives the sign-in and the reload after it");
 });
 
 test("the calendar dialog shows the real event, not an empty placeholder", async ({

@@ -61,14 +61,41 @@ test("the page behind an open dialog is inert", async ({ page }) => {
   await ask(page, "Which branch is nearest to me?");
   await expect(page.getByRole("dialog")).toBeVisible();
 
-  const backgroundIsInert = await page.evaluate(() => {
-    const overlay = document.querySelector(".modal-overlay");
-    const siblings = [...(document.getElementById("root")?.children ?? [])].filter(
-      (element) => element !== overlay && !element.contains(overlay),
+  // **Asserted as a property of a real control, not by re-implementing the hook** (D-381).
+  //
+  // This used to rebuild the hook's own `#root`-children-minus-the-overlay expression and
+  // check `.inert` on the result. That passes whenever the implementation and the test agree,
+  // including when they agree on doing nothing: learning-web shipped the same code with its
+  // dialogs mounted deeper, where the filter returned an empty list every time and `inert`
+  // was never set on anything. `siblings.length > 0` was the only thing standing between that
+  // and a green test, and it is satisfied by a page structure the assertion never checks.
+  //
+  // "New chat" is the right subject: it is a real control behind the scrim, and D-350 records
+  // a Tab reaching it from inside this very dialog. Note `inert` does not hide an element -
+  // it stops it being focusable and hit-testable - so the assertions are about reachability,
+  // not visibility.
+  const reachability = await page.evaluate(() => {
+    const behind = document.querySelector(".chat-page") as HTMLElement | null;
+    if (behind === null) return { found: false, inert: false, focusable: true };
+    const newChat = [...behind.querySelectorAll("button")].find((b) =>
+      /new chat/i.test(b.textContent ?? ""),
     );
-    return siblings.length > 0 && siblings.every((element) => (element as HTMLElement).inert);
+    if (newChat === undefined) return { found: false, inert: false, focusable: true };
+    newChat.focus();
+    return {
+      found: true,
+      // `closest("[inert]")` rather than `.inert` on one node: inertness is inherited by the
+      // whole subtree, so this holds however deep the dialog happens to be mounted.
+      inert: newChat.closest("[inert]") !== null,
+      focusable: document.activeElement === newChat,
+    };
   });
-  expect(backgroundIsInert).toBe(true);
+  expect(reachability.found, "no 'new chat' button behind the dialog to test against").toBe(true);
+  expect(reachability.inert, "the chat page behind the dialog is not inert").toBe(true);
+  expect(
+    reachability.focusable,
+    "a control behind the scrim still took focus, so `inert` is not covering the page",
+  ).toBe(false);
 });
 
 test("an arriving answer is announced, and the composer has a name", async ({ page, audit }) => {

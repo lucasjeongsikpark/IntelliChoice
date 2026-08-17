@@ -114,16 +114,38 @@ export function ApprovalModal({ titleId, children, onDismiss, error }: Props) {
   }, []);
 
   // `inert` on everything behind the dialog: it removes those elements from the tab order and
-  // from hit-testing at once, which a keydown handler cannot do for a mouse. Applied to
-  // `#root`'s children other than this overlay's own subtree, so it composes with whatever the
-  // app renders rather than depending on a particular DOM shape.
+  // from hit-testing at once, which a keydown handler cannot do for a mouse.
+  //
+  // **This used to read `#root`'s children, which worked here by accident** (D-381). `App`
+  // returns a fragment whose top-level children are `<ChatScreen>` and the modals, so the
+  // overlay *is* a child of `#root` and filtering out its own subtree left exactly the page
+  // behind. learning-web copied the same code, mounted its dialogs inside a screen instead,
+  // and the filter removed the only child every time — the `inert` half silently did nothing
+  // there for its whole life while this docstring claimed both halves were real.
+  //
+  // Walking the overlay's ancestors and marking each level's siblings is the same result here
+  // and the correct one everywhere else, so moving a modal deeper cannot quietly disable it.
   useEffect(() => {
-    const overlay = dialogRef.current?.closest(".modal-overlay") ?? null;
-    const siblings = ([...(document.getElementById("root")?.children ?? [])] as HTMLElement[])
-      .filter((element) => element !== overlay && !element.contains(overlay as Node));
-    for (const element of siblings) element.inert = true;
+    const overlay = (dialogRef.current?.closest(".modal-overlay") ??
+      dialogRef.current) as HTMLElement | null;
+    if (overlay === null) return;
+
+    const marked: HTMLElement[] = [];
+    for (let node: HTMLElement | null = overlay; node && node !== document.body; ) {
+      const parent: HTMLElement | null = node.parentElement;
+      if (parent === null) break;
+      for (const sibling of [...parent.children] as HTMLElement[]) {
+        // Skipping already-inert elements keeps cleanup honest if two dialogs ever overlap:
+        // this one must not un-inert what an outer dialog set.
+        if (sibling !== node && !sibling.inert) {
+          sibling.inert = true;
+          marked.push(sibling);
+        }
+      }
+      node = parent;
+    }
     return () => {
-      for (const element of siblings) element.inert = false;
+      for (const element of marked) element.inert = false;
     };
   }, []);
 

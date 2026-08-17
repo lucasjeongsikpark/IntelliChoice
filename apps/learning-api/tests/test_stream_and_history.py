@@ -878,3 +878,108 @@ def test_stream_reconnect_reserves_the_paid_intervention_content() -> None:
 
         after = asyncio.run(_fetch_snapshot())
         assert after.intervention is None
+
+
+def test_stream_reconnect_reserves_help_that_closed_the_pause() -> None:
+    """D-381: the terminal rungs close the pause, and a refresh used to discard their help.
+
+    The test above covers the *mid-ladder* refresh, where `hint_ladder_awaiting_choice` is
+    true. Every terminal rung — any solution, any video, hint 3 of 3 — sets that flag false
+    while the help stays on screen, which `intervention_choice` states in its own comment. So
+    the gate the test above asserts was, for the most expensive help in the product, exactly
+    inverted: `_initial_snapshot` served no `intervention` and no `assistance_question`.
+
+    What the student experienced, measured live on 2026-08-16: choose "Watch a video",
+    refresh, and come back on the *next* practice question with the video gone. The study
+    phase has no navigator, so the question it belonged to is unreachable — the one
+    intervention they get was spent on nothing, and no amount of reloading brings it back.
+
+    Asserted through `solution` rather than `video` because the mock provider serves it
+    deterministically; the branch under test is `help_is_on_screen`, which does not
+    distinguish them.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        session_id = client.post("/learning/sessions", headers=headers).json()[
+            "learning_session_id"
+        ]
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        pre_items = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        ).json()["items"]
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+        for item in pre_items:
+            variant_id = item["question_variant_id"]
+            client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"tr-pre-{variant_id}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+        finalize = client.post(
+            f"/learning/sessions/{session_id}/exam/finalize", headers=headers, json={}
+        ).json()
+        assert finalize["phase"] == "study"
+        study_variant_id = finalize["items"][0]["question_variant_id"]
+
+        client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": f"tr-wrong-{session_id}"},
+            json={
+                "question_variant_id": study_variant_id,
+                "selected_option": _other_option(
+                    _correct_options([study_variant_id])[study_variant_id]
+                ),
+                "response_time_ms": 2000,
+            },
+        )
+        chosen = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "intervention_choice", "choice": "solution"},
+        ).json()
+        served = chosen["intervention"]
+        assert served["type"] == "solution"
+        # The premise of the whole test: a terminal rung leaves help up with no pause behind
+        # it. If this ever becomes non-None the defect class has changed and so must this test.
+        assert chosen["pending_interrupt"] is None
+
+        async def _fetch_snapshot():
+            profile_adapter = MySQLProfileAdapter(MYSQL_URL)
+            engine = create_engine()
+            try:
+                session_factory = create_session_factory(engine)
+                async with session_scope(session_factory) as session:
+                    return await _initial_snapshot(
+                        session_id,
+                        app.state.learning_graph,
+                        profile_adapter,
+                        session,
+                        app.state.bedrock_gateway,
+                        token,
+                    )
+            finally:
+                await profile_adapter.close()
+                await engine.dispose()
+
+        snapshot = asyncio.run(_fetch_snapshot())
+        assert snapshot.intervention is not None, (
+            "a refresh while a solution was on screen served no intervention - the student "
+            "loses the help they spent their one intervention on, unrecoverably"
+        )
+        assert snapshot.intervention.model_dump() == served
+        # The help has to arrive beside the question it explains, or the left column shows a
+        # different stem than the solution is about.
+        assert snapshot.assistance_question is not None
+        assert snapshot.assistance_question.question_variant_id == study_variant_id

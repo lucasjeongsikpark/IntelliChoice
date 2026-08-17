@@ -36,6 +36,19 @@ window.addEventListener('unhandledrejection', (event) => {
   })
 })
 
+// D-381: this app has exactly one screen and no router, so the CloudFront SPA fallback served
+// the same page for *every* path - `/nonexistent/path` returned 200 with the chat app under a
+// URL that means nothing. The fallback is correct and must stay (it is what makes a deep link
+// work at all for a client-routed app); what was missing is that nothing then reconciled the
+// address bar with the single route this app actually has. A visitor who mistypes, or follows
+// a stale link, now ends up on a URL they can bookmark and share.
+//
+// `replaceState` rather than a redirect: no history entry, no reload, and Back still leaves
+// the site instead of stepping through the dead URL.
+if (window.location.pathname !== '/') {
+  window.history.replaceState(null, '', `/${window.location.search}${window.location.hash}`)
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>

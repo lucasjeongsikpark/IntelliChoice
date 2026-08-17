@@ -271,6 +271,26 @@ to rot, because nothing fails when it does.)*
   questions and `print()` answers neither; and a heartbeat alarm on a scheduled job is the one
   place `treat_missing_data = "breaching"` is correct — the exit-code alarm cannot see a job that
   never starts, so there the **absence of data is the incident**.
+- **A test that re-implements the thing it tests will agree with it about doing nothing**
+  (D-381). `useFocusTrap`'s `inert` half had never worked in learning-web — ported with
+  chat-web's overlay class name, and reading `#root`'s children while learning mounts its dialogs
+  several levels deeper, so the one child was filtered out as the dialog's own ancestor and the
+  list was empty every time. The e2e test rebuilt that same `#root`-children-minus-the-overlay
+  expression and asserted `.inert` on the result, with `siblings.length > 0` as the only thing
+  between an empty list and a green run. **Assert the property a user would notice** — can a
+  control behind the scrim still take focus — **not the implementation's own arithmetic.** The
+  same shape produced the other two: a 422 rule matching a field name that the string it searched
+  never contained, and a comment asserting the premise that made it look right.
+- **The client is the only handle on an in-flight learning session, so it must outlive the tab**
+  (D-381). `POST /learning/sessions` always mints a new thread and no endpoint answers "which
+  session is this student part-way through" — so the id in the browser is not a cache, it is the
+  *only* reference. It lives in `localStorage` for that reason, and the consequence is that
+  `clearSessionIfOwnedByAnotherSubject` stops being belt-and-braces and becomes the mechanism
+  protecting a shared classroom device: it runs in the state initialisers (a page load) *and* on
+  an identity change with no remount, and deliberately does nothing when `sub` is `null`, because
+  the login screen is where a student sits after an expiry and D-375 keeps that session on
+  purpose. If a server-side "my in-flight session" lookup is ever added, this inverts and the
+  client handle becomes a cache again.
 - **An alarm that reaches ALARM through `treat_missing_data` carries no metric *value*, and a
   step-scaling policy cannot act on one** (AUD-F-33, D-182). Both scale-in legs alarm on ALB
   `TargetResponseTime`, which publishes nothing when there are no requests, and

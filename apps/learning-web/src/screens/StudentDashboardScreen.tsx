@@ -492,12 +492,17 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
           {/* D-213: each stat now carries the context that makes it mean something. A bare
               "26" answered no question anyone actually has. */}
           <div className="stat-grid">
+            {/* D-381: grouped. A four-figure count rendered as `1219`, which a parent has to
+                stop and parse; `toLocaleString` is the browser's own separator for their
+                locale rather than a hard-coded comma. */}
             <div className="stat">
-              <span className="stat-value">{dashboard.attempts_count}</span>
+              <span className="stat-value">{dashboard.attempts_count.toLocaleString()}</span>
               Questions answered
             </div>
             <div className="stat">
-              <span className="stat-value">{dashboard.time_spent_minutes.toFixed(0)}</span>
+              <span className="stat-value">
+                {Math.round(dashboard.time_spent_minutes).toLocaleString()}
+              </span>
               Minutes of practice
             </div>
             <div className="stat">
@@ -535,6 +540,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
             ) : (
               <ResponsiveContainer width="100%" height={Math.max(140, dashboard.mastery_by_skill.length * 56)}>
                 <BarChart
+                  aria-label="Mastery by skill chart"
                   data={dashboard.mastery_by_skill}
                   layout="vertical"
                   margin={{ left: 12, right: 16 }}
@@ -577,7 +583,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
               <p className="chart-empty">No completed pre/post cycle in this range yet.</p>
             ) : (
               <ResponsiveContainer width="100%" height={Math.max(160, dashboard.pre_post_by_skill.length * 56)}>
-                <BarChart data={dashboard.pre_post_by_skill} layout="vertical" margin={{ left: 12, right: 16 }}>
+                <BarChart aria-label="Pre and post exam accuracy by skill chart" data={dashboard.pre_post_by_skill} layout="vertical" margin={{ left: 12, right: 16 }}>
                   <CartesianGrid stroke={colors.grid} horizontal={false} />
                   <XAxis type="number" domain={[0, 1]} stroke={colors.ink} fontSize={12} />
                   <YAxis
@@ -604,7 +610,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
               <p className="chart-empty">No completed pre/post cycle in this range yet.</p>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={dashboard.gains_over_time}>
+                <LineChart aria-label="Learning gain over time chart" data={dashboard.gains_over_time}>
                   <CartesianGrid stroke={colors.grid} />
                   <XAxis
                     dataKey="date"
@@ -632,6 +638,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
             ) : (
               <ResponsiveContainer width="100%" height={100}>
                 <BarChart
+                  aria-label="Hint, solution, and video usage chart"
                   data={[
                     {
                       name: "Attempts",
@@ -663,7 +670,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
               <p className="chart-empty">No study attempts in this range yet.</p>
             ) : (
               <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={dashboard.difficulty_progression}>
+                <LineChart aria-label="Difficulty progression chart" data={dashboard.difficulty_progression}>
                   <CartesianGrid stroke={colors.grid} />
                   <XAxis
                     dataKey="date"

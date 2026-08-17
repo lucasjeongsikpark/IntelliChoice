@@ -19,6 +19,8 @@ export interface Token {
   text: string;
   bold: boolean;
   code: boolean;
+  /** D-381: `*emphasis*`, which otherwise reaches the reader as literal asterisks. */
+  italic: boolean;
 }
 
 /**
@@ -40,28 +42,46 @@ export function normalizeBlockMarkup(text: string): string {
 }
 
 /**
- * Split on `**bold**` and `` `code` `` in one pass.
+ * Split on `**bold**`, `*emphasis*` and `` `code` `` in one pass.
  *
  * Unpaired delimiters stay literal rather than being swallowed: an answer containing a stray
  * `*` should show the `*`, not lose the rest of the sentence to an unterminated match.
+ *
+ * **`*emphasis*` was added in D-381**, found in learning-web's copy of this file and ported
+ * here in the same change - the D-219 duplication means the two drift apart the moment one is
+ * fixed alone, which is the §1 finding of the 2026-08-16 audit in miniature.
+ *
+ * Order matters: `**` must precede `*`, or `**bold**` matches as an emphasis wrapping an
+ * empty string. The single-asterisk alternative refuses newlines and inner asterisks so a
+ * bullet line cannot pair with an unrelated `*` further down.
  */
 export function tokenize(text: string): Token[] {
   const tokens: Token[] = [];
   const normalized = normalizeBlockMarkup(text);
-  const pattern = /\*\*([\s\S]+?)\*\*|`([^`]+?)`/g;
+  const pattern = /\*\*([\s\S]+?)\*\*|\*([^*\n]+?)\*|`([^`]+?)`/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
   while ((match = pattern.exec(normalized)) !== null) {
     if (match.index > lastIndex) {
-      tokens.push({ text: normalized.slice(lastIndex, match.index), bold: false, code: false });
+      tokens.push({
+        text: normalized.slice(lastIndex, match.index),
+        bold: false,
+        code: false,
+        italic: false,
+      });
     }
-    if (match[1] !== undefined) tokens.push({ text: match[1], bold: true, code: false });
-    else tokens.push({ text: match[2] ?? "", bold: false, code: true });
+    if (match[1] !== undefined) {
+      tokens.push({ text: match[1], bold: true, code: false, italic: false });
+    } else if (match[2] !== undefined) {
+      tokens.push({ text: match[2], bold: false, code: false, italic: true });
+    } else {
+      tokens.push({ text: match[3] ?? "", bold: false, code: true, italic: false });
+    }
     lastIndex = pattern.lastIndex;
   }
   if (lastIndex < normalized.length) {
-    tokens.push({ text: normalized.slice(lastIndex), bold: false, code: false });
+    tokens.push({ text: normalized.slice(lastIndex), bold: false, code: false, italic: false });
   }
   return tokens;
 }

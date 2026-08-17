@@ -45,6 +45,32 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Fired once for any authenticated request that comes back 401. Registered by `App`.
+ *
+ * **Why this lives here and not at the call sites.** D-375 wired `handleSignedOut` into
+ * `useLearningSession.run()` — the graph-mutation path — and that is *all* it covered. A live
+ * audit on 2026-08-16 signed in, expired the token and opened `/dashboard`: the three GETs
+ * behind that screen (`getStudentDashboard`, `getStudentHistory`, `getMyChildren`) each
+ * rendered "You've been signed out. Sign in again to keep going." with a **Try again** button
+ * that re-fired the same dead token forever. `localStorage` still held it, so a reload
+ * skipped the login screen too. The message named the remedy and no screen offered it — the
+ * same defect D-375 fixed, in the paths D-375 did not reach.
+ *
+ * A per-call-site fix would have needed the same three lines in five `catch` blocks and would
+ * have been one `getStudentReport` away from the next gap. Here it is structurally
+ * unmissable: every request in this module goes through `request()`.
+ *
+ * `token !== null` is the guard that matters. `devToken` deliberately passes `null`, so a
+ * failed sign-in stays a login error rather than becoming a spurious sign-out of the session
+ * the user does not yet have.
+ */
+let onUnauthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
 async function request<T>(path: string, token: string | null, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (init?.headers) Object.assign(headers, init.headers);
@@ -58,6 +84,9 @@ async function request<T>(path: string, token: string | null, init?: RequestInit
 
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers, signal });
   if (!res.ok) {
+    // Before the body is read, because the handler only clears client state and the caller
+    // still gets its `ApiError` to render. See `setUnauthorizedHandler`.
+    if (res.status === 401 && token !== null) onUnauthorized?.();
     // A `Response` body can only be consumed once - `res.json()` still reads (and
     // locks) the stream even when it throws on invalid JSON, so a `res.text()`
     // fallback in the catch block throws "body stream already read" instead of

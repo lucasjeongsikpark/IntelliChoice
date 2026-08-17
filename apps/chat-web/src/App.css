@@ -74,6 +74,28 @@ button:hover:not(:disabled) {
   background: var(--accent-hover);
 }
 
+/* D-381: the same defect learning-web had, in the same shape — `button:hover` sets only
+   `background`, so every variant that overrides `color` hovers into a near-invisible label
+   (measured 1.18:1 in dark mode on the sibling app). Found there and ported here rather than
+   waiting to find it twice, which is the §1 symmetry lesson from the 2026-08-16 audit.
+   Each pairing already exists at rest elsewhere in this file. */
+button.secondary:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+button.link:hover:not(:disabled) {
+  background: none;
+  color: var(--accent);
+}
+
+button.chip:hover:not(:disabled) {
+  /* A chip is a pill on `--accent-bg`; hovering it into the solid accent keeps it legible
+     and keeps it looking like the same control. */
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -81,7 +103,7 @@ button:disabled {
 
 button.secondary {
   background: var(--accent-bg);
-  color: var(--accent);
+  color: var(--accent-on-tint);
 }
 
 button.link {
@@ -169,6 +191,17 @@ button.link {
 
 .stream-dot.error {
   background: var(--error);
+}
+
+/* D-381: the landmark and the live region are now two elements (see ChatScreen), so the
+   column stretch that used to live on `.message-list` lives here and the scrolling stays
+   below. `min-height: 0` because a flex item's default `min-height: auto` refuses to shrink
+   below its content, which would push the composer off-screen instead of scrolling. */
+.chat-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .message-list {
@@ -331,7 +364,7 @@ button.chip {
   letter-spacing: normal;
   border-radius: 999px;
   background: var(--accent-bg);
-  color: var(--accent);
+  color: var(--accent-on-tint);
 }
 
 .access-hint-banner {
@@ -380,6 +413,13 @@ button.chip {
 
 /* Interrupt modals */
 
+/* D-381: `overflow-y` here and `max-height` below are what make a tall dialog reachable.
+   Measured live on 2026-08-16 at a 480px-high viewport: the email-approval dialog ran
+   top=-54 to bottom=534, so **both DECLINE and APPROVE & SEND were off-screen**, and
+   `ApprovalModal`'s scroll lock (`document.body.style.overflow = "hidden"`) meant no scroll
+   reached them either. A pointer-only visitor was stuck in a dialog they could neither
+   approve nor dismiss, on the one screen that sends a real email. `align-items: center`
+   overflows a flex container out of *both* ends, so neither end is scrollable without this. */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -388,6 +428,7 @@ button.chip {
   align-items: center;
   justify-content: center;
   padding: 24px;
+  overflow-y: auto;
   z-index: 10;
 }
 
@@ -399,6 +440,10 @@ button.chip {
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow);
   padding: 24px;
+  /* 48px = the overlay's 24px padding, twice. `dvh` rather than `vh` so a mobile browser's
+     retracting URL bar does not leave the action row under it. */
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
 }
 
 .modal h2 {
@@ -414,6 +459,10 @@ button.chip {
   text-align: left;
 }
 
+/* Capped independently of the dialog (D-381). The dialog's own `overflow-y` makes the
+   buttons *reachable*; this keeps them *visible*, because the body is the only part that
+   grows without bound - the heading and the action row are fixed. An approval whose decline
+   button requires scrolling to discover is a worse gate than one that fits. */
 .email-preview {
   text-align: left;
   background: var(--bg);
@@ -421,6 +470,8 @@ button.chip {
   border-radius: var(--radius-control);
   padding: 14px;
   margin-bottom: 12px;
+  max-height: 40dvh;
+  overflow-y: auto;
 }
 
 .email-preview pre {

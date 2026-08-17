@@ -19,6 +19,21 @@
   --accent-hover: #2f6b36;
   --accent-bg: rgba(94, 183, 97, 0.15);
   --accent-contrast: #ffffff;
+  /* Text sitting *on* `--accent-bg` (D-381).
+   *
+   * D-067 checked `--accent` against the panel, and against the panel it passes. `--accent-bg`
+   * is a tint derived later, and nothing re-checked the pair: `#387e40` on the tint measures
+   * **4.38:1 over the panel and 4.06:1 over the page background** — below AA's 4.5:1 for
+   * normal text. Fourteen rules across the two apps use that pairing, including every
+   * secondary button at rest, so this is a token rather than fourteen edits.
+   *
+   * Lowering the tint's alpha does not fix it: `#387e40` on the bare page background is only
+   * ~4.4:1, so the shortfall is the foreground, not the tint. This is `--accent-hover`'s
+   * value — already in the palette, already brand-approved — which measures 5.65:1 on the
+   * tint over the panel and 5.23:1 over the page. Kept as its own name rather than pointing
+   * the rules at `--accent-hover`, because "the colour text takes on a tinted surface" and
+   * "the colour a button goes when hovered" are different jobs that happen to agree today. */
+  --accent-on-tint: #2f6b36;
   --pink-interactive: #c22f73;
   --error: #d32020;
   --success: #387e40;
@@ -72,6 +87,11 @@
     --accent-hover: #93d696;
     --accent-bg: rgba(124, 200, 128, 0.14);
     --accent-contrast: #0c1f10;
+    /* Dark mode never had the light mode's problem — `#7cc880` on the tint measures 6.24:1
+       over the panel and 7.04:1 over the page — so this is `--accent` unchanged. Declared
+       anyway so the two themes define the same set of tokens and a rule using it cannot
+       silently fall back to an inherited light value. */
+    --accent-on-tint: #7cc880;
     --pink-interactive: #ef6ba6;
     --error: #f87171;
     --success: #7cc880;

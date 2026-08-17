@@ -55,8 +55,8 @@ const RULES: Rule[] = [
     // forever. A parent describing a situation before escalating is the realistic case.
     //
     // Matched on the field name rather than on Pydantic's wording, which is a library
-    // detail: `detailText` already unpacks the validation array into a readable string
-    // containing the field.
+    // detail. The field name is only in the entry's `loc`, never in its `msg` - which is
+    // why the rules match against `matchText` and not `detailText`. See both functions.
     status: 422,
     detail: ["query"],
     message: `That question is too long. Please shorten it to under ${MAX_QUERY_CHARS} characters and send it again.`,
@@ -125,7 +125,7 @@ export function friendlyError(error: unknown): string {
     return "Something broke on our side. It's not you — try again in a moment.";
   }
 
-  const detail = detailText(error).toLowerCase();
+  const detail = matchText(error).toLowerCase();
   for (const rule of RULES) {
     if (rule.status !== error.status) continue;
     if (rule.detail === null || rule.detail.some((fragment) => detail.includes(fragment))) {
@@ -136,9 +136,42 @@ export function friendlyError(error: unknown): string {
 }
 
 /**
+ * The haystack the `RULES` substrings are searched in. Differs from `detailText` in exactly
+ * one way: it keeps each validation entry's `loc` path.
+ *
+ * **This function exists because D-378 shipped a rule that could never match.** The rule
+ * targets `"query"`, the field name — and Pydantic v2 puts the field name *only* in
+ * `loc: ["body", "query"]`. Its `msg` is the library's wording, `"String should have at most
+ * 2000 characters"`, which names no field. `detailText` drops `loc`, so the 422 rule was dead
+ * on arrival and an over-length question fell through to GENERIC — the exact outcome D-378
+ * was written to prevent. Found in the deployed bundle by a live browser audit on 2026-08-16,
+ * not by a test, because there was no test.
+ *
+ * Kept separate from `detailText` rather than folded into it: the 503 branch of
+ * `friendlyError` returns `detailText` **to the visitor**, so teaching that function to emit
+ * `body.query: …` would put a JSON path on a parent's screen. Matching wants a wide haystack;
+ * display wants a sentence. They are different jobs.
+ */
+function matchText(error: ApiError): string {
+  const { detail } = error;
+  if (!Array.isArray(detail)) return detailText(error);
+  return detail
+    .map((entry) => {
+      if (entry === null || typeof entry !== "object") return String(entry);
+      const { msg, loc } = entry as { msg?: unknown; loc?: unknown };
+      const path = Array.isArray(loc) ? loc.join(".") : "";
+      return path === "" ? String(msg) : `${path}: ${String(msg)}`;
+    })
+    .join("; ");
+}
+
+/**
  * `ApiError.detail` is already unwrapped from FastAPI's `{"detail": ...}` envelope
  * (`client.ts`), but a 422 carries an *array* of validation errors, and `String(...)` on that
  * yields `[object Object]` - which is how this class of bug showed up in the learning app.
+ *
+ * Deliberately still drops `loc`: this is the **display** path (the 503 pass-through), and a
+ * validation path is not a sentence. `matchText` above is the matching path.
  */
 function detailText(error: ApiError): string {
   const { detail } = error;

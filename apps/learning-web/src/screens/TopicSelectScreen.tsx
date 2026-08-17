@@ -10,6 +10,8 @@ interface Props {
   onSelect: (topicId: string) => void;
   busy: boolean;
   error: string | null;
+  /** D-381: re-runs the topics fetch. See the failure branch below. */
+  onRetry: () => void;
 }
 
 /**
@@ -30,14 +32,24 @@ function groupTopics(topics: TopicOption[]): [string, TopicOption[]][] {
   ];
 }
 
-export function TopicSelectScreen({ topics, loadFailed, onSelect, busy, error }: Props) {
+export function TopicSelectScreen({ topics, loadFailed, onSelect, busy, error, onRetry }: Props) {
   return (
     <div className="panel">
       <h1>Choose a topic</h1>
       {error && <p className="error">{error}</p>}
       {topics === null ? (
         loadFailed ? (
-          <p className="error">We couldn&rsquo;t load the topics just now. Please refresh to try again.</p>
+          // D-381: a button, not an instruction. This branch used to end the screen with no
+          // interactive element at all - measured on staging, `querySelectorAll('button')`
+          // returned an empty list - so a student whose topics failed to load was told to
+          // "refresh" and given nothing to press. Every other failure in this app offers an
+          // action; this one asked a child to know what refreshing means.
+          <>
+            <p className="error">We couldn&rsquo;t load the topics just now.</p>
+            <button type="button" disabled={busy} onClick={onRetry}>
+              Try again
+            </button>
+          </>
         ) : (
           <p>Loading topics…</p>
         )
