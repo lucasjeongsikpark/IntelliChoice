@@ -39,12 +39,22 @@ test("an expired token on the dashboard returns the user to sign-in instead of l
     timeout: 60_000,
   });
 
-  // A structurally valid but unaccepted token: the server rejects it with 401 exactly as it
-  // rejects a genuinely expired one, and the app cannot tell the difference — which is the
-  // point, since "expired" is only knowable to the server.
-  await page.evaluate(
-    ([key]) => localStorage.setItem(key, "expired.garbage.token"),
-    [TOKEN_KEY] as const,
+  // **The 401 is stubbed rather than provoked by corrupting the token, and that is not a
+  // shortcut — it is the only thing that works on both targets.** On staging `seedSession`
+  // installs the identity through `addInitScript`, which Playwright re-runs on *every*
+  // navigation: writing a junk token and reloading put the valid one straight back, so no
+  // request ever 401'd and this test failed on staging while passing locally. Measured on the
+  // first staging run of this spec.
+  //
+  // Stubbing also states the subject more honestly. What is under test is the *client's*
+  // reaction to a 401 on a read path — not the server's willingness to reject a bad token,
+  // which `error-states.spec.ts` covers on the chat side and which is not this app's code.
+  await page.route("**/learning/**", (route) =>
+    route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({ detail: "expired" }),
+    }),
   );
   await page.reload();
 
