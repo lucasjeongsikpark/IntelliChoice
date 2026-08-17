@@ -4,7 +4,7 @@
 # present for `uv sync` to resolve it the same way `make test`/CI already do.
 #   docker build -f apps/learning-api/Dockerfile -t learning-api .
 
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 RUN pip install --no-cache-dir "uv>=0.9"
 
@@ -37,7 +37,7 @@ COPY knowledge-content/ knowledge-content/
 # present, not just its manifest.
 RUN uv sync --frozen --all-packages --no-dev
 
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 # D-384: patch the base image's OS packages here, in the runtime stage. This replaces a
 # comment that ended "rebuild once Debian/the upstream image ships fixes" - that is exactly
