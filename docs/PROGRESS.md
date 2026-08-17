@@ -30,12 +30,23 @@ minutes and cancelled two sessions' worth of redundant work:
   docstring forbids inventing bodies. The real shapes now render: bodyless (the global per-IP
   middleware) and `TOO_MANY_TURNS_MESSAGE` verbatim.
 
+**V7 (D-387) closed the PII item the same day, and it shrank for the third time.** The server side was
+already held — redactor unit-tested, 59 payload-floor tests, **all four** free-text entry points
+redacting at the request boundary, learning's tutor chat asserting the persisted row — and neither app
+serves a transcript back, so the raw words never leave the tab. Two things were genuinely missing:
+`LocationConsentChoice`'s invariant covered `latitude`/`longitude` but not the `zip_code`/`city`/
+`address` forms its own docstring claims (now parametrized, all three pass, with a non-vacuity
+control), and no browser had checked that typed PII leaves the page **exactly once**. That browser
+assertion **failed its own falsification first**: an injected `?q=` beacon passed, because
+`encodeURIComponent` turns `@` into `%40` — the same shape as the audit probe that matched
+`CAST(blob AS text)` and certified msgpack coordinates as clean.
+
 **Recommended next, in priority order:** (1) the **live** half of the authorization matrix, now that
 the config half is guarded — one cross-account probe against the deployed stack, worth doing because
-it is the only layer V5 cannot reach, and cheap; (2) the audit's remaining never-walked paths, of
-which **PII redaction** is the one that matters for a K-12 platform (no walk has ever typed an email
-address or a phone number) — the exam timer, the calendar interrupt's `.ics` branch and the
-ErrorBoundary loop are the rest; (3) the P2/P3 backend tail, still last.
+it is the only layer V5 cannot reach, and cheap; (2) the audit's remaining never-walked paths — the
+exam timer, the calendar interrupt's `.ics` branch, the ErrorBoundary loop, and learning-web's
+tutor-chat browser leg (deferred in V7 with its reason: the invariant is held server-side and the
+walk costs a full pre-exam); (3) the P2/P3 backend tail, still last.
 
 ### Previous — the three coverage blind spots (Milestone 11)
 

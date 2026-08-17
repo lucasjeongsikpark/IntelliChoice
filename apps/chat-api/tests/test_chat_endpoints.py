@@ -512,6 +512,69 @@ def test_resume_coordinates_do_not_outlive_the_locator_turn_in_checkpoint_writes
     assert str(distinctive_lon) not in decoded
 
 
+@pytest.mark.parametrize(
+    ("form", "value"),
+    [
+        ("zip_code", "62704"),
+        ("city", "Zqxvhaven"),
+        ("address", "417 Zqxvbrook Terrace"),
+    ],
+)
+def test_the_other_location_forms_also_do_not_outlive_the_locator_turn(
+    form: str, value: str
+) -> None:
+    """D-387: the same invariant as the test above, for the **string** location forms.
+
+    `LocationConsentChoice`'s docstring claims it for "the location itself (whichever single
+    form the caller supplies)", and the two tests that hold it - this one's sibling and
+    `test_branch_locator.py::test_precise_coordinates_never_land_in_checkpointed_state` - both
+    supply `latitude`/`longitude` only. SPEC §5.1.3's words are "precise coordinates", so
+    coordinates were the right place to start; a typed ZIP, city or street address is still
+    location data about a child, and the claim in the docstring covers all four.
+
+    `FakeMapsProvider` hash-geocodes any non-empty key, so every form here is genuinely
+    consumed rather than skipped - `answer` coming back non-null is that proof, and the ZIP
+    case additionally reaches the seeded branches.
+
+    Kept as a `LIKE`-free check for the reason its sibling records: the audit's first probe
+    matched `CAST(blob AS text)` and msgpack renders a float as eight binary bytes, so it
+    "certified a database full of coordinates as clean". A string form would survive that
+    mistake, which is exactly why it should not be the method here either.
+    """
+    serde = JsonPlusSerializer()
+    with TestClient(app) as client:
+        session_id = client.post("/chat/sessions").json()["chat_session_id"]
+        paused = client.post(
+            f"/chat/sessions/{session_id}/messages",
+            json={"query": "What is the nearest branch to me?"},
+        ).json()
+        assert paused["pending_interrupt"]["interrupt_type"] == "location_consent"
+
+        result = client.post(
+            f"/chat/sessions/{session_id}/respond",
+            json={"interrupt_type": "location_consent", "approved": True, form: value},
+        ).json()
+
+    assert result["answer"] is not None, f"the {form} was never used, so this proves nothing"
+
+    rows = asyncio.run(_checkpoint_writes_for_thread(session_id))
+    assert rows, "expected checkpoint writes for the thread - wrong thread id?"
+    assert [row for row in rows if row[0] == "__resume__"] == [], (
+        f"the {form} the caller typed is still sitting in a `__resume__` write"
+    )
+
+    decoded = " ".join(repr(serde.loads_typed((type_, blob))) for _, type_, blob in rows)
+    # The control, without which "not found" could mean "nothing was searched": the caller's
+    # *question* is checkpointed on purpose, so a decode-and-search that works must find it.
+    assert "nearest branch" in decoded, (
+        "the decoded writes do not even contain the query, so the absence of the location "
+        "below proves nothing about whether it was stored"
+    )
+    assert value not in decoded, (
+        f"the {form} survived the locator turn in a checkpointed field"
+    )
+
+
 def test_an_anonymous_caller_cannot_continue_an_owned_thread() -> None:
     """AUD-C-01 (S40, D-107), the first half.
 

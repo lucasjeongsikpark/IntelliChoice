@@ -116,3 +116,14 @@ the dashboard, which has no role gating; the calendar interrupt's three branches
 > request reaches the app at all, which nothing had checked and which has broken twice in production.
 > What remains genuinely un-walked from this paragraph: one live cross-account probe, and **PII
 > redaction**, which is the one worth doing next on a platform whose users are minors.
+>
+> **PII redaction closed the same day by D-387, and it was also narrower than it reads.** The server
+> side was already held (redactor unit tests, 59 payload-floor tests, all four free-text entry points
+> redacting at the boundary, learning's tutor chat asserting the persisted row), and neither app
+> serves a transcript back, so a visitor's raw words never leave the tab. What was actually missing:
+> `LocationConsentChoice`'s non-persistence invariant covered `latitude`/`longitude` but not the
+> `zip_code`/`city`/`address` forms its own docstring claims, and no browser had checked that typed
+> PII leaves the page exactly once. Both now exist; `pii-typed-by-a-visitor.spec.ts` failed its own
+> falsification first, for a percent-encoding reason worth reading in D-387. Still un-walked from this
+> paragraph: the live cross-account probe, the exam timer, the calendar `.ics` branch, the
+> ErrorBoundary loop, and learning-web's tutor-chat browser leg.

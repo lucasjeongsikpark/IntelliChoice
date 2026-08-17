@@ -69,7 +69,13 @@ rather than requirements themselves, so they are traced through their §5 sectio
 
 ---
 
-## Status — 37 of 37 sections swept; the criterion turns on one open discrepancy
+## Status — 37 of 37 sections swept; **no open discrepancy** (T-02 dispositioned, D-129)
+
+> **This heading used to read "the criterion turns on one open discrepancy"** and was still saying so
+> after T-02 was dispositioned — while §"Discrepancies found" below said **Open: none**. That is the
+> same near-miss this file already warns about in as many words: a summary that agrees with the claim
+> you want to make, above a table that contradicts it. It happened to the heading, and a reader
+> checking gate readiness would have believed the heading. Corrected 2026-08-17.
 
 **Tranche 1 (below) covers the ten non-negotiable rules in CLAUDE.md**, which is the correct place
 to start for two reasons: they are the project's own compressed statement of what must not break,

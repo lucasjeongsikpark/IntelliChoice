@@ -26926,3 +26926,53 @@ the vite log line `[api] 429 ` with an empty detail is what proves the body real
 `friendlyError` treats `rule.detail === null` as "status alone" and `client.ts` keeps the unparseable
 body as raw text instead of throwing. That was worth verifying rather than reasoning about — it is
 the same shape as D-378, where a rule that read correctly could not fire.
+
+## D-387 — the PII item was mostly already held; what was missing was one location form and one browser check (accepted, 2026-08-17)
+
+**Measured before building, and the item shrank again.** The audit listed "PII redaction (no walk
+typed an email address or a phone number)" as never exercised. Reading the code first found the
+server side thoroughly covered: `redact_free_text` is unit-tested; every Bedrock payload is
+structurally floored (`test_bedrock_payload_pii_floor.py`, 59 tests); **all four** free-text entry
+points redact at the request boundary (chat's `query` at `sessions.py:588`, learning's tutor
+`message` at `sessions.py:1820`, both crash sinks); and learning's tutor chat already asserts the
+**stored row** is redacted. `qa.py:215`'s "nothing in this pipeline redacts a log line" reads like a
+gap and is the opposite — it is the reason that log line carries counts only.
+
+**The product question this walk was written to answer has no failure behind it.** Neither app serves
+a transcript back — chat-api has `create_session`, `post_message`, `respond_to_interrupt` and no
+history route, and chat-web's `localStorage` holds only `sub`/`role`/`isGuest`. So the visitor's raw
+words live in the tab and nowhere else, and "your own message came back as `[redacted-email]`" cannot
+happen. Pinned anyway, because a future history endpoint would change the answer silently.
+
+**One real gap, in the most sensitive field in either app.** `LocationConsentChoice`'s docstring
+claims the invariant for "the location itself (**whichever single form** the caller supplies)", and
+both tests that hold it — `test_precise_coordinates_never_land_in_checkpointed_state` and
+`test_resume_coordinates_do_not_outlive_the_locator_turn_in_checkpoint_writes` — supply
+`latitude`/`longitude` only. SPEC §5.1.3 says "precise coordinates", so coordinates were the right
+place to start; a typed ZIP, city or street address is still location data about a child, and the
+docstring's claim covers all four. Now parametrized over `zip_code`, `city` and `address`; all three
+pass, so this is a claim moved from a comment into a test, not a defect. It carries a **non-vacuity
+control** — the caller's question *is* checkpointed on purpose, so a decode-and-search that works
+must find it — because "not found" and "nothing searched" are indistinguishable otherwise.
+
+**The browser half caught a defect in itself, which is the part worth remembering.**
+`pii-typed-by-a-visitor.spec.ts` asserts the typed PII leaves the page **exactly once**, in the turn
+that is supposed to carry it — a beacon, a crash report fired while the text is in state, or a query
+string built from the input would each put a child's email somewhere nothing redacts, and none of
+that is visible from a server test. The first version compared against the raw string only. Injecting
+`fetch('/chat/beacon?q=' + encodeURIComponent(EMAIL))` **passed**, because `@` arrives as `%40` — the
+same shape as the audit probe that matched `CAST(blob AS text)` and certified a database full of
+msgpack coordinates as clean. It now searches the percent-decoded URL as well, and the injected
+beacon fails it with both carriers named. The console check is deliberately separate from the suite's
+zero-console-errors teardown: a `console.log` carrying the text is not an error, and is still a leak
+into a place the browser keeps.
+
+**Deliberately not done:** learning-web's tutor-chat browser leg. Its redaction is already asserted
+against the persisted row, and reaching the study-phase composer costs a full pre-exam walk. Recorded
+rather than silently skipped.
+
+**Also corrected here:** `TRACEABILITY.md`'s §Status heading still read "the criterion turns on one
+open discrepancy" after T-02 was dispositioned, while the table below said **Open: none**. That file
+already warns, in as many words, that "a summary line that agrees with the claim you want to make,
+sitting above a table that contradicts it, is how a rubric passes itself" — and it had happened to
+its own heading, in launch-gate evidence a reader would take at face value.
