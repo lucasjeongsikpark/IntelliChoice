@@ -55,6 +55,9 @@ _MAX_REPORT_FACTS = 5
 class CompletedSessionResponse(BaseModel):
     learning_gain_id: str
     topic_id: str | None
+    # D-380: the display name, so the client stops keeping its own id->label map. See
+    # `history._topic_name` for why the map drifted from 3 of 3 to 3 of 33 unnoticed.
+    topic_name: str | None
     pre_raw_score: float
     post_raw_score: float
     raw_gain: float
@@ -103,6 +106,7 @@ class StudentHistoryResponse(BaseModel):
                 CompletedSessionResponse(
                     learning_gain_id=s.learning_gain_id,
                     topic_id=s.topic_id,
+                    topic_name=s.topic_name,
                     pre_raw_score=s.pre_raw_score,
                     post_raw_score=s.post_raw_score,
                     raw_gain=s.raw_gain,

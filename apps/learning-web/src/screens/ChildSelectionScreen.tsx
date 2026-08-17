@@ -14,10 +14,22 @@ interface Props {
    * bound rather than unbind it.
    */
   onCancel?: () => void;
+  /**
+   * The failure of the selection this screen performs, rendered inside it (D-380).
+   *
+   * **D-216 §5 fixed exactly this class and did not include this screen.** It gave `error`
+   * to `AttendanceScreen` and `AssistancePanel` because "a refused/failed choice used to
+   * show nothing at all", and this screen calls the same `session.respond`. So a parent
+   * tapping their child, and hitting a 500, a dropped connection or the 401 D-375 now
+   * handles, saw the card un-disable and nothing else - with no Cancel and no Back on the
+   * two paths that deliberately omit `onCancel`.
+   */
+  error?: string | null;
 }
 
 export function ChildSelectionScreen({
   candidates,
+  error,
   onSelect,
   busy,
   title = "Who's learning today?",
@@ -26,6 +38,13 @@ export function ChildSelectionScreen({
   return (
     <div className="panel">
       <h1>{title}</h1>
+      {/* D-380: above the list, so it is visible without scrolling past the cards the parent
+          just tried to tap. Same placement D-216 §5 chose for `AttendanceScreen`. */}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <div className="card-list">
         {candidates.map((c) => (
           <button

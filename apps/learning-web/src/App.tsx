@@ -448,6 +448,7 @@ function App() {
         if (childCandidates.length > 1) {
           return (
             <ChildSelectionScreen
+          error={session.error}
               candidates={childCandidates}
               busy={false}
               onSelect={(studentId) => rememberStudent(studentId)}
@@ -465,6 +466,7 @@ function App() {
       if (role === "parent" && switchingChild && childCandidates && childCandidates.length > 1) {
         return (
           <ChildSelectionScreen
+          error={session.error}
             candidates={childCandidates}
             busy={false}
             title="Switch child"
@@ -542,6 +544,7 @@ function App() {
     if (pending?.interrupt_type === "child_selection" && pending.child_candidates) {
       return (
         <ChildSelectionScreen
+          error={session.error}
           candidates={pending.child_candidates}
           busy={session.busy}
           onSelect={(studentId) =>

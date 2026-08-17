@@ -732,7 +732,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
                 {history.completed_sessions.map((s) => (
                   <tr key={s.learning_gain_id}>
                     <td>{formatOrgDate(s.completed_at)}</td>
-                    <td>{topicLabel(s.topic_id)}</td>
+                    <td>{topicLabel(s.topic_id, s.topic_name)}</td>
                     <td className="numeric">
                       {s.pre_raw_score} → {s.post_raw_score}
                     </td>

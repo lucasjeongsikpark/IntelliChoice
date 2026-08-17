@@ -79,8 +79,13 @@ export function TutorChatPanel({
   async function handleSend() {
     const text = input.trim();
     if (!text || transcript.sending) return;
+    // Cleared optimistically so the box empties the instant the student presses Enter - but
+    // **restored if the send fails** (D-380). Before, a failed send left their question as a
+    // bubble with no reply and an empty box, so they had to retype it. For a K-12 student
+    // mid-exam that is the difference between retrying and giving up.
     setInput("");
-    await transcript.send(text, () => onSendMessage(questionVariantId, text));
+    const sent = await transcript.send(text, () => onSendMessage(questionVariantId, text));
+    if (sent === false) setInput(text);
   }
 
   return (
