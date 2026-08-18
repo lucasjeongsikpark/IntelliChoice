@@ -27217,3 +27217,172 @@ in a loop, so adding the `"calendar cancelled"` fixture bought a `renders: calen
 for free. That is also why the suite grew by three and not two, which is the arithmetic that made
 the count explainable rather than merely green.
 
+
+## D-393 — W1: an unhandled 500 was the one failure nothing recorded (accepted, 2026-08-17)
+
+The 08-16 audit's observability sweep: *"An unhandled non-Bedrock exception bypasses both
+middlewares, producing no JSON access line, no `trace_id` and no `http_requests_total{status="500"}`
+— only the ALB knows."* Confirmed by reading the two functions before writing anything:
+`request_logging.py` and `metrics.py` both did `response = await call_next(request)` with **no
+`try`**, and Starlette's `ServerErrorMiddleware` sits above every `@app.middleware("http")` and
+converts the exception into a 500 *before* either could see a response.
+
+So for a solo-maintained service the alarm that matters most could not fire, and the log line that
+would identify which student's request died was never written.
+
+**Fixed** in both middlewares, `except Exception: record; raise`. **Not `finally`**, and that choice
+is tested rather than commented: a `CancelledError` reaching this frame means the request was
+abandoned before a response began (client gone before headers, or shutdown), and a `finally` would
+attribute those to 500 — inventing failures on `/stream`, the endpoint students hold open the
+longest, indistinguishable from the real ones this exists to surface. Measured: swapping in the
+`finally` version makes `test_a_cancelled_request_is_not_logged_as_a_server_error` fail with a
+`status_code: 500` line, so the test discriminates the design rather than restating it.
+
+**Two things the tests had to be corrected for, both measurement beating reasoning.** The first
+version of the cancellation test drove `asyncio.CancelledError` from an endpoint through
+`TestClient` and failed with `DID NOT RAISE`: `BaseHTTPMiddleware` converts it to a `RuntimeError`
+before this middleware sees it, so that route cannot discriminate the two implementations at all.
+Rewritten to call the dispatch function directly — white-box because the branch lives there and no
+request reaches it. And it is driven by `asyncio.run` inside a sync test, because **nothing else in
+this repo's 1694 tests is an async test**, no asyncio plugin is configured, and an undriven
+coroutine test is collected and *passes* without executing a line.
+
+**The `trace_id` clause was asserted, not inferred.** It is only true because the line was missing —
+`JsonLogFormatter` injects a trace id from whatever span is active — so whether it comes back
+depends on `FastAPIInstrumentor` wrapping the whole middleware stack and on OTel ending the span
+after the exception passes back through user middleware. Both hold;
+`test_the_500_access_line_carries_a_trace_id` pins the id against the actual finished span.
+
+**A sibling found in the same three lines, and fixed with them:** `metrics.py` still fell back to
+`request.url.path` for an unmatched route. `request_logging` stopped doing that in D-316 after 23
+raw `/learning/students/student-ext-N/...` paths were measured in one local session — every one a
+CORS preflight, since `CORSMiddleware` answers `OPTIONS` before routing sets `scope["route"]`. This
+is D-347's "fixed in one direction" shape again, and a raw path is **worse** as a metric label than
+as a log line: Prometheus keeps one series per distinct label set for the process's life, so it is a
+permanent memory cost in the scrape target rather than noise in a query. Now `UNMATCHED_PATH`,
+imported from `request_logging` rather than re-spelled, so one word finds both stores.
+
+## D-394 — W2: the two log fields no key-based rule can inspect (accepted, 2026-08-17)
+
+`PiiDenylistFilter` matches top-level `extra` **keys**. That is the right shape for structured
+fields and no defence at all for text, and `JsonLogFormatter` emitted two free-text fields it could
+not see:
+
+- **`exc_info`.** Skipped by the filter (it is a standard `LogRecord` attribute) and then re-added
+  verbatim by the formatter. The realistic carrier is a Pydantic `ValidationError`, which embeds the
+  offending input; on a structured-output repair failure (SPEC §5.25.3) that input is model output
+  derived from a student's question. The 08-16 audit filed it as *"a hazard, not a confirmed leak"* —
+  the criterion-9 scan found 3,269 events clean — and a hazard in the one field no key rule can
+  inspect is worth closing regardless.
+- **`event`.** It was `record.getMessage()`, i.e. `%`-interpolated. **22 call sites** spell
+  `logger.warning("…: %s", exc)`, so an exception's text landed in the field an operator groups
+  by — unbounded cardinality *and* free text in one move. *(The audit said 15 and my first count
+  said 13; both were regex counts over single-line calls. The live log from the W5 run showed a
+  site neither had — `org_time`, which builds the template into a variable first — so the number
+  was redone with an AST sweep. 22 is that count, and the correction is the reason the fix went
+  into the formatter rather than into a list of call sites I had already miscounted twice.)*
+
+**Both fixed in the formatter, and the call sites deliberately left alone.** `event` is now the
+static template and the interpolated text moves to a new `message` key, redacted; `exc_info` is
+redacted. One place covers all 22 sites **and the twenty-third someone writes next month**, which is
+the difference between a guarantee and vigilance — the standard `request_logging`'s own docstring
+already sets ("nothing sensitive can reach a log line by construction"). Editing 13 files across six
+packages would have bought tidier strings and no additional safety — and would have missed the
+two sites a regex could not see.
+
+**What was checked before changing a field every query reads.** No CloudWatch metric filter in
+`terraform/` keys on `$.event` (the 26 alarms are metric-based), and exactly two tests read the
+field, neither at an interpolated site. `message` is added only when `record.args` is non-empty, so
+no existing line changes shape — asserted by its own control test.
+
+**A floor, not a guarantee**, stated in the code: `redact_free_text` knows emails, URLs and phone
+numbers, not arbitrary prose. `intellichoice-shared` becomes a dependency of
+`intellichoice-observability` rather than the regexes being copied; `shared` depends only on pydantic
+and imports nothing back, so there is no cycle.
+
+## D-395 — W3: the cross-replica fan-out was losing four events in five (accepted, 2026-08-17)
+
+The 08-16 audit called this *"the SSE relay fires NOTIFY as an unreferenced task onto one shared
+asyncpg connection — a second concurrent publish raises 'another operation is in progress', which is
+swallowed"*. **Measured, and worse than the wording:** a five-event burst published back-to-back
+produced four `InterfaceError: cannot perform operation: another operation is in progress`, and one
+event of five reached the other replica. This is D-334's defect returning inside the mechanism built
+to fix D-334 — and D-334 is why students saw personalized hints arrive in 2 runs of 4.
+
+**Three fixes, both apps, because the chat relay is a deliberate copy** and fixing one would be the
+D-347 shape the audit named as the finding behind its findings:
+
+1. **`_publish_lock`** serializes the single publisher connection. A lock rather than a pool: a
+   NOTIFY is one short round trip, and the ordering it imposes is the ordering the events already
+   had. Created in `start()`, not `__init__`, because an `asyncio.Lock` binds to the running loop.
+2. **`_pending`** holds a strong reference to every scheduled notify, discarded on completion. The
+   event loop keeps only a weak reference, so a fire-and-forget task can be collected mid-execution.
+3. **`stop()` drains** (bounded, 2 s) before closing the connections, or in-flight notifies find
+   their connection gone and each logs a failure indistinguishable from a real dropped event.
+
+**The failure log now carries the session id**, which it never did — so "an event was dropped
+somewhere" becomes "this student's other tabs did not get this update", which is a thing someone can
+act on.
+
+**The GC half is asserted, not falsified, and says so.** Forcing CPython to collect a scheduled task
+on cue is not something a test can do reliably, so the test asserts the reference exists while the
+notify is in flight and that the set drains afterwards. Claiming a falsification that cannot fail is
+exactly how V11's `.ics` test ended up unable to hold D-352 (D-392); the docstring states the limit
+instead.
+
+## D-396 — W4: the counters that would have made D-395 visible (accepted, 2026-08-17)
+
+The 08-16 audit's line was *"SSE has no telemetry at all: no connection gauge, no disconnect
+counter, no delivery counter"*, and D-395 is the bill for it. The fan-out was losing 80% of a burst
+into a `logger.warning`, and every dashboard read healthy, because **a log nobody queries is not
+telemetry**.
+
+Three metrics, wired in both apps: `sse_connections` (gauge), `sse_events_delivered_total`, and
+`sse_relay_failures_total{reason}` with `notify_failed` / `payload_too_large` / `publish_failed` —
+three reasons because their remedies differ (the connection, the event size, the relay object). No
+`app` label, following this module's existing convention: the two APIs are separate processes with
+separate registries, so a scrape target is never ambiguous and a label would only invite double
+counting.
+
+The gauge decrements **inside** the `if queue in subs` branch. Beside it, a double unsubscribe walks
+the gauge negative, which on a dashboard reads as a bug in the stream rather than in the counter —
+so the test drives the second unsubscribe explicitly.
+
+## D-397 — OPEN_DECISIONS #13: the second engine was added, and it did not buy what it was bought for (accepted, 2026-08-17)
+
+**The user chose option A** — a WebKit project scoped to the specs where browser behaviour is the
+subject. Built: `e2e/playwright.config.ts` gains a `webkit` project grepped to `@browser`, and
+`calendar-branches.spec.ts`'s two tests carry the tag. They pass on WebKit. `@browser` specs keep
+running on chromium as well, so this **adds** an engine rather than moving coverage onto one.
+
+**Then the falsification failed to fail a second time, on the remedy this time.** #13's
+recommendation — which I wrote in D-392 — said WebKit *"is the strictest of the three about detached
+anchors and revoked object URLs, so it is the engine that would have caught D-352."* Reverting
+`downloadIcs` to its pre-D-352 form and re-running: **both specs pass on WebKit too.**
+
+**With a positive control, because a false negative here would be worse than the original gap.**
+The same edit that reverted the fix also changed the download filename, and the same spec then
+failed with `Received: "PROOF-THE-EDIT-IS-LIVE.ics"`. The dev server was serving the reverted code
+and WebKit was reading it. The negative is real.
+
+**A guess, labelled as one:** Playwright drives downloads through the automation protocol rather
+than the browser's ordinary download path, so this class of defect may be invisible to *every*
+Playwright engine rather than to Chromium in particular. Not measured, and not worth measuring
+speculatively — what it would change is which tool closes the gap, not whether it is open.
+
+**What was kept and why.** The project stays, with every claim about it rewritten. Its remaining
+value is narrower and real: the download and dialog paths now run on the engine every iPhone and
+iPad uses, which for a product whose parents read reports on phones is worth the seconds. Removing
+it would also discard a decision the user made on evidence they have not yet seen. **`downloadIcs`
+is still held by no browser in this suite**, and #13 stays open in its residual form rather than
+being marked closed by the work that was supposed to close it.
+
+**A second wrong premise in the same item, corrected:** #13 framed the choice as a CI-cost
+judgement. CI type-checks the e2e harness (`e2e-typecheck`) and **never runs it**, so a second
+engine costs no CI time at all. The cost was always a local install.
+
+**The reusable part is not about browsers.** Two sessions running, a recommendation of mine has
+been overturned by the cheapest possible measurement — D-384's pin-and-bump, now this. Both were
+written from reasoning about how a thing *should* behave, and both took under ten minutes to
+falsify. The habit worth keeping is not scepticism about browsers; it is that a recommendation is a
+hypothesis until the run happens, including when the recommendation is the one being implemented.

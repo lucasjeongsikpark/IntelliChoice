@@ -24,6 +24,7 @@ from chat_api.services.session_event_relay import (
 )
 from chat_api.services.session_events import ChatSessionEventBus
 from intellichoice_db.engine import create_engine
+from intellichoice_observability.metrics import SSE_RELAY_FAILURES
 from sqlalchemy import text
 
 
@@ -161,6 +162,93 @@ def test_an_oversized_event_is_dropped_from_the_fanout_but_still_delivered_local
     local, remote = asyncio.run(run())
     assert local == 1, "the local subscriber must still be served"
     assert remote == 0, "an oversized payload must not be sent, and must not be truncated"
+
+
+def test_events_published_back_to_back_all_reach_the_other_replica() -> None:
+    """**D-395, the chat side.** The learning twin was measured losing four events out of five in
+    a five-event burst: `publish` schedules the NOTIFY, the second scheduled `_notify` finds the
+    single publisher connection busy, asyncpg raises `another operation is in progress`, and the
+    `except` swallowed it.
+
+    This app's exposure is different from learning's and not smaller. Its publisher is on the
+    request path, so the tab that asked already has the answer in the HTTP response - but a
+    reloaded tab, a second device, or a recovering client depends on `/stream`, which the ALB
+    pins to whichever replica it chose. A burst here is one turn emitting several updates, which
+    is the ordinary shape of a streamed answer.
+    """
+
+    async def run() -> set[str]:
+        bus_a, relay_a, bus_b, relay_b = await _two_replicas()
+        try:
+            queue_b = bus_b.subscribe("session-burst")
+            for index in range(5):
+                bus_a.publish("session-burst", {"kind": "turn", "marker": f"e{index}"})
+            received: set[str] = set()
+            for _ in range(5):
+                event = await asyncio.wait_for(queue_b.get(), timeout=5)
+                received.add(event["marker"])
+            return received
+        finally:
+            await relay_a.stop()
+            await relay_b.stop()
+
+    assert asyncio.run(run()) == {"e0", "e1", "e2", "e3", "e4"}
+
+
+def test_a_scheduled_notify_is_referenced_until_it_finishes() -> None:
+    """The GC half of D-395. `loop.create_task` leaves the loop holding only a weak reference, so
+    the relay keeps its own and drops it on completion.
+
+    As on the learning side, this asserts the reference exists rather than claiming to reproduce
+    a collection - forcing CPython to collect a scheduled task on cue is not something a test can
+    do reliably, and an assertion that cannot fail is worse than none.
+    """
+
+    async def run() -> tuple[int, int]:
+        bus_a, relay_a, _bus_b, relay_b = await _two_replicas()
+        try:
+            bus_a.publish("session-ref", {"kind": "turn"})
+            in_flight = len(relay_a._pending)
+            await asyncio.sleep(1.5)
+            return in_flight, len(relay_a._pending)
+        finally:
+            await relay_a.stop()
+            await relay_b.stop()
+
+    in_flight, after = asyncio.run(run())
+    assert in_flight == 1, "the scheduled notify was not referenced anywhere"
+    assert after == 0, "completed notifies are never released, so the set grows unbounded"
+
+
+def test_a_dropped_event_is_logged_with_the_session_it_belonged_to(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A swallowed fan-out failure used to say only that something went wrong somewhere. Which
+    session lost its update is the one thing worth knowing, and it was the one thing absent."""
+
+    async def run() -> None:
+        bus_a, relay_a, _bus_b, relay_b = await _two_replicas()
+        try:
+            assert relay_a._publisher is not None
+            await relay_a._publisher.close()
+            bus_a.publish("session-doomed", {"kind": "turn"})
+            await asyncio.sleep(1.0)
+        finally:
+            await relay_a.stop()
+            await relay_b.stop()
+
+    before = SSE_RELAY_FAILURES.labels(reason="notify_failed")._value.get()
+    with caplog.at_level("WARNING"):
+        asyncio.run(run())
+
+    failures = [
+        r for r in caplog.records if r.message == "chat_session_event_relay_notify_failed"
+    ]
+    assert failures, "a dropped fan-out produced no warning at all"
+    assert getattr(failures[0], "session_id", None) == "session-doomed"
+    # D-396, and note the counter is shared with learning-api by *name* only: the two run as
+    # separate processes with separate registries, so a scrape target is never ambiguous.
+    assert SSE_RELAY_FAILURES.labels(reason="notify_failed")._value.get() == before + 1
 
 
 def test_the_payload_ceiling_stays_under_the_postgres_limit() -> None:

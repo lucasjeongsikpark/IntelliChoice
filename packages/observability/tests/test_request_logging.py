@@ -1,8 +1,12 @@
+import asyncio
 import io
 import json
 import logging
+from collections.abc import Awaitable, Callable
+from typing import cast
 
-from fastapi import FastAPI
+import pytest
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
 from intellichoice_observability.logging_config import JsonLogFormatter, PiiDenylistFilter
@@ -10,6 +14,9 @@ from intellichoice_observability.request_logging import (
     UNMATCHED_PATH,
     install_request_logging_middleware,
 )
+from intellichoice_observability.tracing import build_tracer_provider
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 
 def _capturing_app(*, with_cors: bool = False) -> tuple[FastAPI, io.StringIO]:
@@ -141,6 +148,125 @@ def test_a_cors_preflight_does_not_log_the_raw_path() -> None:
     payload = json.loads(log_output)
     assert payload["path"] == UNMATCHED_PATH
     assert payload["method"] == "OPTIONS"
+
+
+def test_an_unhandled_exception_still_produces_an_access_line() -> None:
+    """D-393. The middleware did `response = await call_next(request)` with no `try`, and
+    Starlette's `ServerErrorMiddleware` sits *above* every `@app.middleware("http")` and turns
+    the exception into a 500 before this one can see it. So the single worst class of failure -
+    an unhandled server exception - produced **no access line at all**: no method, no path, no
+    status, and therefore no `trace_id`, because the formatter injects that per line and there
+    was no line. Only the ALB knew a 500 had happened.
+
+    `raise_server_exceptions=False` is what makes this a test of the deployed path rather than
+    of the test client: with the default the exception is re-raised into the test and no 500
+    response is ever produced, which is the opposite of what production does.
+
+    The session id is asserted alongside, because a 500 is exactly the line someone needs to tie
+    to one student's sitting (D-288), and `scope["route"]` is populated by the router *before*
+    the endpoint runs - so the template and params survive the exception rather than falling
+    back to `UNMATCHED_PATH`.
+    """
+    app, stream = _capturing_app()
+
+    @app.get("/learning/sessions/{learning_session_id}/boom")
+    async def boom(learning_session_id: str) -> dict[str, str]:
+        raise RuntimeError("the handler failed")
+
+    response = TestClient(app, raise_server_exceptions=False).get(
+        "/learning/sessions/sess-abc/boom"
+    )
+    assert response.status_code == 500
+
+    log_output = stream.getvalue()
+    assert log_output, "an unhandled exception produced no access line at all"
+    payload = json.loads(log_output)
+    assert payload["status_code"] == 500
+    assert payload["method"] == "GET"
+    assert payload["path"] == "/learning/sessions/{learning_session_id}/boom"
+    assert payload["learning_session_id"] == "sess-abc"
+
+
+def test_the_500_access_line_carries_a_trace_id() -> None:
+    """The other half of D-393's finding, asserted rather than inferred.
+
+    The audit's wording was "no JSON access line, no `trace_id`, and no
+    `http_requests_total{status="500"}`" - and the `trace_id` clause is only true *because* the
+    line was missing, since `JsonLogFormatter` injects it from whatever span is active. That
+    made it worth checking rather than assuming: it holds only if the server span is still
+    active when this middleware logs, which depends on `FastAPIInstrumentor` wrapping the whole
+    middleware stack (it patches `build_middleware_stack`) and on OTel ending the span *after*
+    the exception has passed back through user middleware. Both are true, and this pins them -
+    a trace id on the 500 line is what turns "something failed" into "this request failed".
+    """
+    exporter = InMemorySpanExporter()
+    provider = build_tracer_provider(service_name="test-service", span_exporter=exporter)
+
+    app, stream = _capturing_app()
+    FastAPIInstrumentor.instrument_app(app, tracer_provider=provider)
+    try:
+
+        @app.get("/learning/sessions/{learning_session_id}/boom")
+        async def boom(learning_session_id: str) -> dict[str, str]:
+            raise RuntimeError("the handler failed")
+
+        response = TestClient(app, raise_server_exceptions=False).get(
+            "/learning/sessions/sess-abc/boom"
+        )
+        assert response.status_code == 500
+    finally:
+        FastAPIInstrumentor.uninstrument_app(app)
+
+    payload = json.loads(stream.getvalue())
+    assert payload["status_code"] == 500
+    # The span the exception belongs to, not merely "some hex string".
+    span = next(s for s in exporter.get_finished_spans() if s.name.endswith("/boom"))
+    assert span.context is not None
+    assert payload["trace_id"] == format(span.context.trace_id, "032x")
+
+
+def test_a_cancelled_request_is_not_logged_as_a_server_error() -> None:
+    """The other direction of D-393: the fix is `except Exception`, not a `finally` that records
+    unconditionally, because a cancellation is not a server error.
+
+    A cancellation reaching this frame means the request was abandoned before a response began -
+    the client went away before headers, or the server is shutting down. Recording those as 500s
+    would invent failures on `/stream`, the endpoint students hold open the longest, and the
+    invented 500s would be indistinguishable from the real ones this session is making visible.
+
+    **This is a direct call to the dispatch function, and the reason is a measurement.** The
+    obvious version of this test - an endpoint that raises `asyncio.CancelledError`, driven
+    through `TestClient` - proves nothing: `BaseHTTPMiddleware` converts it into a `RuntimeError`
+    before this middleware sees it, so it arrives as an ordinary `Exception` and both
+    implementations behave identically. Measured, after that version failed with `DID NOT RAISE`.
+    A true `CancelledError` in this frame comes from the task *around* the middleware being
+    cancelled, which no `TestClient` request reproduces - so the branch is exercised where it
+    lives, white-box on purpose rather than through a route that cannot reach it.
+
+    Driven by `asyncio.run` rather than declared `async def`: nothing else in this repo's 1694
+    tests is an async test, so no asyncio plugin is configured, and an undriven coroutine test
+    would be collected and *pass* without running a line of it.
+    """
+    app, stream = _capturing_app()
+    # Starlette types `Middleware.kwargs` values as `object`, so the callable needs naming for
+    # pyright. Spelled out rather than cast to `Any` - the signature is the contract this test
+    # depends on, and writing it down means a Starlette change that alters it fails here.
+    dispatch = cast(
+        Callable[[Request, Callable[[Request], Awaitable[Response]]], Awaitable[Response]],
+        app.user_middleware[0].kwargs["dispatch"],
+    )
+
+    async def call_next(_request: Request) -> Response:
+        raise asyncio.CancelledError
+
+    async def drive() -> None:
+        request = Request({"type": "http", "method": "GET", "path": "/x", "headers": []})
+        await dispatch(request, call_next)
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(drive())
+
+    assert stream.getvalue() == "", "a cancelled request was recorded as a server error"
 
 
 def test_a_request_with_no_session_in_its_path_logs_no_session_key() -> None:

@@ -4,9 +4,14 @@ import { CHAT_WEB, LEARNING_WEB, TARGET } from "./config";
 const isLocal = TARGET === "local";
 
 /**
- * S39/AUD-F. Chromium only: this audits *our* contracts against real APIs, not browser
- * compatibility, and a single engine keeps the console/network evidence comparable
- * between runs.
+ * S39/AUD-F. Chromium by default: this audits *our* contracts against real APIs, not browser
+ * compatibility, and one engine keeps the console/network evidence comparable between runs.
+ *
+ * **That default has one measured exception, added in D-397.** "Not browser compatibility" was
+ * the right scope until V11 showed it hides a class of *our own* bugs: D-352's `downloadIcs`
+ * fixes could not be held by any Chromium assertion, because Chromium tolerates exactly what
+ * they fixed. The `webkit` project below runs only the specs tagged `@browser`, where browser
+ * behaviour is the subject rather than the environment.
  *
  * `workers: 1` is not a performance concession - the journeys mutate shared Postgres
  * and MySQL state (one seeded student per fixture account), so parallel workers would
@@ -63,6 +68,47 @@ export default defineConfig({
       name: "mobile",
       grep: /@mobile/,
       use: { ...devices["Pixel 7"] },
+    },
+    // D-397 (OPEN_DECISIONS #13): a second *engine*, running only the specs where browser
+    // behaviour is itself the subject (`@browser`).
+    //
+    // **Why this exists is a measurement, not a preference.** D-352 fixed two browser-fragility
+    // bugs in `downloadIcs` - an anchor never appended to the document, and `revokeObjectURL`
+    // called synchronously after `click()`. V11 then wrote `calendar-branches.spec.ts` to hold
+    // that fix and found it could not: reverting `downloadIcs` left **both tests passing**,
+    // because Chromium tolerates both. A whole class of defect - the one where a browser is
+    // lenient - was structurally invisible to a single-engine suite, and no assertion written
+    // against Chromium could have been wrong about it.
+    //
+    // **And then this engine tolerated both bugs as well, which is the honest result.** The
+    // recommendation that produced this project said WebKit "is the strictest of the three about
+    // detached anchors and revoked object URLs, so it is the engine that would have caught
+    // D-352". Measured: with `downloadIcs` reverted to its pre-D-352 form, both specs **pass on
+    // WebKit too**. The measurement has a positive control - changing the download filename in
+    // the same edit makes the same spec fail with `Received: "PROOF-THE-EDIT-IS-LIVE.ics"` - so
+    // this is a real negative, not a dev server serving a stale bundle.
+    //
+    // A likely reason, untested and therefore stated as a guess: Playwright drives downloads
+    // through the automation protocol rather than the browser's ordinary download path, so the
+    // strictness that would bite in real Safari may not be reachable from any Playwright engine.
+    //
+    // **So `downloadIcs` is still held by no browser in this suite**, and the class of defect
+    // where a browser is lenient is still structurally invisible - see OPEN_DECISIONS #13 for
+    // what is left open. What this project does buy is real and smaller than advertised: the
+    // download and dialog specs now run on the engine every iPhone and iPad uses, which for a
+    // product whose parents read reports on phones is worth the seconds it costs.
+    //
+    // Scoped by grep rather than run wholesale, for the same reason as `mobile` above. `@browser`
+    // specs keep running on chromium too - this project *adds* an engine, it does not move
+    // coverage onto one.
+    //
+    // The cost is lower than OPEN_DECISIONS #13 estimated, and that estimate was wrong about its
+    // premise too: CI type-checks this harness (`e2e-typecheck`) and never runs it, so there is
+    // no second browser download in CI to pay for.
+    {
+      name: "webkit",
+      grep: /@browser/,
+      use: { ...devices["Desktop Safari"] },
     },
   ],
 

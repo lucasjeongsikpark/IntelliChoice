@@ -1091,6 +1091,25 @@ to rot, because nothing fails when it does.)*
   everything would restack a run onto that tier and report a high yield for doing so, which is
   worse than the rejections it replaces because the summary makes it look like success. Run-scoped
   evidence, threaded rather than global, and the first candidates of a run therefore cannot move.
+- **Instrumentation placed after the thing it measures only ever sees success** (D-393). Both
+  apps' JSON access log and HTTP metrics recorded *after* `await call_next(request)` returned, and
+  Starlette's `ServerErrorMiddleware` converts an unhandled exception into a 500 **above** every
+  user middleware — so the single class of failure most worth alarming on wrote no access line, no
+  `trace_id` and no `http_requests_total{status="500"}`, and every dashboard read healthy through
+  it. Only the ALB knew. The general shape is that a recorder on the return path measures the
+  return path; it has to sit on the *exit* of the call, with the failure branch written out. And
+  "written out" is load-bearing rather than stylistic: the shortest spelling (`finally`) records
+  cancellations as 500s, which invents failures on `/stream` — the endpoint students hold open the
+  longest — that are then indistinguishable from the real ones the fix exists to surface.
+- **A key-based redaction rule is no defence for a field that is text** (D-394). `PiiDenylistFilter`
+  matches top-level `extra` keys, which is the right shape for structured fields and nothing at all
+  for free text — and the log formatter emitted two text fields it could not inspect: `exc_info`
+  (skipped as a standard record attribute, then re-added verbatim, and a Pydantic `ValidationError`
+  embeds the offending input) and `event`, which was `%`-interpolated so 22 call sites put an
+  exception's text into the field operators group by. The remedy belongs at the single formatter
+  every line passes through, not at the call sites: a call-site rule is vigilance, and it is the
+  fourteenth call site that leaks. The redactor remains a floor — emails, URLs and phone numbers,
+  not arbitrary prose — so this is depth behind "do not put text in logs", never a licence to.
 - **A test double is part of the schema's blast radius** (D-238). `MockBedrockProvider` dispatches
   on `json_schema["title"]`, a string match that connects nothing to the model it names, so D-194's
   field rename left two branches compiling, passing every test, and returning JSON that failed

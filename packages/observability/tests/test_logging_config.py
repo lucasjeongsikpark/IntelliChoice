@@ -98,6 +98,101 @@ def test_safe_curriculum_content_fields_are_not_denylisted() -> None:
     assert payload["skill_name"] == "linear_one_step"
 
 
+def test_a_traceback_is_redacted_before_it_reaches_the_payload() -> None:
+    """D-394. `PiiDenylistFilter` matches *keys*, and a traceback is free text under a key it
+    deliberately skips - `exc_info` is in `_STANDARD_LOG_RECORD_ATTRS`, so the filter passes over
+    it and the formatter then re-added the whole formatted traceback verbatim.
+
+    The realistic carrier is a Pydantic `ValidationError`, which embeds the offending input in
+    its own message; on a structured-output repair failure (SPEC §5.25.3) that input is model
+    output derived from a student's question. The 08-16 audit filed this as a hazard rather than
+    a confirmed leak - the criterion-9 scan found 3,269 events clean - and a hazard in the one
+    field no key-based rule can inspect is worth closing on its own.
+    """
+    stream = io.StringIO()
+    logger = _make_logger(stream)
+
+    try:
+        raise ValueError("could not parse 'contact me at student@example.com or 555-123-4567'")
+    except ValueError:
+        logger.warning("structured_output_repair_failed", exc_info=True)
+
+    log_output = stream.getvalue()
+    assert "student@example.com" not in log_output
+    assert "555-123-4567" not in log_output
+    payload = json.loads(log_output)
+    # Redacted, not dropped: the traceback is how an operator finds the failing frame, and the
+    # marker says which kind of value was removed.
+    assert "[redacted-email]" in payload["exc_info"]
+    assert "[redacted-phone]" in payload["exc_info"]
+    assert "ValueError" in payload["exc_info"]
+
+
+def test_an_interpolated_log_message_keeps_a_stable_event_and_redacts_the_values() -> None:
+    """D-394's other half. `record.getMessage()` applies `%`-interpolation, so the 13 call sites
+    that spell `logger.warning("... : %s", exc)` put the exception's text into `event` itself -
+    the one field an operator groups and filters by.
+
+    Two costs, and both are fixed here rather than at those 13 sites, because a fix at the
+    formatter also covers the fourteenth site someone writes next month. `event` becomes the
+    static template, so `$.event` filters group correctly instead of splitting into one bucket
+    per distinct value; the interpolated text moves to `message` and goes through
+    `redact_free_text`, so a `str(exc)` carrying an email can no longer travel as part of the
+    field name. A floor, not a guarantee - the redactor knows contact details, not arbitrary
+    prose, which is the same caveat its own module states.
+    """
+    stream = io.StringIO()
+    logger = _make_logger(stream)
+
+    logger.warning(
+        "hint_generation_fell_back: %s",
+        "upstream rejected reply-to student@example.com",
+    )
+
+    log_output = stream.getvalue()
+    assert "student@example.com" not in log_output
+    payload = json.loads(log_output)
+    assert payload["event"] == "hint_generation_fell_back: %s"
+    assert payload["message"] == (
+        "hint_generation_fell_back: upstream rejected reply-to [redacted-email]"
+    )
+
+
+def test_a_log_call_without_arguments_is_shaped_exactly_as_before() -> None:
+    """The control for the test above, and the reason it is safe to change the formatter rather
+    than the call sites: the overwhelming majority of this codebase's log calls pass a bare event
+    name and everything else through `extra=`. Those must gain no `message` key and must keep
+    the identical `event`, or every existing query changes meaning at once.
+    """
+    stream = io.StringIO()
+    logger = _make_logger(stream)
+
+    logger.info("bedrock_call", extra={"model_id": "haiku", "cost_cents": 0.4})
+
+    payload = json.loads(stream.getvalue())
+    assert payload["event"] == "bedrock_call"
+    assert "message" not in payload
+    assert payload["model_id"] == "haiku"
+
+
+def test_logging_an_exception_object_as_the_message_is_redacted_too() -> None:
+    """The branch found while writing the two tests above, and closed rather than noted.
+
+    `event` is the static template only when `record.msg` is a `str` literal from a call site.
+    `logger.error(exc)` makes it an object, `getMessage()` stringifies it, and `record.args` is
+    empty - so neither of the other two defences applies and arbitrary text lands in the grouping
+    field. No call site does this today, which is exactly the argument for closing it now: the
+    reason `exc_info` needed fixing is that a field nobody was watching went unexamined for months.
+    """
+    stream = io.StringIO()
+    logger = _make_logger(stream)
+
+    logger.error(ValueError("write to student@example.com"))
+
+    assert "student@example.com" not in stream.getvalue()
+    assert json.loads(stream.getvalue())["event"] == "write to [redacted-email]"
+
+
 def test_configure_logging_disables_uvicorns_raw_access_logger() -> None:
     """D-032: uvicorn's own access logger logs the full raw request line, query string
     included - exactly what would leak an SSE `?token=` bearer value."""

@@ -41,6 +41,7 @@ from typing import Any
 
 import asyncpg
 from intellichoice_db.engine import ssl_connect_args
+from intellichoice_observability.metrics import SSE_RELAY_FAILURES
 from sqlalchemy.engine import make_url
 
 from chat_api.services.session_events import ChatSessionEventBus
@@ -92,9 +93,23 @@ class ChatSessionEventRelay:
         self._listener: asyncpg.Connection | None = None
         self._publisher: asyncpg.Connection | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
+        # D-395, and see `learning_api.services.session_event_relay.__init__` for the full
+        # reasoning - this class is a deliberate copy of that one, so a fix to one that skipped
+        # the other would be the D-347 "fixed in one direction" shape the 08-16 audit named as
+        # the finding behind its findings.
+        #
+        # `_pending` keeps a strong reference to each scheduled notify, because the event loop
+        # holds only a weak one and a fire-and-forget task can be collected mid-execution.
+        # `_publish_lock` serializes the single publisher connection, which asyncpg otherwise
+        # refuses to use twice at once - measured on learning-api at four of five events lost in
+        # a five-event burst, every one swallowed.
+        self._pending: set[asyncio.Task[None]] = set()
+        self._publish_lock: asyncio.Lock | None = None
 
     async def start(self) -> None:
         self._loop = asyncio.get_running_loop()
+        # Bound to the running loop, so it cannot be created in `__init__`.
+        self._publish_lock = asyncio.Lock()
         listener = await asyncpg.connect(**self._connect_kwargs)
         # Separate from the listener: a connection blocked in LISTEN should not also be the one
         # issuing NOTIFY, and asyncpg's callback runs on the listener's own read path.
@@ -102,9 +117,14 @@ class ChatSessionEventRelay:
         await listener.add_listener(CHANNEL, self._on_notify)
         self._listener = listener
         self._bus.attach_relay(self.publish)
-        logger.info("chat_session_event_relay_started origin=%s", self._bus.origin)
+        logger.info("chat_session_event_relay_started", extra={"origin": self._bus.origin})
 
     async def stop(self) -> None:
+        # Drain first, or in-flight notifies find their connection closed and each logs a failure
+        # indistinguishable from a real dropped event. Bounded so a hung notify cannot hold up
+        # shutdown.
+        if self._pending:
+            await asyncio.wait(set(self._pending), timeout=2.0)
         for conn, name in ((self._listener, "listener"), (self._publisher, "publisher")):
             if conn is None:
                 continue
@@ -112,7 +132,7 @@ class ChatSessionEventRelay:
                 await conn.close()
             except Exception:
                 logger.warning(
-                    "chat_session_event_relay_close_failed conn=%s", name, exc_info=True
+                    "chat_session_event_relay_close_failed", extra={"conn": name}, exc_info=True
                 )
         self._listener = None
         self._publisher = None
@@ -150,19 +170,33 @@ class ChatSessionEventRelay:
         )
         if len(payload.encode()) > MAX_PAYLOAD_BYTES:
             # Not truncated: a half-snapshot would render as though it were whole.
+            SSE_RELAY_FAILURES.labels(reason="payload_too_large").inc()
             logger.warning(
-                "chat_session_event_relay_payload_too_large bytes=%d session=%s",
-                len(payload.encode()),
-                session_id,
+                "chat_session_event_relay_payload_too_large",
+                extra={"payload_bytes": len(payload.encode()), "session_id": session_id},
             )
             return
-        self._loop.create_task(self._notify(payload))
+        task = self._loop.create_task(self._notify(payload, session_id))
+        self._pending.add(task)
+        task.add_done_callback(self._pending.discard)
 
-    async def _notify(self, payload: str) -> None:
+    async def _notify(self, payload: str, session_id: str) -> None:
         try:
-            if self._publisher is not None:
+            if self._publisher is None or self._publish_lock is None:
+                return
+            # One connection, so one notify at a time - see `__init__`.
+            async with self._publish_lock:
                 # `pg_notify` rather than a NOTIFY statement so the payload is a bound parameter
                 # and never needs quoting into SQL.
                 await self._publisher.execute("SELECT pg_notify($1, $2)", CHANNEL, payload)
         except Exception:
-            logger.warning("chat_session_event_relay_notify_failed", exc_info=True)
+            # With the session id: a fan-out failure means a reloaded tab or a second device
+            # silently misses this turn's update, and that question needs a session to answer.
+            # The counter is the other half - a warning is only found by someone already
+            # looking (D-396).
+            SSE_RELAY_FAILURES.labels(reason="notify_failed").inc()
+            logger.warning(
+                "chat_session_event_relay_notify_failed",
+                extra={"session_id": session_id},
+                exc_info=True,
+            )
