@@ -112,6 +112,20 @@ test("a no-source refusal offers a real escalation, and it reaches the approval 
   // Posting a new/empty query here would email the administrator the wrong text, and
   // omitting the flag would send it back through the scope guard as a fresh question.
   expect(posted).toHaveLength(2);
+
+  // **D-412 (`AUD-CHAT-08`): the two identical questions are told apart.** `escalateTurn` appends
+  // a new turn carrying the same `query`, so before this the transcript showed the question twice
+  // with nothing distinguishing them - it read as though the visitor had asked again rather than
+  // forwarded it to a person. Asserted here rather than in a new file because this spec already
+  // performs the escalation; the count above is what makes the label meaningful.
+  const userBubbles = page.locator(".message-row.user");
+  await expect(userBubbles).toHaveCount(2);
+  await expect(
+    userBubbles.last().getByText(/sent to an administrator/i),
+    "the forwarded question is not labelled, so the transcript reads as the same question asked twice",
+  ).toBeVisible();
+  // And the original is *not* labelled - otherwise the label says nothing.
+  await expect(userBubbles.first().getByText(/sent to an administrator/i)).toHaveCount(0);
   expect(posted[0]).toMatchObject({ query: QUESTION, escalate: false });
   expect(posted[1]).toMatchObject({ query: QUESTION, escalate: true });
 

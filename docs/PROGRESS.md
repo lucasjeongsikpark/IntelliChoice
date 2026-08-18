@@ -222,11 +222,29 @@ offline page with our own.
 
 **Recommended next, in priority order:**
 
-1. **The three remaining chat P3s** — `AUD-CHAT-07` (after a mid-turn reload the composer is
-   re-enabled while the turn still shows "Thinking…"), `AUD-CHAT-08` (escalating re-appends your
-   question verbatim and unlabelled), `AUD-CHAT-14` (an out-of-scope refusal offers no contact
-   affordance). **Measure each before implementing** — on this list's record, at least one is
-   already fixed.
+**✅ W18 (D-412) took all three, and only one needed code.**
+
+- **`AUD-CHAT-08` fixed.** The transcript showed an escalated question twice with nothing telling
+  them apart. The flag was already on the turn (D-378 put it there for `retryTurn`); the render
+  ignored it. Now labelled "Sent to an administrator", asserted **both directions** — the forwarded
+  turn is labelled and the original is not, because a label on both says nothing.
+- **`AUD-CHAT-07` measured, not built.** Half is covered already (`sse-reconnect.spec.ts:109`), and
+  the composer being enabled in the remaining window is arguably *correct* — locking it would strand
+  a visitor whose turn has actually finished, which is the AUD-C-10 family and against D-352/D-381's
+  stated preference. The real residue is that the replayed "Thinking…" has **no deadline**;
+  `ExamScreen` solved this exact shape with `POSITION_WAIT_MS` (D-317). Left with the design named.
+- **`AUD-CHAT-14`: recommend closing as accepted.** An out-of-scope refusal means the org does not
+  answer that question, and §5.19.4's copy already names what it does. Offering "ask a human" invites
+  the escalations the refusal exists to prevent. **A product call about what the org wants in its
+  inbox — yours, not mine.**
+
+**Recommended next:**
+
+1. **`AUD-CHAT-07`'s deadline** — bound the replayed "Thinking…" after a reload, the way D-317 bounds
+   the exam's position wait, resolving into the retryable state that already exists.
+2. **OPEN_DECISIONS #14's follow-on** — `@testing-library/react`, when the first component test is
+   written. The disconnect banner's render condition is still waiting for it.
+3. **`AUD-CHAT-14`** if you want it changed.
 2. **`@testing-library/react`**, when the first component test is written — the banner's render
    condition is waiting for it.
 
@@ -11166,6 +11184,10 @@ asking what the **code** did discriminates it immediately, on both engines: *no 
 lenient about a call that was never made.* The tick check is the subtle half — a timestamp
 comparison would not work, because the broken form also revokes "later", by microseconds in the
 same task.
+
+**Verification for W18:** `ruff` clean · chat-web `oxlint` exit 0 · `tsc` + `npm run build` clean ·
+6 unit tests · Playwright **127 passed / 2 skipped** · falsified by reverting the render, which fails
+with the assertion's own message · **no Python changed**.
 
 **Verification for W16:** `ruff` clean · learning-web `oxlint` exit 0 · `tsc` + `npm run build`
 clean · **21 unit tests** in learning-web (up from 14) · Playwright **127 passed / 2 skipped** ·
