@@ -28459,3 +28459,59 @@ Here the note was **my own, repeated across a full day and written into three do
 created a phantom blocker for a decision the user then made *because of* it. The tell was available the
 whole time: `variables.tf` says `default = true` beside a docstring explaining precisely why the pin is
 only a bootstrap fallback. **A warning repeated often enough starts being cited instead of checked.**
+
+## D-419 — D-401 and D-406 applied, and a transient refresh that nearly replaced a healthy audit bucket (accepted, 2026-08-18)
+
+**Applied** on the user's authorisation, immediately after D-418 removed the phantom blocker.
+
+### What changed, verified against reality rather than against the plan
+
+| | |
+|---|---|
+| `alerts-info` SNS topic + email subscription | **created** (D-401's quiet channel) |
+| four alarms moved to it | `capacity-above-floor` ×2, `langsmith-ingest-failed` ×2 |
+| page channel keeps everything else | 5xx, p95, memory, bedrock failures/circuit/spend, client errors, both databases, all four job heartbeats |
+| three task definitions re-registered | 151 / 149 / 144, **all on `gha-44a12dfc9549`** — the same image, so nothing resolving a family by name runs different code |
+| NAT gateway | **absent from the plan entirely**, which is D-406's verification rather than an omission |
+
+**The services were not disturbed:** still `:150` and `:148`, 2 and 1 tasks, rollout `COMPLETED`.
+`lifecycle.ignore_changes` on `task_definition` did its job — Terraform owns the family's content and
+the deploy owns which revision is current. Post-apply plan: **`No changes`** (exit code 0), and
+`make image-check` still **OK**.
+
+### ⚠️ The follow-up the user has to do, and it is not optional
+
+`aws sns list-subscriptions-by-topic` reports the new subscription as **`PendingConfirmation`**. Until
+the confirmation email is accepted, the four informational alarms are routed to a topic with **no
+confirmed subscriber** — so this apply has, for now, made them quieter than intended: not "a channel
+you check occasionally" but a channel nobody receives. That is the correct direction taken one step too
+far, and it resolves with one click rather than a change.
+
+### The near-miss, which is the part worth keeping
+
+The first plan of this apply reported **`11 to add, 5 to change, 8 to destroy`** and included:
+
+```
+# module.cloudtrail.aws_s3_bucket.trail has been deleted
+```
+
+**It had not been deleted.** `intellichoice-staging-cloudtrail-320503430250` exists (created
+2026-07-30), the trail reports `IsLogging: true` with a delivery **that same afternoon** and **no
+delivery error**, Terraform's state holds the correct bucket id, and the credentials in use can read
+the bucket's versioning and policy status. Re-planning twenty minutes later produced the honest
+`5 to add, 4 to change, 3 to destroy` with the bucket refreshed normally. **A transient refresh
+failure had been rendered as a deletion.**
+
+Had that plan been applied, it would have **recreated the bucket and replaced its policy, public-access
+block, encryption configuration, versioning and lifecycle rules** — on a live audit-log bucket, with a
+window in which CloudTrail delivery could break. On a platform whose users are minors, the audit trail
+is the last thing to take offline by accident.
+
+**What caught it was procedure, not insight:** `terraform plan -out`, then reading the saved plan
+before applying it. `terraform apply` with no plan file, or `-auto-approve`, would have executed it.
+Two rules worth keeping:
+
+1. **Never apply a plan you have not read**, and apply the *file* rather than re-planning at apply time
+   — otherwise what executes is not what was reviewed.
+2. **A plan that surprises you is a reason to re-plan, not to look harder at the diff.** A refresh reads
+   live infrastructure over the network; it can fail in the direction of "gone".
