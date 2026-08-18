@@ -481,6 +481,31 @@ button.chip {
   align-self: flex-end;
 }
 
+/* D-403: the dead-stream banner, ported from learning-web (D-216).
+   A notice above the transcript, not a takeover - REST still works while the stream is down,
+   so asking a question keeps working and the page stays usable beneath it.
+
+   Not `.panel`-based like learning-web's, because chat-web has no `.panel` primitive; the
+   border colour carries the same "this is a problem" signal, and the text carries it for
+   anyone who cannot see the colour (EDGE-CHAT-04's actual complaint). Wraps at narrow widths
+   so the Reconnect button never leaves the viewport on a phone - `@mobile` covers 375px. */
+.stream-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--error, #b3261e);
+  border-radius: var(--radius-control, 8px);
+  background: var(--bg, #fff);
+}
+
+.stream-banner p {
+  margin: 0;
+}
+
 /* Interrupt modals */
 
 /* D-381: `overflow-y` here and `max-height` below are what make a tall dialog reachable.

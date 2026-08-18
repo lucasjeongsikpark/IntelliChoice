@@ -117,10 +117,29 @@ bump does **not** ship and must be redone on a fresh checkout before any apply.
   (`top=-54 to bottom=534`) and closed on 2026-08-16. The carry-over entry was stale. **Second
   stale item found this way today**, after `AUD-L-16`.
 
+**✅ W11 (D-403) took `EDGE-CHAT-02`, and the audit was wrong about the reference implementation.**
+Its note says *"chat has no liveness timer and no reconnect control, where learning-web has both."*
+learning-web has the control (D-216) and **no timer either** — both apps only wire
+`onopen`/`onerror`. **Third correction to this list today**, after `AUD-L-16` and the approval modal.
+
+So it split: the reconnect control plus a `role="alert"` banner stating the disconnect in words
+shipped now (closing `EDGE-CHAT-02`'s actionable half, `AUD-CHAT-11` and `EDGE-CHAT-04`), and the
+liveness timer is **W12**, because it cannot be done correctly yet — the keep-alive is an SSE
+*comment* and fires no client event, so a "last event received" timer would announce disconnections
+that never happened. Doing it properly means making the keep-alive observable in **both** APIs.
+
+**And a test of mine was measured flaky and deleted rather than retried.** The control "no banner
+while the stream is healthy" passed alone and failed the full suite: `stubChat` serves one comment
+frame and then the body ends, so the browser sees the close, `onerror` fires, and the banner
+correctly appears — the assertion was racing that. 1 pass / 2 failures over three isolated runs.
+**The app was right and my premise was wrong**, and the harness cannot hold an SSE response open, so
+the property belongs in a component test — **OPEN_DECISIONS #14's third use case**, which is what
+moves that item from preference to "there is a class of assertion we cannot make".
+
 **Recommended next, in priority order:**
 
-1. **`EDGE-CHAT-02`'s root cause**: chat has no liveness timer and no reconnect control where
-   learning-web has both. Now the only remaining item from the 08-16 P2 list.
+1. **W12 — the observable keep-alive and the liveness timer**, in both APIs and both clients. The
+   only remaining piece of `EDGE-CHAT-02`, and the last 08-16 P2.
 2. **OPEN_DECISIONS #14** — a judgement, not code: whether the frontends get unit-test tooling at
    all. Recommendation is one app first, measured before doubling, for the reason D-397 exists.
 3. **The LangSmith/NAT decoupling** (recorded 2026-08-17), before OPEN_DECISIONS #6 is unblocked
@@ -11062,6 +11081,11 @@ asking what the **code** did discriminates it immediately, on both engines: *no 
 lenient about a call that was never made.* The tick check is the subtle half — a timestamp
 comparison would not work, because the broken form also revokes "later", by microseconds in the
 same task.
+
+**Verification for W11:** `ruff` + `pyright` clean · `tsc` + `oxlint` clean · Playwright **127
+passed / 2 skipped**, **+1** on 126 · falsified by reverting the banner, which fails the test with
+its own message · **no Python changed**, so W10's 1723 stands. The deleted control is documented in
+the spec's header with its measurement.
 
 **Verification for W10:** `ruff` **All checks passed** · `pyright` **0 errors** · `tsc` + `oxlint`
 clean · pytest **1723 passed / 2 skipped / 1 xfailed** in 8:10, **+7** on 1716 and 7 is exactly the

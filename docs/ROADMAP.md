@@ -2938,6 +2938,23 @@ same id runs · the endpoint is 202, idempotent, ownership-gated with a positive
 path before being relied on · the browser asserts the wiring separately, because the server's
 tests cannot see `cancelTurn` forgetting to call it.
 
+### Session W11 — A dead chat stream is visible and recoverable ✅ *(done 2026-08-18, D-403)*
+
+`EDGE-CHAT-02`, `AUD-CHAT-11` and `EDGE-CHAT-04` are one defect. The audit's note claimed
+learning-web has both a liveness timer and a reconnect control; measured, it has the control
+(D-216) and **no timer either**, which split this into the port that was overdue and a symmetric
+change that is not a rider on it.
+
+**Outcome:** `reconnectStream` ported, plus a `role="alert"` banner that states the disconnect in
+words. The liveness timer is deferred to W12 with a hard reason: the keep-alive is an SSE comment
+and fires no client event, so a "last event" timer would announce disconnections that have not
+happened.
+
+**Done when:** a terminal stream failure is stated in readable words, not a dot's hue · Reconnect
+opens a genuinely new connection · the banner never appears for `connecting` · falsified by
+reverting the banner · and the control that could not be written is recorded with its measurement
+rather than skipped.
+
 ## The audit's never-walked list is now closed
 
 Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found

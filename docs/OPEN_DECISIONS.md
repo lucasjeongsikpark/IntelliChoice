@@ -498,6 +498,14 @@ clear the backlog in one pass.
 > in both apps, `formatDateLabel`, `RichText`'s parser, and the exam-timer arithmetic that D-391
 > found three defects in.
 >
+> **A third concrete case arrived on 2026-08-18 (D-403), and this one is not a preference.** "The
+> disconnect banner renders for `error` and nothing else" cannot be asserted in the browser suite
+> at all: `stubChat` cannot hold an SSE response open, so there is no healthy long-lived stream to
+> observe, and the test written for it was measured flaky (1 pass / 2 failures) and deleted. It is
+> one line in a component test. That is now three properties this project wants and cannot express,
+> which is the argument shifting from "nice to have" to "there is a category of assertion we cannot
+> make".
+>
 > **Options:**
 > - **A. Add vitest + jsdom to both frontends**, wire `npm test` into the two CI jobs, and move the
 >   pure-function assertions there over time. Cost: two new devDependency sets, two configs, two CI
