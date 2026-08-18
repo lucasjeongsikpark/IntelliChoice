@@ -5,14 +5,35 @@ ROADMAP.md's **Milestone 10 (Sessions U0–U7)**. This file is kept because the 
 each option is worth having when the work starts, and because two of the answers went against the
 recommendation and that is worth being able to re-read.
 
-**What is still genuinely open:**
+## ✅ Nothing in this file is awaiting a decision (2026-08-18, D-417)
 
-1. **`YOUTUBE_YOUTUBE_API_KEY`** — U6 is blocked on a credential only the user can provide, into
-   Secrets Manager. Nothing else about it is unresolved.
-2. **The consolidation criteria for U7** — the *direction* is decided (consolidate into durable
-   memory, then prune); *what in a finished session is worth remembering* is a design review, and
-   the staging numbers have not been read yet.
-3. **Depth generation timing** — decided in principle, parked in practice ("the near future").
+**The user answered every remaining item in one pass.** What came out of it is *work*, not open
+questions, and it lives in ROADMAP.md rather than here:
+
+| decided | still to build |
+|---|---|
+| **A3** — the image floor is derived from the running ECS image at apply time, not from a gitignored file | yes; **D-401 and D-406 stay unapplied until it exists** |
+| **B4** — human escalation, offered only for questions a human here could answer, with structured refusal reasons and an explicitly-sent draft | yes |
+| **B6** — a two-stage answer (safe short answer, then the grounded one), plus a measured latency investigation | yes |
+| **C8** — `ruff format` adopted in one isolated commit, then enforced | yes |
+| **A2** — `main` protected, nine checks required, admins included | done |
+| **A1** — integration stays **frozen** until the user reopens it | ⛔ not work; do not start |
+| **B5, C7, C9, D10, D11, E** — see D-417 | done or parked |
+
+**Two items in this file were wrong when re-read, and both mattered.** #6's *"4 videos"* was two days
+stale and would have justified a product decision that video intervention is absent at launch, when
+staging in fact holds 497 videos covering 102 of 112 skills. #7 recommended the **opposite** of what
+D-341 had already decided, and D-341 exists explicitly to stop that question being re-derived. Both are
+now reconciled in place. **The lesson is the file's own: a recommendation written from reasoning is a
+hypothesis, and a status line is a measurement with an expiry date.**
+
+**Previously listed as genuinely open, for the record:**
+
+1. **`YOUTUBE_YOUTUBE_API_KEY`** — still the user's to provide, and now explicitly parked rather than
+   blocking: the catalog is healthy and a further seeding run is theirs to schedule (#6).
+2. **The consolidation criteria for U7** — unchanged; the direction is decided and the criteria are a
+   design review against staging numbers nobody has read.
+3. **Depth generation timing** — unchanged; decided in principle, parked in practice.
 
 Everything below is the record of how each was decided, marked with its outcome. Do not re-open one
 without a reason that is new.
@@ -210,38 +231,76 @@ stopping part-way is safe (D-193's per-candidate commit). The alternative is car
 
 ---
 
-## 6. ✅ DECIDED — **as soon as possible**, against the recommendation to wait for §5.1.2. ⛔ still blocked on the key
+## 6. ⏸ PARKED 2026-08-18 (D-417) — and the figure this item was argued from was wrong by two orders of magnitude
 
-**Status:** open. The catalog holds **4 videos covering 4 of 112 skills and 1 of 33 topics**.
-
-The no-video path is no longer a trap (D-314 fixed the dead end and the metrics miscount), so this
-is now about coverage rather than correctness.
-
-**Decision needed:** provision a real key and a quota budget, or accept that the video intervention
-is effectively absent at launch and say so in the product copy.
-
-**Recommendation: provision it, but after §5.1.2.** YouTube recommendations are one of the eleven
-first-visit disclosures; shipping the feature before the disclosure that describes it is the wrong
-order.
+> **Status: the catalog is healthy and the coverage question was answered three days before this item
+> was re-read.** Measured live on staging 2026-08-18 via a read-only `ops-task`: **497 videos, 363
+> active-and-approved, 102 of 112 skills servable**, last synced 2026-08-15 07:39 UTC.
+>
+> **The line below said "4 videos covering 4 of 112 skills".** That was true when it was written
+> (`a396208`, **2026-08-13**) and was superseded two days later by D-337's syncs, which this file never
+> picked up. It is the reason this item recommended considering *"accept that the video intervention is
+> effectively absent at launch and say so in the product copy"* — a product decision that would have
+> been taken on a stale number. **The user's recollection of "roughly 100" was correct: 102 of 112
+> skills.**
+>
+> **There was a real data-loss event on 2026-08-15, and it was recovered the same day.** Run 1
+> wrongly marked **182 rows inactive** because D-326's addendum guard read
+> `saw_whole_channel = deferred == 0`, so a run that searched 40 of 112 skills was allowed to
+> deactivate everything it had never looked at. Fixed to `covered == 0 and deferred == 0`, deployed
+> `6e48084`; run 2 deactivated **0** and re-activated what run 1 had killed. Full timeline in D-417 §B5
+> and the measurements in D-337.
+>
+> **Parked on the user's instruction:** no expansion of coverage now, a further seeding run is theirs
+> to schedule, and the key is still theirs to provision. The 10 skills with no video at all are a
+> **content** question about what the pinned channel publishes — D-337 established that no further run
+> changes them.
+>
+> ### The reasoning as it stood when this was raised
+>
+> **Status:** open. The catalog holds 4 videos covering 4 of 112 skills and 1 of 33 topics.
+> *(True on 2026-08-13; see above.)*
+>
+> The no-video path is no longer a trap (D-314 fixed the dead end and the metrics miscount), so this
+> is now about coverage rather than correctness.
+>
+> **Recommendation: provision it, but after §5.1.2.** YouTube recommendations are one of the eleven
+> first-visit disclosures; shipping the feature before the disclosure that describes it is the wrong
+> order.
 
 ---
 
-## 7. ✅ DECIDED — **edit the declarations to match the judge**
+## 7. ✅ CLOSED — **keep the declarations unchanged.** Settled by D-341; do not re-open
 
-**Status:** open since D-313.
-
-**106 items across 39 skills** carry a stored tier outside their skill's declared
-`difficulty_tiers`, because D-302 stores the judge's rating and the judge may rate outside the
-plan's range. Nothing breaks at runtime — `difficulty_tiers` is read by the taxonomy and the planner
-only, never by serving code — but C1's "multi-tier where the skill spans" clause is measured against
-a span the content no longer respects, and some skills read "single-tier" only because the judge
-moved their items off the declared tiers.
-
-**Recommendation: edit the declarations to match the judge.** The judge is the instrument the bank
-is actually built with; a declaration that contradicts it is documentation of an intent nobody
-enforces. This makes the multi-tier clause measurable against something true.
-
-**Cost:** a taxonomy edit and a re-measure. No generation spend.
+> **Reconciled 2026-08-18 (D-417/D10). This item used to recommend the opposite of what was decided,
+> and that made it the artefact most likely to cause a fifth re-derivation of the same question.**
+>
+> **The decision, from D-341 (2026-08-15), in the user's words:**
+>
+> > *"The current single-tier coverage is **temporary** because we plan to generate and approve more
+> > problems across the missing difficulty tiers later. Treat these as **expected content gaps, not
+> > taxonomy/declaration errors.** Keep the existing `difficulty_tiers` declarations unchanged. Do not
+> > modify the taxonomy solely because the current bank is thin or concentrated in one tier."*
+>
+> So `difficulty_tiers` is an **authoring target**, not a description of the current bank. A mismatch
+> between the two is the backlog showing through, and narrowing a declaration would erase the record of
+> what still needs generating — trading a visible gap for an invisible one.
+>
+> **D-341 exists specifically to stop the loop**, noting the mismatch had by then been re-derived at
+> least three times (D-313, U1/D-324, and D-341 itself) each time as though it were a fresh defect. The
+> recommending wording that used to sit here has been removed rather than annotated, because an
+> annotated recommendation is still a recommendation to whoever skims it.
+>
+> **If C1's multi-tier clause reads ⛔:** that is the measurement working, not a defect to fix in the
+> taxonomy. Read D-341 before touching `difficulty_tiers` for any reason connected to how thin the bank
+> currently is.
+>
+> ### The reasoning as it stood when this was raised (D-313), kept for the record only
+>
+> **106 items across 39 skills** carry a stored tier outside their skill's declared `difficulty_tiers`,
+> because D-302 stores the judge's rating and the judge may rate outside the plan's range. Nothing
+> breaks at runtime — `difficulty_tiers` is read by the taxonomy and the planner only, never by serving
+> code.
 
 ---
 
