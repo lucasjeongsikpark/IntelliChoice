@@ -7,6 +7,68 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**✅ THE BACKEND FAILURE-PATH TAIL IS CLOSED, AND THE MEASUREMENT WAS WORSE THAN THE AUDIT SAID
+(2026-08-17, D-393 → D-397 — ROADMAP Milestone 13, W1–W5).**
+
+Three items from the 08-16 audit that nobody had taken, and they shared one shape: **the system is
+well instrumented right up until something goes wrong.** Each was confirmed by reading the code
+before a test was written, and each fix ships with a test that fails against the pre-fix source.
+
+- **W1 (D-393) — an unhandled 500 was the one failure nothing recorded.** Both the access log and
+  the HTTP metrics awaited `call_next` with no `try`, and Starlette converts the exception into a
+  500 *above* user middleware — so the worst class of failure wrote no line, no `trace_id`, and
+  never touched `http_requests_total{status="500"}`. The alarm an operator relies on was blind to
+  exactly what it exists for. Fixed as `except Exception`, **not** `finally`, and that is tested
+  rather than commented: `finally` records cancellations as 500s and would invent failures on
+  `/stream`. A sibling fell out of the same three lines — `metrics.py` still used
+  `request.url.path` for an unmatched route, which D-316 removed from the log line and left here,
+  and a raw path is worse as a Prometheus label than as a log line.
+- **W2 (D-394) — two log fields no key-based rule can inspect.** `PiiDenylistFilter` matches keys;
+  `exc_info` (skipped as a standard attribute, then re-added verbatim) and `event` (`%`-interpolated
+  at **22** call sites) are text. Both now redacted in the formatter — one place, so it covers the
+  twenty-third site too.
+- **W3 (D-395) — the cross-replica fan-out was losing four events in five.** Measured, not
+  inferred: a five-event burst produced four `another operation is in progress` and delivered
+  **one of five**. That is D-334's defect returning *inside the mechanism written to fix D-334*.
+  A publish lock, a strong reference to each scheduled task, a bounded drain on `stop()`, and the
+  session id in the failure log — in **both** relays, since the chat one is a deliberate copy.
+- **W4 (D-396) — the counters that would have made W3 visible.** `sse_connections`,
+  `sse_events_delivered_total`, `sse_relay_failures_total{reason}`. The 80% loss was invisible
+  because a `logger.warning` nobody queries is not telemetry.
+
+**W5 (D-397) is the one to read: OPEN_DECISIONS #13 was decided, built, and then measured as not
+solving its own problem.** The user chose the scoped WebKit project. It exists, the two `@browser`
+specs pass on it — and reverting `downloadIcs` to its pre-D-352 form leaves **both passing on WebKit
+too**, with a positive control (a changed filename does fail the same spec) proving the reverted
+code was really being served. The recommendation that WebKit "is the engine that would have caught
+D-352" was mine, from V11, and it is **false**. The project is kept with every claim rewritten, and
+#13 stays open in its residual form — with a cheaper candidate now on its list that was not there
+before: a unit test asserting the anchor is in `document.body` when `click()` fires, which tests the
+code's contract with the DOM instead of a browser's tolerance of breaking it.
+
+**The reusable part, and it is now a pattern rather than an anecdote: two sessions running, a
+recommendation of mine was overturned by the cheapest possible measurement** — D-384's
+pin-and-bump, and now this. Both were written from reasoning about how something *should* behave;
+both took under ten minutes to falsify. A recommendation is a hypothesis until the run happens,
+**including when it is the recommendation being implemented.**
+
+**Also corrected this session:** the interpolated-log-site count was 15 in the audit and 13 in my
+first pass, both regex counts over single-line calls; the live logs from the W5 run showed one
+neither had seen, and an AST sweep put it at **22**.
+
+**Next session, decided rather than recommended:** (1) learning-web's tutor-chat browser leg
+(deferred in V7 with its reason); (2) **OPEN_DECISIONS #13's residual — the user chose the unit
+test**: assert in jsdom that `downloadIcs` has the anchor in `document.body` when `click()` fires
+and revokes on a later tick. It tests the code's contract with the DOM rather than a browser's
+intolerance of breaking it, which is why it works where two engines did not — *no engine can be
+lenient about a call that was never made.* Then (3) the rest of the 08-16 backend tail — per-student spend attribution (the spend alarm
+cannot answer "which student is looping?"), the single-inbox alarm target, chat's Stop that does not
+stop the server, and the approval modal with no `max-height` on the one screen that sends real
+email; (4) `EDGE-CHAT-02`'s root cause, that chat has no liveness timer or reconnect control where
+learning-web has both.
+
+### Previous — a green baseline and the contracts nobody was testing (Milestone 12)
+
 **✅ `main` IS GREEN, AND TWO OF THE THREE CARRY-OVER ITEMS WERE NARROWER THAN THE NOTE THAT
 ASKED FOR THEM (2026-08-17, D-384 → D-386 — ROADMAP Milestone 12, V4–V6).**
 
@@ -88,10 +150,15 @@ reloaded after time ran out.
 
 **Recommended next, in priority order:** (1) **OPEN_DECISIONS #13**, which is a CI-cost judgement,
 not code; (2) learning-web's tutor-chat browser leg (deferred in V7 with its reason); (3) the P2/P3
-backend tail, still last — of which the only non-cosmetic
-item is **`AUD-L-16`, video help opening the full `youtube.com` watch page for a minor**, and
-`EDGE-CHAT-02`'s real root cause, that chat has no liveness timer or reconnect control where
-learning-web has both.
+backend tail, still last — of which the non-cosmetic item is `EDGE-CHAT-02`'s real root cause, that
+chat has no liveness timer or reconnect control where learning-web has both.
+
+> **Both corrected the same day.** This list named `AUD-L-16` as still open; it had been closed
+> hours earlier by D-390's interstitial, and `AUDIT_LIVE_2026_08_17.md:72` already said so. And
+> #13's framing as a *CI-cost* judgement was wrong about the premise — CI type-checks the e2e
+> harness and never runs it, so a second engine costs no CI time at all (D-397). Both are recorded
+> rather than quietly edited, because the next session reads this block to decide what to do, and a
+> stale line here is the cheapest possible way to spend a session on nothing.
 
 ### Previous — the three coverage blind spots (Milestone 11)
 
@@ -10860,6 +10927,60 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### The failure path was the least-observed path (2026-08-17, D-393 → D-397)
+
+**Built:** `except Exception` recording in both the access-log and HTTP-metrics middleware;
+`redact_free_text` on `exc_info` and on interpolated message text in `JsonLogFormatter`; a publish
+lock, a `_pending` task set and a bounded shutdown drain in **both** SSE relays; three SSE metrics;
+a `webkit` Playwright project scoped to `@browser`. **Fixed along the way:** `metrics.py` still
+labelling unmatched routes with the raw path, which D-316 had already removed from the log line.
+
+**Each item was confirmed by reading the code before writing a test, and the habit paid twice.**
+The 500 finding was exact. The SSE one was **worse than the audit's wording**: a five-event burst
+delivered *one of five* to the other replica, the other four raising `another operation is in
+progress` into a swallow — D-334's defect, inside the mechanism built to fix D-334. And the
+"interpolated log messages" count was wrong in every prior statement of it (15 in the audit, 13 in
+my first pass, **22** by AST sweep after the live logs showed a site both regexes had missed).
+
+**Three tests had to be corrected before they measured anything.** A cancellation test driven
+through `TestClient` failed with `DID NOT RAISE`, because `BaseHTTPMiddleware` converts an
+endpoint's `CancelledError` to a `RuntimeError` before the middleware sees it — so that route
+cannot discriminate `finally` from `except Exception` at all, and the branch had to be exercised
+directly. The same test was nearly the repo's **first `async def test_`** in 1694 tests, with no
+asyncio plugin configured, where it would have been collected and *passed* without running. And the
+`trace_id` claim was asserted against the real finished span rather than inferred from "the line
+exists now".
+
+**W5 is the result worth keeping, and it is a second one against me.** OPEN_DECISIONS #13 was
+decided by the user, built, and then measured as **not solving its own problem**: with `downloadIcs`
+reverted, both `@browser` specs pass on WebKit too. The recommendation that WebKit would have caught
+D-352 was mine, from V11. The negative carries a positive control — changing the download filename
+in the same edit does fail the same spec — so it is a true negative rather than a stale bundle. The
+project is kept with every claim rewritten; #13 stays open with a cheaper candidate that was never
+on its list (a unit test asserting the anchor is in `document.body` when `click()` fires).
+
+**That is two sessions running where a recommendation of mine fell to the cheapest available
+measurement** — D-384's pin-and-bump, and this. Both were reasoned from how a thing *should*
+behave. The rule that generalises: a recommendation is a hypothesis until the run happens,
+**including when it is the recommendation being implemented**.
+
+**Verification:** `ruff` **All checks passed** · `pyright` **0 errors** · pytest **1711 passed / 2
+skipped / 1 xfailed** in 7:36 · Playwright **121 passed / 2 skipped** in 6.1m across chromium,
+mobile and the new webkit project. Both counts are explainable rather than merely green: pytest is
+**+17** on a 1694 baseline and 17 is exactly what was added (3 + 2 + 4 in `packages/observability`,
+5 + 3 in the two relay suites), and Playwright is **+2**, the two `@browser` specs' WebKit runs. The
+two evals that report rates rather than assert them (`grounded_citation_rate` 55.0%,
+`correct_refusal_rate` 73.8%) are byte-identical to the baseline run, checked rather than assumed.
+
+**Every fix was falsified against its own pre-fix source**, by stashing only the source file and
+re-running: 4 fail in `packages/observability`, 3 in each relay suite. Two guards are forward-only
+and say so — the cancellation test (which fails if `except Exception` is ever changed to `finally`,
+measured) and the task-reference test (which asserts the reference rather than reproducing a
+collection).
+
+**Carry-over:** per-student spend attribution and the single-inbox alarm target are the last two
+observability items from the 08-16 audit. `downloadIcs` is still held by no browser in this suite.
 
 ### The audit's never-walked list, closed one path at a time (2026-08-17, D-387 → D-392)
 

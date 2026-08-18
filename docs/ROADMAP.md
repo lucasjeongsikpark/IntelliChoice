@@ -2768,6 +2768,90 @@ the subject).
 docstring matches what the falsification measured · what is stubbed, and why, is stated · the paths a
 browser cannot reach (SPEC §5.29's MCP-failure fallback) are named rather than skipped silently.
 
+## Milestone 13 — The failure path is the least-observed path *(D-393 → D-397, 2026-08-17)*
+
+Milestone 12 closed the audit's never-walked *browser* list. What remained from the 08-16 audit was
+a backend tail nobody had taken, and three of its items shared one shape: **the system is well
+instrumented right up until something goes wrong.** An unhandled 500 produced no log line and no
+metric; a traceback carried free text past a key-based PII filter; a cross-replica fan-out dropped
+events into a warning nobody queries.
+
+Each item was **confirmed by reading the code before any test was written** — the Milestone 12
+habit, kept — and each fix ships with a test that fails against the pre-fix source.
+
+### Session W1 — The 500 that nothing recorded ✅ *(done 2026-08-17, D-393)*
+
+Both middlewares awaited `call_next` with no `try`, and `ServerErrorMiddleware` converts an
+unhandled exception into a 500 above them. So the worst class of failure wrote no access line, no
+`trace_id`, and never touched `http_requests_total{status="500"}` — the alarm an operator would
+rely on was blind to exactly what it is for.
+
+**Outcome:** `except Exception: record; raise` in both, plus the metric-label sibling found in the
+same three lines (`request.url.path` for an unmatched route, which D-316 had already removed from
+the log line and left here — a raw path is worse as a Prometheus label than as a log line).
+
+**Done when:** an unhandled exception produces an access line carrying the route template, the
+session id and `status_code: 500` · the same request increments `http_requests_total{status="500"}`
+and not `{status="200"}` · the 500 line carries the trace id of the span the exception belongs to ·
+a cancellation is *not* recorded as a server error, and swapping in the `finally` spelling makes
+that test fail · no CORS preflight puts a raw path into a metric label · all four fail against the
+pre-fix source.
+
+### Session W2 — The two log fields no key-based rule can inspect ✅ *(done 2026-08-17, D-394)*
+
+`PiiDenylistFilter` matches keys. `exc_info` (skipped by the filter, re-added verbatim) and `event`
+(`%`-interpolated, so 22 call sites put an exception's text into the field operators group by) are
+text, and were unexamined.
+
+**Outcome:** both redacted in `JsonLogFormatter`, the one place every line in both apps passes
+through. `event` becomes the static template; the interpolated text moves to a redacted `message`
+key that appears only when there were args. The 13 call sites are deliberately untouched — a
+formatter fix also covers the fourteenth.
+
+**Done when:** a traceback carrying an email and a phone number reaches the payload with both
+redacted and the exception type intact · an interpolated call yields a stable `event` and a redacted
+`message` · a call with no args is byte-for-byte the shape it was, with no `message` key · verified
+first that nothing keys on `$.event` (no CloudWatch metric filter does; two tests read the field,
+neither interpolated).
+
+### Session W3 — The fan-out was losing four events in five ✅ *(done 2026-08-17, D-395)*
+
+`publish` scheduled the NOTIFY onto one shared asyncpg connection and kept no reference to the task.
+Measured: a five-event burst produced four `another operation is in progress` and delivered **one of
+five** to the other replica — D-334's defect, inside the mechanism written to fix D-334.
+
+**Outcome:** a publish lock, a `_pending` set holding each scheduled task, a bounded drain on
+`stop()`, and the session id in the failure log. Applied to **both** relays, since the chat one is a
+deliberate copy.
+
+**Done when:** five back-to-back publishes all reach the other replica, in both apps · the scheduled
+notify is referenced while in flight and released after · a dropped fan-out names its session · all
+three fail against the pre-fix source in both apps · the GC half asserts the reference rather than
+claiming a falsification it cannot perform.
+
+### Session W4 — Telemetry, so the next drop is a graph line ✅ *(done 2026-08-17, D-396)*
+
+**Done when:** `sse_connections`, `sse_events_delivered_total` and `sse_relay_failures_total{reason}`
+exist and move with what they measure · the gauge returns to its starting value after unsubscribe
+and does not go negative on a repeat · a relay that raises is counted as well as logged.
+
+### Session W5 — OPEN_DECISIONS #13, and the remedy that did not remedy ⚠️ *(done 2026-08-17, D-397)*
+
+The user chose option A: a WebKit project scoped to the specs where browser behaviour is the
+subject. Built, tagged, passing — and then measured against the thing it was chosen for, which is
+where it stops being a success story: with `downloadIcs` reverted to its pre-D-352 form, **both
+specs pass on WebKit too**, so the engine recommended as "the one that would have caught D-352"
+would not have.
+
+**Outcome:** the project stays, every claim about it is rewritten, and #13 stays open in its
+residual form rather than being marked closed by the work meant to close it. The cheapest remaining
+candidate — a unit test asserting the anchor is in `document.body` when `click()` fires — was not
+on the original option list and is recorded there now.
+
+**Done when:** the `@browser` specs run on both engines and pass · the negative result carries a
+positive control proving the reverted code was actually served · every place that claimed WebKit
+would catch D-352 is corrected, including the spec header, the config comment, and #13 itself.
+
 ## The audit's never-walked list is now closed
 
 Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found

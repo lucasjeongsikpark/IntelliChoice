@@ -38,6 +38,7 @@ from typing import Any
 
 import asyncpg
 from intellichoice_db.engine import ssl_connect_args
+from intellichoice_observability.metrics import SSE_RELAY_FAILURES
 from sqlalchemy.engine import make_url
 
 from learning_api.services.session_events import SessionEventBus
@@ -90,9 +91,29 @@ class SessionEventRelay:
         self._listener: asyncpg.Connection | None = None
         self._publisher: asyncpg.Connection | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
+        # D-395. Both of these exist because `publish` schedules instead of awaiting, which is
+        # right - a request must not block on a fan-out the local client has already received -
+        # and has two consequences that were not handled.
+        #
+        # `_pending` holds the scheduled tasks: the event loop keeps only a *weak* reference to a
+        # task, so a fire-and-forget one can be garbage-collected mid-execution (asyncio's own
+        # documentation says to keep a reference). Discarded on completion, so it is a set of
+        # in-flight notifies rather than a log of every event this process ever sent.
+        #
+        # `_publish_lock` serializes the one publisher connection. asyncpg refuses a second
+        # operation on a connection already in flight, and two scheduled notifies do exactly
+        # that: measured at **four of five events lost** in a five-event burst, each raising
+        # `another operation is in progress` into an `except` that swallowed it. A lock rather
+        # than a pool because a NOTIFY is one short round trip and the ordering it imposes is the
+        # ordering the events already had.
+        self._pending: set[asyncio.Task[None]] = set()
+        self._publish_lock: asyncio.Lock | None = None
 
     async def start(self) -> None:
         self._loop = asyncio.get_running_loop()
+        # Created here, not in `__init__`: an `asyncio.Lock` binds to the running loop, and this
+        # object is constructed before there is one.
+        self._publish_lock = asyncio.Lock()
         listener = await asyncpg.connect(**self._connect_kwargs)
         # Separate from the listener: a connection blocked in LISTEN should not also be the one
         # issuing NOTIFY, and asyncpg's callback runs on the listener's own read path.
@@ -100,16 +121,25 @@ class SessionEventRelay:
         await listener.add_listener(CHANNEL, self._on_notify)
         self._listener = listener
         self._bus.attach_relay(self.publish)
-        logger.info("session_event_relay_started origin=%s", self._bus.origin)
+        logger.info("session_event_relay_started", extra={"origin": self._bus.origin})
 
     async def stop(self) -> None:
+        # Drain before closing, or the connections go away under notifies that are still in
+        # flight and every one of them logs a failure on the way out - shutdown noise that reads
+        # exactly like the real dropped-event warning this session just made meaningful. Bounded,
+        # because a hung notify must not hold up shutdown; whatever has not finished by then is
+        # abandoned, which is the same fire-and-forget contract as everywhere else here.
+        if self._pending:
+            await asyncio.wait(set(self._pending), timeout=2.0)
         for conn, name in ((self._listener, "listener"), (self._publisher, "publisher")):
             if conn is None:
                 continue
             try:
                 await conn.close()
             except Exception:
-                logger.warning("session_event_relay_close_failed conn=%s", name, exc_info=True)
+                logger.warning(
+                    "session_event_relay_close_failed", extra={"conn": name}, exc_info=True
+                )
         self._listener = None
         self._publisher = None
 
@@ -146,19 +176,33 @@ class SessionEventRelay:
         )
         if len(payload.encode()) > MAX_PAYLOAD_BYTES:
             # Not truncated: a half-snapshot would render as though it were whole.
+            SSE_RELAY_FAILURES.labels(reason="payload_too_large").inc()
             logger.warning(
-                "session_event_relay_payload_too_large bytes=%d session=%s",
-                len(payload.encode()),
-                session_id,
+                "session_event_relay_payload_too_large",
+                extra={"payload_bytes": len(payload.encode()), "session_id": session_id},
             )
             return
-        self._loop.create_task(self._notify(payload))
+        task = self._loop.create_task(self._notify(payload, session_id))
+        self._pending.add(task)
+        task.add_done_callback(self._pending.discard)
 
-    async def _notify(self, payload: str) -> None:
+    async def _notify(self, payload: str, session_id: str) -> None:
         try:
-            if self._publisher is not None:
+            if self._publisher is None or self._publish_lock is None:
+                return
+            # One connection, so one notify at a time. Without this the second concurrent
+            # publish raises `another operation is in progress` and the event is lost - see
+            # `__init__`.
+            async with self._publish_lock:
                 # `pg_notify` rather than a NOTIFY statement so the payload is a bound parameter
                 # and never needs quoting into SQL.
                 await self._publisher.execute("SELECT pg_notify($1, $2)", CHANNEL, payload)
         except Exception:
-            logger.warning("session_event_relay_notify_failed", exc_info=True)
+            # **With the session id**, which the previous version omitted: a fan-out failure means
+            # one student's other tabs and replicas silently do not get this update, and "an event
+            # was dropped somewhere" is not something anyone can act on. The counter is the other
+            # half - a warning is only found by someone already looking (D-396).
+            SSE_RELAY_FAILURES.labels(reason="notify_failed").inc()
+            logger.warning(
+                "session_event_relay_notify_failed", extra={"session_id": session_id}, exc_info=True
+            )

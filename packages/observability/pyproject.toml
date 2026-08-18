@@ -3,6 +3,11 @@ name = "intellichoice-observability"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    # D-394: `JsonLogFormatter` redacts tracebacks and interpolated message text through
+    # `intellichoice_shared.pii_redaction`. One shared regex set rather than a second copy here -
+    # a duplicate would be the thing that drifts. `intellichoice-shared` depends only on
+    # pydantic and imports nothing from this package, so the edge introduces no cycle.
+    "intellichoice-shared",
     "pydantic-settings>=2.15.0",
     "opentelemetry-api>=1.29",
     "opentelemetry-sdk>=1.29",
@@ -11,6 +16,9 @@ dependencies = [
     "opentelemetry-instrumentation-sqlalchemy>=0.50b0",
     "prometheus-client>=0.26.0",
 ]
+
+[tool.uv.sources]
+intellichoice-shared = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

@@ -17,6 +17,20 @@
  * about the suite's shape rather than about the test. Holding it needs a second browser engine,
  * which is a CI-cost decision rather than an assertion (OPEN_DECISIONS #13).
  *
+ * **Update, D-397: the second engine was added, and it did not close this either.** Both tests are
+ * now tagged `@browser` and also run on WebKit, which #13 recommended precisely because it is
+ * strict about detached anchors and revoked object URLs. Re-measured with `downloadIcs` reverted:
+ * **both pass on WebKit too.** That measurement has a positive control - changing the download
+ * filename in the same edit fails the same spec with `Received: "PROOF-THE-EDIT-IS-LIVE.ics"` - so
+ * the reverted code really was being served and this is a true negative, not a stale bundle. A
+ * plausible reason, untested and recorded as a guess: Playwright drives downloads through the
+ * automation protocol rather than the browser's ordinary download path, so this class may be
+ * invisible to *every* Playwright engine rather than to Chromium in particular.
+ *
+ * So the paragraph above stands unedited and the remedy it named turned out not to be one. What
+ * the WebKit project does buy is narrower and real: these paths now run on the engine every
+ * iPhone and iPad uses.
+ *
  * What these tests *do* hold, which is still more than "the button is visible": the control appears
  * when and only when a file exists, a real download fires with the right filename, and the bytes
  * are a well-formed VCALENDAR. A broken blob, a missing control, a wrong filename or truncated
@@ -67,7 +81,9 @@ async function reachTheCalendarDialog(
   return dialog;
 }
 
-test("choosing .ics downloads a real file, not just a visible button", async ({ page }) => {
+test("@browser choosing .ics downloads a real file, not just a visible button", async ({
+  page,
+}) => {
   const dialog = await reachTheCalendarDialog(page, SHAPES[".ics result"]);
   await dialog.getByRole("button", { name: /\.ics|download/i }).click();
 
@@ -98,7 +114,7 @@ test("choosing .ics downloads a real file, not just a visible button", async ({ 
   expect(contents.trimEnd().endsWith("END:VCALENDAR")).toBe(true);
 });
 
-test("cancelling adds nothing and says so", async ({ page }) => {
+test("@browser cancelling adds nothing and says so", async ({ page }) => {
   const dialog = await reachTheCalendarDialog(page, SHAPES["calendar cancelled"]);
   await dialog.getByRole("button", { name: /not now|cancel|no thanks/i }).click();
 

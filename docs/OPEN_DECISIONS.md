@@ -390,8 +390,43 @@ clear the backlog in one pass.
 > still bypass the step with a middle-click; that is accepted rather than overlooked**, since the
 > destination is the same one the plain click leads to.
 
-## 13. ⏳ OPEN — a Chromium-only suite cannot hold the class of bug D-352 fixed
+## 13. ⚠️ DECIDED AND BUILT 2026-08-17 — option A, and **it did not close the gap it was chosen to close**
 
+> **The decision:** add a WebKit project scoped to the specs where browser behaviour is the subject.
+> **Built (D-397):** `e2e/playwright.config.ts` has a `webkit` project grepped to `@browser`, and
+> `calendar-branches.spec.ts`'s two tests carry the tag. They pass on WebKit, and they keep running
+> on chromium too.
+>
+> **The measurement that matters, and it overturns this item's own recommendation.** The
+> recommendation below argues WebKit "is the engine that would have caught D-352". With
+> `downloadIcs` reverted to its pre-D-352 form, **both specs pass on WebKit as well** — verified
+> against a positive control, since changing the download filename in the same edit does fail the
+> same spec (`Received: "PROOF-THE-EDIT-IS-LIVE.ics"`), so the reverted code really was being
+> served.
+>
+> Untested guess for why: Playwright drives downloads through the automation protocol rather than
+> the browser's ordinary download path, so this class may be invisible to every Playwright engine.
+>
+> **The residual is decided: take the unit test, next session.** `downloadIcs` is held by no browser
+> in this suite, and a second Playwright engine does not fix that — so the remaining options were a
+> real-device/real-Safari check, a unit test against the DOM calls themselves, or accepting the
+> limitation. **The user chose the unit test.** It was not on the option list when this item was
+> raised, and it became the obvious candidate only once WebKit had been tried and failed: it asserts
+> the code's *contract with the DOM* — the anchor is in `document.body` when `click()` fires, and
+> `revokeObjectURL` happens on a later tick — instead of asserting a browser's intolerance of
+> breaking it. No engine can be lenient about a call that was never made.
+>
+> **Queued as the next session's second item.** Small, and unlike everything tried so far it would
+> actually have caught D-352.
+>
+> **A second wrong premise, corrected:** this was framed as a CI-cost judgement. CI type-checks the
+> e2e harness and never runs it, so the second engine costs no CI time.
+>
+> **Kept anyway**, with every claim rewritten: the download and dialog paths now run on the engine
+> every iPhone and iPad uses, which is narrower than advertised and still worth its seconds.
+>
+> ---
+>
 > **Raised 2026-08-17 by V11 (D-392), by trying to close it and failing.** D-352 fixed two
 > browser-fragility bugs in `downloadIcs`: the anchor was never appended to the document, and
 > `revokeObjectURL` ran synchronously right after `click()`. Its own comment named the reason

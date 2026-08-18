@@ -35,6 +35,12 @@ import uuid
 from collections import defaultdict
 from collections.abc import Callable
 
+from intellichoice_observability.metrics import (
+    SSE_CONNECTIONS,
+    SSE_EVENTS_DELIVERED,
+    SSE_RELAY_FAILURES,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,6 +64,7 @@ class SessionEventBus:
     def subscribe(self, session_id: str) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue()
         self._subscribers[session_id].append(queue)
+        SSE_CONNECTIONS.inc()
         return queue
 
     def unsubscribe(self, session_id: str, queue: asyncio.Queue) -> None:
@@ -66,6 +73,11 @@ class SessionEventBus:
             return
         if queue in subs:
             subs.remove(queue)
+            # Inside the `if`, not beside it: an unsubscribe for a queue that is not there is a
+            # no-op everywhere else in this method, and decrementing anyway would let a double
+            # unsubscribe drive the gauge negative - which reads on a dashboard as a bug in the
+            # thing being measured rather than in the measurement.
+            SSE_CONNECTIONS.dec()
         if not subs:
             self._subscribers.pop(session_id, None)
 
@@ -74,6 +86,7 @@ class SessionEventBus:
         arrived from another replica; `publish` calls it for locally-produced ones."""
         for queue in self._subscribers.get(session_id, []):
             queue.put_nowait(event)
+            SSE_EVENTS_DELIVERED.inc()
 
     def publish(self, session_id: str, event: dict) -> None:
         """Deliver here, then fan out to the other replicas.
@@ -89,4 +102,9 @@ class SessionEventBus:
         except Exception:
             # Never let a fan-out problem surface in a request. The local subscriber has already
             # been served, and the checkpoint still backs any reconnect.
-            logger.warning("session_event_relay_publish_failed", exc_info=True)
+            SSE_RELAY_FAILURES.labels(reason="publish_failed").inc()
+            logger.warning(
+                "session_event_relay_publish_failed",
+                extra={"session_id": session_id},
+                exc_info=True,
+            )

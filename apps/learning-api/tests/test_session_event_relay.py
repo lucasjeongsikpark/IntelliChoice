@@ -16,6 +16,11 @@ import json
 
 import pytest
 from intellichoice_db.engine import create_engine
+from intellichoice_observability.metrics import (
+    SSE_CONNECTIONS,
+    SSE_EVENTS_DELIVERED,
+    SSE_RELAY_FAILURES,
+)
 from learning_api.services.session_event_relay import (
     MAX_PAYLOAD_BYTES,
     SessionEventRelay,
@@ -145,6 +150,150 @@ def test_an_oversized_event_is_dropped_from_the_fanout_but_still_delivered_local
     local, remote = asyncio.run(run())
     assert local == 1, "the local subscriber must still be served"
     assert remote == 0, "an oversized payload must not be sent, and must not be truncated"
+
+
+def test_events_published_back_to_back_all_reach_the_other_replica() -> None:
+    """**D-395: the second concurrent publish used to be dropped in silence.**
+
+    `_notify` awaits `execute` on the *one* publisher connection this process owns, and asyncpg
+    refuses a second operation on a connection already in flight - `another operation is in
+    progress`. `publish` schedules rather than awaits, so two events produced close together do
+    exactly that, and the resulting exception was swallowed by `_notify`'s own `except`. The
+    student's replica delivered locally and every other replica silently missed the event: D-334's
+    bug returning by a different route, in a mechanism that exists only to fix D-334.
+
+    Five events rather than two, published with no await between them, because one collision is a
+    race and five is a queue. The assertion is on the *set* of markers rather than the count, so a
+    partial drop names which one vanished instead of only how many.
+    """
+
+    async def run() -> set[str]:
+        bus_a, relay_a, bus_b, relay_b = await _two_replicas()
+        try:
+            queue_b = bus_b.subscribe("session-burst")
+            for index in range(5):
+                bus_a.publish("session-burst", {"phase": "study", "marker": f"e{index}"})
+            received: set[str] = set()
+            for _ in range(5):
+                event = await asyncio.wait_for(queue_b.get(), timeout=5)
+                received.add(event["marker"])
+            return received
+        finally:
+            await relay_a.stop()
+            await relay_b.stop()
+
+    assert asyncio.run(run()) == {"e0", "e1", "e2", "e3", "e4"}
+
+
+def test_a_scheduled_notify_is_referenced_until_it_finishes() -> None:
+    """The second half of D-395, and the weaker of the two assertions on purpose.
+
+    `loop.create_task` returns a task the event loop holds only a **weak** reference to, so a
+    fire-and-forget task can be garbage-collected mid-execution - asyncio's own documentation says
+    to keep a reference. The relay now does, in `_pending`, and drops it on completion.
+
+    **What this test does not do is reproduce a collection.** Forcing CPython to collect a
+    scheduled task at the right instant is not something a test can do reliably, and asserting a
+    falsification that cannot fail is how V11's `.ics` test ended up unable to hold D-352. So this
+    asserts the property directly: the reference exists while the notify is in flight, and the set
+    drains afterwards rather than growing for the life of the process.
+    """
+
+    async def run() -> tuple[int, int]:
+        bus_a, relay_a, _bus_b, relay_b = await _two_replicas()
+        try:
+            bus_a.publish("session-ref", {"phase": "study"})
+            in_flight = len(relay_a._pending)
+            await asyncio.sleep(1.5)
+            return in_flight, len(relay_a._pending)
+        finally:
+            await relay_a.stop()
+            await relay_b.stop()
+
+    in_flight, after = asyncio.run(run())
+    assert in_flight == 1, "the scheduled notify was not referenced anywhere"
+    assert after == 0, "completed notifies are never released, so the set grows unbounded"
+
+
+def test_a_dropped_event_is_logged_with_the_session_it_belonged_to(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The 08-16 audit's other complaint about this path: the swallow was total. `notify_failed`
+    said something went wrong somewhere, with no session id, so the one question worth asking -
+    *whose* live update vanished? - could not be answered from the logs at all.
+
+    Driven by closing the publisher out from under the relay, which is a real failure of this
+    connection rather than a mocked one, and is what a Postgres restart or an idle-timeout reaper
+    looks like from here.
+    """
+
+    async def run() -> None:
+        bus_a, relay_a, _bus_b, relay_b = await _two_replicas()
+        try:
+            assert relay_a._publisher is not None
+            await relay_a._publisher.close()
+            bus_a.publish("session-doomed", {"phase": "study"})
+            await asyncio.sleep(1.0)
+        finally:
+            await relay_a.stop()
+            await relay_b.stop()
+
+    before = SSE_RELAY_FAILURES.labels(reason="notify_failed")._value.get()
+    with caplog.at_level("WARNING"):
+        asyncio.run(run())
+
+    failures = [r for r in caplog.records if r.message == "session_event_relay_notify_failed"]
+    assert failures, "a dropped fan-out produced no warning at all"
+    assert getattr(failures[0], "session_id", None) == "session-doomed"
+    # D-396: the counter as well as the line. This is the exact signal that was missing while the
+    # fan-out was losing four events in five - a log nobody queries is not telemetry.
+    assert SSE_RELAY_FAILURES.labels(reason="notify_failed")._value.get() == before + 1
+
+
+def test_the_sse_counters_move_with_the_thing_they_measure() -> None:
+    """D-396. The 08-16 audit's line was "SSE has no telemetry at all", and D-395 is the bill:
+    the fan-out was losing four events in five and every dashboard read healthy, because a
+    swallowed warning is only found by someone who already suspects it.
+
+    All four transitions in one test rather than four, because the gauge is the assertion most
+    likely to be wrong in a way the others hide - a subscribe that increments and an unsubscribe
+    that does not is a slow leak that looks correct for the first hour.
+    """
+    bus = SessionEventBus()
+
+    before_connections = SSE_CONNECTIONS._value.get()
+    before_delivered = SSE_EVENTS_DELIVERED._value.get()
+
+    queue = bus.subscribe("session-metrics")
+    assert SSE_CONNECTIONS._value.get() == before_connections + 1
+
+    bus.publish("session-metrics", {"phase": "study"})
+    assert queue.qsize() == 1
+    assert SSE_EVENTS_DELIVERED._value.get() == before_delivered + 1
+
+    bus.unsubscribe("session-metrics", queue)
+    assert SSE_CONNECTIONS._value.get() == before_connections
+    # A second unsubscribe removes nothing, so it must count nothing - otherwise the gauge walks
+    # negative and reads as a bug in the stream rather than in the counter.
+    bus.unsubscribe("session-metrics", queue)
+    assert SSE_CONNECTIONS._value.get() == before_connections
+
+
+def test_a_relay_that_raises_is_counted_as_well_as_logged() -> None:
+    """The `publish_failed` reason: the relay callable itself blew up, before any NOTIFY was even
+    scheduled. Distinct from `notify_failed` because the remedies differ - this one means the
+    relay object is wrong, that one means Postgres or the connection is."""
+
+    def _explode(session_id: str, event: dict) -> None:
+        raise RuntimeError("relay is down")
+
+    bus = SessionEventBus()
+    bus.attach_relay(_explode)
+    before = SSE_RELAY_FAILURES.labels(reason="publish_failed")._value.get()
+
+    bus.publish("session-counted", {"phase": "study"})
+
+    assert SSE_RELAY_FAILURES.labels(reason="publish_failed")._value.get() == before + 1
 
 
 def test_the_payload_ceiling_stays_under_the_postgres_limit() -> None:

@@ -16,7 +16,9 @@ import time
 from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+
+from intellichoice_observability.request_logging import UNMATCHED_PATH
 
 # --- Learning KPIs (SPEC §5.32.4) ---------------------------------------------------
 
@@ -93,6 +95,30 @@ QA_CONVERSATION_COST_CENTS = Histogram(
     "qa_conversation_cost_cents", "Bedrock spend per Q&A conversation, in cents"
 )
 
+# --- SSE (D-396) -----------------------------------------------------------------------
+#
+# **The 08-16 audit's wording was "SSE has no telemetry at all", and D-395 is what that costs.**
+# The cross-replica fan-out lost four events out of five in a five-event burst, and nothing
+# counted it - the failure was logged into a `warning` nobody queries and the mechanism looked
+# healthy from every dashboard. These three exist so the *next* one is a line on a graph.
+#
+# No `app` label, following this module's existing convention: learning-api and chat-api are
+# separate processes with separate registries, so the metric name is already unambiguous per
+# scrape target and a label would only invite double counting.
+SSE_CONNECTIONS = Gauge("sse_connections", "SSE subscriptions this process is currently holding")
+SSE_EVENTS_DELIVERED = Counter(
+    "sse_events_delivered_total", "SSE events handed to a local subscriber's queue"
+)
+SSE_RELAY_FAILURES = Counter(
+    "sse_relay_failures_total",
+    "Cross-replica fan-out attempts that did not send, by why",
+    # "notify_failed" - the NOTIFY itself raised (D-395's shared-connection collision, a closed
+    # connection, a Postgres restart). "payload_too_large" - over the 7000-byte ceiling, dropped
+    # deliberately rather than truncated. "publish_failed" - the relay callable raised before the
+    # notify was even scheduled.
+    labelnames=("reason",),
+)
+
 # --- Infra (via middleware) -----------------------------------------------------------
 
 HTTP_REQUESTS = Counter(
@@ -108,21 +134,41 @@ HTTP_REQUEST_DURATION = Histogram(
 
 
 def install_http_metrics_middleware(app: FastAPI, *, service_name: str) -> None:
+    def _record(request: Request, *, status: str, start: float) -> None:
+        duration_s = time.monotonic() - start
+        route = request.scope.get("route")
+        # **`UNMATCHED_PATH`, not `request.url.path` (D-393).** `request_logging` stopped using
+        # the raw path in D-316 and this module kept it, which is the D-347 "fixed in one
+        # direction" shape again. A raw path is worse here than in a log line: Prometheus keeps
+        # one time series per distinct label set for the process's life, so an unbounded `path`
+        # label grows the scrape target's memory permanently rather than adding noise to a
+        # query - and the branch is taken by **every CORS preflight**, since `CORSMiddleware`
+        # answers `OPTIONS` before routing sets `scope["route"]`. The same token as the log
+        # line's, imported rather than re-spelled, so one word finds both stores.
+        path = route.path if route is not None else UNMATCHED_PATH
+        HTTP_REQUESTS.labels(
+            app=service_name, method=request.method, path=path, status=status
+        ).inc()
+        HTTP_REQUEST_DURATION.labels(
+            app=service_name, method=request.method, path=path
+        ).observe(duration_s)
+
     @app.middleware("http")
     async def _record_http_metrics(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         start = time.monotonic()
-        response = await call_next(request)
-        duration_s = time.monotonic() - start
-        route = request.scope.get("route")
-        path = route.path if route is not None else request.url.path
-        HTTP_REQUESTS.labels(
-            app=service_name, method=request.method, path=path, status=str(response.status_code)
-        ).inc()
-        HTTP_REQUEST_DURATION.labels(
-            app=service_name, method=request.method, path=path
-        ).observe(duration_s)
+        # D-393, and see `request_logging._log_request` for why this is `except Exception`
+        # rather than `finally`. Without it `http_requests_total{status="500"}` could never be
+        # incremented by an actual unhandled exception - `ServerErrorMiddleware` converts it to
+        # a 500 response above this middleware - so the counter an operator would alarm on was
+        # blind to exactly the failures worth alarming on.
+        try:
+            response = await call_next(request)
+        except Exception:
+            _record(request, status="500", start=start)
+            raise
+        _record(request, status=str(response.status_code), start=start)
         return response
 
 
