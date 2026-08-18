@@ -1,4 +1,5 @@
 import { RichText } from "./RichText";
+import { groupSkillsByBand, joinSkillNames } from "../lib/masteryBands";
 import type { StudentReport } from "../types";
 
 interface Props {
@@ -67,6 +68,50 @@ function formatRate(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
+
+/**
+ * D-409: `mastery_by_skill` as two counted bands rather than a joined run-on.
+ *
+ * Returns `null` when there is nothing to show, so the fact disappears exactly as every other
+ * `formatFactValue`-driven row does when its value is absent - a parent with no mastery data yet
+ * should not read an empty heading.
+ *
+ * The count leads and the names follow: "Confident (12)" is the shape, and the names are the detail
+ * for a parent who wants it. `weak_skill_names` keeps its own row too, because it is a fact in its
+ * own right and removing it here would change what the report claims.
+ */
+function renderMasteryBands(label: string, facts: Record<string, unknown>) {
+  const mastery = facts.mastery_by_skill;
+  if (mastery === null || mastery === undefined || typeof mastery !== "object") return null;
+  const table = mastery as Record<string, unknown>;
+  if (Object.keys(table).length === 0) return null;
+  const weakFact = facts.weak_skill_names;
+  const weak = Array.isArray(weakFact) ? weakFact.filter((n): n is string => typeof n === "string") : [];
+  const bands = groupSkillsByBand(table, weak);
+
+  const rows: { band: string; names: string[] }[] = [
+    { band: "Confident", names: bands.confident },
+    { band: "Still practising", names: bands.practising },
+  ];
+
+  return (
+    <li key="mastery_by_skill">
+      {label}:
+      <ul>
+        {rows.map(({ band, names }) => {
+          const joined = joinSkillNames(names);
+          if (joined === null) return null;
+          return (
+            <li key={band}>
+              {band} ({names.length}): {joined}
+            </li>
+          );
+        })}
+      </ul>
+    </li>
+  );
+}
+
 export function ReportView({ report, busy, error, onGenerate }: Props) {
   return (
     <div className="report-section">
@@ -82,6 +127,19 @@ export function ReportView({ report, busy, error, onGenerate }: Props) {
             <h3>Verified</h3>
             <ul>
               {Object.entries(_FACT_LABELS).map(([key, label]) => {
+                /* D-409 (`AUD-L-10`): `mastery_by_skill` is the one fact whose value is not a
+                   sentence. Measured on the live build at **39 skills** joined into a single
+                   paragraph - `name: 80%; name: 60%; …` - on the artefact a parent trusts. The
+                   numbers were already legible (`_RATE_FACTS` above), but 39 of them in a run-on
+                   has no shape a parent can read.
+
+                   Grouped into the two bands the *server* already classifies, via
+                   `weak_skill_names`. Two rather than three, and no threshold in this app: see
+                   `lib/masteryBands.ts` for why a middle cut would put a third definition of a
+                   classification boundary on a parent-facing report. */
+                if (key === "mastery_by_skill") {
+                  return renderMasteryBands(label, report.verified_facts);
+                }
                 const formatted = formatFactValue(key, report.verified_facts[key]);
                 if (formatted === null) return null;
                 return (

@@ -733,7 +733,17 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
                   <th>Pre → Post</th>
                   <th>Gain</th>
                   <th>Support used</th>
-                  <th>Review</th>
+                  {/* D-410 (`AUD-L-11`): was `Review`, which reads as a control - the audit filed
+                      it as "promises something to open but no history row is clickable", and the
+                      decision taken on that description was to remove the column.
+                      **Measuring it first changed the answer.** The column is not inert: it renders
+                      `⚠️ Flagged` or `—` from `tutor_review_flagged`, which is the session that
+                      exhausted the retry ladder with a skill still unresolved
+                      (`learning_tutor_review_flagged_total`). Removing it would have deleted a real
+                      fact about a child's session to fix a misleading word.
+                      So the word is what changed. `Tutor review` names the data instead of implying
+                      an action, and nothing is lost. */}
+                  <th>Tutor review</th>
                 </tr>
               </thead>
               <tbody>

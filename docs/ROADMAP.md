@@ -3023,6 +3023,27 @@ unrecognised value never prints as a token · the week label names its Monday, i
 falls in the previous calendar year · the label cannot be shifted by a time zone · a malformed id
 degrades to itself rather than inventing a date.
 
+### Session W16 — Three P3 judgements, two of which changed on measurement ✅ *(done 2026-08-18, D-408 → D-410)*
+
+Three findings that needed a decision rather than code, put to the user - and two of the three
+answers could not be implemented as stated, because the premise behind each did not survive contact
+with the code.
+
+- **`EDGE-CHAT-07`** (keep both, close as accepted). The fix was built and **reverted**: an existing
+  test asserts the banner deliberately, and editing an assertion to match a change is how a
+  deliberate behaviour becomes an accident.
+- **`AUD-L-10`** (group into bands). Three bands need two cutoffs; this system defines **one**, and
+  `mastery_policy.py` exists because a second definition is how a skill becomes "weak" to one
+  subsystem and "proficient" to another. Two bands, partitioned by the server's own
+  `weak_skill_names`, so **no threshold exists in the client at all**.
+- **`AUD-L-11`** (remove the column). The column is **not inert** - it renders `⚠️ Flagged` from
+  `tutor_review_flagged`. Removing it would have deleted a real fact about a child's session to fix a
+  misleading word, so the word changed instead: `Review` → `Tutor review`.
+
+**Done when:** the bands come from server classification with no client-side cutoff · an empty
+mastery table renders nothing rather than an empty heading · the renamed header keeps the flag data ·
+each departure from the decision as stated is recorded with the measurement that caused it.
+
 ## The audit's never-walked list is now closed
 
 Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found
