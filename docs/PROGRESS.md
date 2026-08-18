@@ -11030,6 +11030,33 @@ re-asserted here.
 observability items from the 08-16 audit. **OPEN_DECISIONS #14** is new: neither frontend has any
 unit-test setup, which W7 discovered by needing one and routing around it.
 
+> ### ⚠️ Reported by the user 2026-08-17, logged not chased: **the LangSmith quota is exhausted**
+>
+> No terraform was touched — recorded here at the user's instruction so the next session knows what
+> it is looking at rather than diagnosing it fresh.
+>
+> - **Local dev and tests are unaffected.** `configure_langsmith()` returns early with no
+>   `LANGSMITH_API_KEY`, which is unset in dev and tests, so local runs trace to Jaeger only. This
+>   cannot explain a failure in anything run locally.
+> - **Staging's `langsmith-ingest-failed` alarm will sit in ALARM indefinitely.** It fires on ≥10
+>   `$.logger = "langsmith.client"` lines per 15 min over 2 periods, and D-244's own alarm
+>   description records that the client *"retries a 403 forever at WARNING"* — a quota rejection has
+>   exactly that shape. With all 26 alarms on one SNS topic (still open), this is noise that can
+>   bury a real one.
+> - **App traffic is unaffected**, per that alarm's own description and the SDK's background-thread
+>   batching. *Not measured on 2026-08-17* — stated as the code's claim, not as a verified fact.
+> - **The NAT gateway (~$33/mo) is now billing for nothing**: `nat_gateway_enabled =
+>   var.langsmith_tracing_enabled`, deliberately, so that flag turns off both.
+>
+> **The part that is a latent defect rather than a status report.** That coupling is safe *only*
+> because `youtube-sync` is `enabled = false`. It runs in a private subnet with
+> `assign_public_ip = false`, and the YouTube Data API has no VPC endpoint — so **the moment
+> OPEN_DECISIONS #6 is unblocked, enabling the sync while tracing is off leaves it with no egress**,
+> and `modules/vpc/main.tf` says of exactly this class that *"the failure surfaces only at runtime —
+> `terraform plan` cannot see it."* The NAT flag should get its own variable **before** #6, not
+> after. I was one sentence from recommending the flag flip with no caveat; the check that caught it
+> took a minute, which is the same shape as everything else this milestone.
+
 ### The audit's never-walked list, closed one path at a time (2026-08-17, D-387 → D-392)
 
 **Built:** `pii-typed-by-a-visitor.spec.ts`, three parametrised location-form invariant cases,
