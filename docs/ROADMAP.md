@@ -2955,6 +2955,25 @@ opens a genuinely new connection · the banner never appears for `connecting` ·
 reverting the banner · and the control that could not be written is recorded with its measurement
 rather than skipped.
 
+### Session W12a — The keep-alive becomes observable ✅ *(done 2026-08-18, D-404)*
+
+W11 deferred the liveness timer because it could not be written correctly: the keep-alive is an SSE
+*comment*, which fires no client event, so a "last event received" timer would announce
+disconnections that never happened. This is the server half that makes the timer possible.
+
+**Outcome:** both APIs emit `event: keepalive\ndata: {}` instead of `: keep-alive`, and both
+frame shapes are now named constants (`KEEPALIVE_FRAME`, `data_frame`) — forced by the first test
+attempt hanging `TestClient.stream()` for seven minutes against a warning the codebase had already
+written down (D-033).
+
+**Done when:** the keepalive is a named event with an inert payload and no `id:` · snapshots stay
+**unnamed**, so `onmessage` still receives them · both apps emit the identical frame · falsified by
+restoring the comment form while keeping the constant importable, which fails 2 of 3.
+
+**Still open — W12b, the client timer.** Untestable in this harness (`route.fulfill` cannot hold an
+SSE response open, and a 40s timeout cannot be shortened from a browser test), so it waits on
+OPEN_DECISIONS #14 or an explicit decision to ship it untested. #14's fourth use case.
+
 ## The audit's never-walked list is now closed
 
 Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found
