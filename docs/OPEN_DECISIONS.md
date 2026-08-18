@@ -501,8 +501,14 @@ clear the backlog in one pass.
 > **The follow-on happened as written, on 2026-08-18 (D-413).** `AUD-CHAT-07`'s deadline lives in a
 > hook, so the first thing that needed rendering arrived and `@testing-library/react` came with it —
 > both frontends, `renderHook` + fake timers proved on a throwaway probe *before* the feature was
-> built. Two of the four blocked assertions above are now expressible; the disconnect banner's render
-> condition is the one still unwritten.
+> built.
+>
+> **And the fourth blocked assertion was written the same day (D-414), which closes the list this item
+> was argued from.** The disconnect banner's render condition — the one D-403 measured flaky in a
+> browser and deleted — is six assertions and 1.3s. `errors.ts`'s status-to-message rules remain the
+> one item on the original list still carried by the browser suite alone, and that is a choice rather
+> than a gap: those rules are only meaningful against a body the server really sends, which is what
+> `test_error_detail_contract.py` pins.
 >
 > **And it needed one thing this item did not anticipate:** RTL registers its own `afterEach(cleanup)`
 > only when the runner exposes globals, which this config deliberately does not — so without an

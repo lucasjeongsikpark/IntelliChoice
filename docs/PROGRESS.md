@@ -34,10 +34,17 @@ comfortable result deserves the same suspicion as a test that passes first time.
 
 1. **`AUD-CHAT-14`** — recommend closing as accepted. A product call about what the org wants in its
    inbox (D-412 has the reasoning).
-2. **The disconnect banner's render condition** — the last of D-403's four blocked assertions, and now
-   *unblocked*: RTL is installed and `ChatScreen.test.tsx` exists to add it to. One component test.
+2. ~~The disconnect banner's render condition~~ — **done the same day (W20/D-414)**, along with two
+   properties beside it: `role="alert"` exclusivity, and the connection dot's `idle` state in the
+   direction D-343's defect was in. **That closes all four assertions OPEN_DECISIONS #14 was argued
+   from.**
 3. **OPEN_DECISIONS #6** — still blocked on the YouTube key, which only you can supply.
 4. **OPEN_DECISIONS #8** — unchanged; D-310 stands until staging stops being synthetic.
+5. **learning-web's banner condition is untested, and the cheap version is a trap** (W20 carry-over).
+   It has the same banner *plus* a takeover screen for `error`-with-no-snapshot, both inside
+   `App.tsx`'s render logic — so testing it means mocking `useLearningSession`. Extracting the JSX into
+   a component would move the markup and leave the condition untested: coverage-shaped, worth nothing.
+   Price the real work or leave it, but do not do the cosmetic one.
 
 **⚠️ Before any `terraform apply`:** the tfvars image floor is bumped **locally only** and that file
 is gitignored. On a fresh checkout it must be redone, or the apply rolls staging back past
@@ -11219,9 +11226,20 @@ screen with two Stop buttons reported three, and the extra belonged to the previ
 Fixed in `setupFiles` in both apps rather than per file, because a per-file `afterEach(cleanup)` works
 and is forgotten exactly once.
 
-**Carry-over:** `AUD-CHAT-14` (a product call, recommend accepting); the disconnect banner's render
-condition (now unblocked, one component test); OPEN_DECISIONS #6 and #8. Nothing on any audit list now
-needs code without a decision.
+**Then W20 (D-414) spent the tooling immediately, on the assertion that justified asking for it.** The
+disconnect banner's render condition — *"`error` and nothing else"* — is the one D-403 wrote in a
+browser, measured flaky, and deleted, because a healthy SSE stream cannot be held open by the harness.
+Six assertions, 1.3s, **no product code changed**. Two properties came with it: `role="alert"` is shared
+with a failed turn's bubble (so a healthy stream must show exactly one alert, which is what makes an
+always-firing banner fail three tests rather than two), and the connection dot's `idle` state is now
+asserted in the direction D-343's defect was in — the browser suite had only the opposite one. Five more
+guards falsified, taking the day to **fifteen**. **All four assertions OPEN_DECISIONS #14 was argued
+from are now closed.**
+
+**Carry-over:** `AUD-CHAT-14` (a product call, recommend accepting); **learning-web's banner condition,
+where the cheap version is a trap** — the same banner plus a takeover screen, both inside `App.tsx`, so
+the real work is mocking `useLearningSession` and extracting the JSX would produce coverage-shaped
+nothing; OPEN_DECISIONS #6 and #8. Nothing on any audit list needs code without a decision.
 
 ### Milestone 13 in full: the failure path, then the audit's tail (2026-08-17/18, D-393 → D-412)
 
