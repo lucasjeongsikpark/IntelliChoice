@@ -148,8 +148,11 @@ resource "aws_cloudwatch_metric_alarm" "sessions_completed_floor" {
     "after the 6pm deploy looks exactly like this and nothing else would say so, because a",
     "session that never completes still returns 200s the whole way.",
   ])
-  alarm_actions = [aws_sns_topic.alerts.arn]
-  ok_actions    = [aws_sns_topic.alerts.arn]
+  # D-401: informational. A KPI floor going unmet is a product signal, not a fault - and on
+  # staging, where the only traffic is a test suite, an unmet floor is the normal overnight
+  # state. On the page channel it is pure noise.
+  alarm_actions = [aws_sns_topic.alerts_info.arn]
+  ok_actions    = [aws_sns_topic.alerts_info.arn]
   tags          = var.tags
 }
 

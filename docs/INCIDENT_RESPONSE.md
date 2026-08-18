@@ -218,6 +218,80 @@ volume, or a retry storm from a single failing session), consider temporarily lo
 `bedrock_session_budget_cents` or scaling `desired_count` to 0 if spend is actively
 runaway and the source isn't yet clear.
 
+### "Which student or session ran it up?" — the queries, run rather than written (D-400)
+
+The 08-16 audit filed this as *"Bedrock spend is attributable per day and per app but never per
+student or per session"*. That is too strong: **the answer needs no new code**, and each query below
+was executed against staging before being written here. `latest()` versus `max()` in step 2 is the
+reason that mattering is not a slogan.
+
+**Step 1 — what is spending.** Run over the app's log group
+(`/ecs/intellichoice-staging-learning-api`):
+
+```
+fields task, cost_cents
+| filter event = "bedrock_call"
+| stats sum(cost_cents) as spend_cents, count(*) as calls, count(trace_id) as with_trace by task
+| sort spend_cents desc
+```
+
+Measured over 30 days on staging, for a baseline to compare a spike against: **`stage_narrative`
+404.5¢ across 2212 calls — 80% of all learning-api Bedrock spend** — then `hint_personalization`
+71.1¢ / 299, `memory_consolidation` 11.0¢ / 11, `tutor_chat` 6.1¢ / 27, `learning_chat_intent`
+4.8¢ / 38, `parent_report` 4.8¢ / 14, `tutor` 3.2¢ / 8. Per-call that is ~0.18¢ for a narrative and
+~0.24¢ for a personalized hint, so a spike is either volume or a model change, and the two are
+distinguishable by dividing.
+
+**Step 2 — which session.** `bedrock_call` carries no session id, and does not need one: the
+formatter stamps `trace_id` on every line, the access line carries `learning_session_id`, and both
+land in the same log group — so the join happens inside `stats`.
+
+```
+fields event, trace_id, cost_cents, learning_session_id
+| filter event in ["bedrock_call", "http_request"] and ispresent(trace_id)
+| stats sum(cost_cents) as spend_cents, latest(learning_session_id) as session, count(*) as lines by trace_id
+| sort spend_cents desc | limit 20
+```
+
+**`latest()`, never `max()`.** The first version of this query used `max(learning_session_id)`, and
+Logs Insights' `max()` is a *numeric* aggregation: it silently returned no `session` field at all,
+for every row, while looking like a working query. That is this document's own recurring defect
+class — a control that cannot succeed — and it survived only because the query was run.
+
+Trace coverage is 2209 of 2212 narrative calls and 297 of 299 personalization calls, so this
+resolves ~99.9% of the spend that matters.
+
+**Step 3 — the rows that resolve to no session.** Expect some, and it is not a bug. Spend on routes
+keyed by `student_id` rather than a session id — the parent/student report — cannot be joined this
+way, because `student_id` is **deliberately excluded** from the access-log allowlist
+(`request_logging.LOGGABLE_PATH_PARAMS`: *"a stable reference to a real minor"*). That spend is
+attributable in Postgres instead, per student and per day, which is what `cost_reservations` is for:
+
+```sql
+select subject_external_id,
+       sum(coalesce(actual_cents, reserved_cents)) as cents,
+       count(*) as calls
+from cost_reservations
+where scope = 'student_report'
+  and created_at >= now() - interval '1 day'
+group by 1 order by 2 desc limit 20;
+```
+
+Same shape works for `scope = 'tutor_chat'`. *Schema-verified against the model and `settle()`; not
+row-verified against staging, unlike the two queries above.*
+
+**Step 4 — spend with no `trace_id` at all** is scheduled work, by design: a task with no request
+behind it must carry no trace id, or a join would attribute a cron job's spend to an unrelated
+student's request. `test_background_task_trace_join.py` asserts both directions. Group those by
+`task` and read them as job cost, not user cost.
+
+**Why step 2 works, and the two tests that keep it working.**
+`test_the_500_access_line_carries_a_trace_id` (D-393) pins that the access line carries the server
+span's trace id under real instrumentation; `test_a_detached_task_logs_the_trace_id_of_the_request_that_spawned_it`
+(D-400) pins that a *detached* task — which is where the narrative and personalization calls actually
+run — inherits it, even after the span has closed. Without the second one this whole procedure would
+work for inline calls and silently fail for the 80% of spend that is deferred.
+
 ## Playbook: service outage / database failure
 
 Out of this runbook's depth on purpose - S34 (Load Testing and Production Readiness,
