@@ -483,7 +483,35 @@ clear the backlog in one pass.
 > `downloadIcs` keeps working because Chromium is what the tests run and most users use. The next
 > D-352 gets found by a user on Safari.
 
-## 14. ⏳ OPEN — neither frontend has any unit-test setup at all
+## 14. ✅ DECIDED AND BUILT 2026-08-18 (D-405) — **both** frontends, against the recommendation
+
+> The recommendation below was **B, one app first**. The user chose **A, both now**, on the argument
+> this file cannot answer back: two independently deployed frontends drifting is D-347, the single
+> most repeated defect shape in this project, and starting asymmetric is starting with the bug. The
+> first thing built on it — a liveness timer mirrored into both apps — is the proof, since
+> `EDGE-CHAT-02` was filed against chat while learning-web is where a stale stream costs a student
+> their exam snapshot.
+>
+> **Built:** vitest + jsdom in `apps/chat-web` and `apps/learning-web`, config in each
+> `vite.config.ts` (so plugins cannot drift from what tests run against), a `test` script, and a
+> `Test` step in both CI jobs. **Deliberately not** `@testing-library/react` — component rendering
+> is a real use case and needs another dependency, so it arrives with the first component test
+> rather than in advance.
+>
+> **Two mistakes it caught within minutes of existing**, which is the answer to "would it earn its
+> keep": `test` is not a valid key on vite's `defineConfig` (it needs `vitest/config`), and
+> `constructor(public url: string)` is forbidden by `erasableSyntaxOnly`. Both surfaced as build
+> errors because the test files sit *inside* `tsc -b`.
+>
+> **The four blocked assertions that made the case**, for the record: `errors.ts`'s rules,
+> `downloadIcs`'s DOM contract (covered the expensive way in D-399), the banner's render condition
+> (browser test measured flaky and deleted, D-403), and the liveness timer (D-405, now done).
+>
+> ---
+>
+> ### The reasoning as it stood when this was raised
+>
+> ## Previously: ⏳ OPEN — neither frontend has any unit-test setup at all
 
 > **Raised 2026-08-17 by D-399, by needing one and routing around it.** OPEN_DECISIONS #13's chosen
 > remedy was "a jsdom unit test". Writing it revealed that `apps/chat-web` and `apps/learning-web`

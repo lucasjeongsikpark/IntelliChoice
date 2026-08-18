@@ -100,6 +100,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # D-405: added with the first frontend unit tests (OPEN_DECISIONS #14). Before the build,
+      # because a failing assertion is a faster and clearer signal than a type error downstream
+      # of it.
+      - name: Test
+        run: npm test
+
       - name: Typecheck + build
         run: npm run build
 
@@ -122,6 +128,12 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      # D-405: added with the first frontend unit tests (OPEN_DECISIONS #14). Before the build,
+      # because a failing assertion is a faster and clearer signal than a type error downstream
+      # of it.
+      - name: Test
+        run: npm test
 
       - name: Typecheck + build
         run: npm run build
