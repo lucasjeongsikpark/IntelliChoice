@@ -27457,3 +27457,95 @@ that is what shipped.** A frontend unit-test framework is still worth having, an
 its own item rather than smuggled in behind a one-line contract test.
 
 **OPEN_DECISIONS #13 is closed by this**, having survived two remedies that did not close it.
+
+## D-400 — W8: per-student spend attribution needed no code, and the query needed running (accepted, 2026-08-17)
+
+The 08-16 audit: *"Bedrock spend is attributable per day and per app but **never per student or per
+session**, so when the spend-spike alarm fires, 'which student is looping?' is not answerable."*
+Measured before building anything, and it is too strong in one direction and understated in another.
+
+**Already there.** `cost_reservations` is keyed `(scope, subject_external_id, created_at)` and
+`settle()` writes the real cost, so per-student-per-day spend is **already queryable by SQL** for
+`student_report` and `tutor_chat`. A per-session running total also exists and enforces the
+gateway's per-session ceiling.
+
+**The real gap, narrower and sharper.** The per-session total lives inside the LangGraph
+checkpoint's msgpack blob — it bounds spend and cannot be queried. And the highest-volume calls
+(`hint_generation`, `solution_generation`, `hint_personalization`, `stage_narrative`) emit a
+`bedrock_call` line carrying `task`, `model_id`, tokens and `cost_cents` and **no subject of any
+kind**.
+
+**The fix is not a new field, because the join already exists.** `JsonLogFormatter` stamps
+`trace_id` on every line and `request_logging` puts `learning_session_id` on the access line, in the
+same log group. Two things had to be true for that to work, and only one was already tested:
+
+- W1's `test_the_500_access_line_carries_a_trace_id` pins that the access line carries the server
+  span's id under real instrumentation.
+- **New:** `test_background_task_trace_join.py` pins that a *detached* task inherits it, even after
+  the span closes — which is where the narrative and personalization calls actually run. Without
+  that, this procedure would work for inline calls and silently fail for 80% of the spend. The
+  control asserts the other direction: a task with **no** request behind it carries no trace id, so
+  a join cannot fabricate an attribution.
+
+**Threading a session id explicitly was considered and rejected.** `tutor.py`, `stage_narrative.py`
+and `qa.py` contain **zero** references to a session id — they are pure content functions, and
+giving them request identity for a logging concern is the wrong coupling. A contextvar would work
+and is unnecessary now that the trace id does the job.
+
+**The queries went into `INCIDENT_RESPONSE.md`'s cost playbook, and were run against staging first.**
+That mattered: the first version used `max(learning_session_id)`, and Logs Insights' `max()` is a
+*numeric* aggregation — it silently returned **no session field at all, on every row**, while
+looking like a working query. `latest()` is correct. That is this project's own recurring defect
+class (a control that cannot succeed) caught inside the fix for another one.
+
+**Measured baselines now in the runbook**, so a spike has something to be compared against:
+`stage_narrative` **404.5¢ across 2212 calls — 80% of all learning-api Bedrock spend** — then
+`hint_personalization` 71.1¢/299, `memory_consolidation` 11.0¢/11, `tutor_chat` 6.1¢/27,
+`learning_chat_intent` 4.8¢/38, `parent_report` 4.8¢/14, `tutor` 3.2¢/8. Trace coverage is 2209/2212
+and 297/299, so the join resolves ~99.9% of the spend that matters. **Nobody had written down that
+one call type is four fifths of the bill.**
+
+**Deliberately not closed:** spend on `student_id`-keyed routes (the report) cannot be joined this
+way, because `student_id` is excluded from the access-log allowlist as *"a stable reference to a real
+minor"*. That is the right call and the reservation table covers exactly that case, so the runbook
+sends the reader to SQL for it rather than widening what gets logged about a child.
+
+## D-401 — W9: the alarm split, and the sixth stale image floor (accepted, 2026-08-17)
+
+*"All 26 alarms deliver to one email address, so at 2am the alarm and the parent's email arrive
+together at 8am."* The user chose **split by severity** over closing it as a deliberate
+solo-maintainer choice.
+
+**The delay was never the cost.** The cost is that one permanently-firing informational alarm makes
+every other alarm unreadable — and the project entered exactly that state today, because the
+LangSmith quota is exhausted and that alarm's own description records the client *"retries a 403
+forever at WARNING"*. So the immediate, practical win of this change is that **LangSmith ingest
+failures stop paging.**
+
+**Built:** a second SNS topic (`-alerts-info`) with its own optional subscriber, defaulting to the
+same address — so this is a *routing* change, not a change to who is told what, and a page channel
+(SMS, PagerDuty) can later be attached to one topic without also attaching it to LangSmith.
+
+**Three alarms qualify, on a narrow admission rule:** an alarm may be quiet only if its own
+description says users are unaffected, or if it reports a business floor rather than a fault —
+`langsmith_ingest_failed`, `capacity_above_floor`, `sessions_completed_floor`. Everything else stays
+on the page channel, and **the default for anything new is the page channel**, because an alarm
+nobody is woken by is easier to add by accident than to notice.
+
+**The risk this fix introduces is worse than the bug it fixes, so it is tested.**
+`test_alarm_severity_routing.py` asserts every alarm notifies exactly one channel (unrouted fails),
+that the quiet channel's membership is exactly a reviewed list, and — the non-vacuity control —
+that `target_5xx`, `rds_free_storage`, `bedrock_circuit_open` and `bedrock_spend_spike` are named
+individually as never-quiet, because the membership test alone would pass if someone moved an
+outage alarm and updated the list to match. Falsified against the pre-split terraform. `terraform
+fmt` and `terraform validate` both clean; **not applied** — that is a deploy.
+
+**And the check refused before any of it could be applied, which is the sixth instance of one
+shape.** `make tfvars-floor-check` failed while preparing a change that has nothing to do with
+images: the floor pinned `gha-37f7dac51580` while `gha-df79b290bf65` was running (learning-api:149,
+chat-api:147). A bare apply of the alarm change would have **rolled both services back**, and that
+tag predates Milestone 13 — so it would have reverted the unobserved-500 fix, the log redaction and
+the SSE relay fix as a side effect of adding an SNS topic. Bumped, with the reasoning added to the
+file's own history. `terraform.tfvars` is gitignored, so that bump does not ship: it is local state
+that has to be redone on a fresh checkout, which is precisely why the executable check exists
+(AUD-X-16).

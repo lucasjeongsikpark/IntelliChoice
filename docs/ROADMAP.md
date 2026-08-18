@@ -2882,6 +2882,39 @@ tooling it exposed is now #14.
 pre-D-352 form · the tick check discriminates a same-task revoke, which a timestamp comparison would
 not · every place recording D-352 as unheld is corrected.
 
+### Session W8 — Spend attribution, which needed a query rather than a field ✅ *(done 2026-08-17, D-400)*
+
+The audit's *"never per student or per session"* is too strong: `cost_reservations` already gives
+queryable per-student-per-day spend for two scopes. What is unattributed is the highest-volume path
+— and the join for it **already exists**, because every line carries `trace_id` and the access line
+carries `learning_session_id`.
+
+**Outcome:** no production code. A new test pins the one link that was untested — a *detached* task
+inherits the trace id of the request that spawned it, and a task with no request behind it carries
+none — plus the queries in `INCIDENT_RESPONSE.md`'s cost playbook, **run against staging before
+being written down**. The first version used `max()` on a string field and silently returned no
+session at all, which is why running it was the point.
+
+**Done when:** the detached-task join is asserted in both directions · the runbook's queries have
+been executed, not composed · a spend baseline exists to compare a spike against (it does:
+`stage_narrative` is **80% of all learning-api spend**, which nobody had written down).
+
+### Session W9 — Alarms split by severity ✅ *(done 2026-08-17, D-401)*
+
+One inbox for 26 alarms, and the cost is not the delay: one permanently-firing informational alarm
+makes every other alarm unreadable. The LangSmith quota running out put the project in exactly that
+state, so the practical win is that its ingest failures stop paging.
+
+**Outcome:** a second SNS topic defaulting to the same address, three alarms moved on a narrow
+admission rule, and the page channel as the default for anything new. Tested, because the risk the
+fix introduces — an outage alarm quietly routed to the channel nobody watches — is worse than the
+bug. **Not applied.**
+
+**Done when:** every alarm notifies exactly one channel and an unrouted one fails · the quiet
+channel's membership is a closed list · four page-worthy alarms are named individually as a
+non-vacuity control · `terraform fmt` and `validate` clean · `make tfvars-floor-check` OK — which it
+was not, and the sixth stale floor would have rolled staging back past Milestone 13.
+
 ## The audit's never-walked list is now closed
 
 Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found

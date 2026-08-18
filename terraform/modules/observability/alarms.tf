@@ -73,8 +73,12 @@ resource "aws_cloudwatch_metric_alarm" "langsmith_ingest_failed" {
     "watched it. The AI-observability leg is dark while this is firing; app traffic is",
     "unaffected, so nothing else will tell you.",
   ])
-  alarm_actions = [aws_sns_topic.alerts.arn]
-  ok_actions    = [aws_sns_topic.alerts.arn]
+  # D-401: the informational channel, and this alarm is the reason the split exists. Its own
+  # description above says app traffic is unaffected - and with the LangSmith quota exhausted it
+  # will sit in ALARM indefinitely, so on the page channel it would make every real alarm
+  # unreadable.
+  alarm_actions = [aws_sns_topic.alerts_info.arn]
+  ok_actions    = [aws_sns_topic.alerts_info.arn]
   tags          = var.tags
 }
 

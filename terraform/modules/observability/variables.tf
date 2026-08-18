@@ -17,6 +17,15 @@ variable "notification_email" {
   type        = string
 }
 
+# D-401: the informational half of the alarm split. Optional on purpose - leaving it null
+# sends both streams to the same address, so the split is a routing change that a mail
+# filter can act on rather than a change to who gets told what.
+variable "informational_notification_email" {
+  description = "Where to send alarms that do not affect users. Defaults to notification_email."
+  type        = string
+  default     = null
+}
+
 # S34: per-service CloudWatch alarms (5xx rate + P95 latency) - the rollback-trigger gate
 # deploy-staging.yml's canary bake period polls, and general standing alerting via the
 # same SNS topic the budget alarm already emails (var.notification_email).

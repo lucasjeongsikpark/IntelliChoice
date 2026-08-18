@@ -27,6 +27,21 @@ resource "aws_budgets_budget" "monthly" {
 # matches the budget alarm's own single-recipient posture (D-084); a real on-call
 # rotation/PagerDuty integration is future work (same "no real notification channel yet"
 # posture S31's carry-over already flagged for Prometheus alert rules).
+#
+# **D-401: that "one shared topic" is now two, and the reason is a specific failure.** The
+# 08-16 audit filed *"all 26 alarms deliver to one email address, so at 2am the alarm and the
+# parent's email arrive together at 8am"*. The cost of that is not the delay - it is that a
+# permanently-firing informational alarm makes every other alarm unreadable, and the project
+# is in exactly that state right now: the LangSmith quota is exhausted, `langsmith_ingest_failed`
+# retries at WARNING forever (see its own alarm description), so it will sit in ALARM
+# indefinitely and bury anything real that arrives beside it.
+#
+# The split is deliberately small and by *severity*, not by subsystem: a topic for "someone
+# should look now" and a topic for "read this in the morning". Both default to the same
+# address, so nothing about delivery changes until a second endpoint is configured - what
+# changes today is that the two streams are separable by a mail filter and by topic ARN, and
+# that a future page channel (SMS, PagerDuty) can be attached to one without also attaching
+# it to LangSmith ingest failures.
 resource "aws_sns_topic" "alerts" {
   name = "${var.name_prefix}-alerts"
   tags = var.tags
@@ -38,6 +53,31 @@ resource "aws_sns_topic_subscription" "alerts_email" {
   endpoint  = var.notification_email
 }
 
+# The informational channel. **Nothing here means users are affected**, which is the whole
+# admission criterion - an alarm goes here only if its own description says app traffic is
+# unaffected, or if it reports a business floor rather than a fault. Three alarms qualify
+# today; the default for anything new is the page channel above, because an alarm nobody is
+# woken by is easier to add by accident than to notice.
+resource "aws_sns_topic" "alerts_info" {
+  name = "${var.name_prefix}-alerts-info"
+  tags = var.tags
+}
+
+resource "aws_sns_topic_subscription" "alerts_info_email" {
+  topic_arn = aws_sns_topic.alerts_info.arn
+  protocol  = "email"
+  # Falls back to the same address, so this change is a *routing* change and not a
+  # notification change. Set `informational_notification_email` when there is somewhere
+  # quieter to send these.
+  endpoint = coalesce(var.informational_notification_email, var.notification_email)
+}
+
+# **`alerts_info` gets no equivalent policy, deliberately.** Only CloudWatch *alarms* publish to
+# it - no EventBridge rule targets it - and the comment below records the measurement that makes
+# that safe: alarms publish fine on SNS's implicit default policy, and it was specifically
+# EventBridge that did not. Adding a policy here would mean reproducing the default statement
+# verbatim for no gain, with the same orphaned-subscription hazard described below if it drifted.
+#
 # S40: without this, an EventBridge **rule** cannot publish here, and it fails *silently*
 # from the publisher's point of view - measured, not assumed: the scheduled-job failure rule
 # fired with `Invocations = 1` and `FailedInvocations = 1` while SNS delivered **0**. The
@@ -181,8 +221,10 @@ resource "aws_cloudwatch_metric_alarm" "capacity_above_floor" {
     ClusterName = var.ecs_cluster_name
     ServiceName = each.value.ecs_service_name
   }
-  alarm_actions = [aws_sns_topic.alerts.arn]
-  ok_actions    = [aws_sns_topic.alerts.arn]
+  # D-401: informational. Being *above* a capacity floor is the healthy state being
+  # reported, not a fault - nothing is degraded when this fires.
+  alarm_actions = [aws_sns_topic.alerts_info.arn]
+  ok_actions    = [aws_sns_topic.alerts_info.arn]
   tags          = var.tags
 }
 

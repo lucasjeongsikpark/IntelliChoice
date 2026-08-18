@@ -79,19 +79,43 @@ with its own recommendation rather than smuggled in behind a one-line contract t
 **third cost estimate of mine to be wrong in two days**, and all three were wrong in the same
 direction: assumed expensive, measured cheap; assumed cheap, measured expensive.
 
+**✅ W8 and W9 closed both of those the same day, and neither was the shape the audit described.**
+
+- **W8 (D-400) — spend attribution needed a *query*, not a field.** `cost_reservations` already
+  answers "which student" for two scopes; what was missing was the highest-volume path, and the
+  join for it already existed via `trace_id`. One new test pins the untested link (a **detached**
+  task inherits the trace id; a task with no request behind it carries none, so a join cannot
+  fabricate an attribution). The queries went into the cost playbook **after being run against
+  staging** — the first version used `max()` on a string, which Logs Insights silently drops,
+  returning no session on every row while looking correct. And the baseline is now written down:
+  **`stage_narrative` is 404.5¢ of ~505¢ — 80% of all learning-api Bedrock spend** — which nobody
+  had measured. **No production code changed.**
+- **W9 (D-401) — the alarm split, and the reason it was worth doing today.** One
+  permanently-firing informational alarm makes every other alarm unreadable, and the LangSmith
+  quota running out put us there. A second SNS topic, three alarms moved on a narrow rule, page
+  channel as the default for anything new, and a test that fails on an unrouted alarm or on an
+  outage alarm being quietly moved. **Not applied** — that is a deploy.
+
+**⚠️ And the check refused before either could be applied — the sixth instance of one shape.**
+`make tfvars-floor-check` failed on a change with nothing to do with images: the floor pinned
+`gha-37f7dac51580` while `gha-df79b290bf65` was running. **A bare apply would have rolled staging
+back past all of Milestone 13** — the unobserved-500 fix, the log redaction, the SSE relay fix —
+as a side effect of adding an SNS topic. Bumped locally; `terraform.tfvars` is gitignored, so that
+bump does **not** ship and must be redone on a fresh checkout before any apply.
+
 **Recommended next, in priority order:**
 
-1. **The rest of the 08-16 backend tail.** Per-student spend attribution (the spend-spike alarm
-   cannot answer "which student is looping?", which is a cost-bug control, not polish) and the
-   single-inbox alarm target.
-2. **The two chat P2s with user-visible impact.** Stop aborts only the HTTP request while the graph
-   runs on holding the session lock, so the next question is refused as *"still working on your last
-   question"*; and the approval modal — **the one screen that sends real email** — has no
-   `max-height`, so a long body puts the heading above the fold and both buttons below it.
-3. **`EDGE-CHAT-02`'s root cause**: chat has no liveness timer and no reconnect control where
+1. **The two chat P2s**, now the top of the list.
+   Stop aborts only the HTTP request while the graph runs on holding the session lock, so the
+   next question is refused as *"still working on your last question"*; and the approval modal —
+   **the one screen that sends real email** — has no `max-height`, so a long body puts the heading
+   above the fold and both buttons below it.
+2. **`EDGE-CHAT-02`'s root cause**: chat has no liveness timer and no reconnect control where
    learning-web has both.
-4. **OPEN_DECISIONS #14** — a judgement, not code: whether the frontends get unit-test tooling at
+3. **OPEN_DECISIONS #14** — a judgement, not code: whether the frontends get unit-test tooling at
    all. Recommendation is one app first, measured before doubling, for the reason D-397 exists.
+4. **The LangSmith/NAT decoupling** (recorded 2026-08-17), before OPEN_DECISIONS #6 is unblocked
+   rather than after.
 
 ### Previous — a green baseline and the contracts nobody was testing (Milestone 12)
 
@@ -11019,6 +11043,14 @@ asking what the **code** did discriminates it immediately, on both engines: *no 
 lenient about a call that was never made.* The tick check is the subtle half — a timestamp
 comparison would not work, because the broken form also revokes "later", by microseconds in the
 same task.
+
+**Verification for W8/W9:** `ruff` **All checks passed** · `pyright` **0 errors** · pytest **1716
+passed / 2 skipped / 1 xfailed** in 7:24, **+5** on 1711 and 5 is exactly what was added (2
+trace-join, 3 alarm-routing) · `terraform fmt -check` clean and `terraform validate` **Success** ·
+`make tfvars-floor-check` **OK**, after the bump described above. No Playwright run: W8/W9 touch no
+frontend or e2e code, so the 125 from W6/W7 stands rather than being re-asserted. The alarm-routing
+membership test was falsified against the pre-split terraform; its two siblings are forward guards
+and pass either way, which is what they are for.
 
 **Verification for W6/W7:** `ruff` **All checks passed** · `pyright` **0 errors** · `tsc` clean ·
 Playwright **125 passed / 2 skipped** in 6.2m, **+4** on the 121 this milestone started from, which
