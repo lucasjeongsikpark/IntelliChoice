@@ -28710,3 +28710,78 @@ preference.
 **127 passed / 2 skipped** across three projects. **B4 is complete** — refusal reasons already existed
 and were finer than asked, escalation was already scoped correctly, and the two genuinely missing
 pieces (the note, duplicate protection) plus this client half are now in.
+
+## D-423 — B6 part 1: the RAG latency split, measured, and the optimisation it cancelled (accepted, 2026-08-18)
+
+The user accepted ~10.6s p95 for launch and asked for two things: a two-stage answer UX, and a
+**measured** latency investigation. This is the investigation. It cancelled the first optimisation I
+proposed and produced a different one, verified against the code rather than argued for.
+
+### The serial chain, which was written down nowhere
+
+A grounded `document_qa` turn makes **four sequential Bedrock round trips**: `SCOPE_AND_INTENT`
+(scope_guard) → `create_embedding` (retrieve) → `RERANK` (retrieve) → `RAG_ANSWER`
+(synthesize_answer).
+
+### The split, measured on staging
+
+12 grounded turns via `VUS=1 ITERATIONS=6 make load-staging-chat` (twice), then X-Ray span durations
+aggregated by name and task annotation. k6 reported `http_req_duration` **p95 13.1s** — the recorded
+10.62s is real and this sample is slightly worse.
+
+| span | median | share |
+|---|---|---|
+| `langgraph.synthesize_answer` (`RAG_ANSWER`) | **4124 ms** | ~42% |
+| `langgraph.answer_document_qa` (embedding + rerank + SQL) | **3411 ms** | ~35% |
+| `langgraph.scope_guard` (`SCOPE_AND_INTENT`) | **2129 ms** | ~22% |
+| `bedrock.create_embedding` | **124 ms** | **~1.3%** |
+
+### The optimisation this cancelled, and it was mine
+
+From the four-call chain I proposed **parallelising the query embedding with scope classification**,
+reasoning that four calls across ~10s meant ~2.5s each. **The embedding is 124 ms.** The change would
+have saved **1.3%** while costing either ~8 KB of floats per checkpoint or one of D-402's cancellation
+boundaries — and the user chose "latency first" partly on the strength of that pitch, which is why the
+correction is stated rather than quietly replaced.
+
+**Seventh instance this week of the same pattern**, and the cheapest measurement yet: two k6 runs and
+one X-Ray query.
+
+### The optimisation the measurement produced instead
+
+**Overlap `scope_guard` (2.1s) with retrieval (3.4s), not with the embedding.** Retrieval never needs
+the scope verdict, so the two can run concurrently and the turn pays the larger rather than the sum:
+median ~9.6s → **~7.5s, about 22%**, with **no prompt changed and therefore no quality delta.**
+
+Three things verified in the code before this is called safe:
+
+1. **The dependency is clear.** `standalone_query` — retrieval's only input — is written by
+   `resolve_role` (`nodes.py:314`), *before* `scope_guard`, and `scope_guard` returns only `scope`,
+   `intent` and spend. Nothing retrieval reads comes from it.
+2. **`QAState` holds chunk *ids*, not bodies**, deliberately and with its own comment. So splitting
+   retrieval from answering must **not** put chunk text in the checkpoint: the answer node re-fetches
+   bodies by `retrieved_chunk_ids` (already a state field), one indexed read, preserving the invariant
+   instead of trading it for latency.
+3. **The cost is broader than first stated.** Retrieval would run on *every* turn, so
+   `calendar`, `branch_locator`, `admin_contact` and out-of-scope turns each pay one wasted rerank —
+   not only out-of-scope ones, as I said when the option was offered. A rerank is a fraction of a cent,
+   and the mix cannot be measured honestly today: staging's only traffic is this load script, which is
+   100% `document_qa` by design.
+
+### What the two-stage UX becomes, given the numbers
+
+Stage 1 is honest by construction under the user's own constraint (no ungrounded fast answer): with
+~7.5s remaining after the overlap, it is a **progress line naming the stage**, not a fast answer.
+Nothing else can be said before retrieval has run — and an answer cache, the only thing that could
+make stage 1 substantive, collides with rule 5: citations carry `effective_to` and retrieval filters
+on `as_of`, so a cached answer can outlive its sources' effective window. That is fixable (clamp each
+entry's TTL to the earliest `effective_to` among its own citations) but it is a decision, not a tidy-up.
+
+**Also worth having: stage 2's transport already exists.** The SSE relay and snapshot matching
+(D-348/D-395/D-404) are already "replace this turn's answer when a better one arrives" — that is how a
+reconnect behaves. The two-stage UX is mostly a render-state change rather than new plumbing.
+
+### Not built here
+
+The overlap is a graph restructuring on the answer path and is left specified rather than half-built.
+The next session implements steps 1–3 above; nothing about it needs re-deriving.
