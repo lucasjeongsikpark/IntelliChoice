@@ -27549,3 +27549,74 @@ the SSE relay fix as a side effect of adding an SNS topic. Bumped, with the reas
 file's own history. `terraform.tfvars` is gitignored, so that bump does not ship: it is local state
 that has to be redone on a fresh checkout, which is precisely why the executable check exists
 (AUD-X-16).
+
+## D-402 — W10: Stop stops the server, turn by turn (accepted, 2026-08-18)
+
+The 08-16 audit's P2: *"'Stop' aborts only the HTTP request; the graph runs on under its 50s
+deadline holding the session lock, so the next question is refused as 'still working on your last
+question.'"* The user chose a real cancel endpoint over the cheaper options, with four
+requirements: **turn-scoped explicit cancellation, cooperative cancellation, a cancelled terminal
+state, and immediate lock release.**
+
+**The mechanism was measured, not assumed.** A probe against real uvicorn: a handler whose client
+hangs up mid-request reports `ran-to-completion`. uvicorn does not cancel the ASGI task on
+disconnect, so nothing the browser does releases a transaction-scoped advisory lock. p50 for a
+healthy grounded turn is ~10s and p95 ~16s, so a visitor who stopped and immediately re-asked was
+routinely refused.
+
+**Half of it was already fixed, which narrowed the work.** D-381 stopped the abandoned turn's late
+snapshot from overwriting "You stopped this question." What remained was the lock, and the 409's
+copy reading as a bug immediately after a deliberate Stop.
+
+**`astream` instead of `ainvoke`, and that choice is what makes it cooperative.** `ainvoke` is one
+await with no observable boundaries, so the only way to stop it is to cancel mid-node — which is
+what the deadline already does, and which is safe but arbitrary. `astream(stream_mode="values")`
+yields after each super-step, so a cancellation is observed **between checkpoints**: the last one
+is committed and the thread stops at a point LangGraph already treats as a resume point.
+**Verified equivalent before being relied on** — the whole chat-api suite, 251 tests including the
+`interrupt()` approval path, passes either way. That mattered because a behaviour change on the
+approval gate would be a rule-4 problem rather than a bug.
+
+**A table, not a NOTIFY.** The cancel is a separate request that may land on a different ECS task
+than the running turn, so an in-process flag is wrong. `ChatSessionEventRelay` was the tempting
+reuse and is deliberately fire-and-forget: a dropped live update costs one repaint, a dropped
+*cancellation* costs the entire feature. `chat_turn_cancellations` is keyed
+`(chat_session_id, client_turn_id)` — composite PK, so a double-tap on Stop is one row.
+
+**Turn-scoped because "Ask again" reuses the id.** A session-scoped "stop whatever is running"
+would kill the retry, which reads to the visitor as Stop having jammed the conversation.
+`client_turn_id` already existed on the wire (D-348) and is already echoed on every snapshot, so
+no contract change was needed — but D-348's comment claimed it is *"never parsed, compared or
+stored anywhere else"*, and that is now false, so it was corrected rather than quietly violated.
+`consume()` deletes the row as the turn acts on it, for the same retry reason.
+
+**The terminal state is a `reason`, not a new boolean.** `TurnReason.CANCELLED`, placed last and
+outside the enum's "worked → did not work" ordering because it describes neither the system nor
+the question. `reason` is already carried by all three of `MessageResponse`, `RespondResponse` and
+`SessionSnapshotEvent`, so it travels the broadcast path with nothing to keep in step — a
+`cancelled: bool` on `MessageResponse` alone would have been **nulled** on every snapshot instead
+of failing, which is exactly AUD-C-14/D-058's trap.
+
+**Immediate release falls out of returning early**: the lock is transaction-scoped and the session
+commits at dependency teardown, so ending the handler at a checkpoint boundary releases it. That
+the lock is exclusive and per-thread is already pinned by `test_turn_containment`.
+
+**Ownership is enforced, and the reason it needed thought.** `_reject_if_paused` bundles the access
+check with the paused-turn 409 deliberately — *"so a future caller cannot pick up the paused check
+and quietly leave the access check behind"*. This endpoint cannot reuse it, because a paused turn
+is a legitimate thing to cancel, so it calls `_assert_session_access` directly. Left un-gated,
+anyone holding a session id could stop a stranger's turn; the test has a positive control so a 403
+for everyone could not pass as security.
+
+**202, not 200**, with no body: a cancellation is a request, not an outcome. The turn may finish
+first, which is a race the client already tolerates.
+
+**Eight tests, and the falsifications are split.** Disabling the cooperative check fails 3 of the 7
+API tests — the three that depend on observation; the other four cover the endpoint, scoping,
+ownership and the 64-char bound and correctly pass either way. The browser test is separate because
+the *wiring* is the fragile part: the server has seven tests and none would notice `cancelTurn`
+forgetting to call the endpoint. Reverting the hook fails it with its own message.
+
+**Also found: the approval-modal P2 on the same list was already closed by D-381** (measured live
+at a 480px viewport, `top=-54 to bottom=534`), so the carry-over entry was stale — the second stale
+item found this way today, after `AUD-L-16`.

@@ -71,6 +71,11 @@ export function useChatSession(
   // allows only one action at a time - a map keyed by turn would be state with no second
   // case to justify it.
   const inFlightRef = useRef<AbortController | null>(null);
+  // D-402: which turn the handle above belongs to, so Stop can name it to the server. Kept
+  // beside the controller rather than derived from the transcript: the last transcript entry is
+  // not necessarily the in-flight one once a retry is involved, and cancelling the wrong turn is
+  // the failure this whole feature is scoped to avoid.
+  const inFlightTurnRef = useRef<{ sessionId: string; turnId: string } | null>(null);
   // A brand-new session has no LangGraph checkpoint until its first `/messages` call
   // completes, so opening the SSE stream any earlier 404s.
   //
@@ -232,6 +237,7 @@ export function useChatSession(
     ): Promise<TurnSnapshot> => {
       const controller = new AbortController();
       inFlightRef.current = controller;
+      inFlightTurnRef.current = { sessionId: sid, turnId };
       try {
         const response: TurnSnapshot = await api.postMessage(
           token,
@@ -274,10 +280,27 @@ export function useChatSession(
     [token],
   );
 
-  /** D-352: stop the turn the user is waiting on. Safe to call when nothing is in flight. */
+  /**
+   * D-352: stop the turn the user is waiting on. Safe to call when nothing is in flight.
+   *
+   * **D-402: it now tells the server as well, and that half is what the visitor feels.** The
+   * abort below only ends *this* tab's request - uvicorn does not cancel the handler when a
+   * client disconnects, so the graph kept running under its 50s deadline holding the session's
+   * advisory lock, and the next question was refused with "This conversation is already working
+   * on a question." for up to that long.
+   *
+   * The server call is fire-and-forget on purpose: the local stop has already taken effect, so
+   * awaiting it would delay the UI for no benefit, and a failure has to degrade to the old
+   * behaviour rather than report an error for something the visitor just watched succeed.
+   */
   const cancelTurn = useCallback(() => {
     inFlightRef.current?.abort();
-  }, []);
+    const inFlight = inFlightTurnRef.current;
+    if (inFlight) {
+      void api.cancelTurn(token, inFlight.sessionId, inFlight.turnId);
+      inFlightTurnRef.current = null;
+    }
+  }, [token]);
 
   const sendMessage = useCallback(
     async (query: string) => {

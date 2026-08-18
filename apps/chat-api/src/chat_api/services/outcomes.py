@@ -56,6 +56,13 @@ class TurnReason(StrEnum):
     #: The assistant needs something more from the caller before it can answer - a ZIP code,
     #: a branch name, which event.
     NEEDS_CLARIFICATION = "needs_clarification"
+    #: D-402: the caller withdrew the question - they pressed Stop and the turn observed it at
+    #: a checkpoint boundary. Deliberately last and outside the "worked -> did not work"
+    #: ordering above, because it describes neither the system nor the question: nothing failed
+    #: and nothing about the question was wrong. A `reason` rather than a parallel boolean
+    #: because this is already the field a client branches on, and because a field added to
+    #: `MessageResponse` alone would be *nulled* on every broadcast (D-058/AUD-C-14).
+    CANCELLED = "cancelled"
 
 
 # SPEC §5.19.4's supported-topic list, which the out-of-scope copy still states because

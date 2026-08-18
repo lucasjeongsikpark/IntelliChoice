@@ -53,6 +53,60 @@ test("a slow turn can be stopped, and stopping it is not reported as a failure",
   audit.note("cancelled turn: stated on the bubble, composer released, retry offered");
 });
 
+test("stopping a turn tells the server, naming the turn it stopped", async ({ page, audit }) => {
+  // **D-402, and the half D-352 could not do from the browser.** Aborting the fetch only ends
+  // this tab's request: uvicorn does not cancel a handler when the client disconnects (measured
+  // against real uvicorn - a handler whose client hung up reports `ran-to-completion`), so the
+  // graph ran on under its 50s deadline holding the session's advisory lock and the visitor's
+  // next question came back 409 "This conversation is already working on a question."
+  //
+  // Asserted here rather than left to the API tests because the *wiring* is what breaks: the
+  // server side has its own seven tests, and none of them would notice `cancelTurn` forgetting
+  // to call the endpoint.
+  audit.allow({ failedRequests: true, consoleErrors: ["Failed to load resource"] });
+
+  const askedTurnIds: string[] = [];
+  const cancelledPaths: string[] = [];
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (request.method() !== "POST") return;
+    if (path.endsWith("/messages")) {
+      const body = request.postData();
+      const id = body ? (JSON.parse(body).client_turn_id as string | null) : null;
+      if (id) askedTurnIds.push(id);
+    }
+    if (path.endsWith("/cancel")) cancelledPaths.push(path);
+  });
+
+  await stubChat(page, { message: SHAPES["grounded answer"] });
+  await stubHangingTurn(page);
+  await page.goto(CHAT_WEB);
+  await ask(page, "Something slow");
+
+  await expect(page.locator(".bubble.dim").filter({ hasText: "Thinking…" })).toBeVisible();
+  await page.getByRole("button", { name: /^stop$/i }).click();
+  await expect(page.getByText("You stopped this question.")).toBeVisible();
+
+  // Fire-and-forget, so it is not ordered against the UI update - poll rather than assume it
+  // has already gone out by the time the bubble changed.
+  await expect
+    .poll(() => cancelledPaths.length, {
+      timeout: 10_000,
+      message: "Stop never told the server, so the session lock stays held until the deadline",
+    })
+    .toBe(1);
+
+  audit.note(`cancel sent to: ${cancelledPaths[0]}`);
+  expect(askedTurnIds.length, "no turn id was sent with the question").toBe(1);
+  // **Turn-scoped, and this is the assertion that says so.** A session-scoped cancel would also
+  // stop the turn the visitor starts next - and "Ask again" reuses the id, so that would make
+  // Stop look like it had jammed the conversation.
+  expect(
+    cancelledPaths[0],
+    "the cancel did not name the turn that was actually in flight",
+  ).toMatch(new RegExp(`/turns/${askedTurnIds[0]}/cancel$`));
+});
+
 test("signing in from an access hint keeps the conversation", async ({ page, audit }) => {
   // D-353. `onLogin` was wired straight to `onLogout`, which calls `endSession()` - so a
   // guest who asked a parent-gated question and accepted the offer to sign in lost the

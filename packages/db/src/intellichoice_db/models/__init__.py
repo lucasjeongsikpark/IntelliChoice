@@ -6,6 +6,7 @@ from intellichoice_db.models.assessment import (
 )
 from intellichoice_db.models.base import Base
 from intellichoice_db.models.chat import ChatSuggestion
+from intellichoice_db.models.chat_turn_cancellation import ChatTurnCancellation
 from intellichoice_db.models.cost_reservation import CostReservation
 from intellichoice_db.models.curriculum import Skill, Topic
 from intellichoice_db.models.evaluation import EvaluationResult
@@ -42,6 +43,7 @@ __all__ = [
     "Base",
     "BlockedSession",
     "ChatSuggestion",
+    "ChatTurnCancellation",
     "CostReservation",
     "EvaluationResult",
     "HintEvent",
