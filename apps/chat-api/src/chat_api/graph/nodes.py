@@ -775,6 +775,20 @@ async def admin_escalation(state: QAState, runtime: Runtime[TurnContext]) -> dic
 
     decision = interrupt({"type": "email_approval"})
     approved = bool(decision.get("approved")) if isinstance(decision, dict) else False
+    # D-420 (B4): the visitor's own note, already redacted by `/respond` before it reached the
+    # resume payload. Applied to the body **at send time only** and deliberately not written back
+    # into `state.email_draft`: the draft is the server-composed frame, and keeping the note out of
+    # it means a replay of this node cannot end up quoting the note twice.
+    #
+    # It does persist, redacted, in `checkpoint_writes.__resume__` - unlike the location-consent
+    # payload, which `purge_resume_writes` removes. That asymmetry is deliberate rather than an
+    # oversight: AUD-C-03's purge exists for data SPEC §5.1.3 forbids storing *at all*, while
+    # redacted free text is already checkpointed here today - `state.standalone_query` is the same
+    # class of text under the same control.
+    note = decision.get("note") if isinstance(decision, dict) else None
+    body = admin_escalation_service.append_user_note(
+        draft.body, note if isinstance(note, str) else None
+    )
     caller_external_id = _caller_external_id(ctx)
 
     if approved:
@@ -785,7 +799,7 @@ async def admin_escalation(state: QAState, runtime: Runtime[TurnContext]) -> dic
                     EmailMessage(
                         recipient=ctx.admin_escalation_email,
                         subject=draft.subject,
-                        body=draft.body,
+                        body=body,
                     ).model_dump(),
                     caller_external_id=caller_external_id,
                     audit_repo=ctx.mcp_call_repo,

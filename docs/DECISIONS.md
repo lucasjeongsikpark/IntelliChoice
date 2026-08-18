@@ -28515,3 +28515,65 @@ Two rules worth keeping:
    — otherwise what executes is not what was reviewed.
 2. **A plan that surprises you is a reason to re-plan, not to look harder at the diff.** A refresh reads
    live infrastructure over the network; it can fail in the direction of "gone".
+## D-420 — B4 part 1: the escalation draft takes the visitor's note, and most of B4 already existed (accepted, 2026-08-18)
+
+**B4 asked for seven things and six of them were already shipped.** Read before implemented, per the
+habit that has changed the work on nearly every item this week:
+
+| the user's requirement | state before this session |
+|---|---|
+| refusal reasons structured enough to distinguish six cases | **`TurnReason` has nine**, including `SOURCES_CONFLICT`, which the requested list does not |
+| escalation offered only where a human could help | **already exact**: `escalation_recommended` is `True` at **one** of twelve call sites — no corpus answer **and** no role-gated match. `OUT_OF_SCOPE` and `ACCESS_REQUIRED` both get `False`, because the remedy there is nothing and signing in respectively |
+| offer an "Ask a human" action | D-164, labelled by D-412 |
+| generate an email draft automatically | `build_escalation_draft` |
+| minimum relevant context, original question verbatim | role, `Question: {query}` verbatim, `missing_information`, session id — and nothing else |
+| explicit Send before any external side effect | `interrupt()` + APPROVE & SEND (CLAUDE.md rule 4) |
+| routing + rate limiting | `admin_escalation_email`; `PostgresRateLimiter` with its own refusal copy |
+| **review *and edit* the draft** | **review only** — `EmailApprovalChoice` carried `approved: bool` and nothing else |
+| **duplicate protection** | **absent** |
+
+So B4 is two items, not seven. This decision is the first.
+
+### The edit shape, decided rather than assumed
+
+Offered three readings of *"let the user review/edit the draft"*; the user chose **the server keeps the
+frame and the visitor adds a note**. That choice is what makes requirement 3 a property instead of a
+convention: a fully editable body would let the first edit remove the very question the requirement
+says must be preserved. The note is attributed and quoted under `From the user:`, because an
+administrator decides how to reply from this email and visitor-authored text must not read in the
+system's voice — D-221's reasoning about the opening line, applied to a second author.
+
+**Redacted at the request boundary, not in the node**, which is where `/messages` already redacts the
+typed question (AUD-C-24, whose comment even anticipated this: *"escalation forwards the redacted text
+too"*). Doing it in the node would let the raw string through the resume payload and therefore past
+LangGraph's checkpointer.
+
+**It does persist, redacted, in `checkpoint_writes.__resume__`, and that asymmetry with location
+consent is deliberate.** `purge_resume_writes` exists for data SPEC §5.1.3 forbids storing *at all*;
+redacted free text is already checkpointed here — `standalone_query` is the same class under the same
+control. Stated in the node rather than left for the next reader to re-derive.
+
+**Bounded at 1000 characters as a 422, not a truncation** — `Path(max_length=64)`'s reasoning on the
+cancel endpoint (D-402). A silent truncation sends half a sentence to an administrator over the
+visitor's name, and the visitor never learns it happened. The cap sits well inside `_MAX_BODY_LENGTH`
+so a note can never push the server-composed frame out of its own email. **Applied at send time only**,
+never written back into `state.email_draft`, so a replay cannot quote the note twice (D-021's shape).
+
+### Falsification, and the same mistake twice in one day
+
+Five guards, each failing the test written for it: the node ignoring the note, a blank note still
+emitting its heading, the note unquoted, the router not redacting, and the note written back into
+checkpointed state.
+
+**The fifth needed two attempts, and the first attempt was the worthless thing rather than the test.**
+It rebound a local variable instead of adding `email_draft` to the returned dict, so it never
+reproduced the defect and reported "nothing failed" for a real guard. That is precisely D-416's lesson,
+**now with a second instance on the same day**: a falsification that produces a comfortable result
+deserves the same suspicion as a test that passes first time, and the check is to ask what the patched
+code actually *does* rather than whether the patch applied.
+
+### Still to do for B4
+
+**Duplicate protection** (its own PR — it needs a table and a migration, and D-416's rule that the
+sweep must be global from the start applies) and **the modal textarea** in chat-web, staged the way
+D-402's endpoint and D-404's keepalive were: server first, client second.

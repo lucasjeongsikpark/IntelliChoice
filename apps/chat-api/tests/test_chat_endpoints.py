@@ -20,6 +20,7 @@ import pytest
 from chat_api.main import app
 from chat_api.routers.sessions import SessionSnapshotEvent
 from chat_api.routers.stream import _initial_snapshot
+from chat_api.services.admin_escalation import MAX_NOTE_CHARS
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from intellichoice_adapters.fake_auth import FakeTokenIssuer, JwtTokenVerifier
@@ -669,3 +670,77 @@ def test_a_paused_turn_does_not_return_the_previous_turns_answer() -> None:
     assert paused["escalation_recommended"] is False
     assert paused["access_hint"] is None
     assert paused["ics_content"] is None
+
+
+def test_an_over_long_note_is_refused_rather_than_truncated() -> None:
+    """D-420 (B4): the note's bound is a 422, for `Path(max_length=64)`'s reason on the cancel
+    endpoint (D-402) - a silent truncation would send half a sentence to an administrator over the
+    visitor's name, and the visitor would have no way to know.
+
+    Validation runs before the interrupt lookup, so this needs no pending interrupt: the point is
+    the schema, and reaching it does not depend on session state.
+    """
+    with TestClient(app) as client:
+        session_id = client.post("/chat/sessions").json()["chat_session_id"]
+        response = client.post(
+            f"/chat/sessions/{session_id}/respond",
+            json={
+                "interrupt_type": "email_approval",
+                "approved": True,
+                "note": "x" * (MAX_NOTE_CHARS + 1),
+            },
+        )
+
+    assert response.status_code == 422
+    # The control: one character shorter is a valid body, so the 422 above is the bound and not
+    # the endpoint refusing every note.
+    with TestClient(app) as client:
+        session_id = client.post("/chat/sessions").json()["chat_session_id"]
+        allowed = client.post(
+            f"/chat/sessions/{session_id}/respond",
+            json={
+                "interrupt_type": "email_approval",
+                "approved": True,
+                "note": "x" * MAX_NOTE_CHARS,
+            },
+        )
+    assert allowed.status_code != 422
+
+
+def test_a_note_is_redacted_before_it_reaches_the_email() -> None:
+    """The wiring assertion, and the one that would catch `/respond` forgetting to redact.
+
+    `redact_free_text` has its own tests; what those cannot see is whether this endpoint applies
+    it. The note is visitor-authored free text on its way *out* of the system by email, so the
+    boundary rule that covers the typed question (AUD-C-24, `/messages` line) has to cover this
+    too - and the redaction must happen here rather than in the node, or the raw string reaches
+    the resume payload and therefore LangGraph's checkpointer.
+    """
+    with TestClient(app) as client:
+        session_id = client.post("/chat/sessions").json()["chat_session_id"]
+        preview = client.post(
+            f"/chat/sessions/{session_id}/messages",
+            json={"query": "Who do I talk to about a billing issue?", "escalate": True},
+        ).json()
+        assert preview["pending_interrupt"]["interrupt_type"] == "email_approval", (
+            "this journey no longer reaches the email approval, so the assertion below is vacuous"
+        )
+
+        client.post(
+            f"/chat/sessions/{session_id}/respond",
+            json={
+                "interrupt_type": "email_approval",
+                "approved": True,
+                "note": "reach me at parent@example.com or 555-123-4567",
+            },
+        )
+
+        sent = client.app.state.email_transport.sent  # type: ignore[attr-defined]
+        assert sent, "no email was sent, so nothing was asserted about its body"
+        body = sent[-1].body
+
+    assert "From the user:" in body, "the note never reached the email"
+    assert "parent@example.com" not in body, (
+        "an email address in the note reached an outbound email"
+    )
+    assert "555-123-4567" not in body, "a phone number in the note reached an outbound email"

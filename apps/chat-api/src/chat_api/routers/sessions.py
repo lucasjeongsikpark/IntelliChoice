@@ -58,6 +58,7 @@ from chat_api.dependencies import (
 from chat_api.graph.build import AskInput, QAGraph
 from chat_api.graph.nodes import TurnContext
 from chat_api.services import suggestions
+from chat_api.services.admin_escalation import MAX_NOTE_CHARS
 from chat_api.services.checkpoint_privacy import purge_resume_writes
 from chat_api.services.outcomes import TurnReason
 from chat_api.services.session_events import ChatSessionEventBus
@@ -179,6 +180,16 @@ class MessageResponse(BaseModel):
 class EmailApprovalChoice(BaseModel):
     interrupt_type: Literal["email_approval"] = "email_approval"
     approved: bool
+    #: D-420 (B4): the visitor's own addition to the draft, and the **only** part of the email
+    #: they author. The server keeps composing the opening line, the question verbatim,
+    #: `missing_information` and the session id, so "the original question is preserved" stays a
+    #: property of the code rather than a convention an edit could remove.
+    #:
+    #: Bounded here rather than truncated later, for `Path(max_length=64)`'s reason on
+    #: `/turns/{id}/cancel` (D-402): a 422 tells the caller their input was refused, while a
+    #: silent truncation sends a half-sentence to an administrator over the visitor's name.
+    #: Redacted in the handler below, before it reaches the graph.
+    note: str | None = Field(default=None, max_length=MAX_NOTE_CHARS)
 
 
 class CalendarActionChoice(BaseModel):
@@ -827,7 +838,15 @@ async def respond_to_interrupt(
         )
 
     if isinstance(body, EmailApprovalChoice):
-        resume_value: object = {"approved": body.approved}
+        # D-420: redacted **here**, at the request boundary, exactly where `/messages` redacts
+        # the typed question (AUD-C-24, and that comment already noted "escalation forwards the
+        # redacted text too"). Doing it in the node instead would let the raw string through the
+        # resume payload and therefore past LangGraph's checkpointer - the residual
+        # `branch_locator_consent` documents and this must not widen.
+        resume_value: object = {
+            "approved": body.approved,
+            "note": redact_free_text(body.note) if body.note else None,
+        }
     elif isinstance(body, CalendarActionChoice):
         resume_value = {"choice": body.choice}
     else:
