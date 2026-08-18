@@ -21,6 +21,7 @@ import { ResultsScreen } from "./screens/ResultsScreen";
 import { StageTransitionScreen } from "./screens/StageTransitionScreen";
 import { StudentDashboardScreen } from "./screens/StudentDashboardScreen";
 import { JourneyBar } from "./components/JourneyBar";
+import { ConnectingPanel } from "./components/ConnectingPanel";
 
 // The phases the journey bar describes. Anything else (login, topic select, blocked,
 // error) has no journey to show and gets `null` in the slot - a permanent slot either way,
@@ -608,10 +609,18 @@ function App() {
           </div>
         );
       }
+      // D-415: the same wait, with a way out once it has gone on longer than any healthy connect
+      // has been measured to take. It was already bounded - the liveness timer turns a silent
+      // stream into the `error` branch above within 40s - but for those 40s this was one sentence
+      // and no control of any kind. The delay is inside the component on purpose: mounting is the
+      // condition, so the deadline cannot run while a different screen is showing.
       return (
-        <div className="panel">
-          <p>Connecting…</p>
-        </div>
+        <ConnectingPanel
+          onBackToStart={() => {
+            session.endSession();
+            resetSessionUiState();
+          }}
+        />
       );
     }
 

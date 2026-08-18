@@ -7,8 +7,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**✅ MILESTONE 14 IS CLOSED — the last audit item that was code rather than a judgement
-(2026-08-18, D-413 — ROADMAP Milestone 14, W19).**
+**✅ MILESTONE 14 IS CLOSED — three sessions: the last audit item that was code, the last blocked
+assertion, and W19's defect checked against the sibling app (2026-08-18, D-413 → D-415 — ROADMAP
+Milestone 14, W19–W21).**
 
 **The habit held for a seventh and eighth time: reading the subject found two defects the note does
 not mention, and one of them mattered more than the item.** `AUD-CHAT-07` asked for a deadline on the
@@ -40,11 +41,16 @@ comfortable result deserves the same suspicion as a test that passes first time.
    from.**
 3. **OPEN_DECISIONS #6** — still blocked on the YouTube key, which only you can supply.
 4. **OPEN_DECISIONS #8** — unchanged; D-310 stands until staging stops being synthetic.
-5. **learning-web's banner condition is untested, and the cheap version is a trap** (W20 carry-over).
-   It has the same banner *plus* a takeover screen for `error`-with-no-snapshot, both inside
-   `App.tsx`'s render logic — so testing it means mocking `useLearningSession`. Extracting the JSX into
-   a component would move the markup and leave the condition untested: coverage-shaped, worth nothing.
-   Price the real work or leave it, but do not do the cosmetic one.
+5. **learning-web's banner condition is untested, and the cheap version is a trap** (W20 carry-over,
+   **still open after W21**). It has the same banner *plus* a takeover screen for
+   `error`-with-no-snapshot, both inside `App.tsx`'s render logic — so testing it means mocking
+   `useLearningSession`. Extracting the JSX into a component would move the markup and leave the
+   condition untested: coverage-shaped, worth nothing.
+   **W21 found the one extraction that does work, and it does not apply here.** `ConnectingPanel` is
+   testable because its condition *is* its own lifetime — it exists exactly while the wait is real, so
+   mounting is the predicate. The banner's condition is **data** (`streamState === "error"`), not
+   lifetime, so extracting it leaves the branch in `App.tsx` either way. Price the real work (mock the
+   hook) or leave it, but do not do the cosmetic one.
 
 **⚠️ Before any `terraform apply`:** the tfvars image floor is bumped **locally only** and that file
 is gitignored. On a fresh checkout it must be redone, or the apply rolls staging back past
@@ -11236,10 +11242,31 @@ asserted in the direction D-343's defect was in — the browser suite had only t
 guards falsified, taking the day to **fifteen**. **All four assertions OPEN_DECISIONS #14 was argued
 from are now closed.**
 
+**W21 (D-415) then checked W19's defect against the sibling app before starting anything new**, which
+is the D-347 habit applied on purpose rather than after the fact. **It is absent, structurally:**
+`useTutorChat` is memory-only so there is no transcript to replay, the snapshot is server-authoritative,
+and the one wait that exists is bounded by the request's own 55s timeout *and* by W12b's 40s liveness
+timer — armed on a reload because `checkpointReady` initialises to `sessionId !== null`, i.e. in exactly
+the case that would otherwise hang. **W12b's timer was built for a silent partition and turns out to be
+what bounds this.**
+
+**The check found a different defect in its place:** for up to those 40 seconds the `Connecting…` panel
+had one sentence and **no control of any kind** — `AUD-L-07`'s shape reached by waiting rather than by
+failing. An exit now appears after 8s (derived from the 2.7s worst healthy connect measured on staging,
+and asserted to sit well inside `STALE_AFTER_MS`, or it would be code no student could reach).
+
+**A hook was built for the timing and then deleted, and that is the reusable part.** `useOverdue` had
+six passing tests; wiring it showed `App` cannot know when the wait is real without duplicating
+`renderContent`'s branch order, and a boolean a level up keeps counting behind *other* screens — so a
+student arriving later would find the escape hatch already revealed. Putting the timer in the panel
+makes **mounting the condition**, which cannot disagree with itself. Its own tests had asserted exactly
+the bug its placement caused: *a passing suite around the wrong seam.*
+
 **Carry-over:** `AUD-CHAT-14` (a product call, recommend accepting); **learning-web's banner condition,
-where the cheap version is a trap** — the same banner plus a takeover screen, both inside `App.tsx`, so
-the real work is mocking `useLearningSession` and extracting the JSX would produce coverage-shaped
-nothing; OPEN_DECISIONS #6 and #8. Nothing on any audit list needs code without a decision.
+where the cheap version is a trap** — and W21 sharpened why: `ConnectingPanel` was extractable because
+its condition is its own lifetime, while the banner's condition is *data*, so extracting it leaves the
+branch in `App.tsx` regardless; OPEN_DECISIONS #6 and #8. Nothing on any audit list needs code without
+a decision.
 
 ### Milestone 13 in full: the failure path, then the audit's tail (2026-08-17/18, D-393 → D-412)
 
