@@ -27386,3 +27386,74 @@ been overturned by the cheapest possible measurement — D-384's pin-and-bump, n
 written from reasoning about how a thing *should* behave, and both took under ten minutes to
 falsify. The habit worth keeping is not scepticism about browsers; it is that a recommendation is a
 hypothesis until the run happens, including when the recommendation is the one being implemented.
+
+## D-398 — W6: the tutor-chat browser leg, and a deferral whose cost estimate was off by two orders of magnitude (accepted, 2026-08-17)
+
+D-387 recorded this as *"deliberately not done… its redaction is already asserted against the
+persisted row, and the browser leg would cost a full pre-exam walk to reach the study phase where
+the composer exists."* Both halves are worth re-reading, because one was wrong and the other stopped
+being the whole story.
+
+**The cost.** The walk is real — sign in, start, topic, clear ten pre-exam items, finalize, answer a
+study question wrong, open the intervention, switch to the tutor tab. Measured against the last full
+suite run, `assistance-panel-probe` does the same walk in **4.6 s**, and the two tests here run in
+**3.4 s and 3.2 s**. The 300 s timeouts on those specs are safety margin, not duration, and reading
+them as duration is how a five-second test got deferred as expensive. **That is the fourth
+carry-over in recent sessions to shrink when measured**, and the second cost estimate of mine to be
+wrong in two days.
+
+**The reason it stopped being optional.** "Redaction is already asserted against the persisted row"
+is true and does not cover the failure this watches: a carrier that never reaches the server. D-389
+then *fixed* learning-web's crash-report sink, which until that day 404'd against the vite origin —
+so "a crash report fired by a render error while the text is in state", the exact carrier the
+chat-side sibling exists to catch, became a live path in learning-web rather than a theoretical one.
+
+**Built:** `pii-typed-into-tutor-chat.spec.ts` — the typed email and phone leave the page exactly
+once, in `POST /learning/sessions/{id}/chat`; nothing reaches the console; and the student still
+reads their own words rather than the server's redacted copy.
+
+**All three assertions falsified separately**, because a combined injection only proves the first
+assertion that fires. An injected `?q=` + `encodeURIComponent` beacon is caught (via the
+percent-decode the chat sibling needed); an injected `console.log` of the composer value is caught
+on its own; and echoing a redacted copy into the transcript fails the second test.
+
+**Two runs were spent on the locator, and the second was my own reading error.** The composer is two
+interactions deep: the intervention panel opens on the help view, and the chat is behind a mode
+switch. The first failure snapshot said `tab "Ask your tutor"` — and the fix I wrote from it queried
+`getByRole("button")`. Quoted here because "the snapshot told me and I typed something else" is a
+more common failure than not having the snapshot.
+
+## D-399 — W7: D-352 is finally held, by watching the calls instead of the browser (accepted, 2026-08-17)
+
+**Third attempt on the same fix, and the first that discriminates it.** D-352 fixed two
+browser-fragility bugs in `downloadIcs` — a never-appended anchor, and a synchronous
+`revokeObjectURL` after `click()`. V11 (D-392) asserted a real download and could not hold it. W5
+(D-397) added WebKit on the recommendation that WebKit is strict about exactly these, and **that
+failed too**.
+
+**Why all of that failed, and why this does not.** Those tests asserted a *browser's reaction* to
+broken code, and a browser is free to be forgiving — Playwright may also drive downloads through the
+automation protocol rather than the ordinary download path, which would hide this class from every
+engine it can drive. `ics-download-dom-contract.spec.ts` asserts the **code's contract with the
+DOM**: `HTMLAnchorElement.prototype.click` and `URL.revokeObjectURL` are patched via
+`addInitScript`, and the test reads whether the anchor was in `document.body` at click time and
+whether the revoke waited for a later task. *No engine can be lenient about a call that was never
+made.*
+
+**The tick test is the subtle half, and comparing timestamps would not have worked.** The broken
+form also revokes "later" — by microseconds, in the same task. So the probe schedules a
+`setTimeout(…, 0)` *during* the click and records whether it had fired when revoke ran: false for
+the same-task call, true for D-352's own deferred one.
+
+**Both halves falsified independently**, since the appendChild assertion fires first and would
+otherwise mask the revoke one. Reverting only the deferred revoke fails only the revoke assertion.
+
+**The user chose "the unit test" and this is not one, deliberately.** Neither frontend has any
+unit-test setup — no vitest, no jsdom, no testing-library — so the jsdom route means adding a test
+framework plus CI wiring to a solo-maintained project, and exporting `downloadIcs` out of
+`ChatScreen.tsx` solely to be imported. This gets the same property against the real component for
+one spec file and no new dependency. **The intent was "test the calls, not the browser's tolerance";
+that is what shipped.** A frontend unit-test framework is still worth having, and is now recorded as
+its own item rather than smuggled in behind a one-line contract test.
+
+**OPEN_DECISIONS #13 is closed by this**, having survived two remedies that did not close it.

@@ -92,11 +92,15 @@ export default defineConfig({
     // through the automation protocol rather than the browser's ordinary download path, so the
     // strictness that would bite in real Safari may not be reachable from any Playwright engine.
     //
-    // **So `downloadIcs` is still held by no browser in this suite**, and the class of defect
-    // where a browser is lenient is still structurally invisible - see OPEN_DECISIONS #13 for
-    // what is left open. What this project does buy is real and smaller than advertised: the
-    // download and dialog specs now run on the engine every iPhone and iPad uses, which for a
-    // product whose parents read reports on phones is worth the seconds it costs.
+    // **`downloadIcs` is held now, but not by this project** (D-399): `ics-download-dom-contract`
+    // patches `click` and `revokeObjectURL` and asserts what the code did rather than how a
+    // browser reacted, which is the only thing that discriminated the fix after two attempts that
+    // did not. The class where a browser is *lenient* remains structurally invisible to any
+    // reaction-based assertion here, on either engine.
+    //
+    // What this project does buy is real and smaller than advertised: the download and dialog
+    // specs run on the engine every iPhone and iPad uses, which for a product whose parents read
+    // reports on phones is worth the seconds it costs.
     //
     // Scoped by grep rather than run wholesale, for the same reason as `mobile` above. `@browser`
     // specs keep running on chromium too - this project *adds* an engine, it does not move
