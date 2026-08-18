@@ -28122,3 +28122,66 @@ dot with no `idle` state, and a banner without `role="alert"`.
 **No product code changed** — six assertions on existing behaviour — so pytest and Playwright are
 unaffected by construction; both were green on this commit's parent (`d4fa9fc`) an hour earlier.
 chat-web is at **42** unit tests, from 6 at the start of the day.
+
+## D-415 — W21: W19 checked against the sibling app, and the wait that had no exit for 40 seconds (accepted, 2026-08-18)
+
+**The check first, because a fix landing in one frontend and not the other is this project's most
+repeated defect shape (D-347).** Does W19's defect — a wait whose only exit is a message that may
+never arrive — exist in learning-web? **No, and structurally rather than by luck:**
+
+- **There is no client-persisted pending state to replay.** `useTutorChat` holds its messages in
+  `useState` alone, so a reload clears the tutor chat outright, and the session snapshot is
+  server-authoritative — it re-arrives over the stream. chat-web's replayed transcript, which is what
+  made `AUD-CHAT-07` possible, has no counterpart here.
+- **The one wait that exists is bounded twice.** `!snapshot` renders a `Connecting…` panel whose exits
+  are a snapshot arriving, the request's own `AbortSignal.timeout` (55s), or the **40s liveness timer**
+  flipping `streamState` to `error`, which replaces the panel with D-216's "We lost the connection"
+  takeover. The load-bearing detail is that `checkpointReady` initialises to `sessionId !== null`, so
+  **on a reload the stream — and therefore the timer — is armed immediately**, which is exactly the
+  case that would otherwise hang. W12b's timer was built for `EDGE-CHAT-02`'s silent partition and is
+  what makes this bounded; that was not its design goal.
+
+**What the check found instead: for up to 40 seconds that panel had one sentence and no control of
+any kind.** `AUD-L-07`'s shape ("a screen with zero controls") reached by waiting rather than by
+failing. The user chose to reveal an exit on a deadline over leaving it or adding a status line only.
+
+**The delay is the whole design, and the reason is that the panel is also the healthy path.** It
+renders during an entirely normal connect — milliseconds locally, up to **2.7 s** measured on staging
+(D-317). A "Back to start" button present from the first frame invites a student to discard a session
+that was loading correctly, and `endSession()` does not undo. `CONNECT_EXIT_AFTER_MS = 8000` is
+derived: comfortably above that 2.7 s (D-317 set its own gate to 5 s against the same number; this is
+deliberately more conservative because firing early costs a *session* rather than a delayed render),
+and far below `STALE_AFTER_MS` so it is genuinely earlier than the takeover it would otherwise
+duplicate. **That relationship is asserted rather than commented** — past 40 s the escape hatch would
+be code no student could ever see.
+
+**A hook was built for this and then deleted, which is the reusable part.** `useOverdue(active,
+afterMs)` was written first, with six passing tests, and wiring it revealed that `App` cannot compute
+`active` without duplicating `renderContent`'s branch order — and a boolean computed a level up keeps
+counting while a *different* screen is showing, so a student who navigated in later would find the
+escape hatch already revealed, having served its delay somewhere they never saw. **Putting the timer
+in the panel makes mounting the condition**, which cannot disagree with itself. It also removed an
+abstraction with one caller, which CLAUDE.md asks for anyway. The hook's own tests had asserted
+precisely the bug its placement caused (*"a wait interrupted before the delay starts over rather than
+resuming"*) — a passing test suite around the wrong seam.
+
+**learning-web's first component test**, and it exercises the `setupFiles` D-413 mirrored into this app
+before anything here needed it: without RTL's `cleanup`, the second `render` in the file would leave
+the first one's markup in `document.body` and the "not before the deadline" assertions would match the
+previous test's DOM.
+
+**Falsification:** five guards — the exit present from the first frame (2 tests), the deadline moved
+past the stream's own, the timer not cleared on unmount, the explanation sentence dropped, and a
+decorative button.
+
+**Verification:** learning-web **26** unit tests (from 21), build clean, `oxlint` exit 0 · chat-web
+**42**, unchanged · Playwright re-run because this is product code, not a test-only change:
+**127 passed / 2 skipped** in 6.3m, identical to the baseline. Four learning specs assert
+`expectNotStuck(page, "Connecting…")` and all four still pass — the panel keeps its sentence, and in a
+healthy local run the 8s deadline is never reached.
+
+**A verification mistake worth recording, because it is the second of its kind today.** The wait-loop
+watching for the suite's result matched `failed (404ms)` inside a *test name* — an unanchored
+alternative in the grep — and reported the run finished when it was 14 tests in. The same anchor error
+cost a false "suite finished" reading earlier in this milestone. **A pattern that watches for
+completion has to be anchored to the summary's shape, not to a word that appears in the output.**

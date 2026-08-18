@@ -3101,7 +3101,7 @@ than the symptom.
 
 ## Milestone 14 — The last stuck state, and the exit that was already there *(D-413, 2026-08-18)*
 
-> ### ✅ CLOSED 2026-08-18 — two sessions, every clause checked against what was measured
+> ### ✅ CLOSED 2026-08-18 — three sessions, every clause checked against what was measured
 >
 > **Verification:** `ruff` **All checks passed** · `pyright` **0 errors** · pytest **1726 passed / 2
 > skipped / 1 xfailed** (unchanged — no Python touched) · Playwright **127 passed / 2 skipped** in
@@ -3115,6 +3115,11 @@ than the symptom.
 > **W20 spends the tooling W19 installed**, on the assertion that justified asking for it: the
 > disconnect banner's render condition, which a browser measured flaky and deleted. The milestone
 > therefore both fixes the last stuck state and pays off the last of OPEN_DECISIONS #14's four debts.
+>
+> **W21 then checked W19's defect class against the sibling app before doing anything else** — the
+> D-347 habit applied deliberately rather than after the fact. It was absent, for reasons worth
+> writing down, and the check surfaced a different defect in its place: a 40-second wait with no
+> control on screen.
 
 Milestone 13 closed the 08-16 audit's P2 list and left exactly one item that was code rather than a
 judgement: `AUD-CHAT-07`'s missing deadline, with its design already named by D-412. This milestone
@@ -3168,6 +3173,29 @@ and leave the condition untested — coverage-shaped and worth nothing.
 `error` · Reconnect is proven wired rather than decorative · exactly one `role="alert"` on a healthy
 stream with a failed turn · the dot reads idle before any turn exists · **five guards falsified
 separately**, and no product code changed.
+
+### Session W21 — W19 checked against the sibling app, and the wait with no exit ✅ *(done 2026-08-18, D-415)*
+
+**Outcome:** the check came first, because a fix landing in one frontend and not the other is D-347.
+W19's defect class **does not exist** in learning-web and the reason is structural: there is no
+client-persisted pending state to replay (`useTutorChat` is memory-only, the snapshot is
+server-authoritative), and the one wait that does exist is bounded twice — by the request's own 55s
+timeout and by W12b's 40s liveness timer, which turns a silent stream into D-216's takeover screen.
+`checkpointReady` initialising to `sessionId !== null` is what arms that timer on a reload, i.e. in
+exactly the case that would otherwise hang.
+
+What the check found instead: for up to those 40 seconds the `Connecting…` panel had one sentence and
+**no control of any kind** — `AUD-L-07`'s shape reached by waiting rather than by failing. An exit now
+appears after 8s, a number derived from the 2.7s worst healthy connect measured on staging and
+asserted to sit well inside `STALE_AFTER_MS`. **A hook was built for the timing and then deleted**: it
+could not know when the wait was real without duplicating `renderContent`'s branch order, and a
+boolean a level up keeps counting behind other screens. Mounting the panel is the condition.
+
+**Done when:** nothing is offered during a healthy connect, asserted a millisecond before the deadline
+as well as at zero · the exit is explained before it is offered · the deadline is proven to land inside
+the stream's own or it would be unreachable code · no timer survives the wait ending · learning-web's
+**first component test** runs on the `setupFiles` D-413 mirrored there in advance · **five guards
+falsified separately** · the browser suite re-run, because unlike W20 this is product code.
 
 ## The audit's never-walked list is now closed
 
