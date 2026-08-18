@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint fmt typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-gen-preflight question-review question-review-rejected question-export knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs scheduler-evidence tfvars-floor-check
+.PHONY: up down dev dev-observability test lint fmt typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-gen-preflight question-review question-review-rejected question-export knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs scheduler-evidence image-check
 
 up:
 	docker compose up -d
@@ -282,9 +282,16 @@ scaling-evidence:
 # times - see scripts/check_tfvars_floor.py's docstring). Run before EVERY
 # `terraform apply` in terraform/environments/staging; exits non-zero on any
 # floor/running/latest disagreement.
-tfvars-floor-check:
+# D-417 A3: renamed from `tfvars-floor-check`, because the tfvars floor is no longer the
+# subject. D-244 made Terraform adopt the *deployed* container definition, so the pin has no
+# consumer while `adopt_deployed_image` is true (its default) - measured 2026-08-18: with the pin
+# two deploys stale, `terraform plan` moved the image **forward** to what was running. What this
+# still catches is real and unguarded elsewhere: a service and its family's latest revision
+# disagreeing, which is what anything resolving a family by name would run - `deploy-staging.yml`
+# and the un-pinned EventBridge ops-task schedules both do (D-137).
+image-check:
 	eval "$$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
-	  uv run python -u scripts/check_tfvars_floor.py
+	  uv run python -u scripts/check_deployed_image_consistency.py
 
 # Criterion 7 / AUD-F-31's before-after instrument. D-129 §5's hand-rolled profile of the
 # same span first reported 102 statements and 131% of wall time in SQL, because X-Ray records

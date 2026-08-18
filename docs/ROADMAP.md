@@ -2937,7 +2937,10 @@ bug. **Not applied.**
 **Done when:** every alarm notifies exactly one channel and an unrouted one fails · the quiet
 channel's membership is a closed list · four page-worthy alarms are named individually as a
 non-vacuity control · `terraform fmt` and `validate` clean · `make tfvars-floor-check` OK — which it
-was not, and the sixth stale floor would have rolled staging back past Milestone 13.
+was not, and the sixth stale floor would have rolled staging back past Milestone 13. *(Corrected
+2026-08-18, D-418: it would not have. D-244 makes Terraform adopt the deployed image, so the stale
+pin had no consumer — the check was failing on a value nothing reads, and that false alarm is what
+kept this session's own apply from happening. The target is now `make image-check`.)*
 
 ### Session W10 — Stop stops the server, turn by turn ✅ *(done 2026-08-18, D-402)*
 

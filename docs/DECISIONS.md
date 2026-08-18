@@ -28404,3 +28404,58 @@ machine-specific paths, nothing to separate out.**
 #5, #8, and carry-overs 14, 16 and 19 keep their recorded status and triggers. #8's trigger is worth
 restating because it is easy to trip over: it re-opens **the day staging stops being synthetic**, not
 on a schedule.
+## D-418 — A3: the image floor already derived itself, and the check was failing on a value nothing reads (accepted, 2026-08-18)
+
+**The decision was to build something that already existed, and finding that out is the whole entry.**
+D-417/A3 asked for the image floor to be *"derived automatically at apply time from the image currently
+running in ECS"*, with D-401 and D-406 gated behind it. **D-244 built exactly that**, and the gate was
+therefore holding two applies behind a problem that had been solved a month earlier.
+
+### What is actually true, measured rather than reasoned about
+
+`main.tf` reads `data "aws_ecs_task_definition" "deployed"` → `data
+"aws_ecs_container_definition" "deployed"` → `local.learning_api_image`, with the tfvars tag reached
+only by a `try()` fallback. `adopt_deployed_image` defaults to **`true`**, so a fresh checkout with no
+`terraform.tfvars` at all adopts the deployed image rather than rendering a pin.
+
+**The plan proves the direction.** With the pin two deploys stale at `gha-df79b290bf65`:
+
+```
+~ image = ".../learning-api:gha-37f7dac51580" -> ".../learning-api:gha-44a12dfc9549"
+~ image = ".../chat-api:gha-37f7dac51580"     -> ".../chat-api:gha-44a12dfc9549"
+~ image = ".../learning-api:gha-37f7dac51580" -> ".../learning-api:gha-44a12dfc9549"   # ops-task
+```
+
+Terraform moves every task definition **forward, to what is running** — the exact opposite of the
+rollback this project's docs (mine, repeatedly, all of 2026-08-18) warned about.
+
+### So the defect was in the check, not the mechanism
+
+`make tfvars-floor-check` compared the tfvars tags against reality and exited 1 on any disagreement.
+Live table today: running and latest agree at `gha-44a12dfc9549` for **all three families** (ops-task
+at revision 143, so the un-pinned EventBridge schedules run current code); the **only** disagreeing
+value was the pin. **A check that fails on an input nothing reads is worse than no check — it teaches
+its operator to bypass it**, and this one had me bump a gitignored file by hand and then warn the user
+about a hazard that could not occur.
+
+**Two of its three original shapes are real and stay**, and nothing else in the repo guards them: a
+service's running image, and each family's **latest** revision — including `ops-task`, because
+`deploy-staging.yml` resolves families by name and the schedules run that family un-pinned, so a stale
+latest revision is what the next `memory-consolidate` firing would execute (D-137's incident).
+
+**Changed:** renamed to `scripts/check_deployed_image_consistency.py` / `make image-check`, because
+the tfvars floor is no longer the subject; the pins are **reported and never judged**, annotated
+`(stale, and harmless)`; an absent `terraform.tfvars` is now fine rather than a failure — a gitignored
+file was the wrong place for an instruction, which is what this script was written to fix, so it must
+not now *demand* one; and the failure message names the genuine risk (a family resolved by name
+running the wrong code) instead of the impossible one. Live verdict after the change: **OK**.
+
+**D-401 and D-406 are unblocked.** Both remain unapplied — applying them is a deploy-shaped action.
+
+### The pattern, and this is its worst instance
+
+Reading the subject before implementing the note has changed the work on nearly every item this week.
+Here the note was **my own, repeated across a full day and written into three documents**, and it
+created a phantom blocker for a decision the user then made *because of* it. The tell was available the
+whole time: `variables.tf` says `default = true` beside a docstring explaining precisely why the pin is
+only a bootstrap fallback. **A warning repeated often enough starts being cited instead of checked.**
