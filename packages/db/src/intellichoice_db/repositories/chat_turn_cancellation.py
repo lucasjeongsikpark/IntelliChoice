@@ -31,17 +31,40 @@ class ChatTurnCancellationRepository:
         self._session_factory = session_factory
 
     async def request(self, *, chat_session_id: str, client_turn_id: str) -> None:
-        """Record that this turn should stop, and sweep this session's stale rows.
+        """Record that this turn should stop, and sweep **every** stale row while here.
 
         Idempotent: a visitor pressing Stop twice writes one row. `ON CONFLICT DO NOTHING`
         rather than an upsert, because the first request's `requested_at` is the one that
         matters for pruning - refreshing it on every repeat would let a client hold a row alive
         indefinitely.
 
-        The sweep is here rather than in a scheduled job because it is bounded work on an index
-        this query already touches, and because the alternative is a new nightly job to delete
-        rows that are only ever a few bytes. A cancellation that raced its own turn's completion
-        has nobody to observe and delete it, so without this the table would only grow.
+        The sweep is here rather than in a scheduled job because the alternative is a new nightly
+        job to delete rows that are only ever a few bytes. A cancellation that raced its own
+        turn's completion has nobody to observe and delete it, so without this the table would
+        only grow.
+
+        **The sweep is global, and D-416 made it so after a live probe.** It used to be scoped to
+        `chat_session_id`, which reaped a session's own leftovers and nothing else. `POST
+        /chat/sessions` persists nothing - it returns a bare uuid4 (D-345: *"a session id costs
+        nothing until a message spends against it"*) - so this endpoint cannot tell a real session
+        from an invented id, and it must not try: a visitor pressing Stop on their **first** turn
+        is cancelling a session that has no checkpoint yet, so refusing to write without one would
+        silently restore the defect D-402 exists to fix.
+
+        What that leaves is an anonymous caller able to insert a row per fabricated
+        `(uuid, turn id)` pair, each of which a per-session sweep could never reach because that
+        id never returns. Measured on the deployed edge: `POST .../turns/probe/cancel` for an
+        invented session answered 202. Unscoping the `WHERE` closes it without touching the
+        authorization path - **any** Stop press now reaps **all** expired rows, so the table is
+        bounded by 15 minutes of insert traffic rather than by callers being well behaved.
+
+        No index on `requested_at`, deliberately: this table is meant to hold approximately zero
+        rows, its whole content is younger than `STALE_AFTER`, and an index to help a sequential
+        scan over a handful of rows would cost more to maintain than it saves. If it ever holds
+        enough rows for that to be wrong, the sweep working is what will have kept it small.
+
+        `STALE_AFTER` is 15 minutes against a 50s server-side turn deadline, so a row this
+        deletes cannot belong to a turn still running.
         """
         async with self._session_factory() as session:
             await session.execute(
@@ -51,7 +74,6 @@ class ChatTurnCancellationRepository:
             )
             await session.execute(
                 delete(ChatTurnCancellation).where(
-                    ChatTurnCancellation.chat_session_id == chat_session_id,
                     ChatTurnCancellation.requested_at < func.now() - STALE_AFTER,
                 )
             )

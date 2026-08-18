@@ -52,9 +52,32 @@ comfortable result deserves the same suspicion as a test that passes first time.
    lifetime, so extracting it leaves the branch in `App.tsx` either way. Price the real work (mock the
    hook) or leave it, but do not do the cosmetic one.
 
+**✅ STAGING IS DEPLOYED AND CURRENT for the first time since Milestone 11 (2026-08-18, D-416).**
+`44a12df`, run 32171998780, pinned by head SHA. Both services on `gha-44a12dfc9549`, rollout
+`COMPLETED`, one additive migration applied before the services moved, `/dev/token` gate passed both
+probes, 3-minute canary clean, rollback never triggered. **It had been 27 commits behind** — the old
+image predated Milestones 12, 13 **and** 14.
+
+**Verify a deploy by the served bundle's *content*, not its hash.** The CSS hashes matched my local
+builds exactly and the **JS hashes did not** — CI's Node 22 plus an explicit empty `API_BASE` produces
+different minifier output from identical source. Asserting on strings (*"This is taking longer than
+usual"*, *"We lost track of this question when the page reloaded."*) is what actually proves today's
+code is live.
+
+**And the post-deploy probe found a defect in W10's own endpoint (D-416).** `POST
+/chat/sessions/{invented}/turns/x/cancel` answers 202 to an anonymous caller. **Not** an
+authorization bypass — a real session still 403s a stranger — but the sweep inside `request()` was
+scoped to `chat_session_id`, so a fabricated id left a row nothing could ever reach. Fixed by
+unscoping the sweep; severity was low (~100 bytes a row behind the per-IP limiter). **Two of my own
+analyses of it were wrong first**, and the second would have shipped a regression that a
+three-session-old test refuted before it was written — see D-416, it is the most useful paragraph of
+today.
+
 **⚠️ Before any `terraform apply`:** the tfvars image floor is bumped **locally only** and that file
 is gitignored. On a fresh checkout it must be redone, or the apply rolls staging back past
 Milestone 13 entirely. `make tfvars-floor-check` is the guard and it caught this once already (D-401).
+**The deploy workflow never runs `terraform apply`** — all 711 lines read — so this warning is about
+D-401's alarm split and D-406's NAT change, both still unapplied, and not about deploying.
 
 **Loose end, not project code:** `.agents/skills/` and `skills-lock.json` are untracked and not
 ignored, so they appear in every `git status`. They are Claude Code tooling artefacts; committing or

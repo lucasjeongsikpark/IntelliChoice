@@ -1143,6 +1143,22 @@ to rot, because nothing fails when it does.)*
   every line passes through, not at the call sites: a call-site rule is vigilance, and it is the
   fourteenth call site that leaks. The redactor remains a floor — emails, URLs and phone numbers,
   not arbitrary prose — so this is depth behind "do not put text in logs", never a licence to.
+- **An anonymous endpoint keyed by a client-minted identifier cannot validate it, so anything it
+  writes has to be self-limiting** (D-416). `POST /chat/sessions` persists **nothing** — it returns a
+  bare uuid4, deliberately, because *"a session id costs nothing until a message spends against it"*
+  (D-345) and limiting *creation* would not have bounded a single cent. The consequence is structural:
+  every anonymous endpoint addressed by `chat_session_id` is unable to tell a real session from an
+  invented string, **and must not try** — a visitor pressing Stop on their *first* turn has no
+  checkpoint yet, so refusing to act without one silently restores the defect the endpoint exists to
+  fix. The two such paths differ in how they satisfy this, and both are deliberate: the client-error
+  sink performs **zero** database writes (it logs, under its own token/anonymous rate limiters with
+  length-capped fields), while the cancel endpoint writes a row and therefore carries its own reaper —
+  a **global** age-based sweep on every call, so the table is bounded by `STALE_AFTER` of insert
+  traffic rather than by callers being well behaved. A per-session sweep is the version that looks
+  right and isn't: it reaps a session's own leftovers, and a caller using a fresh id each time is
+  exactly the case that never returns to trigger it. **Found by probing the deployed edge**, not by
+  reading — a 202 to an anonymous POST for a session id that had never existed.
+
 - **The end states a client can show must be mutually exclusive, and each must claim only what
   happened** (D-413, and both halves have their own past defect). A turn in chat-web can end five
   ways, three of which carry an `error` string — failed to send, stopped by the visitor, and lost to a
