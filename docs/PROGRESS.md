@@ -105,11 +105,24 @@ analyses of it were wrong first**, and the second would have shipped a regressio
 three-session-old test refuted before it was written — see D-416, it is the most useful paragraph of
 today.
 
-**⚠️ Before any `terraform apply`:** the tfvars image floor is bumped **locally only** and that file
-is gitignored. On a fresh checkout it must be redone, or the apply rolls staging back past
-Milestone 13 entirely. `make tfvars-floor-check` is the guard and it caught this once already (D-401).
-**The deploy workflow never runs `terraform apply`** — all 711 lines read — so this warning is about
-D-401's alarm split and D-406's NAT change, both still unapplied, and not about deploying.
+**✅ THE TFVARS-FLOOR WARNING WAS WRONG, AND IT WAS MINE — CORRECTED 2026-08-18 (D-418/A3).**
+For most of a day this block said an apply on a fresh checkout *"rolls staging back past Milestone 13
+entirely"*. **It does not, and could not since D-244.** Terraform reads the image from the *deployed*
+container definition; `adopt_deployed_image` defaults to **true**, so the tfvars tags are reached only
+by a `try()` fallback on an environment that has no task definition yet. Measured rather than argued:
+with the pin two deploys stale at `gha-df79b290bf65`, `terraform plan` moved every task definition
+**forward** to the running `gha-44a12dfc9549`.
+
+So the check had been refusing applies over the one input Terraform does not read — **a phantom
+blocker, and the reason D-401 and D-406 sat unapplied.** `make image-check` (renamed from
+`tfvars-floor-check`) now judges only what matters: a service and its family's latest revision
+agreeing, which is what anything resolving a family **by name** would run — `deploy-staging.yml` and
+the un-pinned EventBridge ops-task schedules both do (D-137). It reports the pin and never fails on
+it, and it no longer demands a gitignored file exist. Live: **VERDICT OK, all three families on
+`gha-44a12dfc9549`.**
+
+**D-401 (alarm split) and D-406 (NAT follows its consumers) are unblocked.** Both are still
+unapplied; applying them is a deploy-shaped action and yours to authorise.
 
 **Loose end, not project code:** `.agents/skills/` and `skills-lock.json` are untracked and not
 ignored, so they appear in every `git status`. They are Claude Code tooling artefacts; committing or
@@ -11404,7 +11417,9 @@ replayed "Thinking…" the way D-317 bounds the exam's position wait) is the one
 left · `AUD-CHAT-14` recommended for closing as accepted · `@testing-library/react` on the first
 component test · OPEN_DECISIONS #6 and #8 unchanged · **and the tfvars image floor is bumped locally
 only** - that file is gitignored, so it must be redone on a fresh checkout before any apply, or the
-apply rolls staging back past this entire milestone.
+apply rolls staging back past this entire milestone. *(That last clause is **wrong** and was corrected
+2026-08-18 by D-418: D-244 made Terraform adopt the deployed image, so the pin has no consumer and an
+apply moves the image **forward**, measured by plan. The check was failing on a value nothing reads.)*
 
 ### The failure path was the least-observed path (2026-08-17, D-393 → D-397)
 
