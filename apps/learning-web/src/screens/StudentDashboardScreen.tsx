@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import * as api from "../api/client";
+import { formatBlockedReason, formatIsoWeekLabel } from "../lib/attendanceLabels";
 import { friendlyError } from "../api/errors";
 import { ReportView } from "../components/ReportView";
 import { SkillFocusList } from "../components/SkillFocus";
@@ -764,8 +765,15 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
           {history.blocked_sessions.length === 0 && <p className="dim">None.</p>}
           <ul>
             {groupBlockedSessions(history.blocked_sessions).map((b) => (
+              /* D-407 (`AUD-L-09`): this printed `Week 2026-W31 — absent`, two internal tokens
+                 on the one screen a parent reads about their child. The reason matters more than
+                 the week id: `unknown` is the *routine* case in production (D-152 §2 -
+                 `signups.attended = null`, "the branch has not marked it yet"), and the server
+                 already keeps that apart from a recorded absence. Collapsing both to a raw enum
+                 told a parent their child was `unknown` where the truth is that nobody has filled
+                 in the register. See `lib/attendanceLabels.ts`. */
               <li key={b.key}>
-                Week {b.week_id} — {b.blocked_reason} (
+                {formatIsoWeekLabel(b.week_id)} — {formatBlockedReason(b.blocked_reason)} (
                 {formatOrgDate(b.latest_blocked_at)})
                 {b.attempts > 1 && <span className="dim"> · {b.attempts} attempts</span>}
               </li>
