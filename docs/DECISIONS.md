@@ -27656,3 +27656,49 @@ healthy long-lived stream to observe. The property is real and belongs in a comp
 which makes it **OPEN_DECISIONS #14's third concrete use case** after `errors.ts`'s rules and
 `downloadIcs`'s DOM contract. Recorded in the spec's header rather than left as a deleted test
 nobody knows about.
+
+## D-404 — W12a: the keep-alive is an event a client can see (accepted, 2026-08-18)
+
+W11 shipped chat's reconnect control and **deferred** the liveness timer, because the timer could
+not be written correctly: `: keep-alive` is an SSE *comment*, and a comment fires **no event** in
+the browser. A timer keyed on "last event received" would have announced a disconnect during every
+normal quiet period — the indicator lying in the opposite direction, worse than the silence it
+replaced. This is the server change that makes the timer possible.
+
+**Both apps, in the same commit**, because two independent copies of one shape drifting is D-347,
+the finding the 08-16 audit called the finding behind its findings.
+
+**A *named* event, not a `data:`-only frame.** `EventSource.onmessage` receives only **unnamed**
+events, so naming the keepalive leaves every existing snapshot handler untouched **by construction**
+rather than by care. Clients opt in with `addEventListener("keepalive", ...)`. No `id:` — a
+keepalive carries no state and must never become a `Last-Event-ID` resume point. `data: {}` is not
+decoration: a frame with an `event:` line and no `data:` line is not dispatched at all by the SSE
+spec's algorithm.
+
+**The frames are now named constants, and that was forced by a mistake worth recording.** The first
+attempt at testing this drove `/stream` over `TestClient.stream()` and **hung until it was killed
+after seven minutes** — which `test_chat_endpoints`'s own docstring already warns about: *"the
+endpoint intentionally never closes on its own, and `TestClient.stream()` hangs against it"*
+(D-033). The warning was written down and I did it anyway. The frames were inline f-strings inside a
+closure inside the handler, so there was nothing else a test could reach; extracting
+`KEEPALIVE_FRAME` and `data_frame()` turns an unreachable format into an assertable one, and the
+snapshot frame goes through the same builder so the two cannot drift.
+
+**Falsified properly, on the second attempt.** Stashing the change produced an *import* error,
+which proves only that the constant is new. Setting the constant back to the comment form while
+keeping it importable fails **2 of 3** tests — the third is the "snapshots stay unnamed" control and
+correctly passes either way.
+
+**A count discrepancy that was explained rather than shrugged at.** The first full run reported
+`1725 passed / 3 skipped` against a `1723 / 2` baseline, which does not add up to three new tests. A
+clean re-run gives `1726 / 2`. The third skip is `test_meta.py:117`, a **data-dependent** skip that
+fires when `public-organization-overview` is not retrievable — the dev Postgres that pytest and the
+Playwright suite share had been left in that state by the preceding browser run. Not a regression,
+and the test documents its own condition; recorded because an unexplained skip is how a test stops
+running without anyone noticing.
+
+**Still deferred: the client timer.** It is untestable in the current harness for the same reason
+W11's deleted control test was — `route.fulfill` cannot hold an SSE response open, and a 40s
+timeout cannot be shortened from a browser test. Writing it needs either the frontend unit-test
+tooling of OPEN_DECISIONS #14 or a decision to ship it untested; that is the user's call, and this
+is now #14's **fourth** concrete use case.

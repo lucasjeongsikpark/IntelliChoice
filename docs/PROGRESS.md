@@ -138,8 +138,13 @@ moves that item from preference to "there is a class of assertion we cannot make
 
 **Recommended next, in priority order:**
 
-1. **W12 — the observable keep-alive and the liveness timer**, in both APIs and both clients. The
-   only remaining piece of `EDGE-CHAT-02`, and the last 08-16 P2.
+1. **W12b — the client liveness timer.** The server half shipped (**W12a/D-404**: both APIs now
+   emit `event: keepalive` instead of an invisible comment, so a client can finally tell "quiet"
+   from "dead"). The timer itself is **blocked on a decision, not on code**: it cannot be tested in
+   this harness — `route.fulfill` cannot hold an SSE response open and a 40s timeout cannot be
+   shortened from a browser test — so it needs **OPEN_DECISIONS #14**'s tooling or an explicit
+   decision to ship it untested. That is #14's **fourth** use case, and the last piece of
+   `EDGE-CHAT-02`.
 2. **OPEN_DECISIONS #14** — a judgement, not code: whether the frontends get unit-test tooling at
    all. Recommendation is one app first, measured before doubling, for the reason D-397 exists.
 3. **The LangSmith/NAT decoupling** (recorded 2026-08-17), before OPEN_DECISIONS #6 is unblocked
@@ -11081,6 +11086,16 @@ asking what the **code** did discriminates it immediately, on both engines: *no 
 lenient about a call that was never made.* The tick check is the subtle half — a timestamp
 comparison would not work, because the broken form also revokes "later", by microseconds in the
 same task.
+
+**Verification for W12a:** `ruff` + `pyright` clean · pytest **1726 passed / 2 skipped / 1
+xfailed**, **+3** on 1723 and 3 is exactly what was added · falsified by restoring the comment form
+with the constant kept importable (2 of 3 fail; the third is the snapshots-stay-unnamed control).
+
+**A count discrepancy worth recording rather than shrugging at:** the first run said `1725 / 3`,
+which does not add up. The extra skip is `test_meta.py:117`, a **data-dependent** skip that fires
+when `public-organization-overview` is not retrievable — the dev Postgres that pytest and Playwright
+share had been left that way by the preceding browser run. A clean re-run gives `1726 / 2`. Not a
+regression, but an unexplained skip is how a test stops running without anyone noticing.
 
 **Verification for W11:** `ruff` + `pyright` clean · `tsc` + `oxlint` clean · Playwright **127
 passed / 2 skipped**, **+1** on 126 · falsified by reverting the banner, which fails the test with

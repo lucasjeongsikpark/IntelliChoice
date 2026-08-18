@@ -34,6 +34,25 @@ from .sessions import (
 
 router = APIRouter(prefix="/chat/sessions", tags=["chat-sessions"])
 
+# D-404: the two frame shapes this endpoint emits, named and therefore testable.
+#
+# They were inline f-strings inside `event_stream`, a closure inside the handler - unreachable
+# from a test, because `/stream` never closes and `TestClient.stream()` hangs against it (D-033,
+# and `test_chat_endpoints`'s docstring says so). The first attempt at testing this change drove
+# the endpoint over HTTP anyway and hung for seven minutes, which is what named constants avoid.
+#
+# **`data_frame` must stay unnamed and `KEEPALIVE_FRAME` must stay named.** `EventSource.onmessage`
+# receives only *unnamed* events, so naming the keepalive is safe precisely because snapshots are
+# not named; if snapshots ever gained an `event:` line, every client would silently stop receiving
+# them - a reloaded chat tab's "Thinking…" would never resolve.
+KEEPALIVE_FRAME = "event: keepalive\ndata: {}\n\n"
+
+
+def data_frame(payload: str) -> str:
+    """An unnamed SSE data frame - what `onmessage` receives."""
+    return f"data: {payload}\n\n"
+
+
 KEEPALIVE_INTERVAL_S = 15.0
 
 
@@ -134,13 +153,13 @@ async def stream_session(
 
     async def event_stream():
         try:
-            yield f"data: {initial.model_dump_json()}\n\n"
+            yield data_frame(initial.model_dump_json())
             while True:
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=KEEPALIVE_INTERVAL_S)
-                    yield f"data: {json.dumps(event)}\n\n"
+                    yield data_frame(json.dumps(event))
                 except TimeoutError:
-                    yield ": keep-alive\n\n"
+                    yield KEEPALIVE_FRAME
         finally:
             events.unsubscribe(chat_session_id, queue)
 
