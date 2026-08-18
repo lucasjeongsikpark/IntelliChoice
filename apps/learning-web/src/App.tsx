@@ -952,6 +952,28 @@ function App() {
     // and only a terminal failure (an expired token, a 403) needs the student's hand.
     // A permanent slot (banner or null) for the same reconcile-by-position reason as the
     // narrative below.
+    //
+    // ---
+    //
+    // **This condition is deliberately untested, and that is a decision rather than an
+    // oversight (D-417 / C7). Do not re-file it as missing coverage.**
+    //
+    // There are two directions and neither has a cheap home:
+    //
+    // - *"the banner appears when the stream is dead"* is testable in a browser, the way
+    //   chat-web's `stream-disconnect-visible.spec.ts` does it, and no such spec exists here
+    //   yet. That is the gap, and it is small.
+    // - *"and appears at no other time"* is testable **nowhere** cheaply. It needs a stream
+    //   that opens and stays open, `route.fulfill` cannot hold an SSE response open, and the
+    //   browser control written on that assumption for chat-web was measured flaky (1 pass /
+    //   2 failures) and deleted in D-403.
+    //
+    // The unit route is what D-414 priced and the user declined: this condition lives inside
+    // `renderContent`'s branch order, so asserting it means rendering `App` with
+    // `useLearningSession` mocked. **Extracting the JSX into a component would not help** -
+    // that moves markup and leaves the condition here, which is coverage-shaped and worth
+    // nothing. `ConnectingPanel` was extractable only because its condition *is* its own
+    // lifetime (D-415); this one is data.
     const streamBanner =
       session.streamState === "error" ? (
         <div className="panel stream-banner" role="alert">

@@ -28255,3 +28255,152 @@ against "delete everything".
 **Not redeployed.** The user chose the fix without a second pipeline run: the live impact is slow
 storage growth on a synthetic environment, and the deployed build is otherwise an hour old. It lands
 on the next deploy.
+
+## D-417 — Twelve open items decided in one pass, and the video figure that was wrong by two orders of magnitude (accepted, 2026-08-18)
+
+The user answered every item on the open list at once. Recorded here **so none of them is re-derived
+as a fresh decision** — that failure mode has now cost this project four separate re-derivations of
+the same taxonomy question (D-341's own subject) and one nearly-taken product decision on a stale
+number (§B5 below).
+
+### A1 — Integration stays frozen ⛔
+
+**Do not start S43/S44 integration with `go.intellichoice.org`.** The real integration dependencies
+stay frozen until the user explicitly reopens integration: no reachability measurement, no production
+API URL, no test account, and O1b stays a *recommendation* rather than a finding. D-152 is unchanged
+and is not "nearly met" — it is closed until reopened.
+
+### A2 — `main` is protected, and admins cannot bypass it ✅ done
+
+Measured before the change: `protected: false`, required checks **none**. Nine checks ran on every PR
+and nothing required them; every green merge was green because someone waited by hand. D-251 recorded
+a push straight to `main` because a branch had been deleted and nothing objected.
+
+Now: the nine contexts required, `enforce_admins: true` (the clause that actually prevents bypass),
+force-pushes and deletions blocked, **linear history required** — which the squash-merge convention
+already satisfies, and which now blocks a merge commit rather than merely discouraging one.
+
+Two deliberate omissions. **`strict: false`**, so a branch need not be rebased onto `main` before
+merging: for a solo maintainer that friction costs more than the stale-check risk it removes.
+**No required reviews**, because a solo maintainer cannot approve their own PR and requiring one
+approval would make every merge impossible — the protection that would look strictest is the one that
+would have to be turned off within the hour.
+
+**Verified safe first:** neither workflow has `paths:` filters, so all nine jobs run on every PR. A
+required check that never runs blocks a merge permanently, and a path-filtered job is exactly how that
+happens.
+
+### A3 — The image floor is derived from ECS, not from a gitignored file
+
+**Decided; not yet built.** The floor must be computed at apply time from the image currently running
+in ECS rather than read from a local `terraform.tfvars`. Until then D-401 (alarm split) and D-406 (NAT
+follows its consumers) stay unapplied.
+
+The reason this is worth engineering rather than remembering: the present mechanism has **exactly the
+shape of S33/D-085**, quoted from the deploy workflow's own comment — a fix that *"existed only in one
+machine's local working tree"* while DECISIONS recorded it as executed, and two CloudFront
+distributions served a working token mint for two days. `make tfvars-floor-check` already caught one
+near-miss (D-401), which is evidence the hazard is live rather than theoretical.
+
+### B4 — Human escalation, but not on every refusal
+
+**Decided; not yet built.** `AUD-CHAT-14` is closed *against* my recommendation, and the user's
+framing is sharper than the one I offered: the mistake was treating "out of scope" and "the chatbot
+cannot answer this but a human here could" as one case. Escalation belongs only to the second.
+
+Required shape: refusal reasons structured enough to distinguish `OUT_OF_SCOPE`,
+`NO_AUTHORIZED_SOURCE`, `INSUFFICIENT_CONTEXT`, `REQUIRES_HUMAN_JUDGMENT`, `PRIVACY_OR_PERMISSION` and
+`TEMPORARILY_UNAVAILABLE`; an **Ask a human** action offered only where appropriate; an automatically
+generated email draft carrying the **minimum** relevant context and the visitor's original question
+verbatim; the visitor able to review and edit it; **an explicit Send before any external side effect**
+(CLAUDE.md rule 4, and the existing `interrupt()` gate is the mechanism); plus routing, duplicate
+protection and rate limiting.
+
+### B5 — The video catalog: your memory was right and the document was wrong ✅ investigated
+
+**OPEN_DECISIONS #6 claimed *"4 videos covering 4 of 112 skills and 1 of 33 topics"*. Measured on
+staging today: 497 videos, 363 active-and-approved, and 102 of 112 skills servable.** The document was
+wrong by two orders of magnitude, and it was the basis for a recommendation to *"accept that the video
+intervention is effectively absent at launch and say so in the product copy"* — a product decision
+that would have been taken on a false premise.
+
+**What happened, and when, established from history and then confirmed live:**
+
+| when | what |
+|---|---|
+| **2026-08-13** | OPEN_DECISIONS #6 written (`a396208`). **4 videos was true that day.** |
+| **2026-08-15, run 1** | Sync: 154 created, 46 updated, **182 wrongly marked inactive**, 79.66¢. Coverage 72 → 76 of 112. The cause was my own guard from D-326's addendum: `saw_whole_channel = deferred == 0`, where `covered=72, deferred=0` evaluated True — so a run that searched 40 of 112 skills was permitted to deactivate everything it had not looked at. The comment beside it described the correct condition; the code did not implement it. |
+| **2026-08-15, run 2** | Guard fixed to `covered == 0 and deferred == 0`, deployed `6e48084`. Same code path, same channel, same day: **0 marked inactive**, and 119 "updated" rows were largely the ones run 1 had wrongly deactivated, re-activated by the upsert. |
+| **after run 2** | **497 videos / 363 active · 102 of 112 skills servable · 3 skills holding only inactive videos · 10 with no video at all.** Spend $1.59, quota 7,600 of 10,000. |
+| **2026-08-18 (today)** | Live probe via a read-only `ops-task`: `BY_STATUS [('active','approved',363), ('inactive','approved',134)]`, `TOTAL 497`, `SKILLS_SERVABLE 102`, `LAST_SYNCED 2026-08-15 07:39 UTC`. **Nothing has changed since the recovery. There is no current data loss.** |
+
+So there *was* a real deactivation event, it was mine, and it was recovered the same day. The 134 rows
+still inactive are the churn D-326 designed for (videos the channel no longer returns), not the 182.
+`youtube-sync` is manual and the deploy does not run it, which is why three days of deploys could not
+have touched this.
+
+**Parked on the user's instruction:** no expansion of video coverage now; a further seeding run is
+theirs to schedule. The 10 skills with no video are a **content** question about what the pinned
+channel publishes — D-337 already established that no further run changes them.
+
+### B6 — Two-stage answers, and a latency investigation
+
+**Decided; not yet built.** ~10.6s p95 for a cited answer is accepted for launch rather than blocking
+it, but the *experience* changes: return a useful short answer as early as is safe, keep working on the
+fuller cited answer while the visitor reads, then replace or expand it.
+
+**The constraint that makes this hard, and it is the whole design:** the fast path may not be
+ungrounded. This codebase refuses answers without an approved, effective, citation-supported source
+(CLAUDE.md rule 5), and a first-stage answer that skipped that would be exactly the fabricated refusal
+D-379 removed — with the added cost that it would be *replaced* seconds later, teaching a visitor that
+the first thing they read may be untrue. Where the system cannot yet answer safely, stage one is a
+minimal progress or partial response, not a guess.
+
+Then the measurable half, separately: retrieval, reranking, model routing, prompt and context size,
+parallelisable stages, unnecessary serial calls, cache opportunities, timeouts and tracing — implement
+what has a favourable quality/latency trade-off, and measure rather than assume, because W8 already
+found that 80% of learning-api's Bedrock spend sat in one node nobody had measured.
+
+### C7 — The banner condition stays browser-only, and the boundary is written into the code
+
+**Decided.** No mock-heavy `useLearningSession` test for this one condition. The boundary is now a
+comment at the condition itself rather than only in a document, because a document is not where
+somebody re-deriving it will be looking. Recorded honestly, including the part that is not flattering:
+*"the banner appears"* is browser-testable and **no learning-web spec asserts it today**, while *"and
+at no other time"* is testable nowhere cheaply — `route.fulfill` cannot hold an SSE response open, and
+the control written on that assumption for chat-web was measured flaky and deleted (D-403).
+
+### C8 — `ruff format` adopted, in one isolated commit ✅ decided, next
+
+Re-measured today: **168 of 494 files would be reformatted**, not the 116 of 415 recorded in PROGRESS
+since D-243. One mechanical commit with no functional change mixed in, then `ruff format --check` joins
+`make lint` and therefore the required checks. The stale figure is corrected wherever it appears.
+
+### C9 — Deployment stays manual
+
+The workflow's own comment notes the original condition — *"run and reviewed at least once"* — was met
+long ago (six reviewed runs by 2026-07-27; today's was the seventh), and that enabling `push` is a
+decision nobody had taken. It stays untaken while staging is the only environment and a deploy runs
+migrations plus five one-off tasks: on a docs-only merge those would all run for nothing.
+
+### D10 — OPEN_DECISIONS #7 reconciled to D-341
+
+#7 recommended *"edit the declarations to match the judge"*. **D-341 records the opposite, decided by
+the user:** *"Treat these as expected content gaps, not taxonomy/declaration errors. Keep the existing
+`difficulty_tiers` declarations unchanged."* D-341 exists explicitly to stop the loop, noting the
+mismatch had already been re-derived three times as though it were a fresh defect — and #7, left
+standing, was the artefact that would have caused the fourth. Rewritten to defer to D-341, with the
+recommending wording removed rather than merely annotated.
+
+### D11 — The agent/skill configuration is committed
+
+`.agents/skills/agent-browser/SKILL.md` and `skills-lock.json` are project tooling that should be
+reproducible across machines, not per-machine state. Checked before committing: the lock file is a
+source reference plus a content hash, and the skill file is a public discovery stub — **no secrets, no
+machine-specific paths, nothing to separate out.**
+
+### E — Parked items stay parked
+
+#5, #8, and carry-overs 14, 16 and 19 keep their recorded status and triggers. #8's trigger is worth
+restating because it is easy to trip over: it re-opens **the day staging stops being synthetic**, not
+on a schedule.

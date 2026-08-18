@@ -31,6 +31,38 @@ reverting `cancelTurn` swapped only the `if` condition and left the new fallback
 the run reported "nothing failed" for the test that matters most. **A falsification that produces a
 comfortable result deserves the same suspicion as a test that passes first time.**
 
+## ⛔ INTEGRATION IS FROZEN — reconfirmed 2026-08-18 (D-417/A1)
+
+**Do not start S43/S44 integration with `go.intellichoice.org`.** The user reconfirmed D-152 *after*
+being told the audit lists were empty and the suite green: the "finish and test against the dev fakes
+first" condition is **not** treated as met, and integration reopens only when they say so explicitly.
+So still: no AWS→icrest reachability measurement, no production API URL, no test account, no
+finalising the §3.1 auth option, and O1b stays a recommendation rather than a finding.
+
+## ✅ EVERY OPEN DECISION IS ANSWERED (2026-08-18, D-417) — what remains is work
+
+Read D-417 before re-raising any of these. Four are built or parked; four are queued as work:
+
+| | state |
+|---|---|
+| **A2** `main` protected — nine checks required, `enforce_admins`, no force-push, linear history | ✅ done |
+| **B5** the video catalog — **your "~100" was right; the document was wrong** | ✅ investigated, parked |
+| **C7** banner condition stays browser-only, boundary written into `App.tsx` itself | ✅ done |
+| **C9** deployment stays manual | ✅ decided, no change |
+| **D10/D11** OPEN_DECISIONS #7 reconciled to D-341 · agent tooling committed | ✅ done |
+| **C8** `ruff format` — one isolated mechanical commit (**168 of 494 files**, not the 116/415 recorded), then enforce `--check` | ⏳ next |
+| **A3** derive the image floor from the running ECS image at apply time — **D-401 and D-406 stay unapplied until this exists** | ⏳ |
+| **B4** human escalation: structured refusal reasons, "Ask a human" only where a human here could answer, a draft the visitor edits and explicitly sends | ⏳ |
+| **B6** two-stage answers (safe short answer → grounded answer), then the measured latency work | ⏳ |
+
+**The B5 finding is the one to read.** OPEN_DECISIONS #6 said the catalog held *"4 videos covering 4 of
+112 skills"* and recommended considering that video intervention be declared absent at launch.
+Measured live on staging today: **497 videos, 363 active-and-approved, 102 of 112 skills servable.**
+The figure was true on 2026-08-13 and was superseded on 08-15; the file never picked it up. **A product
+decision was one step from being taken on it.** There *was* a real loss event — 182 rows wrongly
+deactivated by my own D-326 guard — and it was recovered the same day (D-337). Nothing has changed
+since 08-15 07:39 UTC.
+
 **Nothing on any audit list now needs code without a decision from you.** What is left:
 
 1. **`AUD-CHAT-14`** — recommend closing as accepted. A product call about what the org wants in its
