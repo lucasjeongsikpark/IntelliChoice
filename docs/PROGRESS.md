@@ -156,14 +156,28 @@ keep: `test` is not a valid key on vite's `defineConfig`, and `constructor(publi
 forbidden by `erasableSyntaxOnly`. Both surfaced as *build* errors, because the test files sit inside
 `tsc -b` rather than beside it.
 
+**✅ W14 (D-406) did the LangSmith/NAT decoupling**, before #6 unblocks rather than after — which
+was the point of recording it. The NAT now follows `local.private_egress_consumers`, which names
+both LangSmith and the YouTube sync, and `youtube_sync_enabled` is an environment variable so one
+switch turns the sync on with NAT following.
+
+**Verified the way a refactor should be — by producing no diff.** A real `terraform plan` shows the
+NAT gateway **absent from the plan entirely**. Everything the plan *did* show is accounted for:
+D-401's unapplied alarm split (2 SNS + 4 alarm updates) and three task-definition replacements,
+which is the CI-registers-then-terraform-re-registers drift D-137/D-141/D-356 document. 5 add / 4
+change / 3 destroy, and the arithmetic closes.
+
+**A side finding, and D-401 is corrected for it:** `sessions_completed_floor` is **not deployed** —
+its `count` is gated on `daily_completed_sessions_floor > 0` and that variable is 0. So of the three
+alarms routed to the quiet channel, two exist in staging. The configured alarm count and the
+deployed one are not the same number.
+
 **Recommended next, in priority order:**
 
-1. **The LangSmith/NAT decoupling** — before OPEN_DECISIONS #6 is unblocked rather than after,
-   because enabling the YouTube sync while tracing is off would leave it with no egress.
-2. **The frontend P3 polish list** from the live audit — raw ISO week ids and enums in the
+1. **The frontend P3 polish list** from the live audit — raw ISO week ids and enums in the
    parent-facing list, the report's 39-skill run-on, the non-clickable Review column, the duplicated
-   send-failure message. Now that vitest exists, the pure-function half of these is cheap.
-3. **`@testing-library/react`**, when the first component test is written — the banner's render
+   send-failure message. Cheaper now that vitest exists for the pure-function half.
+2. **`@testing-library/react`**, when the first component test is written — the banner's render
    condition is waiting for it.
 
 ### Previous — a green baseline and the contracts nobody was testing (Milestone 12)

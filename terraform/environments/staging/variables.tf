@@ -160,6 +160,18 @@ variable "org_time_confirmed" {
 #
 # Requires the secret `<name_prefix>/langsmith-api-key` to exist in Secrets Manager first;
 # the plan fails with a clear "couldn't find resource" if it does not.
+# D-406: the YouTube catalog sync's switch, and the NAT gateway follows it.
+#
+# Blocked on a real `YOUTUBE_API_KEY` (OPEN_DECISIONS #6), so the default is off - and an
+# unattended run against the *fake* provider would refresh the catalog from fabricated data every
+# week, which is strictly worse than failing. Turning this on turns NAT on automatically via
+# `local.private_egress_consumers`; before D-406 those were two unrelated edits.
+variable "youtube_sync_enabled" {
+  description = "Schedule the weekly YouTube catalog refresh. Requires a real YOUTUBE_API_KEY."
+  type        = bool
+  default     = false
+}
+
 variable "langsmith_workspace_id" {
   # The LangSmith tenant the API key belongs to. Required, not optional: this key has no
   # default workspace, so a client that sends no `x-tenant-id` gets 403 on every endpoint

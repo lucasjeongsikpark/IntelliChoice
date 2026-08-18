@@ -97,16 +97,43 @@ locals {
   ]
 }
 
+locals {
+  # **D-406: everything that needs *general* internet egress from a private subnet.**
+  #
+  # The NAT gateway exists for exactly these, and the previous wiring
+  # (`nat_gateway_enabled = var.langsmith_tracing_enabled`) was one consumer hardcoded as the
+  # condition. That was true and became a trap: `youtube-sync` also runs in a private subnet with
+  # `assign_public_ip = false`, and the YouTube Data API has no VPC endpoint - so switching tracing
+  # off would have silently stripped that job's egress. `modules/vpc/main.tf` says of exactly this
+  # class that "the failure surfaces only at runtime - `terraform plan` cannot see it, and here
+  # neither could the collector's health".
+  #
+  # It was safe only because the sync was hardcoded `enabled = false` inside the module, i.e. safe
+  # by an accident of where a flag lived. Named as a map rather than a bare `||` so the *reason*
+  # NAT is on is readable in a plan diff, and so adding a third consumer is one line here rather
+  # than a rediscovery of this comment.
+  private_egress_consumers = {
+    langsmith_tracing = var.langsmith_tracing_enabled
+    youtube_sync      = var.youtube_sync_enabled
+  }
+  needs_private_egress = anytrue(values(local.private_egress_consumers))
+}
+
 module "vpc" {
   source      = "../../modules/vpc"
   name_prefix = var.name_prefix
   # Tied to the tracing flag rather than defaulted on: the endpoint bills per hour
   # whether or not a span ever crosses it, and it is useless when the sidecar is absent.
   xray_endpoint_enabled = var.enable_otel_tracing
-  # D-214: private subnets get an internet route only because LangSmith is third-party SaaS
-  # with no PrivateLink equivalent. Tied to the same flag that turns tracing on, so the NAT
-  # cannot be left billing after the feature is switched off.
-  nat_gateway_enabled = var.langsmith_tracing_enabled
+  # D-214: private subnets get an internet route only because some third-party SaaS has no
+  # PrivateLink equivalent, and the NAT bills per hour whether or not a byte crosses it - so it
+  # follows its consumers rather than being defaulted on.
+  #
+  # **D-406: driven by `local.private_egress_consumers`, not by the tracing flag.** It used to read
+  # `nat_gateway_enabled = var.langsmith_tracing_enabled`, which was correct while LangSmith was the
+  # only such consumer and became a trap the moment a second one existed. See that local for the
+  # failure it prevents.
+  nat_gateway_enabled = local.needs_private_egress
   tags                = local.common_tags
 }
 
@@ -815,7 +842,9 @@ module "observability" {
 module "scheduled_jobs" {
   source      = "../../modules/scheduled-jobs"
   name_prefix = var.name_prefix
-  account_id  = data.aws_caller_identity.current.account_id
+  # D-406: one switch, and NAT follows it via `local.private_egress_consumers`.
+  youtube_sync_enabled = var.youtube_sync_enabled
+  account_id           = data.aws_caller_identity.current.account_id
 
   ecs_cluster_arn = aws_ecs_cluster.this.arn
   # Family-level ARN (no ":<revision>"): every run resolves to the latest revision the

@@ -2991,6 +2991,22 @@ cancels the timer · a connect that never opens is still reported · **each guar
 own**, because removing the timer wholesale only fails 2 of 6 (the rest are "must not report"
 assertions that no timer satisfies trivially).
 
+### Session W14 — The NAT gateway follows its consumers ✅ *(done 2026-08-18, D-406)*
+
+`nat_gateway_enabled = var.langsmith_tracing_enabled` was correct while LangSmith was the only
+private-subnet consumer of third-party SaaS, and a trap the moment a second existed: `youtube-sync`
+runs with `assign_public_ip = false` and the YouTube Data API has no VPC endpoint, so switching
+tracing off — reasonable, with the quota exhausted — would have stripped that job's egress silently.
+
+**Outcome:** `local.private_egress_consumers` names both, `youtube_sync_enabled` becomes an
+environment variable threaded into the module, and one switch turns the sync on with NAT following.
+Fixed *before* OPEN_DECISIONS #6 unblocks, which was the whole point of recording it.
+
+**Done when:** `terraform validate` passes · a real `terraform plan` shows the NAT gateway **absent
+from the plan**, because the refactor computes the identical value · every other line in that plan
+is accounted for (D-401's unapplied alarm split plus the documented task-definition drift) · nothing
+applied.
+
 ## The audit's never-walked list is now closed
 
 Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found
