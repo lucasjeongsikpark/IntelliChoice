@@ -1091,6 +1091,27 @@ to rot, because nothing fails when it does.)*
   everything would restack a run onto that tier and report a high yield for doing so, which is
   worse than the rejections it replaces because the summary makes it look like success. Run-scoped
   evidence, threaded rather than global, and the first candidates of a run therefore cannot move.
+- **A named SSE event is invisible to `onmessage`, and that separation is load-bearing** (D-404,
+  D-405). The keep-alive was `: keep-alive` - an SSE *comment*, which fires no client event at all -
+  so a client could not distinguish "quiet because nothing has happened" from "dead", and any
+  liveness timer keyed on "last event received" would have announced a disconnect during every
+  normal pause. It is now `event: keepalive`, and naming it is safe **precisely because** snapshots
+  are *not* named: `onmessage` receives only unnamed events. The corollary is the hazard - if a
+  snapshot frame ever gains an `event:` line, every existing client silently stops receiving
+  snapshots, with no error anywhere: a reloaded chat tab's "Thinking…" never resolves and
+  learning-web's exam screen stops updating. Both frames are named constants (`KEEPALIVE_FRAME`,
+  `data_frame`) so the two cannot drift, and that extraction was forced by discovering the format
+  was otherwise unreachable from a test - `/stream` never closes, so `TestClient.stream()` hangs
+  against it (D-033).
+- **A classification threshold has exactly one definition, and a copy in another language is the one
+  no test can see** (D-409, extending AUD-L-13/D-156). `intellichoice_shared.mastery_policy` exists
+  because "two definitions of a classification threshold is how the same skill ends up 'weak' to one
+  subsystem and 'proficient' to another". The parent-facing report needed to band skills, and the
+  tempting implementations were both wrong: a three-band split invents a second cutoff, and a `0.7`
+  in TypeScript puts the copy across a language boundary where no test can compare them. The server
+  already ships `weak_skill_names` computed from the one constant, so the client partitions by **set
+  membership** and holds no threshold at all. The general rule: when a boundary must be applied in a
+  second place, ship the *classification*, not the number.
 - **Instrumentation placed after the thing it measures only ever sees success** (D-393). Both
   apps' JSON access log and HTTP metrics recorded *after* `await call_next(request)` returned, and
   Starlette's `ServerErrorMiddleware` converts an unhandled exception into a 500 **above** every
@@ -1981,6 +2002,7 @@ flowchart LR
 | Contextual chat turns | **PostgreSQL 16** | `tutor_chat_messages` (S24) - one row per chat turn (`student_external_id`, `learning_session_id`, nullable `question_variant_id` FK, `intent`, `redacted_student_message`, `reply_text`, `cost_cents`, `flagged_for_review`); `redacted_student_message` is always post-`pii_redaction.redact_free_text` (D-072), never the raw message. 90-day retention via `TutorChatMessageRepository.purge_older_than`/`make chat-purge` (no scheduler yet, same "manual trigger" posture as `youtube-sync`/`webcontent-sync`) |
 | Personalized stage narratives | **PostgreSQL 16** | `stage_transitions` (S26) - one row per (session, stage[, skill]) (`student_external_id`, `learning_session_id`, `stage`, nullable `related_skill_id` (`study_step` only), `narrative_text`, `evidence` JSON, `generated` bool, `cost_cents`); doubles as the idempotency key (`StageTransitionRepository.get_for_session_stage`) so a reconnect/retry never re-calls Bedrock. **90-day retention** via the daily `retention-purge` job (D-114) - narrative text derived from tutoring data gets the same window as its source |
 | Episodic learning events + durable semantic facts | **PostgreSQL 16** | `learning_events` (S25) - one row per emission point (`answer_submitted`/`intervention_chosen`/`study_outcome`/`chat_turn`/`exam_finalized`/`learning_gain_computed`), external ids + a code-owned `structured_payload` only (a `chat_turn` row holds `tutor_chat_message_id`, never the message text - D-074 #5). `semantic_memory` (S25) - `status` one of `provisional`/`active`/`contested`/`superseded`, `evidence_event_ids` always a subset of real `learning_events.event_id`s belonging to the same student (D-074 #2), `superseded_by_id` self-FK (`ON DELETE SET NULL`) + `contradicts_event_count` back the two-stage contradiction model (D-074 #4). No PII in either table. **Retention, both via the daily `retention-purge` job: `semantic_memory` 90 days on `last_confirmed_at` (D-114); `learning_events` 365 days on `occurred_at` (D-153), matching `student_reports` so the product makes one "a school year of learning history" promise.** The event window must stay ≥ the fact window + one consolidation window (90 + 7 = 97 days) or a live fact cites purged evidence and silently stops being promotable — asserted by `test_learning_event_retention_clears_the_semantic_memory_floor` |
+| In-flight chat turn cancellations | **PostgreSQL 16** | `chat_turn_cancellations` (D-402) - composite PK `(chat_session_id, client_turn_id)`, plus `requested_at` used only for pruning. Both columns are opaque ids the client mints; no PII. **A table rather than a signal, and the reason is the failure mode**: the cancel arrives as a *separate* request that may land on a different ECS task than the running turn, so an in-process flag is wrong - and `ChatSessionEventRelay`'s `LISTEN`/`NOTIFY` is deliberately fire-and-forget, where a dropped live update costs one repaint but a dropped *cancellation* costs the whole feature (the per-session advisory lock stays held for up to the 50s turn deadline). Self-pruning: the turn that acts on a row deletes it (so a retry of the same turn id is not cancelled the instant it starts), and `request()` sweeps that session's rows older than 15 minutes for cancellations that raced their own turn's completion |
 | Generated progress reports | **PostgreSQL 16** | `student_reports` (S28) - one row per report generation (`student_external_id`, `audience`, `verified_facts` JSON = the exact payload sent to Bedrock, `interpretation_text`, `recommendations_text`, `generated` bool, `cost_cents`, `idempotency_key`); **unique on `(student_external_id, audience, idempotency_key)` since D-159/AUD-X-04** - a replay is absorbed (no second row, no second paid call) while a new key still writes history, so `list_for_student` remains newest-first history rather than a cache. Scoped to the key, never to a time window; the migration backfilled pre-existing rows as `legacy-<student_report_id>`, unique by construction. `audience` always server-resolved from the caller's role, never a request field (D-077 #1). No PII - `verified_facts` is entirely already-resolved names/numbers/counts, and the key our frontend sends is `<student external id>:<range preset>:<per-mount UUID>`, i.e. an external id and two opaque tokens |
 
 ## Network egress and observability sinks (D-084, S39, D-213, D-214)
