@@ -71,6 +71,15 @@ export function useChatSession(
   // allows only one action at a time - a map keyed by turn would be state with no second
   // case to justify it.
   const inFlightRef = useRef<AbortController | null>(null);
+  // **D-403, ported from learning-web's D-216.** Bumping this re-runs the stream effect,
+  // giving a dead stream a manual way back. `EventSource` auto-reconnects only after a
+  // *successful* connection drops - a non-2xx response (an expired token, a 403) is terminal,
+  // and before this chat-web had no path to a fresh connection short of a full reload.
+  //
+  // learning-web has had this since D-216 and chat-web never received it, which is the D-347
+  // "fixed in one direction" shape the 08-16 audit named as the finding behind its findings.
+  const [streamNonce, setStreamNonce] = useState(0);
+  const reconnectStream = useCallback(() => setStreamNonce((n) => n + 1), []);
   // D-402: which turn the handle above belongs to, so Stop can name it to the server. Kept
   // beside the controller rather than derived from the transcript: the last transcript entry is
   // not necessarily the in-flight one once a retry is involved, and cancelling the wrong turn is
@@ -125,6 +134,7 @@ export function useChatSession(
   }, [sub]);
 
   useEffect(() => {
+    void streamNonce; // dependency-only: a bump means "tear down and reconnect"
     if (!sessionId || streamReadyFor !== sessionId) return;
     setStreamState("connecting");
     const close = openSessionStream(
@@ -176,7 +186,7 @@ export function useChatSession(
       (state) => setStreamState(state),
     );
     return close;
-  }, [sessionId, streamReadyFor, token]);
+  }, [sessionId, streamReadyFor, token, streamNonce]);
 
   // D-347: the stored token is the thing a 401 invalidates, and clearing it is the only exit
   // from the loop it otherwise creates - `get_optional_claims` 401s a *present but invalid*
@@ -435,6 +445,7 @@ export function useChatSession(
     retryTurn,
     respond,
     cancelTurn,
+    reconnectStream,
     resetSessionKeepTranscript,
     endSession,
   };

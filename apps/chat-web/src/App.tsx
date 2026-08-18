@@ -70,6 +70,7 @@ function App() {
     transcript,
     lastResponse,
     streamState,
+    reconnectStream,
     error,
     busy,
     sendMessage,
@@ -194,6 +195,7 @@ function App() {
         meta={meta}
         busy={busy || pendingIsKnown}
         streamState={streamState}
+        onReconnect={reconnectStream}
         error={error}
         unknownInterrupt={pendingIsUnknown ? pending.interrupt_type : null}
         onSend={(query) => void sendMessage(query)}

@@ -41,6 +41,8 @@ interface Props {
   meta: ChatMeta | null;
   busy: boolean;
   streamState: "connecting" | "open" | "error";
+  /** D-403: give a dead stream a manual way back, as learning-web has had since D-216. */
+  onReconnect: () => void;
   error: string | null;
   /** D-347: an interrupt type this build has no dialog for. See `App.tsx`. */
   unknownInterrupt: string | null;
@@ -130,6 +132,7 @@ export function ChatScreen({
   meta,
   busy,
   streamState,
+  onReconnect,
   error,
   unknownInterrupt,
   onSend,
@@ -226,6 +229,26 @@ export function ChatScreen({
           announcement at all, so a screen-reader user had to hunt for it manually. The
           pattern is `learning-web`'s `TutorChatPanel`, which already did this correctly -
           the codebase disagreeing with itself rather than an open question. */}
+      {/* **D-403: the disconnect is now visible, not just audible.** EDGE-CHAT-04 and
+          AUD-CHAT-11: the only signal a sighted reader had was an 8px dot's colour, and the
+          only signal anyone else had was the `sr-only` text beside it - so a stream that had
+          died looked identical to one that was live unless you were using a screen reader or
+          looking closely at one pixel of hue.
+
+          Ported from learning-web's `streamBanner` (D-216), including its reasoning: a banner
+          rather than a takeover, because REST actions still work in this state - asking a
+          question sets the transcript directly - so the tab is degraded rather than broken.
+          `role="alert"` because it appears without the visitor doing anything.
+
+          `error` only, never `connecting`: `EventSource` retries transient drops by itself, and
+          a banner that flashed on every retry would train the visitor to ignore it. */}
+      {streamState === "error" && (
+        <div className="stream-banner" role="alert">
+          <p>Live updates are disconnected — new answers may not appear on their own.</p>
+          <button onClick={onReconnect}>Reconnect</button>
+        </div>
+      )}
+
       {/* D-381: `role="log"` sits on an inner element, not on `<main>`. An explicit role
           *replaces* the implicit one, so putting `log` on `<main>` removed the page's only
           main landmark - the exact thing D-350 added `<main>` for. A screen-reader user's

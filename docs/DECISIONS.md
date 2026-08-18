@@ -27620,3 +27620,39 @@ forgetting to call the endpoint. Reverting the hook fails it with its own messag
 **Also found: the approval-modal P2 on the same list was already closed by D-381** (measured live
 at a 480px viewport, `top=-54 to bottom=534`), so the carry-over entry was stale — the second stale
 item found this way today, after `AUD-L-16`.
+
+## D-403 — W11: a dead chat stream is visible and recoverable (accepted, 2026-08-18)
+
+Three audit findings, one defect: `EDGE-CHAT-02` (*"the connection indicator stays green through a
+full network partition"*), `AUD-CHAT-11` (*"its wording is screen-reader-only"*) and
+`EDGE-CHAT-04` (*"conveyed only to screen readers and by an 8px colour-only dot"*).
+
+**The audit's own note was wrong about the reference implementation, and measuring it split the
+work in two.** It reads *"chat has no liveness timer and no reconnect control, where learning-web
+has both."* learning-web has the reconnect control (D-216) and **no liveness timer either** — both
+apps only wire `onopen`/`onerror`. Third correction to this carry-over list today, after
+`AUD-L-16` and the approval modal.
+
+**Shipped here (the genuinely one-directional gap):** `reconnectStream` ported from learning-web's
+nonce pattern, and a `role="alert"` banner stating the disconnect in words with a Reconnect button.
+`error` only, never `connecting`, for the reason learning-web's own comment gives — `EventSource`
+retries transient drops itself, and a banner that flashed on every retry teaches the visitor to
+ignore it.
+
+**Deferred, with the reason it cannot be done yet:** the liveness timer. The keep-alive is an SSE
+*comment* (`: keep-alive`, 15s in both apps), and a comment fires no client event — so a timer keyed
+on "last event received" would announce a disconnect during any normal quiet period, making the
+indicator lie in the opposite direction. Doing it correctly needs the server's keep-alive to become
+an observable named event, in **both** APIs, which is its own change (W12) rather than a rider on
+this one.
+
+**A test was written, measured as flaky, and deleted rather than retried.** The obvious control —
+"no banner while the stream is healthy" — passed in isolation and failed the full suite. Cause:
+`stubChat` fulfils the stream with one comment frame and then the body **ends**, so the browser sees
+the connection close, `onerror` fires, and the banner correctly appears; the assertion was racing
+that. Measured at 1 pass / 2 failures over three isolated runs. **The app was right and the test's
+premise was wrong** — `route.fulfill` cannot hold an SSE response open, so this harness has no
+healthy long-lived stream to observe. The property is real and belongs in a component unit test,
+which makes it **OPEN_DECISIONS #14's third concrete use case** after `errors.ts`'s rules and
+`downloadIcs`'s DOM contract. Recorded in the spec's header rather than left as a deleted test
+nobody knows about.
