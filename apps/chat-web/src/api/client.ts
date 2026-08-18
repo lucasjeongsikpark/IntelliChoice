@@ -138,6 +138,36 @@ export type RespondBody =
       longitude?: number | null;
     };
 
+/**
+ * D-402: ask the server to stop the turn it is running.
+ *
+ * Aborting the fetch is not enough and never was: uvicorn does not cancel a handler when the
+ * client disconnects, so the graph ran on under its 50s deadline holding the per-session
+ * advisory lock, and the *next* question came back 409 "This conversation is already working on
+ * a question." Nothing the browser can do on its own releases that lock.
+ *
+ * Turn-scoped, because "Ask again" reuses the id and a session-scoped stop would kill the retry.
+ *
+ * Deliberately **not** awaited by the caller and deliberately swallowing its own failure: Stop
+ * has already taken effect locally by the time this is sent, so a failed cancel must degrade to
+ * the old behaviour (the turn finishes server-side) rather than surface an error for an action
+ * the visitor has already seen succeed.
+ */
+export function cancelTurn(
+  token: string | null,
+  chatSessionId: string,
+  clientTurnId: string,
+): Promise<void> {
+  return request(
+    `/chat/sessions/${chatSessionId}/turns/${encodeURIComponent(clientTurnId)}/cancel`,
+    token,
+    { method: "POST" },
+  ).then(
+    () => undefined,
+    () => undefined,
+  );
+}
+
 export function respondToInterrupt(
   token: string | null,
   chatSessionId: string,

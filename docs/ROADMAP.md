@@ -2915,6 +2915,29 @@ channel's membership is a closed list · four page-worthy alarms are named indiv
 non-vacuity control · `terraform fmt` and `validate` clean · `make tfvars-floor-check` OK — which it
 was not, and the sixth stale floor would have rolled staging back past Milestone 13.
 
+### Session W10 — Stop stops the server, turn by turn ✅ *(done 2026-08-18, D-402)*
+
+The user chose a real cancel endpoint over three cheaper options, with four requirements:
+turn-scoped explicit cancellation, cooperative cancellation, a cancelled terminal state, and
+immediate lock release.
+
+Measured first: a probe against real uvicorn shows a handler whose client hangs up reports
+`ran-to-completion`, so nothing the browser does releases the transaction-scoped advisory lock.
+D-381 had already fixed the visible half (a stopped turn stays stopped); what remained was the
+lock, and a 409 whose copy reads as a bug right after a deliberate Stop.
+
+**Outcome:** `chat_turn_cancellations` keyed `(session, turn)`, `POST .../turns/{id}/cancel`
+returning 202 behind the same ownership gate `/messages` uses, `astream` in place of `ainvoke` so
+the check lands **between checkpoints**, `TurnReason.CANCELLED` as the terminal state, and the
+early return that releases the lock. chat-web's Stop now names the turn to the server.
+
+**Done when:** cancelling turn A does not stop turn B · a running turn observes the request at a
+boundary and returns `reason: "cancelled"` with no answer · the row is consumed so a retry of the
+same id runs · the endpoint is 202, idempotent, ownership-gated with a positive control, and
+422s an over-long id · `astream` is verified equivalent to `ainvoke` on the `interrupt()` approval
+path before being relied on · the browser asserts the wiring separately, because the server's
+tests cannot see `cancelTurn` forgetting to call it.
+
 ## The audit's never-walked list is now closed
 
 Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found

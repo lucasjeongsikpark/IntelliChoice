@@ -14,9 +14,12 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response, status
 from intellichoice_db.models.cost_reservation import SCOPE_CHAT_TURN, SUBJECT_CHAT_API
 from intellichoice_db.repositories.chat import ChatSuggestionRepository
+from intellichoice_db.repositories.chat_turn_cancellation import (
+    ChatTurnCancellationRepository,
+)
 from intellichoice_db.repositories.cost_reservation import (
     CeilingReachedError,
     CostReservationRepository,
@@ -50,11 +53,13 @@ from chat_api.dependencies import (
     get_optional_claims,
     get_profile_adapter,
     get_session_events,
+    get_turn_cancellations,
 )
 from chat_api.graph.build import AskInput, QAGraph
 from chat_api.graph.nodes import TurnContext
 from chat_api.services import suggestions
 from chat_api.services.checkpoint_privacy import purge_resume_writes
+from chat_api.services.outcomes import TurnReason
 from chat_api.services.session_events import ChatSessionEventBus
 from chat_api.services.turn_cost import TURN_RESERVATION_ESTIMATE_CENTS
 
@@ -99,7 +104,14 @@ class AskMessageRequest(BaseModel):
     # D-348: the client's own id for this turn, echoed back on the response and on every
     # subsequent snapshot for it. Optional, so a non-browser caller need not supply one;
     # bounded, because it is checkpointed and echoed and an unbounded string should never be
-    # either. Opaque to the server - it is never parsed, compared or stored anywhere else.
+    # either. Opaque to the server in the sense that matters - never parsed or interpreted.
+    #
+    # **D-402 made it compared and stored, so the original "never parsed, compared or stored
+    # anywhere else" is corrected rather than left standing.** `POST .../turns/{id}/cancel` keys
+    # a cancellation row on it, and the running turn compares it at each checkpoint boundary.
+    # The 64-char bound is now load-bearing rather than tidy: `chat_turn_cancellations`
+    # declares `String(64)`, and the cancel path parameter carries the same limit so an
+    # over-long id is a 422 rather than a database error wearing an outage's clothes.
     client_turn_id: str | None = Field(default=None, max_length=64)
     # D-164: the caller is forwarding a question it already asked to a human, not asking a
     # new one. Set by chat-web's "Ask an administrator" button on a no-source refusal,
@@ -262,6 +274,27 @@ class SessionSnapshotEvent(BaseModel):
     # `escalation_recommended` + `citations` + `access_hint` (which is what a client had to do
     # before) is how three different causes came to wear one message (AUD-C-19).
     reason: str | None = None
+
+
+def _cancelled_turn_fields(*, chat_session_id: str, client_turn_id: str | None) -> dict:
+    """The cancelled terminal state (D-402), as fields both response models accept.
+
+    **No new field is needed, and that is deliberate.** `reason` is already the closed
+    `TurnReason` code a client branches on and is already carried by all three of
+    `MessageResponse`, `RespondResponse` and `SessionSnapshotEvent` - so `CANCELLED` travels the
+    broadcast path with nothing to keep in step. A parallel `cancelled: bool` on
+    `MessageResponse` alone would have been *nulled* on every snapshot instead of failing, which
+    is the exact trap AUD-C-14 and D-058 record.
+
+    Everything else is left at its default: a withdrawn turn has no answer, no citations and no
+    followups, and inventing any of them would put words in the transcript the visitor did not
+    ask for.
+    """
+    return {
+        "chat_session_id": chat_session_id,
+        "reason": TurnReason.CANCELLED.value,
+        "client_turn_id": client_turn_id,
+    }
 
 
 def _publish_snapshot(events: ChatSessionEventBus, response: BaseModel) -> None:
@@ -523,21 +556,65 @@ async def _run_turn(
     *,
     chat_session_id: str,
     ctx: TurnContext,
-) -> dict:
-    """`graph.ainvoke` under the outer deadline SPEC §5.25.1's per-call timeouts never gave
-    the request as a whole (D-346).
+    cancellations: ChatTurnCancellationRepository | None = None,
+    client_turn_id: str | None = None,
+) -> tuple[dict, bool]:
+    """The graph under the outer deadline SPEC §5.25.1's per-call timeouts never gave the
+    request as a whole (D-346), plus D-402's cooperative cancellation.
 
     Six sequential gateway calls, each retrying up to three times at 20s, put the worst case
     near six minutes - well past CloudFront's 60s origin read timeout, so the client was
     already gone while the backend kept working and kept spending. Cancelling mid-turn
     leaves the last completed checkpoint intact, which is the same state a crash leaves and
     a state LangGraph is built to resume from.
+
+    **`astream` rather than `ainvoke` (D-402), and the difference is where a Stop can land.**
+    `ainvoke` is one await with no observable boundaries, so the only way to stop it is to
+    cancel it mid-node - which is what the deadline above does, and which is safe but leaves
+    the thread parked wherever it happened to be. `astream(stream_mode="values")` yields the
+    state after each super-step, so a cancellation is observed **between** checkpoints: the
+    last one is committed, nothing is half-written, and the turn stops at a boundary LangGraph
+    already treats as a resume point. Verified equivalent before being relied on - the whole
+    chat-api suite (251 tests, the `interrupt()` approval path included) passes either way,
+    which mattered because the approval gate is the one path where a behaviour change would be
+    a rule-4 problem rather than a bug.
+
+    Returns `(final_state, cancelled)`. `cancelled` is the caller's signal to write a
+    cancelled terminal state and return, which ends the request's transaction and therefore
+    **releases the advisory lock immediately** - the whole point of the feature, since the
+    visitor's next question is what the held lock was refusing.
     """
+    checked = cancellations is not None and client_turn_id is not None
     try:
         async with asyncio.timeout(get_settings().chat_turn_deadline_s):
-            return await graph.ainvoke(
-                payload, config=_graph_config(chat_session_id), context=ctx
-            )
+            final: dict = {}
+            async for state in graph.astream(
+                payload,
+                config=_graph_config(chat_session_id),
+                context=ctx,
+                stream_mode="values",
+            ):
+                final = state
+                # After the yield, never before: the state just yielded is checkpointed, so
+                # stopping here leaves a resumable thread. Checking first would also work but
+                # would spend a query before the turn has done anything cancellable.
+                if checked and await cancellations.is_requested(  # type: ignore[union-attr]
+                    chat_session_id=chat_session_id,
+                    client_turn_id=client_turn_id,  # type: ignore[arg-type]
+                ):
+                    await cancellations.consume(  # type: ignore[union-attr]
+                        chat_session_id=chat_session_id,
+                        client_turn_id=client_turn_id,  # type: ignore[arg-type]
+                    )
+                    logger.info(
+                        "chat_turn_cancelled",
+                        extra={
+                            "thread_id": chat_session_id,
+                            "client_turn_id": client_turn_id,
+                        },
+                    )
+                    return final, True
+            return final, False
     except TimeoutError as exc:
         logger.warning("chat_turn_deadline_exceeded", extra={"thread_id": chat_session_id})
         raise HTTPException(
@@ -566,6 +643,9 @@ async def post_message(
     rate_limiter: Annotated[RateLimiter, Depends(get_email_rate_limiter)],
     message_limiter: Annotated[RateLimiter, Depends(get_message_rate_limiter)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
+    cancellations: Annotated[
+        ChatTurnCancellationRepository, Depends(get_turn_cancellations)
+    ],
     graph: Annotated[QAGraph, Depends(get_graph)],
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
 ) -> MessageResponse:
@@ -597,7 +677,7 @@ async def post_message(
         client_ip=request.client.host if request.client else None,
     )
     async with _reserved_turn(cost_ledger) as spent:
-        result = await _run_turn(
+        result, cancelled = await _run_turn(
             graph,
             AskInput(
                 session_id=chat_session_id,
@@ -607,8 +687,28 @@ async def post_message(
             ),
             chat_session_id=chat_session_id,
             ctx=ctx,
+            cancellations=cancellations,
+            client_turn_id=body.client_turn_id,
         )
+        # Settled either way: a cancelled turn still spent whatever it spent before it stopped,
+        # and the reservation exists to bound the bill rather than to describe the outcome.
         spent[0] = _turn_cost_cents(before, result)
+
+    if cancelled:
+        # **Returning here is the fix.** The advisory lock is transaction-scoped and this
+        # request's session commits at dependency teardown, so ending the handler now releases
+        # it - which is the whole point, since the visitor's *next* question is what the held
+        # lock was refusing with "This conversation is already working on a question."
+        cancelled_response = MessageResponse(
+            **_cancelled_turn_fields(
+                chat_session_id=chat_session_id, client_turn_id=body.client_turn_id
+            )
+        )
+        # Published like every other terminal outcome, so a second tab and the other replicas
+        # learn the turn ended. chat-web drops snapshots for a turn it cancelled locally
+        # (D-381), so this cannot overwrite "You stopped this question."
+        _publish_snapshot(events, cancelled_response)
+        return cancelled_response
 
     pending = _result_interrupt(result)
     citations = [CitationResponse(**c) for c in result.get("citations") or []]
@@ -637,6 +737,52 @@ async def post_message(
     return response
 
 
+@router.post("/{chat_session_id}/turns/{client_turn_id}/cancel", status_code=202)
+async def cancel_turn(
+    chat_session_id: str,
+    client_turn_id: Annotated[str, Path(max_length=64)],
+    claims: Annotated[TokenClaims | None, Depends(get_optional_claims)],
+    graph: Annotated[QAGraph, Depends(get_graph)],
+    cancellations: Annotated[
+        ChatTurnCancellationRepository, Depends(get_turn_cancellations)
+    ],
+) -> Response:
+    """D-402: ask the turn identified by `client_turn_id` to stop at its next checkpoint.
+
+    **Why an endpoint at all.** Pressing Stop used to abort the client's fetch and nothing
+    else, and uvicorn does not cancel a handler when the client disconnects - measured, not
+    assumed: a probe against real uvicorn reports `ran-to-completion` after the client hangs up.
+    So the graph kept running under its 50s deadline holding the per-session advisory lock, and
+    the visitor's next question was refused with `TURN_ALREADY_RUNNING_MESSAGE`. Nothing the
+    client can do on its own releases that lock.
+
+    **Turn-scoped, not session-scoped.** A session-scoped "stop whatever is running" would also
+    kill the turn the visitor started *next* - the retry is the common case, since "Ask again"
+    reuses the id. The turn id is already on the wire (D-348) and already echoed on every
+    snapshot, so this is addressed with an identifier the client already holds.
+
+    **202, not 200**, and no body: the cancellation is a request, not an outcome. The turn
+    observes it at its next super-step boundary, which is seconds away, and the visitor's own UI
+    has already stopped locally. Reporting "cancelled" here would be a claim this handler cannot
+    make - the turn may finish first, which is a race the client already tolerates (D-381).
+
+    **Idempotent** by primary key, so a double-tap on Stop is one row.
+
+    Ownership is checked exactly as `/messages` checks it. `_reject_if_paused` bundles that gate
+    with the paused-turn 409 deliberately, and reusing it here would be wrong for the opposite
+    reason - a paused turn is a legitimate thing to cancel - so this calls
+    `_assert_session_access` directly against the same snapshot, which is the half that matters.
+    Left un-gated, anyone holding a session id could stop a stranger's turn.
+    """
+    snapshot = await graph.aget_state(_graph_config(chat_session_id))
+    if snapshot.values:
+        _assert_session_access(snapshot.values, claims)
+    await cancellations.request(
+        chat_session_id=chat_session_id, client_turn_id=client_turn_id
+    )
+    return Response(status_code=202)
+
+
 @router.post("/{chat_session_id}/respond", response_model=RespondResponse)
 async def respond_to_interrupt(
     chat_session_id: str,
@@ -649,6 +795,9 @@ async def respond_to_interrupt(
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     rate_limiter: Annotated[RateLimiter, Depends(get_email_rate_limiter)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
+    cancellations: Annotated[
+        ChatTurnCancellationRepository, Depends(get_turn_cancellations)
+    ],
     graph: Annotated[QAGraph, Depends(get_graph)],
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
 ) -> RespondResponse:
@@ -714,14 +863,31 @@ async def respond_to_interrupt(
         rate_limiter=rate_limiter,
         client_ip=request.client.host if request.client else None,
     )
+    resumed_turn_id = snapshot_values.get("client_turn_id")
     async with _reserved_turn(cost_ledger) as spent:
-        result = await _run_turn(
+        result, cancelled = await _run_turn(
             graph,
             Command(resume=resume_value),
             chat_session_id=chat_session_id,
             ctx=ctx,
+            cancellations=cancellations,
+            # The resumed turn's id comes off the checkpoint rather than the request: `/respond`
+            # carries a consent choice, not a turn id, and the turn being resumed is whichever
+            # one paused. Absent on an older checkpoint, which disables cancellation for that
+            # turn rather than cancelling the wrong one.
+            client_turn_id=resumed_turn_id if isinstance(resumed_turn_id, str) else None,
         )
         spent[0] = _turn_cost_cents(snapshot_values, result)
+
+    if cancelled:
+        cancelled_response = RespondResponse(
+            **_cancelled_turn_fields(
+                chat_session_id=chat_session_id,
+                client_turn_id=resumed_turn_id if isinstance(resumed_turn_id, str) else None,
+            )
+        )
+        _publish_snapshot(events, cancelled_response)
+        return cancelled_response
 
     if isinstance(body, LocationConsentChoice):
         # AUD-C-03: the resume payload above is the only place the caller's precise

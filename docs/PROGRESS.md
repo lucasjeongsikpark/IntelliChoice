@@ -103,18 +103,27 @@ back past all of Milestone 13** — the unobserved-500 fix, the log redaction, t
 as a side effect of adding an SNS topic. Bumped locally; `terraform.tfvars` is gitignored, so that
 bump does **not** ship and must be redone on a fresh checkout before any apply.
 
+**✅ W10 (D-402) closed both chat P2s, and one of them was already closed.**
+
+- **Stop now stops the server, turn by turn.** The user chose a real cancel endpoint over three
+  cheaper options and specified it precisely: turn-scoped, cooperative, a cancelled terminal
+  state, immediate lock release. All four are built and tested. The mechanism was measured first —
+  a probe against real uvicorn shows a handler whose client hangs up reports
+  `ran-to-completion`, so nothing the browser can do releases a transaction-scoped lock.
+  `astream` replaced `ainvoke` so the cancellation lands **between checkpoints** rather than
+  mid-node, **verified equivalent on the `interrupt()` approval path first** (251 tests pass
+  either way) because a change there would be a rule-4 problem rather than a bug.
+- **The approval modal was already fixed by D-381** — measured live at a 480px viewport
+  (`top=-54 to bottom=534`) and closed on 2026-08-16. The carry-over entry was stale. **Second
+  stale item found this way today**, after `AUD-L-16`.
+
 **Recommended next, in priority order:**
 
-1. **The two chat P2s**, now the top of the list.
-   Stop aborts only the HTTP request while the graph runs on holding the session lock, so the
-   next question is refused as *"still working on your last question"*; and the approval modal —
-   **the one screen that sends real email** — has no `max-height`, so a long body puts the heading
-   above the fold and both buttons below it.
-2. **`EDGE-CHAT-02`'s root cause**: chat has no liveness timer and no reconnect control where
-   learning-web has both.
-3. **OPEN_DECISIONS #14** — a judgement, not code: whether the frontends get unit-test tooling at
+1. **`EDGE-CHAT-02`'s root cause**: chat has no liveness timer and no reconnect control where
+   learning-web has both. Now the only remaining item from the 08-16 P2 list.
+2. **OPEN_DECISIONS #14** — a judgement, not code: whether the frontends get unit-test tooling at
    all. Recommendation is one app first, measured before doubling, for the reason D-397 exists.
-4. **The LangSmith/NAT decoupling** (recorded 2026-08-17), before OPEN_DECISIONS #6 is unblocked
+3. **The LangSmith/NAT decoupling** (recorded 2026-08-17), before OPEN_DECISIONS #6 is unblocked
    rather than after.
 
 ### Previous — a green baseline and the contracts nobody was testing (Milestone 12)
@@ -11029,6 +11038,16 @@ and say so — the cancellation test (which fails if `except Exception` is ever 
 measured) and the task-reference test (which asserts the reference rather than reproducing a
 collection).
 
+**W10 added a real capability rather than closing a gap, and the design was the user's.** Stop had
+never stopped the server: measured against real uvicorn, a handler whose client hangs up reports
+`ran-to-completion`, so a transaction-scoped advisory lock stayed held for up to the 50s deadline
+and the visitor's next question was refused. The spec came from the user in four parts — turn-scoped,
+cooperative, a cancelled terminal state, immediate lock release — and the interesting engineering
+was making "cooperative" real: `astream(stream_mode="values")` yields after each super-step, so the
+cancellation is observed **between checkpoints** rather than interrupting a node, which is strictly
+better than what the deadline already does. Verified equivalent to `ainvoke` on the `interrupt()`
+approval path *before* being relied on, because a behaviour change there is a rule-4 problem.
+
 **Then W6 and W7, the same day.** The tutor-chat browser leg V7 had deferred as expensive turned out
 to cost **4.6 s** for the walk and ~3.4 s per test — the 300 s timeouts on the sibling specs are
 safety margin, not duration — and it had stopped being optional in between, because D-389's
@@ -11043,6 +11062,17 @@ asking what the **code** did discriminates it immediately, on both engines: *no 
 lenient about a call that was never made.* The tick check is the subtle half — a timestamp
 comparison would not work, because the broken form also revokes "later", by microseconds in the
 same task.
+
+**Verification for W10:** `ruff` **All checks passed** · `pyright` **0 errors** · `tsc` + `oxlint`
+clean · pytest **1723 passed / 2 skipped / 1 xfailed** in 8:10, **+7** on 1716 and 7 is exactly the
+cancellation tests · Playwright **126 passed / 2 skipped**, **+1**, the Stop-tells-the-server
+assertion · the migration applies and round-trips (`upgrade` → `downgrade -1` → `upgrade`).
+
+Falsifications are deliberately split: disabling the cooperative check fails **3 of the 7** API
+tests — the three that depend on observation — while the four covering the endpoint, turn-scoping,
+ownership and the 64-char bound pass either way, which is correct. Reverting the client hook fails
+the browser test with its own message. The `astream`-for-`ainvoke` swap was verified against the
+whole chat-api suite **before** anything depended on it.
 
 **Verification for W8/W9:** `ruff` **All checks passed** · `pyright` **0 errors** · pytest **1716
 passed / 2 skipped / 1 xfailed** in 7:24, **+5** on 1711 and 5 is exactly what was added (2

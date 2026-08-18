@@ -3,6 +3,9 @@ from functools import lru_cache
 
 from fastapi import HTTPException, Request, status
 from intellichoice_adapters.fake_auth import JwtTokenVerifier, TokenError
+from intellichoice_db.repositories.chat_turn_cancellation import (
+    ChatTurnCancellationRepository,
+)
 from intellichoice_db.repositories.cost_reservation import CostReservationRepository
 from intellichoice_shared.auth import Audience, TokenClaims, account_refusal_reason
 from intellichoice_shared.bedrock import BedrockGateway
@@ -104,6 +107,16 @@ def get_cost_ledger(request: Request) -> CostReservationRepository:
     exactly the concurrent callers it exists to stop (AUD-X-08).
     """
     return CostReservationRepository(request.app.state.db_session_factory)
+
+
+def get_turn_cancellations(request: Request) -> ChatTurnCancellationRepository:
+    """D-402's Stop. Takes the session *factory* for the same reason the ledger above does,
+    and one more: the running turn observes this from inside a transaction that is already
+    open and holding the per-session advisory lock, so the read has to happen in a separate,
+    independently-committed transaction to see a row another request wrote after that one
+    began.
+    """
+    return ChatTurnCancellationRepository(request.app.state.db_session_factory)
 
 
 async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
