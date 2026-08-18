@@ -32,6 +32,11 @@ _INFORMATIONAL = {
     # Being *above* a capacity floor is the healthy state being reported.
     "capacity_above_floor",
     # A KPI floor going unmet is a product signal; on staging it is the normal overnight state.
+    #
+    # **Configured, not deployed** (found by a `terraform plan` for D-406): its `count` is gated on
+    # `daily_completed_sessions_floor > 0` and that variable is 0, so this alarm is absent from
+    # state. This test asserts the configuration, which is the right subject - but the deployed
+    # alarm count and the configured one are not the same number.
     "sessions_completed_floor",
 }
 

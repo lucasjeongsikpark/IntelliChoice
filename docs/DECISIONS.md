@@ -27528,7 +27528,15 @@ same address — so this is a *routing* change, not a change to who is told what
 
 **Three alarms qualify, on a narrow admission rule:** an alarm may be quiet only if its own
 description says users are unaffected, or if it reports a business floor rather than a fault —
-`langsmith_ingest_failed`, `capacity_above_floor`, `sessions_completed_floor`. Everything else stays
+`langsmith_ingest_failed`, `capacity_above_floor`, `sessions_completed_floor`.
+
+> **Corrected 2026-08-18 by a `terraform plan` run for D-406:** three qualify in the
+> *configuration*, but only **two are deployed**. `sessions_completed_floor` is
+> `count = var.daily_completed_sessions_floor > 0 ? 1 : 0` and that variable is 0, so the alarm is
+> absent from state entirely — which is why the plan shows four alarm updates (two apps × two
+> alarms) rather than five. The routing test asserts the configuration and is right to; the
+> deployed count and the configured count are simply not the same number, and "26 alarms" is the
+> configured one. Everything else stays
 on the page channel, and **the default for anything new is the page channel**, because an alarm
 nobody is woken by is easier to add by accident than to notice.
 
@@ -27749,3 +27757,40 @@ as a build error rather than as a runtime surprise.
 **Scope held deliberately:** no `@testing-library/react`. Component rendering is a real third use
 case (the banner's render condition) but it needs another dependency, and the rule here is two clear
 uses before an abstraction. It gets added when the first component test is written, not in advance.
+
+## D-406 — W14: the NAT gateway follows its consumers, not one of them (accepted, 2026-08-18)
+
+Recorded on 2026-08-17 while investigating the LangSmith quota, and fixed before it could bite:
+`nat_gateway_enabled = var.langsmith_tracing_enabled`. Correct while LangSmith was the only thing in
+a private subnet talking to third-party SaaS, and a trap the moment a second one existed.
+
+**The trap, precisely.** `youtube-sync` runs in a private subnet with `assign_public_ip = false`,
+and the YouTube Data API has no VPC endpoint. So switching tracing off — which the exhausted quota
+makes an entirely reasonable thing to do — would have silently stripped that job's egress.
+`modules/vpc/main.tf` says of exactly this class that *"the failure surfaces only at runtime —
+`terraform plan` cannot see it"*.
+
+**It was safe only by an accident of where a flag lived.** The sync's `enabled = false` was
+hardcoded *inside* the scheduled-jobs module, so the environment could not turn it on at all — which
+means "turn the sync on" and "keep NAT on" were two edits in two files with nothing connecting them.
+That is the actual defect; the coupling was just where it showed.
+
+**Fixed by naming the consumers.** `local.private_egress_consumers` is a map, not a bare `||`, so
+the *reason* NAT is on is readable in a plan diff and a third consumer is one line rather than a
+rediscovery of this comment. `youtube_sync_enabled` becomes an environment variable threaded into the
+module, so one switch turns the sync on **and** NAT follows automatically.
+
+**Verified the way a refactor should be: by producing no diff.** `terraform validate` passes, and a
+real `terraform plan` shows the NAT gateway **absent from the plan entirely** —
+`anytrue([true, false])` is the same `true` the old expression computed. `module.vpc.aws_nat_gateway.this[0]`
+is in state and untouched.
+
+**What the plan *did* show, all of it accounted for:** the two SNS resources and four alarm updates
+from D-401's unapplied alarm split, and three task-definition replacements, which is the standard
+CI-registers-then-terraform-wants-to-re-register drift D-137/D-141/D-356 document. **5 to add, 4 to
+change, 3 to destroy** — 2 SNS + 3 replacements is the 5, the 3 replacements are the 3 destroys, and
+the arithmetic closes. Nothing unexplained, and nothing applied.
+
+**A side finding the plan produced**, corrected above in D-401: `sessions_completed_floor` is not
+deployed (`count` gated on a variable that is 0), so of the three alarms routed to the quiet channel
+only two exist in staging.

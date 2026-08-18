@@ -116,7 +116,13 @@ locals {
       # from real ones. Failing loudly would be preferable; succeeding with invented data
       # is the worst outcome. Enable when a real `YOUTUBE_API_KEY` exists, together with
       # `YOUTUBE_BEDROCK_PROVIDER`/model wiring on the ops task.
-      enabled = false
+      #
+      # D-406: driven from the environment now. Turning this on also turns the NAT gateway on,
+      # because the environment's `private_egress_consumers` names this job as one of the two
+      # things needing general internet egress - the YouTube Data API has no VPC endpoint and this
+      # job runs in a private subnet with `assign_public_ip = false`. Hardcoded `false` here made
+      # "turn the sync on" and "keep NAT on" two edits in two files with nothing connecting them.
+      enabled = var.youtube_sync_enabled
     }
   }
 }

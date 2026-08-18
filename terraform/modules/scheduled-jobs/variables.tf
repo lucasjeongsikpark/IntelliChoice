@@ -54,6 +54,18 @@ variable "alerts_topic_arn" {
   type        = string
 }
 
+# D-406: the youtube-sync switch belongs to the environment, not to this module.
+#
+# It was hardcoded `enabled = false` here, which is correct today and hid a coupling: the NAT
+# gateway was driven by `langsmith_tracing_enabled` alone, and this job is the *other* thing that
+# needs general internet egress. With the flag unreachable from the environment, "turn the sync on"
+# and "make sure NAT is still on" were two edits in two files with nothing connecting them.
+variable "youtube_sync_enabled" {
+  description = "Whether the weekly YouTube catalog refresh is scheduled. Needs NAT egress."
+  type        = bool
+  default     = false
+}
+
 variable "enabled" {
   description = <<-EOT
     Whether the schedules are ENABLED. Kept as a variable rather than hardcoded because
