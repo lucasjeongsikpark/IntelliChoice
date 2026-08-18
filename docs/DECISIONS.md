@@ -27962,3 +27962,119 @@ human" there invites exactly the escalations the refusal exists to prevent, and 
 rule already keeps escalation off the access-hint path for a related reason. Recommend closing as
 accepted; not doing so unilaterally, because it is a product call about what the org wants in its
 inbox.
+
+## D-413 — W19: the replayed `Thinking…` gets a deadline, and the Stop button in it was dead (accepted, 2026-08-18)
+
+**The named residue, built as D-412 designed it.** A turn replayed from `sessionStorage` after a
+reload has no request behind it in this page life, so the only thing that can finish it is the stream
+matching a snapshot to its `client_turn_id`. Two ordinary paths never produce one: the question never
+reached the server (the checkpoint then names a *different* turn and D-348 drops an unmatched snapshot
+**by design**, correctly), and the process died mid-turn (the checkpoint holds an unfinished state, so
+`isFinishedTurn` stays false and the bubble stays even *with* a response). Both leave the visitor on a
+pulsing bubble for the rest of the session. `ExamScreen`'s `POSITION_WAIT_MS` (D-317) is the same
+shape and the same remedy: a render state that waits on a message which may never arrive needs a
+deadline, or the silent case becomes a permanent one.
+
+**Two defects came out of reading the code first, and neither is in the note.** This is the seventh
+and eighth time this milestone that reading the subject changed the work.
+
+1. **The Stop button inside that bubble did nothing, forever.** `inFlightRef` and `inFlightTurnRef`
+   are both `null` at mount and only `postTurn` fills them, so after a reload `cancelTurn()` aborted
+   nothing, called nothing and changed no state. The *one visible exit* from the stuck state was
+   inert. D-402's endpoint is addressed by `(session_id, client_turn_id)` and a replayed turn carries
+   both, so naming the turn is the whole fix.
+2. **It aborted whatever was in flight rather than the turn whose button was clicked.** Every pending
+   turn renders its own Stop, so a replayed turn plus a live question meant two buttons and one
+   victim — precisely what `inFlightTurnRef`'s own comment says the feature exists to avoid
+   (*"cancelling the wrong turn is the failure this whole feature is scoped to avoid"*). Wired bare,
+   `onClick={onCancel}` also passed the `MouseEvent` as the turn id.
+
+**The deadline's value is derived, not chosen: `REPLAYED_TURN_WAIT_MS = REQUEST_TIMEOUT_MS` (55s).**
+The worst case is a visitor who reloaded the instant their question left, so the server may still
+have the whole of its `chat_turn_deadline_s` (50s, D-346) plus publish latency. `REQUEST_TIMEOUT_MS`
+already means "even the answer never arrived" and is documented as sitting just above the server's
+deadline — so a replayed turn waits exactly as long as it would have without the reload, and there is
+one number rather than two. **Anything shorter invents failures**: the turn would be marked while the
+graph is still working and the snapshot arriving seconds later would clear it again, a bubble flapping
+between "we lost this" and a real answer.
+
+**It could not reuse `error`, because that bubble says something false here.** The existing failure
+copy is *"That message couldn't be sent."* A replayed turn shows `Thinking…` **because** the question
+was sent; what is unknown is what became of it. Telling a visitor their message never left is the
+`AEL-01` defect — a failure path stating the opposite of what happened — so `unresolved` is a fifth
+turn state with its own wording, exactly as D-352 added `cancelled` rather than overloading `error`.
+Presented like a stopped turn (dim, `role="status"`, "Ask again") because nothing here went wrong for
+the visitor.
+
+**`response: null` is set alongside the flag and is load-bearing.** Every failed-turn bubble requires
+`!turn.response`, so leaving an *unfinished* snapshot in place would put the turn in a state that
+renders **nothing at all** — a blank gap where the answer should be, which is worse than the stuck
+bubble. Non-vacuously tested: the case is seeded with a response present.
+
+**`isPendingTurn` now has one home** (`lib/turnState.ts`), read by the render gate and the deadline.
+A second copy of a four-clause predicate in another file is how the screen and the hook end up
+disagreeing about whether a turn is finished — the shape `mastery_policy.py` exists to prevent and the
+one D-408 refused to introduce in TypeScript.
+
+### The tooling: `@testing-library/react`, and it had a silent defect of its own
+
+OPEN_DECISIONS #14 deliberately left it out until *"the first component test"*; this session is that
+test, and the property being tested is a hook, which nothing else can drive. Added to **both**
+frontends per D-405's argument, with the probe run **before** any of it was built: `renderHook` +
+fake timers work on React 19 / vitest 4 / jsdom 30, and jsdom's missing `EventSource` is stubbable.
+
+**And the harness was quietly wrong out of the box.** `@testing-library/react` registers its own
+`afterEach(cleanup)` **only when the runner exposes globals**, and this project's vitest config
+deliberately does not. Without it every `render` accumulates in `document.body` and `screen.getAllBy*`
+matches earlier tests' markup. Measured while writing the first component test: a screen with **two**
+Stop buttons reported **three**, and the extra one belonged to the previous test. Fixed in
+`setupFiles` rather than per test file — a file-by-file `afterEach(cleanup)` works and is forgotten
+exactly once — and mirrored into learning-web, which has no component test yet, because a fix landing
+in one frontend and not the other is D-347.
+
+### Falsification
+
+Eight guards, broken one at a time against the real source; each failed the test written for it and
+the baseline was re-verified green after every restore.
+
+| broken | tests that noticed |
+|---|---|
+| no deadline at all | 3 (marks, clears response, scoping) |
+| deadline fires at 1s | the "not before the deadline" half |
+| no `isPendingTurn` re-check in the updater | snapshot-wins, stopped-turn-survives |
+| deadline applied to every pending turn | the mount-scoping test |
+| `response` left in place | the unfinished-response test |
+| `cancelTurn` reverted to its pre-D-413 body | 3 (dead button, wrong-turn abort, stopped survives) |
+| error bubble stops excluding `unresolved` | all 3 unresolved render tests (two bubbles) |
+| `onClick={onCancel}` wired bare | "names the turn it belongs to" |
+
+**One falsification was wrong before it was right, and that is worth recording.** The first attempt
+at the `cancelTurn` revert swapped only the `if` condition and left the new fallback branch behind, so
+a replayed turn still got marked and the run reported "nothing failed" for the test that matters most.
+The patch was worthless, not the test. A falsification that produces a *reassuring* result deserves
+the same suspicion as a test that passes first time.
+
+### Two bugs in this change, found by re-reading it
+
+Neither was caught by a test, because both are states the tests as first written never reached. Both
+are the same shape and it is the cost of a fifth state: **a terminal marker has to be cleared wherever
+a turn re-enters flight.**
+
+- **`retryTurn` cleared `cancelled` and not `unresolved`.** `isPendingTurn` treats any marker as
+  "ended", so "Ask again" on a lost turn would have re-sent the request with **no `Thinking…` anywhere
+  and the apology still on screen** — the retry would have looked like nothing happened, which is the
+  same class of dead affordance as the Stop button this session fixed.
+- **The SSE handler cleared `error` and not `unresolved`.** A late answer therefore left a stale flag.
+  Invisible today, because the unresolved bubble also requires `!turn.response` — i.e. it was safe only
+  by the accident of another branch's condition. Cleared, and unlike `cancelled` it is deliberately
+  **not** protected: a turn the visitor *stopped* must not be overwritten by a late answer (D-381),
+  but nobody withdrew a turn we merely lost track of, so the answer is strictly better than the
+  apology.
+
+Two more falsifications for these, taking the session to **ten**. The reusable form: when a state
+machine gains a state, the audit is not "does the new state render" but "what does every existing
+transition do with it".
+
+**Verification:** `ruff` clean · `pyright` 0 errors · pytest **1726 passed / 2 skipped / 1 xfailed**
+(unchanged, no Python touched) · Playwright **127 passed / 2 skipped**, identical to the baseline ·
+chat-web **36** unit tests where it had 6 · learning-web **21**, unchanged.

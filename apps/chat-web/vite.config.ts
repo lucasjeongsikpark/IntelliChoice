@@ -20,6 +20,10 @@ export default defineConfig({
     // drive is fully controlled instead of half-real.
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    // D-413: `@testing-library/react`'s cleanup and jsdom's missing `scrollTo`. See the file -
+    // without the first, `screen` queries match markup left behind by earlier tests in the same
+    // file, which is a wrong test rather than a failing one.
+    setupFiles: ["./src/test/setup.ts"],
   },
   server: {
     // packages/ui-brand lives outside this app dir; the two apps have

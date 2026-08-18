@@ -20,6 +20,9 @@ export default defineConfig({
     // drive is fully controlled instead of half-real.
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    // D-413: `@testing-library/react`'s cleanup and jsdom's missing `scrollTo`, mirrored from
+    // chat-web so the first component test written here starts from a correct harness.
+    setupFiles: ["./src/test/setup.ts"],
   },
   server: {
     // packages/ui-brand lives outside this app dir; the two apps have

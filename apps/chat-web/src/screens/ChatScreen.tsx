@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatMeta, ChatTurn, TurnSnapshot } from "../types";
 import { MAX_QUERY_CHARS } from "../api/errors";
+import { isFinishedTurn, isPendingTurn } from "../lib/turnState";
 import logoUrl from "../../../../packages/ui-brand/assets/logo.png";
 import { AccessHintBanner } from "./AccessHintBanner";
 import { RichText } from "../components/RichText";
@@ -48,8 +49,16 @@ interface Props {
   unknownInterrupt: string | null;
   onSend: (query: string) => void;
   onRetry: (turnId: string) => void;
-  /** D-352: stop the turn currently in flight. */
-  onCancel: () => void;
+  /**
+   * D-352: stop a turn the visitor is waiting on.
+   *
+   * **D-413 made it take the turn id.** Every pending turn renders its own Stop, so an
+   * argument-free callback could only mean "whatever is in flight" - which is a different turn
+   * from the one whose button was clicked as soon as there are two of them (a turn replayed by a
+   * reload, plus a new question). It also arrives as the click handler's `MouseEvent` if wired
+   * bare, so the id is passed explicitly at the call site.
+   */
+  onCancel: (turnId: string) => void;
   onEscalate: (query: string) => void;
   onLogout: () => void;
   /** D-353: sign in from an access hint, keeping the conversation. */
@@ -87,43 +96,6 @@ function citationLabel(c: TurnSnapshot["citations"][number]): string {
 function unaskedFollowups(prompts: string[], transcript: ChatTurn[]): string[] {
   const asked = new Set(transcript.map((t) => t.query.trim().toLowerCase()));
   return prompts.filter((p) => !asked.has(p.trim().toLowerCase()));
-}
-
-/**
- * Whether a snapshot describes a turn that has **finished**, as opposed to one the server is
- * still working on (D-379).
- *
- * **The defect this closes.** `resolve_role` clears `answer`, `citations`, `reason` and the
- * rest at turn *start*, while `client_turn_id` is already in the checkpoint. `/stream` emits
- * its initial snapshot on every connect with no "is a turn running?" guard, so a reload two
- * seconds into a 6-11s question restored a turn whose response was present and empty. D-348's
- * matcher found the id, matched confidently, and committed it - and the bubble rendered *"No
- * answer came back for that one. Try asking it again."* Following that instruction produced a
- * 409, and seconds later the real answer overwrote the refusal.
- *
- * In a product where a refusal is a first-class outcome, that **fabricates one** and instructs
- * an action that fails.
- *
- * `reason` is the discriminator and it is server-authored: cleared to null on entry, and set
- * by every terminal node (`ANSWER`, `NO_APPROVED_SOURCE`, `OUT_OF_SCOPE`, `ACCESS_REQUIRED`,
- * `POLICY_RESTRICTED`, `NEEDS_CLARIFICATION`, `HUMAN_ACTION_REQUIRED`, `SYSTEM_ERROR`). So
- * `reason === null` means "not finished" rather than "finished with nothing to say".
- *
- * D-351 added that field describing it as *"the field a client should branch on"* and no
- * component read it. This is the first one.
- *
- * The fallbacks matter for old checkpoints: a session checkpointed before `reason` existed has
- * none, so anything else that renders is also accepted as evidence the turn completed.
- */
-function isFinishedTurn(response: TurnSnapshot): boolean {
-  return (
-    response.reason !== null ||
-    Boolean(response.answer) ||
-    Boolean(response.access_hint) ||
-    response.citations.length > 0 ||
-    response.escalation_recommended ||
-    Boolean(response.pending_interrupt)
-  );
 }
 
 export function ChatScreen({
@@ -495,22 +467,32 @@ export function ChatScreen({
                 </div>
               </div>
             )}
-            {/* AUD-C-10: `Thinking…` is now gated on the turn *not* having failed.
-                Before, `!turn.response` covered both in-flight and failed, so any 500,
-                409, 401 or dropped connection left this bubble on screen permanently -
-                a §2.6 criterion-3 stuck state reachable from the most ordinary failure
-                there is. */}
-            {(!turn.response || !isFinishedTurn(turn.response)) && !turn.error && !turn.cancelled && (
+            {/* AUD-C-10: `Thinking…` is gated on the turn *not* having ended. Before,
+                `!turn.response` covered both in-flight and failed, so any 500, 409, 401 or
+                dropped connection left this bubble on screen permanently - a §2.6
+                criterion-3 stuck state reachable from the most ordinary failure there is.
+
+                D-413 moved the condition itself into `isPendingTurn` because the deadline in
+                `useChatSession` has to agree with it exactly: this gate decides when the
+                bubble is shown and that deadline decides when the waiting ends, so two copies
+                of the rule would mean a turn that is pending to one and finished to the
+                other. Every end state is excluded there, including the three that carry an
+                `error` string. */}
+            {isPendingTurn(turn) && (
               <div className="message-row assistant">
                 <div className="bubble dim" role="status">
                   Thinking…
                   {/* D-352: an answer takes 6-11s (measured live, D-343) with the composer
                       disabled throughout, and until now there was no way out of that but a
-                      page reload - which then landed on the blank-turn path. */}
+                      page reload - which then landed on the blank-turn path.
+
+                      D-413: `turn.id` rather than a bare `onCancel`. This button renders once
+                      per pending turn, so which one it means has to be said - and wired bare it
+                      would have passed the `MouseEvent` as the turn id. */}
                   <button
                     className="link cancel-turn"
                     type="button"
-                    onClick={onCancel}
+                    onClick={() => onCancel(turn.id)}
                   >
                     Stop
                   </button>
@@ -534,7 +516,30 @@ export function ChatScreen({
                 </div>
               </div>
             )}
-            {!turn.response && turn.error && !turn.cancelled && (
+            {/* D-413 (`AUD-CHAT-07`): the turn was replayed by a reload and nothing ever
+                finished it. Presented like a stopped turn rather than like a failure - dim,
+                `role="status"` not `alert`, "Ask again" not "Try again" - because nothing here
+                went wrong for the visitor and, unlike the branch below, **the message was
+                almost certainly sent**. See `ChatTurn.unresolved` for why that distinction
+                cannot be collapsed into `error`. */}
+            {!turn.response && turn.unresolved && !turn.cancelled && (
+              <div className="message-row assistant">
+                <div className="bubble dim" role="status">
+                  {turn.error}
+                  <button
+                    className="secondary retry"
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onRetry(turn.id)}
+                  >
+                    Ask again
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* `!turn.unresolved` keeps this from doubling up with the branch above, which
+                also carries an `error` string. Two bubbles for one turn is `EDGE-CHAT-07`. */}
+            {!turn.response && turn.error && !turn.cancelled && !turn.unresolved && (
               <div className="message-row assistant">
                 <div className="bubble turn-error" role="alert">
                   That message couldn't be sent. {turn.error}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "../api/client";
 import { friendlyError, isSignedOut } from "../api/errors";
 import { openSessionStream } from "../api/stream";
+import { isPendingTurn } from "../lib/turnState";
 import type { RespondBody } from "../api/client";
 import type { ChatTurn, TurnSnapshot } from "../types";
 
@@ -9,6 +10,33 @@ const SESSION_ID_KEY = "intellichoice.chat_session_id";
 const CANCELLED_MESSAGE = "You stopped this question.";
 const TRANSCRIPT_KEY = "intellichoice.chat_transcript";
 const OWNER_KEY = "intellichoice.chat_owner";
+
+/**
+ * D-413 (`AUD-CHAT-07`): what a turn replayed from storage is told when nothing ever finishes it.
+ *
+ * Deliberately does not say the message failed to send, because it almost certainly did - see
+ * `ChatTurn.unresolved`. It states what this tab actually knows: the answer did not come back to
+ * *it*. "Ask again" is the offer, the same verb a stopped turn gets, because nothing here is the
+ * visitor's fault and nothing needs apologising for.
+ */
+const UNRESOLVED_MESSAGE = "We lost track of this question when the page reloaded.";
+
+/**
+ * How long a replayed turn waits before it is declared unresolved.
+ *
+ * **Equal to the live request's own timeout on purpose, and that equality is the derivation.**
+ * The worst case is a visitor who reloaded the instant their question left the tab, so the server
+ * may still have the whole of its `chat_turn_deadline_s` (50s, D-346) to run, plus the relay's
+ * publish latency before the snapshot reaches a new stream. `REQUEST_TIMEOUT_MS` is already the
+ * constant meaning "even the answer never arrived" and is documented as sitting just above the
+ * server's deadline for exactly this reason - so a replayed turn waits precisely as long as it
+ * would have if the tab had never reloaded.
+ *
+ * Anything shorter invents failures: the turn would be marked unresolved while the graph is still
+ * working, and the snapshot arriving seconds later would clear the state again - a bubble that
+ * flaps between "we lost this" and a real answer, which is worse than the wait it saves.
+ */
+const REPLAYED_TURN_WAIT_MS = api.REQUEST_TIMEOUT_MS;
 
 /**
  * D-353, ported from `useLearningSession.clearSessionIfOwnedByAnotherSubject`.
@@ -101,6 +129,23 @@ export function useChatSession(
     loadTranscript().length > 0 ? sessionStorage.getItem(SESSION_ID_KEY) : null,
   );
 
+  /**
+   * D-413: the turns that were already waiting when this page life began.
+   *
+   * **Scoped to the replayed ones, not to every pending turn, and that scoping is the fix rather
+   * than an optimisation.** A turn sent by *this* tab is already bounded - its `fetch` carries
+   * `AbortSignal.timeout(REQUEST_TIMEOUT_MS)` and `postTurn`'s catch turns that into the retryable
+   * state. A deadline applied to live turns too would race that catch and report the same failure
+   * twice, from two places, with two different wordings.
+   *
+   * Captured in a `useState` initialiser so it is computed once, at mount, from what storage held
+   * *before* any effect has run. It never changes afterwards: a turn sent later in this page life
+   * is not a replayed turn, and a reload creates a new hook.
+   */
+  const [replayedPendingIds] = useState<ReadonlySet<string>>(
+    () => new Set(loadTranscript().filter(isPendingTurn).map((turn) => turn.id)),
+  );
+
   // See useLearningSession's own comment on why action callbacks read the session id
   // through a ref rather than the `sessionId` state directly - a caller that chains
   // `startSession().then(() => sendMessage(...))` would otherwise close over a stale
@@ -179,7 +224,19 @@ export function useChatSession(
           // Clearing `error` matters: a turn that failed at the HTTP layer but whose
           // graph run actually completed gets its real answer over SSE, and leaving the
           // error bubble beside it would show a failure next to its own result.
-          const updated: ChatTurn = { ...prev[index], response: snapshot, error: null };
+          //
+          // **`unresolved` is cleared for the same reason, and unlike `cancelled` it is not
+          // protected** (D-413). A late answer to a turn the visitor *stopped* must stay
+          // suppressed - they withdrew the question. A turn we merely lost track of is the
+          // opposite case: nobody withdrew anything, so an answer that finally arrives is
+          // strictly better than the apology, and the flag has to go with it or a future
+          // branch reading `unresolved` without `!turn.response` inherits a stale one.
+          const updated: ChatTurn = {
+            ...prev[index],
+            response: snapshot,
+            error: null,
+            unresolved: false,
+          };
           return prev.map((turn, i) => (i === index ? updated : turn));
         });
       },
@@ -187,6 +244,44 @@ export function useChatSession(
     );
     return close;
   }, [sessionId, streamReadyFor, token, streamNonce]);
+
+  /**
+   * **D-413 (`AUD-CHAT-07`): the replayed `Thinking…` gets a deadline.**
+   *
+   * A turn restored from `sessionStorage` has no request behind it in this page life, so the only
+   * thing that can ever finish it is the stream effect above matching a snapshot to its
+   * `client_turn_id`. Two ordinary paths never produce one: the question never reached the server
+   * (the checkpoint then names a *different* turn, and D-348 drops an unmatched snapshot by
+   * design, correctly), and the process died mid-turn (the checkpoint holds an unfinished state,
+   * so `isFinishedTurn` stays false and the bubble stays even *with* a response). In both, the
+   * visitor waits on a pulsing bubble for the rest of the session.
+   *
+   * This is `ExamScreen`'s `POSITION_WAIT_MS` shape (D-317): a render state that depends on a
+   * message which may never arrive needs a deadline, or the silent case becomes a permanent one.
+   *
+   * `response: null` is set alongside the flag and is load-bearing, not tidying: the failed-turn
+   * bubbles all require `!turn.response`, so leaving an *unfinished* snapshot in place would put
+   * the turn in a state that renders nothing at all - a blank gap where the answer should be,
+   * which is a worse outcome than the stuck bubble. `postTurn`'s catch clears it for the same
+   * reason.
+   *
+   * `isPendingTurn` is re-checked inside the updater rather than trusted from mount: by the time
+   * this fires the turn may have been answered by a snapshot, stopped by the visitor, or retried,
+   * and each of those has already put it in a state this must not overwrite.
+   */
+  useEffect(() => {
+    if (replayedPendingIds.size === 0) return;
+    const id = window.setTimeout(() => {
+      setTranscript((prev) =>
+        prev.map((turn) =>
+          replayedPendingIds.has(turn.id) && isPendingTurn(turn)
+            ? { ...turn, response: null, error: UNRESOLVED_MESSAGE, unresolved: true }
+            : turn,
+        ),
+      );
+    }, REPLAYED_TURN_WAIT_MS);
+    return () => window.clearTimeout(id);
+  }, [replayedPendingIds]);
 
   // D-347: the stored token is the thing a 401 invalidates, and clearing it is the only exit
   // from the loop it otherwise creates - `get_optional_claims` 401s a *present but invalid*
@@ -302,15 +397,55 @@ export function useChatSession(
    * The server call is fire-and-forget on purpose: the local stop has already taken effect, so
    * awaiting it would delay the UI for no benefit, and a failure has to degrade to the old
    * behaviour rather than report an error for something the visitor just watched succeed.
+   *
+   * ---
+   *
+   * **D-413: it now takes the turn it is stopping, and works on a turn this tab never sent.**
+   *
+   * Two defects came out of reading the previous version, neither of them in `AUD-CHAT-07`'s note:
+   *
+   * 1. **After a reload it did nothing at all.** Both refs are `null` at mount and only `postTurn`
+   *    fills them, so on a replayed turn the abort was a no-op, the `if` body never ran, and no
+   *    state changed. The one exit the visitor could see was inert, permanently. Naming the turn
+   *    from the transcript is enough to fix it, because D-402's endpoint is addressed by
+   *    `(session_id, client_turn_id)` and a replayed turn carries both.
+   * 2. **It aborted whatever was in flight, not the turn whose button was clicked.** Every pending
+   *    turn renders its own Stop, so a replayed turn plus a live one meant two buttons and one
+   *    victim - "cancelling the wrong turn is the failure this whole feature is scoped to avoid",
+   *    per `inFlightTurnRef`'s own comment. The abort is now conditional on the named turn being
+   *    the in-flight one.
+   *
+   * The replayed branch has to set the stopped state itself: there is no request, so there is no
+   * `postTurn` catch to do it. Telling the server anyway is the point rather than a side effect -
+   * the graph from the previous page life may still be running and holding the session's advisory
+   * lock, which is exactly what D-402 exists to release. A cancellation for a turn that finished
+   * long ago is harmless: it is a row nothing consumes, which `STALE_AFTER` already reaps.
    */
-  const cancelTurn = useCallback(() => {
-    inFlightRef.current?.abort();
-    const inFlight = inFlightTurnRef.current;
-    if (inFlight) {
-      void api.cancelTurn(token, inFlight.sessionId, inFlight.turnId);
-      inFlightTurnRef.current = null;
-    }
-  }, [token]);
+  const cancelTurn = useCallback(
+    (turnId: string) => {
+      const inFlight = inFlightTurnRef.current;
+      if (inFlight && inFlight.turnId === turnId) {
+        // The abort is what `postTurn`'s catch turns into the stopped state, so this branch
+        // deliberately sets no transcript state of its own.
+        inFlightRef.current?.abort();
+        inFlightTurnRef.current = null;
+        void api.cancelTurn(token, inFlight.sessionId, turnId);
+        return;
+      }
+      setTranscript((prev) =>
+        prev.map((turn) =>
+          // Guarded like the deadline's updater: between render and click the turn may have been
+          // answered, and a stopped state on a turn with an answer would hide the answer.
+          turn.id === turnId && isPendingTurn(turn)
+            ? { ...turn, response: null, error: CANCELLED_MESSAGE, cancelled: true }
+            : turn,
+        ),
+      );
+      const sid = sessionIdRef.current;
+      if (sid) void api.cancelTurn(token, sid, turnId);
+    },
+    [token],
+  );
 
   const sendMessage = useCallback(
     async (query: string) => {
@@ -359,7 +494,15 @@ export function useChatSession(
         if (!sid) return null;
         setTranscript((prev) =>
           prev.map((t) =>
-            t.id === turnId ? { ...t, response: null, error: null, cancelled: false } : t,
+            // **Every terminal marker has to be cleared here, not just the one that brought the
+            // visitor to this button** (D-413). `isPendingTurn` treats any of them as "ended", so
+            // a leftover flag means the retry runs with no `Thinking…` on screen and the previous
+            // end-state bubble still showing - the retried turn would still read "We lost track of
+            // this question" while its request is in flight. Adding a sixth state means adding a
+            // line here; that is the cost of the shape and it is cheaper than overloading `error`.
+            t.id === turnId
+              ? { ...t, response: null, error: null, cancelled: false, unresolved: false }
+              : t,
           ),
         );
         // D-378: `turn.escalate`, not a bare re-send. See `ChatTurn.escalate`.

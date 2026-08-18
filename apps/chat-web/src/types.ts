@@ -95,6 +95,20 @@ export interface ChatTurn {
   // rendering concern.
   cancelled?: boolean;
   /**
+   * D-413 (`AUD-CHAT-07`): a fifth state — the turn was replayed from storage after a reload
+   * and no snapshot ever arrived to finish it.
+   *
+   * **It cannot reuse `error`, because that bubble says "That message couldn't be sent." and
+   * here that is false.** A replayed turn shows `Thinking…` precisely *because* the question was
+   * sent; what is unknown is what became of it. Telling a visitor their message never left is
+   * the `AEL-01` defect — a failure path that states the opposite of what happened — so this gets
+   * its own wording, exactly as `cancelled` did rather than being folded into `error`.
+   *
+   * Set only by the mount deadline in `useChatSession`, guarded by `isPendingTurn`, so it can
+   * never land on a turn that already reached one of the other end states.
+   */
+  unresolved?: boolean;
+  /**
    * Whether this turn was sent as an escalation (D-378).
    *
    * **`retryTurn` re-sent it as an ordinary question without this**, because it rebuilt the

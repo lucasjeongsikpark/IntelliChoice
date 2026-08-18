@@ -498,6 +498,17 @@ clear the backlog in one pass.
 > is a real use case and needs another dependency, so it arrives with the first component test
 > rather than in advance.
 >
+> **The follow-on happened as written, on 2026-08-18 (D-413).** `AUD-CHAT-07`'s deadline lives in a
+> hook, so the first thing that needed rendering arrived and `@testing-library/react` came with it —
+> both frontends, `renderHook` + fake timers proved on a throwaway probe *before* the feature was
+> built. Two of the four blocked assertions above are now expressible; the disconnect banner's render
+> condition is the one still unwritten.
+>
+> **And it needed one thing this item did not anticipate:** RTL registers its own `afterEach(cleanup)`
+> only when the runner exposes globals, which this config deliberately does not — so without an
+> explicit `setupFiles` every `render` leaks into the next test in the file. Measured as a screen with
+> two Stop buttons reporting three. Wired in both apps, so the next component test starts correct.
+>
 > **Two mistakes it caught within minutes of existing**, which is the answer to "would it earn its
 > keep": `test` is not a valid key on vite's `defineConfig` (it needs `vitest/config`), and
 > `constructor(public url: string)` is forbidden by `erasableSyntaxOnly`. Both surfaced as build

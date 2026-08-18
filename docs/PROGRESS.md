@@ -7,10 +7,51 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**✅ MILESTONE 13 IS CLOSED — 18 SESSIONS, THE 08-16 AUDIT'S P2 LIST EMPTY, AND NOTHING LEFT THAT
-SHOULD BE BUILT WITHOUT A DECISION (2026-08-18, D-393 → D-412).**
+**✅ MILESTONE 14 IS CLOSED — the last audit item that was code rather than a judgement
+(2026-08-18, D-413 — ROADMAP Milestone 14, W19).**
 
-**Start here, before picking anything up: the carry-over list was wrong six times this milestone.**
+**The habit held for a seventh and eighth time: reading the subject found two defects the note does
+not mention, and one of them mattered more than the item.** `AUD-CHAT-07` asked for a deadline on the
+replayed "Thinking…" and got one. But the **Stop button inside that bubble had never done anything
+after a reload** — both in-flight refs are `null` at mount, so it aborted nothing, called nothing and
+changed no state. The one visible exit from the stuck state was inert. It also aborted *whatever* was
+in flight rather than the turn whose button was clicked, which is the exact failure `inFlightTurnRef`'s
+own comment says the feature exists to avoid.
+
+**Read this before writing the next test in either frontend.** `@testing-library/react` is now
+installed in both apps and it is quietly wrong without `setupFiles`: RTL registers its own
+`afterEach(cleanup)` **only** when the runner exposes globals, which this project's vitest config
+deliberately does not. Without it every `render` accumulates in `document.body` and `screen.getAllBy*`
+matches the previous test's markup — measured as a screen with two Stop buttons reporting three. Both
+apps now load `src/test/setup.ts`; do not write a component test that bypasses it.
+
+**And a falsification of mine looked reassuring and was itself broken.** The first attempt at
+reverting `cancelTurn` swapped only the `if` condition and left the new fallback branch in place, so
+the run reported "nothing failed" for the test that matters most. **A falsification that produces a
+comfortable result deserves the same suspicion as a test that passes first time.**
+
+**Nothing on any audit list now needs code without a decision from you.** What is left:
+
+1. **`AUD-CHAT-14`** — recommend closing as accepted. A product call about what the org wants in its
+   inbox (D-412 has the reasoning).
+2. **The disconnect banner's render condition** — the last of D-403's four blocked assertions, and now
+   *unblocked*: RTL is installed and `ChatScreen.test.tsx` exists to add it to. One component test.
+3. **OPEN_DECISIONS #6** — still blocked on the YouTube key, which only you can supply.
+4. **OPEN_DECISIONS #8** — unchanged; D-310 stands until staging stops being synthetic.
+
+**⚠️ Before any `terraform apply`:** the tfvars image floor is bumped **locally only** and that file
+is gitignored. On a fresh checkout it must be redone, or the apply rolls staging back past
+Milestone 13 entirely. `make tfvars-floor-check` is the guard and it caught this once already (D-401).
+
+**Loose end, not project code:** `.agents/skills/` and `skills-lock.json` are untracked and not
+ignored, so they appear in every `git status`. They are Claude Code tooling artefacts; committing or
+ignoring them is a preference, and neither was chosen for you.
+
+### Previous — Milestone 13 closed (18 sessions, D-393 → D-412)
+
+**✅ 18 SESSIONS, THE 08-16 AUDIT'S P2 LIST EMPTY (2026-08-18, D-393 → D-412).**
+
+**The finding worth more than any fix in it: the carry-over list was wrong six times.**
 `AUD-L-16`, the approval modal, "learning-web has both a liveness timer and a reconnect control",
 `AUD-L-10`'s percentage half, `AUD-L-11`'s premise, and `AUD-L-06` — each closed by reading the code
 rather than by writing any. Read the note's subject before implementing the note.
@@ -18,15 +59,6 @@ rather than by writing any. Read the note's subject before implementing the note
 **Final verification on merged `main` (`0ddcf5d`):** `ruff` clean · `pyright` 0 errors · pytest
 **1726 passed / 2 skipped** · Playwright **127 passed / 2 skipped** across three projects · 27
 frontend unit tests · both web builds clean.
-
-**The one clear piece of code left** is `AUD-CHAT-07`'s deadline: bound the replayed "Thinking…"
-after a mid-turn reload the way `ExamScreen` bounds its position wait (D-317's `POSITION_WAIT_MS`),
-resolving an unrecovered turn into the retryable state that already exists. Everything else on the
-audit lists is either done or waiting on a judgement — see the four items at the end of this block.
-
-**⚠️ Before any `terraform apply`:** the tfvars image floor is bumped **locally only** and that file
-is gitignored. On a fresh checkout it must be redone, or the apply rolls staging back past this
-entire milestone. `make tfvars-floor-check` is the guard and it caught this once already (D-401).
 
 ### Previous — the backend failure-path tail (Milestone 13, W1–W5)
 
@@ -11131,6 +11163,65 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### Session log — the exit that was already there, and a falsification that lied (2026-08-18, D-413)
+
+**Goal:** `AUD-CHAT-07`'s deadline — the one item left on any audit list that was code rather than a
+judgement, with its design already named by D-412.
+
+**Built:** the mount-scoped deadline in `useChatSession` (`REPLAYED_TURN_WAIT_MS` = the live request's
+own `REQUEST_TIMEOUT_MS`, derived rather than chosen); `ChatTurn.unresolved` as a fifth turn state with
+its own bubble; `cancelTurn(turnId)` — the same call now works on a turn this tab never sent, and stops
+aborting a turn other than the one clicked; `lib/turnState.ts`, so the render gate and the deadline
+read one definition of "pending"; `@testing-library/react` + `src/test/setup.ts` in **both** frontends.
+
+**What reading the code found that the note did not.** Two defects, in the same eight lines:
+
+1. **The Stop button in the replayed bubble did nothing, permanently.** Both in-flight refs are `null`
+   at mount and only `postTurn` fills them, so `cancelTurn()` aborted nothing, called nothing, changed
+   nothing. The stuck state's only visible exit was inert — arguably worse than the missing deadline,
+   since a visitor clicking it learns the app ignores them.
+2. **It aborted whatever was in flight, not the turn whose button was clicked.** Every pending turn
+   renders its own Stop, so a replayed turn plus a live question meant two buttons and one victim.
+
+**And the audit's own framing was the smaller half**, as D-412 had already measured: the composer being
+re-enabled is arguably *correct*, so the fix is a deadline and a working exit, not a lock.
+
+**Verification:** `ruff` **All checks passed** · `pyright` **0 errors** · pytest **1726 passed / 2
+skipped / 1 xfailed** in 7:41 (unchanged - no Python touched) · Playwright **127 passed / 2 skipped**
+in 6.4m across chromium, mobile and webkit, identical to the baseline · chat-web **36** unit tests
+(from 6) across 4 files · learning-web **21**, unchanged, with the new setup file loading · both
+builds clean · both `oxlint` exit 0.
+
+**Falsified, ten guards, one at a time** — no deadline, a 1s deadline, no `isPendingTurn` re-check, no
+mount scoping, `response` left in place, `cancelTurn` reverted, the error bubble no longer excluding
+`unresolved`, `onClick={onCancel}` wired bare, and the two flag-clearing fixes below. Each failed the
+test written for it; baseline re-verified green after every restore.
+
+**Two bugs in my own change, both found by re-reading it rather than by a failing test.** `retryTurn`
+cleared `cancelled` and would have left `unresolved` set, so a retried turn would have run its request
+with "We lost track of this question" still on screen and no `Thinking…` anywhere; and the SSE handler
+cleared `error` but not `unresolved`, leaving a stale flag on a turn that got a late answer. Both now
+cleared and both falsified. **The general rule the fifth state buys: every terminal marker has to be
+cleared wherever a turn re-enters flight, and `isPendingTurn` is what makes forgetting one visible.**
+
+**The reusable part, and it is a new one: a falsification can lie in the comfortable direction.** The
+first `cancelTurn` revert swapped only the `if` condition and left the new fallback branch behind, so
+a replayed turn still got marked and the run reported *"nothing failed"* for the test covering the
+dead button — the single most important assertion in the session. The patch was worthless, not the
+test. **A reassuring falsification needs the same suspicion as a test that passes first time**, and the
+check that catches it is asserting the patch target appears exactly once *and* reasoning about what the
+patched source actually does.
+
+**Also found, in the tooling rather than the product:** `@testing-library/react` never registers its
+`afterEach(cleanup)` unless the runner exposes globals, which this config deliberately does not. A
+screen with two Stop buttons reported three, and the extra belonged to the previous test in the file.
+Fixed in `setupFiles` in both apps rather than per file, because a per-file `afterEach(cleanup)` works
+and is forgotten exactly once.
+
+**Carry-over:** `AUD-CHAT-14` (a product call, recommend accepting); the disconnect banner's render
+condition (now unblocked, one component test); OPEN_DECISIONS #6 and #8. Nothing on any audit list now
+needs code without a decision.
 
 ### Milestone 13 in full: the failure path, then the audit's tail (2026-08-17/18, D-393 → D-412)
 
