@@ -139,10 +139,6 @@ class OrgEventRepository:
         resolved audiences - the classification of upcoming/completed/canceled/changed
         happens deterministically in `chat_api.services.calendar_events`, not here.
         """
-        stmt = (
-            select(OrgEvent)
-            .where(OrgEvent.audience.in_(audiences))
-            .order_by(OrgEvent.starts_at)
-        )
+        stmt = select(OrgEvent).where(OrgEvent.audience.in_(audiences)).order_by(OrgEvent.starts_at)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())

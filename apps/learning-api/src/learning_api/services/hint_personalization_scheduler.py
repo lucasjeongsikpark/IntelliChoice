@@ -114,9 +114,7 @@ class BackgroundHintPersonalizationScheduler:
         graph_getter: "Callable[[], LearningGraph]",
         events: SessionEventBus,
         profile_adapter: ProfileAdapter,
-        snapshot_builder: Callable[
-            [AsyncSession, str, dict, dict], Awaitable[dict | None]
-        ],
+        snapshot_builder: Callable[[AsyncSession, str, dict, dict], Awaitable[dict | None]],
     ) -> None:
         self._session_factory = session_factory
         self._gateway_factory = gateway_factory

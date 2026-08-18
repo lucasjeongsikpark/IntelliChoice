@@ -104,8 +104,7 @@ def test_an_unpriced_model_cannot_under_reserve_a_chat_turn() -> None:
     """
     unknown = max(_turn_shapes(_gateway("model-that-does-not-exist")).values())
     priced = [
-        max(_turn_shapes(_gateway(model_id)).values())
-        for model_id in _MODEL_RATES_PER_1K_CENTS
+        max(_turn_shapes(_gateway(model_id)).values()) for model_id in _MODEL_RATES_PER_1K_CENTS
     ]
     assert unknown >= max(priced)
     assert tutor_chat.TURN_RESERVATION_ESTIMATE_CENTS >= unknown

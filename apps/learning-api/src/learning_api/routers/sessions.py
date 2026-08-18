@@ -728,9 +728,7 @@ async def _invoke_with_deadline(graph, payload, learning_session_id: str, ctx, d
                 payload, config=_graph_config(learning_session_id), context=ctx
             )
     except TimeoutError as exc:
-        logger.warning(
-            "learning_turn_deadline_exceeded", extra={"thread_id": learning_session_id}
-        )
+        logger.warning("learning_turn_deadline_exceeded", extra={"thread_id": learning_session_id})
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=TURN_TIMED_OUT_MESSAGE
         ) from exc
@@ -754,9 +752,7 @@ async def _reconcile_checkpoint(
     )
     if repair is None:
         return state
-    logger.warning(
-        "reconciling learning session %s: %s", learning_session_id, repair.reason
-    )
+    logger.warning("reconciling learning session %s: %s", learning_session_id, repair.reason)
     CHECKPOINT_REPAIRS.inc()
     await graph.aupdate_state(_graph_config(learning_session_id), repair.updates)
     snapshot = await graph.aget_state(_graph_config(learning_session_id))
@@ -1108,9 +1104,7 @@ async def select_topic(
     return response
 
 
-@router.post(
-    "/{learning_session_id}/attendance-resolution", response_model=TopicSelectionResponse
-)
+@router.post("/{learning_session_id}/attendance-resolution", response_model=TopicSelectionResponse)
 async def resolve_attendance_choice(
     learning_session_id: str,
     body: AttendanceResolutionRequest,
@@ -1129,9 +1123,7 @@ async def resolve_attendance_choice(
     """SPEC §5.6.3's two choices, offered after `/topics` returns `phase="blocked"`."""
     state = await _get_state_values(graph, learning_session_id, db)
     if state.get("student_external_id") is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="select a student first"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="select a student first")
     await resolve_target_student(
         claims, state["student_external_id"], profile_adapter, access="write"
     )
@@ -1285,9 +1277,7 @@ async def submit_answer(
                 assessment_repo, exam_session_id, body.question_variant_id, idempotency_key
             )
         except flow.ItemAlreadyAnsweredError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
-            ) from exc
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     ctx = _turn_context(
         cost_ledger=cost_ledger,
@@ -1436,9 +1426,7 @@ async def _exam_phase_state(
     """
     state = await _get_state_values(graph, learning_session_id, db)
     if state.get("student_external_id") is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="select a student first"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="select a student first")
     await resolve_target_student(
         claims, state["student_external_id"], profile_adapter, access="write"
     )
@@ -1581,9 +1569,7 @@ async def _exam_overview_view(
     # (`status != "answered"`, so `skipped`/`flagged` count as remaining) rather than
     # re-deriving it is the point - a diagnostic that computes the position differently from
     # the code it is diagnosing can disagree with it and be believed.
-    unanswered = sorted(
-        item.display_order for item in item_responses if item.status != "answered"
-    )
+    unanswered = sorted(item.display_order for item in item_responses if item.status != "answered")
     logger.info(
         "exam_overview_read",
         extra={
@@ -1686,9 +1672,7 @@ async def finalize_exam(
     """
     state = await _get_state_values(graph, learning_session_id, db)
     if state.get("student_external_id") is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="select a student first"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="select a student first")
     await resolve_target_student(
         claims, state["student_external_id"], profile_adapter, access="write"
     )
@@ -1782,9 +1766,7 @@ async def send_chat_message(
     """
     state = await _peek_state_values(graph, learning_session_id)
     if state.get("student_external_id") is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="select a student first"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="select a student first")
     await resolve_target_student(
         claims, state["student_external_id"], profile_adapter, access="write"
     )
@@ -1869,9 +1851,7 @@ async def respond_to_interrupt(
         )
     pending = _pending_task_interrupt(snapshot)
     if pending is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="no interrupt is pending"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="no interrupt is pending")
     if pending.value.get("type") != body.interrupt_type:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

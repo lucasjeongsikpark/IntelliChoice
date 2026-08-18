@@ -63,9 +63,7 @@ async def find_repair(
     if phase == "study" and study_session_id is not None:
         if await study_repo.get_study_session(study_session_id) is None:
             pre_id = state.get("pre_assessment_session_id")
-            pre_row = (
-                await assessment_repo.get_session(pre_id) if pre_id is not None else None
-            )
+            pre_row = await assessment_repo.get_session(pre_id) if pre_id is not None else None
             # The exam row is the authority on whether the finalize actually landed
             # (`flow.finalize_exam` reads `finalized_at` for exactly this reason). It
             # committed on the same transaction the study session did, so if the study

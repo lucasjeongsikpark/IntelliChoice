@@ -85,9 +85,7 @@ def test_upsert_twice_writes_one_row_and_refreshes_it() -> None:
             repo = LearningSessionRepository(session)
             await repo.upsert(_summary("thread-twice", phase="study"))
             later = ACTIVITY + timedelta(days=1)
-            await repo.upsert(
-                _summary("thread-twice", phase="completed", last_activity_at=later)
-            )
+            await repo.upsert(_summary("thread-twice", phase="completed", last_activity_at=later))
 
             rows = await repo.list_for_student(STUDENT)
             assert [r.learning_session_id for r in rows] == ["thread-twice"]

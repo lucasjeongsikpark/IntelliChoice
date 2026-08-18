@@ -75,9 +75,7 @@ async def _seed_exam(session: AsyncSession, policy: dict | None) -> str:
 
 
 async def _seed_study(session: AsyncSession, intervention_policy: dict) -> str:
-    topic = Topic(
-        name="Effective policy topic", curriculum_version="test", grade_band="6-8"
-    )
+    topic = Topic(name="Effective policy topic", curriculum_version="test", grade_band="6-8")
     session.add(topic)
     await session.flush()
     row = StudySession(
@@ -141,9 +139,7 @@ def test_the_shipped_constants_and_the_snapshots_agree_today() -> None:
 
     async def run() -> None:
         async with _rollback_session() as session:
-            exam_id = await _seed_exam(
-                session, exam_policy.get_policy("pre_exam").model_dump()
-            )
+            exam_id = await _seed_exam(session, exam_policy.get_policy("pre_exam").model_dump())
             study_id = await _seed_study(session, {"hints_enabled": True})
 
             exam = await effective_assistance_policy(

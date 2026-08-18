@@ -194,7 +194,7 @@ def test_every_item_in_every_bank_file_is_active_after_a_load() -> None:
                     if row.active_status != "active":
                         retired.append((topic_id, template.question_template_id))
             assert not retired, (
-                "a load retired items their own bank file still lists: " f"{retired[:10]}"
+                f"a load retired items their own bank file still lists: {retired[:10]}"
             )
 
     asyncio.run(run())
@@ -227,9 +227,7 @@ def test_no_approved_item_is_a_bare_equation() -> None:
 
     import yaml
 
-    authored_dir = (
-        pathlib.Path(__file__).resolve().parents[3] / "curriculum/internal_math/authored"
-    )
+    authored_dir = pathlib.Path(__file__).resolve().parents[3] / "curriculum/internal_math/authored"
     paths = sorted(authored_dir.glob("*.yaml"))
     assert paths, f"no authored bank files found under {authored_dir}"
     offenders = []
@@ -237,15 +235,13 @@ def test_no_approved_item_is_a_bare_equation() -> None:
         bank = yaml.safe_load(path.read_text())
         for template in bank["templates"]:
             stem = template["stem"].strip()
-            prose_words = re.findall(
-                r"[A-Za-z]{3,}", (template.get("context_block") or "") + stem
-            )
-            if re.match(r"^(solve|find|evaluate|simplify|what is)\b", stem, re.I) and len(
-                prose_words
-            ) < 12:
+            prose_words = re.findall(r"[A-Za-z]{3,}", (template.get("context_block") or "") + stem)
+            if (
+                re.match(r"^(solve|find|evaluate|simplify|what is)\b", stem, re.I)
+                and len(prose_words) < 12
+            ):
                 offenders.append((template["question_template_id"], stem[:60]))
 
     assert not offenders, (
-        "approved items read as bare equations rather than as situations: "
-        f"{offenders}"
+        f"approved items read as bare equations rather than as situations: {offenders}"
     )

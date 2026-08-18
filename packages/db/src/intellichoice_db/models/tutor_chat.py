@@ -34,6 +34,4 @@ class TutorChatMessage(Base):
     # policy" - True marks a fixed-response turn queued for human review, never an
     # LLM-improvised reply (see `learning_api.services.tutor_chat.screen_for_safety_concern`).
     flagged_for_review: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

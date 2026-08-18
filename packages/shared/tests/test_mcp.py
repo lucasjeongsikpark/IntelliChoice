@@ -32,9 +32,9 @@ class FakeAuditRepo:
         return event
 
 
-def _registry(*, timeout_s: float = 10.0, allowed_roles: frozenset[str] | None = None) -> tuple[
-    McpToolRegistry, list[Args]
-]:
+def _registry(
+    *, timeout_s: float = 10.0, allowed_roles: frozenset[str] | None = None
+) -> tuple[McpToolRegistry, list[Args]]:
     calls: list[Args] = []
 
     async def handler(args: Args) -> str:
@@ -129,9 +129,7 @@ def test_an_absurdly_long_unknown_tool_name_is_bounded_before_it_is_audited() ->
 
     async def run() -> None:
         with pytest.raises(McpToolError):
-            await registry.call(
-                absurd, {"value": "hi"}, caller_external_id="u-1", audit_repo=audit
-            )
+            await registry.call(absurd, {"value": "hi"}, caller_external_id="u-1", audit_repo=audit)
         assert len(audit.events) == 1
         recorded = audit.events[0].tool_name
         assert len(recorded) == 128

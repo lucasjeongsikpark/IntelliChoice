@@ -160,9 +160,7 @@ def _apply_log_allowlist(findings: Findings) -> list[Hit]:
     """Re-file hits the log-specific allowlist excuses, counting them like the trace scanner."""
     kept: list[Hit] = []
     for hit in findings.hits:
-        excused = any(
-            name == hit.pattern and rx.search(hit.excerpt) for name, rx in LOG_ALLOWLIST
-        )
+        excused = any(name == hit.pattern and rx.search(hit.excerpt) for name, rx in LOG_ALLOWLIST)
         if excused:
             findings.allowlisted += 1
         else:
@@ -194,9 +192,7 @@ def main() -> int:
         print(f"INVALID - these patterns cannot fire, so a clean result proves nothing: {silent}")
         return 2
 
-    findings, slices, missing = scan(
-        start, end, args.slice_minutes, args.profile, args.region
-    )
+    findings, slices, missing = scan(start, end, args.slice_minutes, args.profile, args.region)
     hits = _apply_log_allowlist(findings)
 
     print(

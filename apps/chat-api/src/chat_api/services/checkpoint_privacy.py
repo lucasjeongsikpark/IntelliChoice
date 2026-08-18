@@ -24,8 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 async def purge_resume_writes(db: AsyncSession, thread_id: str) -> None:
     await db.execute(
         text(
-            "DELETE FROM checkpoint_writes "
-            "WHERE thread_id = :thread_id AND channel = '__resume__'"
+            "DELETE FROM checkpoint_writes WHERE thread_id = :thread_id AND channel = '__resume__'"
         ),
         {"thread_id": thread_id},
     )

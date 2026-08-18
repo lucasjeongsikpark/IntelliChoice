@@ -115,6 +115,7 @@ async def main() -> int:
             continue
         options = {k: cs.get(f"option_{k}") or "" for k in "abcd"}
         declared = cs.get("correct_option")
+
         def matched(on: bool, d: av.DerivedAnswer = derivation, o: dict = options) -> set[str]:
             return {k for k, t in o.items() if _matches_under(d, t, with_superscripts=on)}
 

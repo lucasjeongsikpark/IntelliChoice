@@ -128,7 +128,6 @@ async def build_bank_file(
     )
 
 
-
 def _checked_option(template_id: str, value: str) -> Literal["a", "b", "c", "d"]:
     """Narrow a database text column to the four options the file format allows."""
     if value not in ("a", "b", "c", "d"):
@@ -183,13 +182,14 @@ async def main() -> None:
                             select(QuestionTemplate.topic_id)
                             .where(QuestionTemplate.authoring_mode == AUTHORED_MODE)
                             .where(
-                    QuestionTemplate.validation_status == "approved",
-                    # D-210: approved but retired is no longer exported. The bank file is
-                    # what the serving path draws from, so "what the database would
-                    # export" has to mean the same thing - otherwise retiring an item
-                    # makes the file and the export permanently disagree.
-                    QuestionTemplate.active_status == "active",
-                )
+                                QuestionTemplate.validation_status == "approved",
+                                # D-210: approved but retired is no longer exported. The bank
+                                # file is what the serving path draws from, so "what the
+                                # database would export" has to mean the same thing - otherwise
+                                # retiring an item makes the file and the export permanently
+                                # disagree.
+                                QuestionTemplate.active_status == "active",
+                            )
                             .distinct()
                         )
                     )

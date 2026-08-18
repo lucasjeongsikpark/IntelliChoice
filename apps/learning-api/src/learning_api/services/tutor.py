@@ -324,8 +324,6 @@ async def generate_personalized_hint(
         logger.warning("hint personalization leaked the answer; using canonical content")
         return _canonical_as_response(canonical_hint_text), result.cost_cents, False
     if next_canonical_hint_text and next_canonical_hint_text.strip() in response.hint_text:
-        logger.warning(
-            "hint personalization violated ladder monotonicity; using canonical content"
-        )
+        logger.warning("hint personalization violated ladder monotonicity; using canonical content")
         return _canonical_as_response(canonical_hint_text), result.cost_cents, False
     return response, result.cost_cents, True

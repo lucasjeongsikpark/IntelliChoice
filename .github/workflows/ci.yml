@@ -74,6 +74,13 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
+      # D-417/C8: formatting is enforced here as well as in `make lint`, because this job - not
+      # the Makefile - is what the branch-protection rule requires. Adding it only to `make
+      # lint` would have left it enforced on the machine of whoever remembers to run it, which
+      # is the config-intent-versus-deployed-reality gap D-385 found twice.
+      - name: Format check
+        run: uv run ruff format --check .
+
       - name: Typecheck
         run: uv run pyright
 

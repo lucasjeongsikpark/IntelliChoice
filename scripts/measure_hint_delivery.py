@@ -50,9 +50,7 @@ async def main() -> int:
 
         sid = (await c.post("/learning/sessions", headers=h)).json()["learning_session_id"]
         print(f"PROBE | session {sid}", flush=True)
-        await c.post(
-            f"/learning/sessions/{sid}/student", headers=h, json={"student_id": STUDENT}
-        )
+        await c.post(f"/learning/sessions/{sid}/student", headers=h, json={"student_id": STUDENT})
         body = (
             await c.post(
                 f"/learning/sessions/{sid}/topics", headers=h, json={"topic_id": "linear_equations"}
@@ -74,9 +72,7 @@ async def main() -> int:
                     "response_time_ms": 1200,
                 },
             )
-        body = (
-            await c.post(f"/learning/sessions/{sid}/exam/finalize", headers=h, json={})
-        ).json()
+        body = (await c.post(f"/learning/sessions/{sid}/exam/finalize", headers=h, json={})).json()
         print(f"PROBE | phase after finalize: {body.get('phase')}", flush=True)
         if body.get("phase") != "study":
             return 1

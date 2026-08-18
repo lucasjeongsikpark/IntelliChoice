@@ -158,6 +158,8 @@ def _sentences(text: str) -> list[str]:
     if text[last:].strip():
         parts.append(text[last:])
     return [part for part in (candidate.strip() for candidate in parts) if part]
+
+
 MIN_DIFFICULTY = 1
 MAX_DIFFICULTY = 5
 
@@ -256,8 +258,16 @@ _MATH_TEXT_SUBSTITUTIONS = {
 # option that parses today would stop parsing. Same reasoning the symbolic arm already uses
 # to keep `_parse_side`'s implicit multiplication away from value options.
 _SUPERSCRIPT_POWERS = {
-    "⁰": "**0", "¹": "**1", "²": "**2", "³": "**3", "⁴": "**4",
-    "⁵": "**5", "⁶": "**6", "⁷": "**7", "⁸": "**8", "⁹": "**9",
+    "⁰": "**0",
+    "¹": "**1",
+    "²": "**2",
+    "³": "**3",
+    "⁴": "**4",
+    "⁵": "**5",
+    "⁶": "**6",
+    "⁷": "**7",
+    "⁸": "**8",
+    "⁹": "**9",
 }
 
 
@@ -602,17 +612,13 @@ def derive_answer(equation: str) -> tuple[sympy.Basic | None, str | None]:
         )
     unknowns = sorted(relation.free_symbols, key=str)
     if len(unknowns) != 1:
-        return None, (
-            f"equation {equation!r} has {len(unknowns)} unknowns, expected exactly one"
-        )
+        return None, (f"equation {equation!r} has {len(unknowns)} unknowns, expected exactly one")
     try:
         solutions = sympy.solve(relation, unknowns[0])
     except (NotImplementedError, TypeError, ValueError):
         return None, f"equation {equation!r} could not be solved by SymPy"
     if len(solutions) != 1:
-        return None, (
-            f"equation {equation!r} has {len(solutions)} solutions, expected exactly one"
-        )
+        return None, (f"equation {equation!r} has {len(solutions)} solutions, expected exactly one")
     return solutions[0], None
 
 
@@ -813,9 +819,7 @@ def _route_equation(equation: str, normalized: str) -> tuple[DerivedAnswer | Non
         else:
             sides = _RELATION_SPLIT_RE.split(normalized)
             if len(sides) != 2:
-                return None, (
-                    f"equation {equation!r} is not a single equation - {_ROUTER_FORMS}"
-                )
+                return None, (f"equation {equation!r} is not a single equation - {_ROUTER_FORMS}")
             relation = sympy.Eq(_parse_side(sides[0]), _parse_side(sides[1]))
     except _PARSE_ERRORS:
         return None, f"equation {equation!r} did not parse with SymPy"
@@ -876,9 +880,7 @@ def _route_inequality(equation: str, normalized: str) -> tuple[DerivedAnswer | N
         return None, f"inequality {equation!r} did not parse as an inequality"
     unknowns = sorted(relation.free_symbols, key=str)
     if len(unknowns) != 1:
-        return None, (
-            f"inequality {equation!r} has {len(unknowns)} unknowns, expected exactly one"
-        )
+        return None, (f"inequality {equation!r} has {len(unknowns)} unknowns, expected exactly one")
     try:
         solution_set = sympy.solveset(relation, unknowns[0], sympy.S.Reals)
     except (NotImplementedError, TypeError, ValueError):
@@ -918,9 +920,7 @@ def _route_system(equation: str, normalized: str) -> tuple[DerivedAnswer | None,
     except (NotImplementedError, TypeError, ValueError):
         return None, f"system {equation!r} could not be solved by SymPy"
     if len(solved) != 1:
-        return None, (
-            f"system {equation!r} has {len(solved)} solutions, expected exactly one"
-        )
+        return None, (f"system {equation!r} has {len(solved)} solutions, expected exactly one")
     # D-299: fail closed, because `sympy.solve` answers a *different question* than
     # "what is each unknown" when the system is underdetermined. Two equations in three
     # unknowns returns `[{a: c - 2, b: 12 - c}]` - one dict, so the count check above
@@ -1014,9 +1014,7 @@ def _option_matches(
         assert isinstance(expected_roots, frozenset)
         if len(stated) != len(expected_roots):
             return False
-        return all(
-            any(_values_equal(s, e) for e in expected_roots) for s in stated
-        )
+        return all(any(_values_equal(s, e) for e in expected_roots) for s in stated)
 
     if derivation.model == "interval":
         parsed = _option_as_solution_set(text)
@@ -1446,9 +1444,7 @@ def check_sympy_independent_solve(
         return
 
     options = _options(item)
-    matches, raw, derivation = resolved_matches(
-        derivation, options, item.equation, answer_form
-    )
+    matches, raw, derivation = resolved_matches(derivation, options, item.equation, answer_form)
     derived = derivation.payload
 
     if item.correct_option not in raw:
@@ -1495,13 +1491,10 @@ def check_exactly_one_correct_answer(
 ) -> None:
     options = _options(item)
     correct_text = options[item.correct_option].strip().lower()
-    matches = [
-        label for label, text in options.items() if text.strip().lower() == correct_text
-    ]
+    matches = [label for label, text in options.items() if text.strip().lower() == correct_text]
     if len(matches) != 1:
         result.fail(
-            f"expected exactly one option textually matching the correct option, found "
-            f"{matches}"
+            f"expected exactly one option textually matching the correct option, found {matches}"
         )
 
 
@@ -1843,9 +1836,7 @@ def check_reading_matches_the_figure(
         return
     expected = figure_derived_answer(figure, reading)
     if expected is None:
-        result.fail(
-            f"figure_reading {reading!r} does not apply to a {figure.kind} figure"
-        )
+        result.fail(f"figure_reading {reading!r} does not apply to a {figure.kind} figure")
         return
     declared = _options(item)[item.correct_option]
     if _normalise_for_reading(declared) != _normalise_for_reading(expected):

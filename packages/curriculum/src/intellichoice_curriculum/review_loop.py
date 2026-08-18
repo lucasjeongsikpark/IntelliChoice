@@ -109,9 +109,7 @@ def _fingerprint(defects: list[HintSolutionDefect]) -> list[str]:
     return sorted(f"{d.target}[{d.index}]:{d.problem}" for d in defects)
 
 
-def _round_record(
-    number: int, verdict: PanelVerdict, defects: list[HintSolutionDefect]
-) -> Round:
+def _round_record(number: int, verdict: PanelVerdict, defects: list[HintSolutionDefect]) -> Round:
     """`defects` is what actually drove the repair, panel plus any contributor - not
     `verdict.defects`. D-195's rule is that the record explains the outcome, and a round
     whose repair was opened by a contributed defect (D-263) would otherwise read as a repair

@@ -108,9 +108,7 @@ def _cloudfront_patterns() -> list[str]:
 
 def _alb_patterns() -> list[str]:
     text = _terraform()
-    admitted = _string_list(
-        "path_patterns", _block_body('module "ecs_service_learning_api"', text)
-    )
+    admitted = _string_list("path_patterns", _block_body('module "ecs_service_learning_api"', text))
     # `/dev/token` reaches this app through its own rule rather than the service's list,
     # because one shared ALB cannot tell the two apps' `/dev/token` calls apart on path
     # alone. The `X-IntelliChoice-App` header condition is what disambiguates it; this

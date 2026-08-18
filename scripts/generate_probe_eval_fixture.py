@@ -172,10 +172,49 @@ def _lexemes(sql_text: str) -> set[str]:
     """
     words = re.findall(r"[a-z]{3,}", sql_text.lower())
     stop = {
-        "the", "and", "for", "are", "you", "your", "with", "that", "this", "from", "can",
-        "not", "any", "all", "has", "have", "was", "were", "will", "who", "how", "what",
-        "when", "does", "did", "why", "our", "out", "get", "one", "own", "they", "their",
-        "there", "them", "than", "then", "into", "each", "some", "may", "must", "should",
+        "the",
+        "and",
+        "for",
+        "are",
+        "you",
+        "your",
+        "with",
+        "that",
+        "this",
+        "from",
+        "can",
+        "not",
+        "any",
+        "all",
+        "has",
+        "have",
+        "was",
+        "were",
+        "will",
+        "who",
+        "how",
+        "what",
+        "when",
+        "does",
+        "did",
+        "why",
+        "our",
+        "out",
+        "get",
+        "one",
+        "own",
+        "they",
+        "their",
+        "there",
+        "them",
+        "than",
+        "then",
+        "into",
+        "each",
+        "some",
+        "may",
+        "must",
+        "should",
     }
     return {w[:-1] if w.endswith("s") and len(w) > 4 else w for w in words if w not in stop}
 
@@ -190,9 +229,7 @@ _ASKED_BY = {
 
 def _asked_by(case: dict) -> str:
     """The asker `_REWRITE_PROMPT` must preserve, from the case's own audience label."""
-    return _ASKED_BY.get(
-        case.get("expected_required_role") or "", "someone visiting the website"
-    )
+    return _ASKED_BY.get(case.get("expected_required_role") or "", "someone visiting the website")
 
 
 def _gateway(region: str, model: str, budget_cents: float) -> ResilientBedrockGateway:
@@ -253,9 +290,7 @@ async def _add_human_phrasing(args: argparse.Namespace) -> int:
             rewrite = await gateway.generate_structured(
                 task=BedrockTask.SCOPE_AND_INTENT,
                 system_prompt=_REWRITE_PROMPT,
-                payload=_QuestionPayload(
-                    question=case["query"], asked_by=_asked_by(case)
-                ),
+                payload=_QuestionPayload(question=case["query"], asked_by=_asked_by(case)),
                 response_model=_GeneratedQuestion,
                 max_output_tokens=_MAX_OUTPUT_TOKENS,
                 session_spend_cents=spent,
@@ -284,9 +319,7 @@ async def _add_human_phrasing(args: argparse.Namespace) -> int:
 
         q_lex, c_lex = _lexemes(human_query), _lexemes(source_text)
         case["human_query"] = human_query
-        case["human_lexical_overlap"] = (
-            round(len(q_lex & c_lex) / len(q_lex), 3) if q_lex else 0.0
-        )
+        case["human_lexical_overlap"] = round(len(q_lex & c_lex) / len(q_lex), 3) if q_lex else 0.0
         kept.append(case)
         print(
             f"  {case['id']:<26} overlap {case['lexical_overlap']:.2f} -> "
@@ -443,9 +476,7 @@ def main() -> int:
     parser.add_argument("--min-chunk-chars", type=int, default=120)
     parser.add_argument("--budget-cents", type=float, default=60.0)
     parser.add_argument("--region", default=os.getenv("AWS_REGION", "us-east-1"))
-    parser.add_argument(
-        "--model", default="us.anthropic.claude-haiku-4-5-20251001-v1:0"
-    )
+    parser.add_argument("--model", default="us.anthropic.claude-haiku-4-5-20251001-v1:0")
     args = parser.parse_args()
     if args.from_fixture:
         return asyncio.run(_add_human_phrasing(args))

@@ -183,9 +183,7 @@ def test_adding_a_band_never_steals_a_grade_from_an_existing_one() -> None:
     for grade in [str(n) for n in range(1, 13)]:
         topics = content.topics_for_grade(grade)
         assert topics, f"grade {grade} resolves to no band"
-        band = next(
-            b for b, t in content.grade_topic_candidates.items() if t == topics
-        )
+        band = next(b for b, t in content.grade_topic_candidates.items() if t == topics)
         assert grade in {part.strip() for part in band.split("-")}, (
             f"grade {grade} resolved to band {band!r}, which does not name it"
         )

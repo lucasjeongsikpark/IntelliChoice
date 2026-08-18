@@ -56,9 +56,7 @@ MORE_EXPLICIT_SUPPORT_MESSAGE = (
     "Let's try a similar one. If you'd like, choose the step-by-step solution this time "
     "for more support."
 )
-EASIER_PREREQUISITE_MESSAGE = (
-    "Let's step back to an easier problem that builds up to this skill."
-)
+EASIER_PREREQUISITE_MESSAGE = "Let's step back to an easier problem that builds up to this skill."
 
 
 def correct_label(support_history: frozenset[str]) -> str:

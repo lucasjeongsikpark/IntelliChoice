@@ -120,9 +120,7 @@ def test_ingestion_creates_all_documents_then_is_idempotent_on_rerun() -> None:
                 embedding_provider="mock",
             )
             assert first.documents_updated == 0
-            assert first.documents_created + first.documents_unchanged == len(
-                manifest_entries
-            )
+            assert first.documents_created + first.documents_unchanged == len(manifest_entries)
 
             row_count = await _document_row_count(session, document_ids)
             assert row_count == len(manifest_entries)
@@ -248,13 +246,17 @@ def test_ingest_entry_updates_in_place_when_content_hash_changes() -> None:
             assert chunks_updated > 0
 
             remaining = (
-                await session.execute(
-                    text(
-                        "SELECT chunk_text FROM rag_chunks WHERE document_id = "
-                        "'test-changing-doc'"
+                (
+                    await session.execute(
+                        text(
+                            "SELECT chunk_text FROM rag_chunks WHERE document_id = "
+                            "'test-changing-doc'"
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             joined = " ".join(remaining)
             assert "completely different text now" in joined
             assert "original content here" not in joined
@@ -305,8 +307,6 @@ def test_ingest_stamps_embedding_provenance_on_every_chunk() -> None:
                 )
             ).all()
             assert len(rows) == chunks_created
-            assert all(
-                row == ("mock", "amazon.titan-embed-text-v2:0") for row in rows
-            ), rows
+            assert all(row == ("mock", "amazon.titan-embed-text-v2:0") for row in rows), rows
 
     asyncio.run(run())

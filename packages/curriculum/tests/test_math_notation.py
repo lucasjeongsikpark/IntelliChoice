@@ -77,9 +77,7 @@ def _item(**overrides) -> AuthoredGeneratedItemResponse:
 def test_programmer_notation_in_student_text_is_rejected(field, value):
     result = validate_authored_item(2, _item(**{field: value}))
     assert not result.passed
-    assert any("programmer notation" in f and "×" in f for f in result.failures), (
-        result.failures
-    )
+    assert any("programmer notation" in f and "×" in f for f in result.failures), result.failures
 
 
 def test_a_starred_hint_is_rejected():

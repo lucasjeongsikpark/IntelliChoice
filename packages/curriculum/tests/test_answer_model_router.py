@@ -134,7 +134,7 @@ def test_an_unparseable_option_never_counts_as_a_match():
 
 
 def test_multi_root_requires_every_root_not_merely_a_subset():
-    """"3" is not a partially-correct answer to `x**2 = 9`; it is a wrong one, and it is the
+    """ "3" is not a partially-correct answer to `x**2 = 9`; it is a wrong one, and it is the
     distractor a student who forgets the negative root will pick.
     """
     derivation = _route("Eq(x**2, 9)")

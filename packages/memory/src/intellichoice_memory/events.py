@@ -54,8 +54,7 @@ def render_event_summary(event_type: str, payload: dict, *, chat_text: str | Non
 
     if event_type == EXAM_FINALIZED:
         return (
-            f"Finalized a {payload.get('session_type')} with raw score "
-            f"{payload.get('raw_score')}."
+            f"Finalized a {payload.get('session_type')} with raw score {payload.get('raw_score')}."
         )
 
     if event_type == LEARNING_GAIN_COMPUTED:

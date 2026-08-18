@@ -157,9 +157,7 @@ class AssessmentRepository:
         await self._session.flush()
         return state
 
-    async def add_item_time(
-        self, assessment_item_id: str, elapsed_ms: int
-    ) -> AssessmentItemState:
+    async def add_item_time(self, assessment_item_id: str, elapsed_ms: int) -> AssessmentItemState:
         """S23 autosave tick: accumulates `elapsed_ms` into `time_spent_ms` (never
         overwrites - a student can revisit an item multiple times via nav-bar jump) and
         stamps `first_viewed_at` on first touch, same semantics as `set_item_status`.

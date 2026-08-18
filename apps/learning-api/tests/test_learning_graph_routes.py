@@ -278,9 +278,7 @@ def test_tutor_role_resolves_without_scope_check() -> None:
     `authorization.resolve_target_student`.
     """
     claims = _claims("tutor-ext-1", Role.TUTOR)
-    result = asyncio.run(
-        _select_student(claims, "t-tutor", requested_student_id="student-ext-1")
-    )
+    result = asyncio.run(_select_student(claims, "t-tutor", requested_student_id="student-ext-1"))
     assert result["phase"] == "student_selected"
     assert result["student_external_id"] == "student-ext-1"
 

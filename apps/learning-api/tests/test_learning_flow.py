@@ -313,7 +313,6 @@ def _hint_events_for_attempt(attempt_id: str) -> list[HintEvent]:
     return asyncio.run(_run())
 
 
-
 def _study_items(study_session_id: str) -> list[StudyItem]:
     async def fetch() -> list[StudyItem]:
         engine = create_engine()
@@ -339,9 +338,7 @@ def _study_attempts_all(study_session_id: str) -> list[StudyAttempt]:
         try:
             session_factory = create_session_factory(engine)
             async with session_scope(session_factory) as session:
-                stmt = select(StudyAttempt).where(
-                    StudyAttempt.study_session_id == study_session_id
-                )
+                stmt = select(StudyAttempt).where(StudyAttempt.study_session_id == study_session_id)
                 result = await session.execute(stmt)
                 return list(result.scalars().all())
         finally:
@@ -747,8 +744,7 @@ def test_full_deterministic_learning_flow() -> None:
         assert all(fact.status == "provisional" for fact in facts)
         assert all(fact.evidence_event_ids for fact in facts)
         assert all(
-            {event.event_id for event in events} >= set(fact.evidence_event_ids)
-            for fact in facts
+            {event.event_id for event in events} >= set(fact.evidence_event_ids) for fact in facts
         )
 
 
@@ -1876,9 +1872,7 @@ def test_hint_reflects_the_students_actual_wrong_option() -> None:
         wrong_variant_id = study_items[0]["question_variant_id"]
         wrong_correct = _correct_options([wrong_variant_id])[wrong_variant_id]
         wrong_option = _other_option(wrong_correct)
-        expected_tag = topic_resolver_expected_tag(
-            wrong_variant_id, wrong_correct, wrong_option
-        )
+        expected_tag = topic_resolver_expected_tag(wrong_variant_id, wrong_correct, wrong_option)
 
         client.post(
             f"/learning/sessions/{session_id}/answers",
@@ -2022,8 +2016,7 @@ def test_intervention_choice_solution_content_is_verified_correct() -> None:
     # deliberately. Same shape as D-222's video flake: a test asserting something stricter
     # than the contract, protected by luck rather than by a precondition.
     assert answers_agree(intervention["final_answer"], correct_option_text), (
-        f"{intervention['final_answer']!r} does not name the same value as "
-        f"{correct_option_text!r}"
+        f"{intervention['final_answer']!r} does not name the same value as {correct_option_text!r}"
     )
 
 
@@ -2103,9 +2096,7 @@ def test_restart_survives_pending_child_selection_interrupt() -> None:
         assert student_resp.status_code == 200
         pending_before = student_resp.json()["pending_interrupt"]
         assert pending_before["interrupt_type"] == "child_selection"
-        candidates_before = {
-            c["student_external_id"] for c in pending_before["child_candidates"]
-        }
+        candidates_before = {c["student_external_id"] for c in pending_before["child_candidates"]}
         assert candidates_before == {STUDENT_FIRST_CHILD, STUDENT_SECOND_CHILD}
 
     # The app (and its checkpointer connection) has fully shut down here.

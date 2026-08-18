@@ -21,6 +21,4 @@ class McpToolCall(Base):
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
     error_type: Mapped[str | None] = mapped_column(String, nullable=True)
     duration_ms: Mapped[float] = mapped_column(Float, nullable=False)
-    called_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    called_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

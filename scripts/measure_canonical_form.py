@@ -103,8 +103,9 @@ def _verdict(snapshot: dict) -> tuple[str, str]:
             f"declares {options[correct]!r}; the {form} option is {options[label]!r}",
         )
 
-    readable = {form: [options[m] for m in matches if p(options[m]) is True]
-                for form, p in _FORMS.items()}
+    readable = {
+        form: [options[m] for m in matches if p(options[m]) is True] for form, p in _FORMS.items()
+    }
     return "still ambiguous", f"matches {[options[m] for m in matches]}, canonical {readable}"
 
 
@@ -116,11 +117,7 @@ async def main() -> int:
     engine = create_engine()
     try:
         async with session_scope(create_session_factory(engine)) as session:
-            rows = (
-                (await session.execute(select(QuestionValidationRun)))
-                .scalars()
-                .all()
-            )
+            rows = (await session.execute(select(QuestionValidationRun))).scalars().all()
     finally:
         await engine.dispose()
 
@@ -174,16 +171,16 @@ async def main() -> int:
         cells = "  ".join(f"{counts.get(v, 0):<34}" for v in verdicts)
         print(f"  {skill:<{width}}{sum(counts.values()):>4}  {cells}")
 
-    print(f"\n  {'TOTAL':<{width}}{sum(totals.values()):>4}  "
-          + "  ".join(f"{totals.get(v, 0):<34}" for v in verdicts))
+    print(
+        f"\n  {'TOTAL':<{width}}{sum(totals.values()):>4}  "
+        + "  ".join(f"{totals.get(v, 0):<34}" for v in verdicts)
+    )
 
     recoverable = sum(n for v, n in totals.items() if v.startswith("recoverable"))
     slot_counts = collections.Counter(slots.values())
     slot_recoverable = sum(n for v, n in slot_counts.items() if v.startswith("recoverable"))
     recoverable_slots = collections.Counter(
-        skill
-        for (skill, _seed), verdict in slots.items()
-        if verdict.startswith("recoverable")
+        skill for (skill, _seed), verdict in slots.items() if verdict.startswith("recoverable")
     )
     print(
         f"\nthe A4 sizing, in the two units that can be measured:\n"
@@ -194,9 +191,7 @@ async def main() -> int:
     )
 
     bank = collections.Counter(
-        template.skill_id
-        for templates in load_authored_bank().values()
-        for template in templates
+        template.skill_id for templates in load_authored_bank().values() for template in templates
     )
     print("\nwhat each affected skill holds today, which is what makes the number mean something:")
     print(f"  {'skill':<26}{'in bank':>9}{'slots A4 recovers':>20}")

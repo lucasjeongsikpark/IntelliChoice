@@ -48,9 +48,7 @@ def _attempts_recorded() -> int:
     """What a *second* ECS task would see: an independently built repository over the same
     database. Before AUD-C-27 this read zero no matter how many attempts had been made.
     """
-    key_hash = hash_caller_key(
-        TEST_CLIENT_CALLER_KEY, secret=get_settings().jwt_signing_secret
-    )
+    key_hash = hash_caller_key(TEST_CLIENT_CALLER_KEY, secret=get_settings().jwt_signing_secret)
 
     async def run() -> int:
         engine = create_engine()

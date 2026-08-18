@@ -140,8 +140,7 @@ class SkillDef(BaseModel):
     def _known_family(cls, value: str) -> str:
         if value not in ANSWER_FAMILIES:
             raise ValueError(
-                f"unknown answer_family {value!r} "
-                f"(known: {', '.join(sorted(ANSWER_FAMILIES))})"
+                f"unknown answer_family {value!r} (known: {', '.join(sorted(ANSWER_FAMILIES))})"
             )
         return value
 

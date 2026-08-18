@@ -89,9 +89,7 @@ EXECUTABLE_EVALUATORS = EvalCategory(
             "Distractor uniqueness",
             ("packages/curriculum/tests/test_authored_validation.py",),
         ),
-        EvalItem(
-            "Equation solution", ("packages/curriculum/tests/test_authored_validation.py",)
-        ),
+        EvalItem("Equation solution", ("packages/curriculum/tests/test_authored_validation.py",)),
         EvalItem(
             "Parameter constraints",
             not_applicable_reason=(
@@ -141,9 +139,7 @@ GOLDEN_DATASET_LEARNING = EvalCategory(
     spec_ref="§5.31.4",
     items=(
         EvalItem("Grade-to-topic mapping", ("packages/curriculum/tests/test_content.py",)),
-        EvalItem(
-            "Difficulty-specific questions", ("packages/curriculum/tests/test_loader.py",)
-        ),
+        EvalItem("Difficulty-specific questions", ("packages/curriculum/tests/test_loader.py",)),
         # D-226: both used to point at the shape bank's tests (`test_templates.py`,
         # `test_hint_ladders.py`), which covered content `_servable()` had filtered out of
         # every serving read since D-210 - so this category was evidencing questions and
@@ -245,12 +241,8 @@ GOLDEN_DATASET_BAD_ITEMS = EvalCategory(
             "Solution disagreeing with answer",
             ("packages/curriculum/tests/test_authored_pipeline.py",),
         ),
-        EvalItem(
-            "Off-grade vocabulary", ("packages/curriculum/tests/test_authored_pipeline.py",)
-        ),
-        EvalItem(
-            "Near-duplicate pair", ("packages/curriculum/tests/test_authored_pipeline.py",)
-        ),
+        EvalItem("Off-grade vocabulary", ("packages/curriculum/tests/test_authored_pipeline.py",)),
+        EvalItem("Near-duplicate pair", ("packages/curriculum/tests/test_authored_pipeline.py",)),
     ),
 )
 

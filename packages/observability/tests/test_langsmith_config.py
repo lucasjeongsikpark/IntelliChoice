@@ -64,9 +64,7 @@ def test_a_langsmith_run_can_be_found_from_an_xray_trace(monkeypatch: pytest.Mon
     tracer = provider.get_tracer(__name__)
     with tracer.start_as_current_span("a-request"):
         metadata = langsmith_correlation_metadata()
-        expected = format(
-            trace.get_current_span().get_span_context().trace_id, "032x"
-        )
+        expected = format(trace.get_current_span().get_span_context().trace_id, "032x")
     assert metadata == {"otel_trace_id": expected}
     assert len(expected) == 32, "X-Ray and the log lines both format it this way"
 

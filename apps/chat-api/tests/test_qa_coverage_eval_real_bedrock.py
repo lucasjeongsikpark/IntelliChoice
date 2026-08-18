@@ -202,8 +202,16 @@ def test_qa_coverage_eval_against_real_bedrock(capsys: pytest.CaptureFixture[str
     # five nonsense-marker cases, so requiring the category present would fail every run.
     # `role_gated_question` replaces it - the same feature, asked the way a person asks it.
     assert_categories_present(
-        scores, ["grounded", "paraphrase", "role_gated_question", "out_of_scope", "no_source",
-                 "no_answer", "adversarial"]
+        scores,
+        [
+            "grounded",
+            "paraphrase",
+            "role_gated_question",
+            "out_of_scope",
+            "no_source",
+            "no_answer",
+            "adversarial",
+        ],
     )
     # Only the architectural invariants are asserted. Every quality number is *reported*:
     # this run exists to measure retrieval, and a threshold invented before the first

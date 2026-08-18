@@ -241,9 +241,7 @@ def test_a_dropped_event_is_logged_with_the_session_it_belonged_to(
     with caplog.at_level("WARNING"):
         asyncio.run(run())
 
-    failures = [
-        r for r in caplog.records if r.message == "chat_session_event_relay_notify_failed"
-    ]
+    failures = [r for r in caplog.records if r.message == "chat_session_event_relay_notify_failed"]
     assert failures, "a dropped fan-out produced no warning at all"
     assert getattr(failures[0], "session_id", None) == "session-doomed"
     # D-396, and note the counter is shared with learning-api by *name* only: the two run as

@@ -14,9 +14,7 @@ import re
 
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _URL_RE = re.compile(r"https?://\S+|www\.\S+")
-_PHONE_RE = re.compile(
-    r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b"
-)
+_PHONE_RE = re.compile(r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b")
 
 
 def redact_free_text(text: str) -> str:

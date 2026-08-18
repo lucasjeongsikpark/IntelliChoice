@@ -328,9 +328,7 @@ async def _collect(args: argparse.Namespace) -> list[CaseScores]:
             session = AsyncSession(bind=conn, join_transaction_mode="create_savepoint")
             await _reembed_corpus(session, gateway, spend)
             for case in cases:
-                scored = await _score_case(
-                    session=session, gateway=gateway, case=case, spend=spend
-                )
+                scored = await _score_case(session=session, gateway=gateway, case=case, spend=spend)
                 if scored is not None:
                     collected.append(scored)
                 print(
@@ -352,9 +350,7 @@ async def _collect(args: argparse.Namespace) -> list[CaseScores]:
 
 
 def _write_dump(cases: list[CaseScores], path: str) -> None:
-    Path(path).write_text(
-        json.dumps([asdict(case) for case in cases], indent=2), encoding="utf-8"
-    )
+    Path(path).write_text(json.dumps([asdict(case) for case in cases], indent=2), encoding="utf-8")
     print(f"wrote {len(cases)} cases to {path}")
 
 

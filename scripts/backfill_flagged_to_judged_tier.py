@@ -49,12 +49,16 @@ async def main() -> int:
                 for t in (await session.execute(select(QuestionTemplate))).scalars().all()
             }
             runs = (
-                await session.execute(
-                    select(QuestionValidationRun).where(
-                        QuestionValidationRun.question_template_id.isnot(None)
+                (
+                    await session.execute(
+                        select(QuestionValidationRun).where(
+                            QuestionValidationRun.question_template_id.isnot(None)
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             moves: list[tuple[str, int, int]] = []
             for run in runs:

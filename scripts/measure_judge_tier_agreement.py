@@ -86,12 +86,16 @@ async def _authoring_ratings(template_ids: list[str]) -> dict[str, tuple[int | N
     try:
         async with session_scope(create_session_factory(engine)) as session:
             rows = (
-                await session.execute(
-                    select(QuestionValidationRun).where(
-                        QuestionValidationRun.question_template_id.in_(template_ids)
+                (
+                    await session.execute(
+                        select(QuestionValidationRun).where(
+                            QuestionValidationRun.question_template_id.in_(template_ids)
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
     finally:
         await engine.dispose()
     out: dict[str, tuple[int | None, str]] = {}
@@ -103,6 +107,7 @@ async def _authoring_ratings(template_ids: list[str]) -> dict[str, tuple[int | N
                 str(evidence.get("decision")),
             )
     return out
+
 
 # The tiers the disagreements clustered at. The middle tier is sampled too, as a control:
 # a compressed instrument agrees there and disagrees at the edges, while a broken one
@@ -312,8 +317,12 @@ async def main() -> int:
         # re-wording the shared scale instruction. D-292 measured the drift and could not act
         # on it because this was never captured.
         reasonings.append(
-            (tier, judge.reviewed_difficulty, template.question_template_id,
-             judge.difficulty_reasoning)
+            (
+                tier,
+                judge.reviewed_difficulty,
+                template.question_template_id,
+                judge.difficulty_reasoning,
+            )
         )
 
     print(f"\nspend: {spend:.2f} cents")
@@ -326,12 +335,16 @@ async def main() -> int:
     scored = exact + agreements["disagrees"]
     within_one = sum(n for (a, b), n in matrix.items() if abs(a - b) <= 1)
     if scored:
-        print(f"\n[{args.label}] vs the bank's STORED tier: exact {exact}/{scored} "
-              f"({exact / scored * 100:.0f}%), within one {within_one}/{scored} "
-              f"({within_one / scored * 100:.0f}%)")
+        print(
+            f"\n[{args.label}] vs the bank's STORED tier: exact {exact}/{scored} "
+            f"({exact / scored * 100:.0f}%), within one {within_one}/{scored} "
+            f"({within_one / scored * 100:.0f}%)"
+        )
         drift = sum((b - a) * n for (a, b), n in matrix.items()) / scored
-        print(f"[{args.label}] mean signed drift {drift:+.2f} tiers "
-              f"(negative = judged easier than the bank says)")
+        print(
+            f"[{args.label}] mean signed drift {drift:+.2f} tiers "
+            f"(negative = judged easier than the bank says)"
+        )
 
         # D-300: the number that actually measures the instrument. Reported beside the one
         # above rather than instead of it, because the two answer different questions and
@@ -346,13 +359,17 @@ async def main() -> int:
             same = sum(1 for a, b in comparable if a == b)
             near = sum(1 for a, b in comparable if abs(a - b) <= 1)
             n = len(comparable)
-            print(f"[{args.label}] vs THE JUDGE'S OWN first rating: exact {same}/{n} "
-                  f"({same / n * 100:.0f}%), within one {near}/{n} ({near / n * 100:.0f}%)")
+            print(
+                f"[{args.label}] vs THE JUDGE'S OWN first rating: exact {same}/{n} "
+                f"({same / n * 100:.0f}%), within one {near}/{n} ({near / n * 100:.0f}%)"
+            )
             provenance = collections.Counter(
                 first[tid][1] for _t, _n, tid, _w in reasonings if tid in first
             )
-            print(f"[{args.label}] how these items got their stored tier: "
-                  f"{dict(provenance.most_common())}")
+            print(
+                f"[{args.label}] how these items got their stored tier: "
+                f"{dict(provenance.most_common())}"
+            )
             print("           `flagged` keeps the SLOT's tier, so for those items the stored")
             print("           label was never a judge rating - see D-300 and")
             print("           scripts/measure_tier_label_provenance.py for the bank-wide share.")

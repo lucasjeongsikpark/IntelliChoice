@@ -131,9 +131,7 @@ class JsonLogFormatter(logging.Formatter):
         # variable holding a `%s` literal and one an f-string, all still `str` - so this branch
         # is defence in depth. Leaving the one place where `event` can hold arbitrary text
         # unredacted is how this field got here in the first place.
-        event = (
-            record.msg if isinstance(record.msg, str) else redact_free_text(record.getMessage())
-        )
+        event = record.msg if isinstance(record.msg, str) else redact_free_text(record.getMessage())
         payload: dict[str, object] = {
             "event": event,
             "level": record.levelname,

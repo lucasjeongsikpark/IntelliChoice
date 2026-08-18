@@ -86,9 +86,7 @@ class QuestionRepository:
         result = await self._session.execute(stmt)
         return {t.question_template_id: t for t in result.scalars().all()}
 
-    async def get_variants(
-        self, question_variant_ids: Sequence[str]
-    ) -> dict[str, QuestionVariant]:
+    async def get_variants(self, question_variant_ids: Sequence[str]) -> dict[str, QuestionVariant]:
         """The batch form of `get_variant`, keyed by id (AUD-F-31).
 
         `get_variant` is `Session.get`, which *can* answer from the identity map - but the
@@ -411,9 +409,7 @@ class QuestionRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_variant_for_template(
-        self, question_template_id: str
-    ) -> QuestionVariant | None:
+    async def get_variant_for_template(self, question_template_id: str) -> QuestionVariant | None:
         """The authored template's one *canonical* variant (plan §7) - the lookup
         `review_cli.py` uses to render it for review, without relying on lazy-loading
         `QuestionTemplate.variants` across an async session.

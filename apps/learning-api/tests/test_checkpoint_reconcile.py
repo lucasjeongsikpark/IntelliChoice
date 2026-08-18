@@ -121,9 +121,7 @@ def _study_session_exists(study_session_id: str) -> bool:
         try:
             async with engine.connect() as conn:
                 row = await conn.execute(
-                    text(
-                        "SELECT count(*) FROM study_sessions WHERE study_session_id = :s"
-                    ),
+                    text("SELECT count(*) FROM study_sessions WHERE study_session_id = :s"),
                     {"s": study_session_id},
                 )
                 return int(row.scalar_one()) > 0

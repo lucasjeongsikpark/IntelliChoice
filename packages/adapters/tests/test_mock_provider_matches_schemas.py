@@ -44,9 +44,7 @@ def _response_models() -> list[type[BaseModel]]:
         (
             obj
             for name, obj in vars(bedrock_module).items()
-            if inspect.isclass(obj)
-            and issubclass(obj, BaseModel)
-            and name.endswith("Response")
+            if inspect.isclass(obj) and issubclass(obj, BaseModel) and name.endswith("Response")
         ),
         key=lambda cls: cls.__name__,
     )

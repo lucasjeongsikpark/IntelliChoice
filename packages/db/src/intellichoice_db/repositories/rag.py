@@ -301,9 +301,9 @@ class RagRepository:
         """
         probe_filters = filters.model_copy(update={"audience": None, "audiences": None})
         tsquery = func.websearch_to_tsquery("english", query)
-        keyword_stmt = _apply_filters(
-            select(RagChunk.audience, func.count()), probe_filters
-        ).where(RagChunk.search_vector.op("@@")(tsquery))
+        keyword_stmt = _apply_filters(select(RagChunk.audience, func.count()), probe_filters).where(
+            RagChunk.search_vector.op("@@")(tsquery)
+        )
         matches = {
             audience: AudienceMatch(count=count)
             for audience, count in (

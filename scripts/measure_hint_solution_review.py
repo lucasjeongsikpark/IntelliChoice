@@ -169,8 +169,10 @@ def _union(per_reviewer: list[dict[str, ItemResult]]) -> dict[str, ItemResult]:
                 "reject" if "reject" in reads else "repair" if "repair" in reads else "pass"
             )
             out.uncertainties.append(
-                max((r[tid].uncertainties[k] for r in per_reviewer),
-                    key=lambda u: {"low": 0, "medium": 1, "high": 2}.get(u, 0))
+                max(
+                    (r[tid].uncertainties[k] for r in per_reviewer),
+                    key=lambda u: {"low": 0, "medium": 1, "high": 2}.get(u, 0),
+                )
             )
             out.defects.append([d for r in per_reviewer for d in r[tid].defects[k]])
             out.reasonings.append(" || ".join(r[tid].reasonings[k] for r in per_reviewer))
@@ -220,9 +222,7 @@ async def _read(
     gateway, items, *, repeat: int, budget: float, spend: float, label: str
 ) -> tuple[dict[str, ItemResult], float]:
     results = {
-        i.question_template_id: ItemResult(
-            i.question_template_id, i.skill_id, i.difficulty_label
-        )
+        i.question_template_id: ItemResult(i.question_template_id, i.skill_id, i.difficulty_label)
         for i in items
     }
     names = {"skills": {s.skill_id: s.name for s in load_curriculum().skills}}
@@ -367,8 +367,10 @@ async def main() -> int:
         print("no authored bank items found - nothing to measure", file=sys.stderr)
         return 1
     calls = len(narrow) * args.repeat + len(broad)
-    print(f"seed {args.seed}: check 1 = {len(narrow)} items x {args.repeat}, "
-          f"check 2 = {len(broad)} items x 1  ->  {calls} calls")
+    print(
+        f"seed {args.seed}: check 1 = {len(narrow)} items x {args.repeat}, "
+        f"check 2 = {len(broad)} items x 1  ->  {calls} calls"
+    )
     print(f"check 1 items: {', '.join(i.question_template_id for i in narrow)}")
     if args.dry_run:
         print("--dry-run: no provider built, nothing spent")
@@ -387,11 +389,19 @@ async def main() -> int:
         # Check 1 first: if verdicts flip on identical input, check 2's single readings are
         # already known to be unreliable and the run can be stopped by reading the output.
         narrow_results, spend = await _read(
-            gateway, narrow, repeat=args.repeat, budget=args.run_budget_cents, spend=spend,
+            gateway,
+            narrow,
+            repeat=args.repeat,
+            budget=args.run_budget_cents,
+            spend=spend,
             label=f"c1/{name}",
         )
         broad_results, spend = await _read(
-            gateway, broad, repeat=1, budget=args.run_budget_cents, spend=spend,
+            gateway,
+            broad,
+            repeat=1,
+            budget=args.run_budget_cents,
+            spend=spend,
             label=f"c2/{name}",
         )
         narrow_all.append(narrow_results)
@@ -415,8 +425,10 @@ async def main() -> int:
         # high, because two reviewers that never disagree are one reviewer billed twice.
         first, second = broad_all[0], broad_all[1]
         disagree = [
-            tid for tid in first
-            if first[tid].verdicts and second[tid].verdicts
+            tid
+            for tid in first
+            if first[tid].verdicts
+            and second[tid].verdicts
             and (first[tid].verdicts[0] in _BLOCKING) != (second[tid].verdicts[0] in _BLOCKING)
         ]
         print(f"\nB-vs-C disagreement on check 2: {len(disagree)} of {len(first)} items")

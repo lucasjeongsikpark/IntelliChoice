@@ -82,9 +82,7 @@ def reset_caller_rate_limits() -> Iterator[None]:
 
 
 def _clear_caller_attempts() -> None:
-    key_hash = hash_caller_key(
-        TEST_CLIENT_CALLER_KEY, secret=get_settings().jwt_signing_secret
-    )
+    key_hash = hash_caller_key(TEST_CLIENT_CALLER_KEY, secret=get_settings().jwt_signing_secret)
 
     async def run() -> None:
         engine = create_engine()

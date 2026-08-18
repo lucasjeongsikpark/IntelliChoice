@@ -73,9 +73,7 @@ _ANONYMOUS_REPORTS_PER_MINUTE = 60
 # a limit.
 _ANONYMOUS_BUCKET = "anonymous"
 
-_token_limiter = InMemoryRateLimiter(
-    max_per_window=_REPORTS_PER_MINUTE_PER_TOKEN, window_s=60.0
-)
+_token_limiter = InMemoryRateLimiter(max_per_window=_REPORTS_PER_MINUTE_PER_TOKEN, window_s=60.0)
 _anonymous_limiter = InMemoryRateLimiter(
     max_per_window=_ANONYMOUS_REPORTS_PER_MINUTE, window_s=60.0
 )

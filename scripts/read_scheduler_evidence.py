@@ -232,15 +232,13 @@ class JobReading:
         if self.unattended < _WEEK:
             short = _WEEK - self.unattended
             problems.append(
-                f"{self.unattended.days}d of ≥7d "
-                f"({short.days}d {short.seconds // 3600}h short)"
+                f"{self.unattended.days}d of ≥7d ({short.days}d {short.seconds // 3600}h short)"
             )
         if problems:
             return False, "NOT YET - " + "; ".join(problems)
         return (
             True,
-            f"MET - {self.unattended.days}d unattended, "
-            f"{len(self.firings)} firings, 0 errors",
+            f"MET - {self.unattended.days}d unattended, {len(self.firings)} firings, 0 errors",
         )
 
 
@@ -558,8 +556,7 @@ def _report(
             )
             if reading.firings:
                 print(
-                    f"  first / last       {_z(min(reading.firings))}"
-                    f" / {_z(max(reading.firings))}"
+                    f"  first / last       {_z(min(reading.firings))} / {_z(max(reading.firings))}"
                 )
                 days = reading.unattended
                 print(
@@ -605,7 +602,7 @@ def _report(
     failing = [r for r in enabled if not r.verdict[0]]
     print(f"\n{'=' * 88}")
     if failing:
-        weakest = max(failing, key=lambda r: (_WEEK - r.unattended))
+        weakest = max(failing, key=lambda r: _WEEK - r.unattended)
         print(
             f"criterion 6 NOT MET. {len(failing)} of {len(enabled)} enabled job(s) short;\n"
             f"the weakest binds it (D-114 §3): {weakest.schedule.short} - {weakest.verdict[1]}"

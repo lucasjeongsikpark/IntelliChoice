@@ -155,12 +155,10 @@ def test_a_fraction_tie_is_not_broken_by_the_radical_form_or_the_reverse():
     """Each form reads its own notation and nothing else, so declaring one does not quietly
     admit the other's ties."""
     assert any(
-        "more than one option matches" in f
-        for f in _failures(_reduce_item(), "simplest_radical")
+        "more than one option matches" in f for f in _failures(_reduce_item(), "simplest_radical")
     )
     assert any(
-        "more than one option matches" in f
-        for f in _failures(_radical_item(), "lowest_terms")
+        "more than one option matches" in f for f in _failures(_radical_item(), "lowest_terms")
     )
 
 

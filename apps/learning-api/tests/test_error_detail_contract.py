@@ -157,9 +157,9 @@ def test_a_request_against_an_unstarted_session_is_a_404_not_a_409() -> None:
     """
     headers = _headers()
     with TestClient(app) as client:
-        session_id = (
-            client.post("/learning/sessions", headers=headers).json()["learning_session_id"]
-        )
+        session_id = client.post("/learning/sessions", headers=headers).json()[
+            "learning_session_id"
+        ]
         resp = client.post(
             f"/learning/sessions/{session_id}/topics",
             headers=headers,
@@ -218,9 +218,9 @@ def test_no_400_detail_mentions_attendance() -> None:
     """
     headers = _headers()
     with TestClient(app) as client:
-        session_id = (
-            client.post("/learning/sessions", headers=headers).json()["learning_session_id"]
-        )
+        session_id = client.post("/learning/sessions", headers=headers).json()[
+            "learning_session_id"
+        ]
         client.post(
             f"/learning/sessions/{session_id}/student",
             headers=headers,

@@ -34,6 +34,4 @@ class StageTransition(Base):
     evidence: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     generated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     cost_cents: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -39,9 +39,7 @@ import pytest
 from intellichoice_db.repositories.rag import ChunkFilters
 from intellichoice_shared.access_probe_policy import AudienceMatch
 
-_SCRIPT = (
-    Path(__file__).resolve().parents[3] / "scripts" / "measure_access_probe_rules.py"
-)
+_SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "measure_access_probe_rules.py"
 
 
 def _harness() -> Any:

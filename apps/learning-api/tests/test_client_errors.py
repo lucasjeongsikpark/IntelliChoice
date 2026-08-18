@@ -55,9 +55,7 @@ def test_an_unauthenticated_report_is_refused() -> None:
     """Otherwise this is an open log-injection endpoint: anyone on the internet could write
     arbitrary strings into the log a real incident is read from."""
     with TestClient(app) as client:
-        resp = client.post(
-            "/learning/client-errors", json={"message": "boom"}
-        )
+        resp = client.post("/learning/client-errors", json={"message": "boom"})
     assert resp.status_code in (401, 403)
 
 

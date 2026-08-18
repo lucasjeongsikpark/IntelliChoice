@@ -126,9 +126,9 @@ def test_mock_personalized_hint_still_names_the_misconception_and_varies_by_leve
     """
     _, ladder = _canonical_ladders()[0]
     texts = [
-        _personalized_hint(
-            level=index + 1, canonical=canonical, misconception="off_by_one"
-        )["hint_text"]
+        _personalized_hint(level=index + 1, canonical=canonical, misconception="off_by_one")[
+            "hint_text"
+        ]
         for index, canonical in enumerate(ladder)
     ]
     assert all("off_by_one" in text for text in texts)

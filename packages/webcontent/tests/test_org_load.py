@@ -148,12 +148,8 @@ def test_org_load_upserts_then_marks_missing_inactive(
             assert summary_again.events_unchanged == 1
 
             # A branch/member missing from the next sync is marked inactive, not deleted.
-            _write_structured(
-                tmp_path, "branches", "https://www.intellichoice.org/branches/", []
-            )
-            _write_structured(
-                tmp_path, "team", "https://www.intellichoice.org/pages/our-team/", []
-            )
+            _write_structured(tmp_path, "branches", "https://www.intellichoice.org/branches/", [])
+            _write_structured(tmp_path, "team", "https://www.intellichoice.org/pages/our-team/", [])
             summary_final = await org_load.run_org_load(session)
             assert summary_final.branches_marked_inactive >= 1
             assert summary_final.members_marked_inactive >= 1

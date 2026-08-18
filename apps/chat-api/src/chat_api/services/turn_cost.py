@@ -64,9 +64,7 @@ def worst_case_calls(*, candidate_limit: int, top_k: int) -> tuple[PricedCall, .
     )
 
 
-WORST_CASE_CALLS = worst_case_calls(
-    candidate_limit=DEFAULT_CANDIDATE_LIMIT, top_k=DEFAULT_TOP_K
-)
+WORST_CASE_CALLS = worst_case_calls(candidate_limit=DEFAULT_CANDIDATE_LIMIT, top_k=DEFAULT_TOP_K)
 
 # `generate_structured` allows exactly one repair retry on a schema failure, and a repair is
 # a whole second call that pays again for its ~2000 input tokens. Applied to every call, not

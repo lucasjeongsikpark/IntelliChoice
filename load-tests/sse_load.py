@@ -85,10 +85,7 @@ async def main(base_url: str, count: int, hold_seconds: float) -> None:
         )
     print(f"Opening {count} concurrent SSE connections, holding {hold_seconds}s each...")
     results = await asyncio.gather(
-        *(
-            _hold_stream(base_url, session_id, token, hold_seconds)
-            for session_id, token in sessions
-        )
+        *(_hold_stream(base_url, session_id, token, hold_seconds) for session_id, token in sessions)
     )
 
     connected = sum(1 for r in results if r["connected"])

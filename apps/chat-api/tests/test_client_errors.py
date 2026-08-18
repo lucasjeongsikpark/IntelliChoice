@@ -73,9 +73,7 @@ def test_a_forged_session_id_does_not_buy_a_fresh_allowance() -> None:
     """
     with TestClient(app) as client:
         for i in range(_ANONYMOUS_REPORTS_PER_MINUTE):
-            accepted = client.post(
-                ENDPOINT, json={"message": "boom", "chat_session_id": f"s-{i}"}
-            )
+            accepted = client.post(ENDPOINT, json={"message": "boom", "chat_session_id": f"s-{i}"})
             assert accepted.status_code == 202
         refused = client.post(
             ENDPOINT, json={"message": "boom", "chat_session_id": "a-brand-new-id"}

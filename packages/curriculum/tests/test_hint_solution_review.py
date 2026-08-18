@@ -113,9 +113,7 @@ def test_defect_indices_beyond_the_item_are_reported_as_unusable() -> None:
     response = HintSolutionReviewResponse(
         verdict="repair",
         defects=[
-            HintSolutionDefect(
-                target="hint_ladder", index=7, problem="p", suggested_fix="f"
-            ),
+            HintSolutionDefect(target="hint_ladder", index=7, problem="p", suggested_fix="f"),
             HintSolutionDefect(
                 target="canonical_solution", index=2, problem="p", suggested_fix="f"
             ),
@@ -210,9 +208,12 @@ def test_rubric_dimension_score_is_bounded_to_the_scale_its_prompt_states() -> N
     prompt says 1-5 and its schema said nothing, which is how the question judge came to
     emit 8s and 9s against thresholds of 2 and 3.
     """
-    assert LlmJudgeResponse(
-        scores=[RubricDimensionScore(dimension="d", score=5)], overall_pass=True
-    ).scores[0].score == 5
+    assert (
+        LlmJudgeResponse(scores=[RubricDimensionScore(dimension="d", score=5)], overall_pass=True)
+        .scores[0]
+        .score
+        == 5
+    )
     with pytest.raises(ValidationError):
         RubricDimensionScore(dimension="d", score=9)
     with pytest.raises(ValidationError):

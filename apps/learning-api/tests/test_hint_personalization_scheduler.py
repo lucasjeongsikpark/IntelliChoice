@@ -199,12 +199,8 @@ async def _cleanup(study_session_id: str, attempt_id: str) -> None:
     engine = create_engine()
     try:
         async with session_scope(create_session_factory(engine)) as session:
-            await session.execute(
-                delete(HintEvent).where(HintEvent.study_attempt_id == attempt_id)
-            )
-            await session.execute(
-                delete(StudyAttempt).where(StudyAttempt.attempt_id == attempt_id)
-            )
+            await session.execute(delete(HintEvent).where(HintEvent.study_attempt_id == attempt_id))
+            await session.execute(delete(StudyAttempt).where(StudyAttempt.attempt_id == attempt_id))
             await session.execute(
                 delete(StudySession).where(StudySession.study_session_id == study_session_id)
             )
@@ -283,9 +279,7 @@ async def _run_scheduler(
 
     def _aget_state(config: object):
         is_second = len(reads) == 1
-        current = (
-            late_intervention if (is_second and late_intervention is not _UNSET) else first
-        )
+        current = late_intervention if (is_second and late_intervention is not _UNSET) else first
         values = _values(current)
         reads.append(values)
         return _resolved(SimpleNamespace(values=values))

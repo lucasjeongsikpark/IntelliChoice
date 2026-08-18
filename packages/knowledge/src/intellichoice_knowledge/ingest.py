@@ -81,9 +81,7 @@ async def _persist_chunks(
                 access_level=entry.access_level,
                 academic_year=entry.academic_year,
                 effective_from=_to_datetime(entry.effective_from),
-                effective_to=(
-                    _to_datetime(entry.effective_to) if entry.effective_to else None
-                ),
+                effective_to=(_to_datetime(entry.effective_to) if entry.effective_to else None),
                 status=entry.status,
                 source_sha256=source_sha256,
                 embedding=vector,
@@ -140,9 +138,7 @@ async def ingest_entry(
                 branch_external_id=entry.branch_external_id,
                 academic_year=entry.academic_year,
                 effective_from=_to_datetime(entry.effective_from),
-                effective_to=(
-                    _to_datetime(entry.effective_to) if entry.effective_to else None
-                ),
+                effective_to=(_to_datetime(entry.effective_to) if entry.effective_to else None),
                 version=entry.version,
                 status=entry.status,
                 supersedes_document_id=entry.supersedes_document_id,

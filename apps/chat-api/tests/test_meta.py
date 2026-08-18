@@ -77,9 +77,7 @@ def test_first_two_sentences_strips_heading_and_truncates() -> None:
         "free tutoring. A third sentence should be dropped from the excerpt."
     )
     excerpt = _first_two_sentences(text)
-    assert excerpt == (
-        "Zqxvmeta is a nonprofit that supports volunteers. It offers free tutoring."
-    )
+    assert excerpt == ("Zqxvmeta is a nonprofit that supports volunteers. It offers free tutoring.")
     assert "About Us" not in excerpt
     assert "third sentence" not in excerpt
 
@@ -110,9 +108,7 @@ def test_welcome_text_excerpts_the_real_ingested_about_document() -> None:
     async def run() -> None:
         async with rollback_session() as session:
             repo = RagRepository(session)
-            text = await get_welcome_text(
-                repo, document_id=ORGANIZATION_OVERVIEW_DOCUMENT_ID
-            )
+            text = await get_welcome_text(repo, document_id=ORGANIZATION_OVERVIEW_DOCUMENT_ID)
             if text == FALLBACK_WELCOME_TEXT:
                 pytest.skip(
                     "public-organization-overview isn't ingested in this environment "

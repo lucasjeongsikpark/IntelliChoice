@@ -50,9 +50,7 @@ class EffectiveAssistancePolicy:
     source: PolicySource
 
 
-async def effective_assistance_policy(
-    db: AsyncSession, state: dict
-) -> EffectiveAssistancePolicy:
+async def effective_assistance_policy(db: AsyncSession, state: dict) -> EffectiveAssistancePolicy:
     phase = state.get("phase")
 
     if phase in ("pre_exam", "post_exam"):

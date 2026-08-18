@@ -57,8 +57,7 @@ async def run_reembed(
     for document_id, group in groupby(mismatched, key=lambda c: c.document_id):
         if spend >= run_budget_cents:
             logger.warning(
-                "reembed run budget exhausted (%.4f cents); remaining documents left "
-                "for a re-run",
+                "reembed run budget exhausted (%.4f cents); remaining documents left for a re-run",
                 spend,
             )
             break

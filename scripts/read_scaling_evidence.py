@@ -278,9 +278,7 @@ def main() -> int:
 
     refused = sum(count for (_, outcome), count in tally.items() if outcome == "refused")
     unmatched = sum(
-        count
-        for (_, outcome), count in tally.items()
-        if outcome in {"unknown", "no-action-entry"}
+        count for (_, outcome), count in tally.items() if outcome in {"unknown", "no-action-entry"}
     )
 
     if unmatched:

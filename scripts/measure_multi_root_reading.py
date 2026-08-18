@@ -151,8 +151,10 @@ async def main() -> None:
         if item is None:
             continue
 
-        if outcome == "rejected" and MISMATCH in (reasons_raw or "") and "multi_root" in (
-            reasons_raw or ""
+        if (
+            outcome == "rejected"
+            and MISMATCH in (reasons_raw or "")
+            and "multi_root" in (reasons_raw or "")
         ):
             report.considered += 1
             verdict, detail = verdict_for(item)

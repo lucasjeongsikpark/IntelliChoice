@@ -203,9 +203,7 @@ def test_an_expired_attempt_is_pruned_rather_than_accumulating() -> None:
         try:
             async with engine.connect() as conn:
                 total = await conn.execute(
-                    text(
-                        "SELECT count(*) FROM rate_limit_events WHERE caller_key_hash = :key"
-                    ),
+                    text("SELECT count(*) FROM rate_limit_events WHERE caller_key_hash = :key"),
                     {"key": CALLER},
                 )
                 # Two attempts, one of them expired and deleted by the second call.

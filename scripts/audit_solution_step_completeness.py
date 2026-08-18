@@ -110,13 +110,17 @@ def main() -> int:
         mark = "  <- unambiguous" if name in _UNAMBIGUOUS else ""
         print(f"  {count:>3}  {name}{mark}")
     print(f"\n  {len(unambiguous)} of {total} ({len(unambiguous) / total:.1%}) unambiguous")
-    print(f"  {sum(by_class.values())} of {total} "
-          f"({sum(by_class.values()) / total:.1%}) at the outer bound\n")
+    print(
+        f"  {sum(by_class.values())} of {total} "
+        f"({sum(by_class.values()) / total:.1%}) at the outer bound\n"
+    )
 
     print(f"{'skill':<28}{'unambiguous':>12}{'total':>7}  rate")
     for skill in sorted(by_skill, key=lambda s: -(by_skill[s] / skill_totals[s])):
-        print(f"{skill:<28}{by_skill[skill]:>12}{skill_totals[skill]:>7}  "
-              f"{by_skill[skill] / skill_totals[skill]:>5.0%}")
+        print(
+            f"{skill:<28}{by_skill[skill]:>12}{skill_totals[skill]:>7}  "
+            f"{by_skill[skill] / skill_totals[skill]:>5.0%}"
+        )
 
     print("\nitems:")
     for tid, _skill, last, final in unambiguous:

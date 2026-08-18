@@ -157,17 +157,13 @@ def test_tutor_and_branch_manager_may_read_but_never_write() -> None:
 
             # Read: unchanged, and deliberately so until S43.
             assert (
-                await resolve_target_student(
-                    claims, STUDENT_ONLY_CHILD, adapter, access="read"
-                )
+                await resolve_target_student(claims, STUDENT_ONLY_CHILD, adapter, access="read")
                 == STUDENT_ONLY_CHILD
             )
 
             # Write: fail closed.
             with pytest.raises(HTTPException) as caught:
-                await resolve_target_student(
-                    claims, STUDENT_ONLY_CHILD, adapter, access="write"
-                )
+                await resolve_target_student(claims, STUDENT_ONLY_CHILD, adapter, access="write")
             assert caught.value.status_code == 403
 
     asyncio.run(run())
