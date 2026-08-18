@@ -7,6 +7,29 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**✅ MILESTONE 13 IS CLOSED — 18 SESSIONS, THE 08-16 AUDIT'S P2 LIST EMPTY, AND NOTHING LEFT THAT
+SHOULD BE BUILT WITHOUT A DECISION (2026-08-18, D-393 → D-412).**
+
+**Start here, before picking anything up: the carry-over list was wrong six times this milestone.**
+`AUD-L-16`, the approval modal, "learning-web has both a liveness timer and a reconnect control",
+`AUD-L-10`'s percentage half, `AUD-L-11`'s premise, and `AUD-L-06` — each closed by reading the code
+rather than by writing any. Read the note's subject before implementing the note.
+
+**Final verification on merged `main` (`0ddcf5d`):** `ruff` clean · `pyright` 0 errors · pytest
+**1726 passed / 2 skipped** · Playwright **127 passed / 2 skipped** across three projects · 27
+frontend unit tests · both web builds clean.
+
+**The one clear piece of code left** is `AUD-CHAT-07`'s deadline: bound the replayed "Thinking…"
+after a mid-turn reload the way `ExamScreen` bounds its position wait (D-317's `POSITION_WAIT_MS`),
+resolving an unrecovered turn into the retryable state that already exists. Everything else on the
+audit lists is either done or waiting on a judgement — see the four items at the end of this block.
+
+**⚠️ Before any `terraform apply`:** the tfvars image floor is bumped **locally only** and that file
+is gitignored. On a fresh checkout it must be redone, or the apply rolls staging back past this
+entire milestone. `make tfvars-floor-check` is the guard and it caught this once already (D-401).
+
+### Previous — the backend failure-path tail (Milestone 13, W1–W5)
+
 **✅ THE BACKEND FAILURE-PATH TAIL IS CLOSED, AND THE MEASUREMENT WAS WORSE THAN THE AUDIT SAID
 (2026-08-17, D-393 → D-397 — ROADMAP Milestone 13, W1–W5).**
 
@@ -11108,6 +11131,83 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### Milestone 13 in full: the failure path, then the audit's tail (2026-08-17/18, D-393 → D-412)
+
+**Eighteen sessions, thirteen PRs, twenty decisions, every PR on a full nine-check pass.** The
+milestone began as three backend items and grew as each one turned out to be adjacent to another;
+the entry below is the whole arc rather than a list, because the arc is the reusable part.
+
+**What was actually broken, in order of how much it mattered:**
+
+1. **The cross-replica SSE fan-out was losing four events in five** (W3/D-395). Measured, not
+   inferred: a five-event burst produced four `another operation is in progress` and delivered one.
+   D-334's defect, returning inside the mechanism built to fix D-334.
+2. **An unhandled 500 wrote no log line and no metric** (W1/D-393). Both middlewares recorded after
+   `call_next` returned, and Starlette converts the exception above them - so the alarm an operator
+   relies on was blind to exactly what it exists for.
+3. **Stop never stopped the server** (W10/D-402). Measured against real uvicorn: a handler whose
+   client hangs up reports `ran-to-completion`. The per-session advisory lock stayed held for up to
+   50s, so the visitor's next question was refused.
+4. **Tracebacks and interpolated log messages carried free text past the PII filter** (W2/D-394).
+   `PiiDenylistFilter` matches keys; both of those fields are text.
+5. **A dead chat stream was invisible** (W11/D-403, W12a/D-404, W12b/D-405), and fixing it properly
+   required the keep-alive to stop being an SSE comment first.
+6. **A parent read `Week 2026-W31 — absent`** (W15/D-407), where `unknown` is the *routine* case
+   meaning "the branch has not marked it yet".
+
+**The habit that did more than any single fix: read the code before implementing the note.** It
+changed the work on 8 of 10 items and the carry-over list itself was **wrong six times** -
+`AUD-L-16`, the approval modal, "learning-web has both a liveness timer and a reconnect control",
+`AUD-L-10`'s percentage half, `AUD-L-11`'s premise, and `AUD-L-06`. W8 is the cleanest case: the
+audit asked for per-student spend attribution and the honest answer was that two thirds already
+existed and the rest was `latest()` instead of `max()`.
+
+**Five of my own written recommendations were overturned by runs that took minutes** - D-384's
+pin-and-bump, D-397's WebKit ("the engine that would have caught D-352" - it does not),
+"the browser leg is expensive" (4.6 s), "the unit test is cheapest" (it needed a framework), and
+"spend attribution needs a new field" (it needed a query). The rule now written into this file: **a
+recommendation is a hypothesis until the run happens, including when it is the one being
+implemented.**
+
+**Three times a test was written, measured, and deleted or reverted rather than kept.** W11's
+"no banner while healthy" control was flaky by construction (1 pass / 2 failures) because the stub
+cannot hold an SSE response open. W16's `EDGE-CHAT-07` fix was reverted because an existing test
+asserts the duplicate deliberately - editing an assertion to match a change is how a deliberate
+behaviour becomes an accident. W12b's source-reading guard was redundant against its own behavioural
+sibling.
+
+**Two decisions were the user's and both went against my recommendation, correctly.** vitest in
+**both** frontends rather than one, on the D-347 argument that starting asymmetric is starting with
+the bug - proved within the session by the mirrored liveness timer. And a real cancel endpoint for
+Stop, specified in four parts (turn-scoped, cooperative, a cancelled terminal state, immediate lock
+release), all four of which shipped.
+
+**Two of the user's own decisions could not be implemented as stated**, and in both cases the premise
+rather than the decision was what failed (W16/D-409, D-410): three mastery bands need two cutoffs
+where this system defines one, and the "Review" column was not the inert affordance the audit
+described - it renders real flag data, so removing it would have deleted a fact about a child's
+session to fix a misleading word.
+
+**Verification:** `ruff` + `pyright` clean throughout · pytest **1726 passed / 2 skipped**, up from
+1694 at the milestone's baseline. The final run reported `1 xpassed` where earlier runs said
+`1 xfailed`; that slot is `test_identical_inputs_reproduce_identical_routing_and_scores`, a
+**non-strict** xfail over a random exam which D-238 relaxed for exactly this reason - *"it XPASSed
+once in a full run and xfailed on the next, from the same tree, with no code between them"*. Chased
+rather than shrugged at, and it is documented variance, not a stale marker · Playwright **127 passed / 2 skipped** across
+chromium, mobile and the new webkit project · **27 frontend unit tests** where there were none
+(6 in chat-web, 21 in learning-web) · `terraform validate` + `fmt` clean, and
+a real `terraform plan` used as the verification for W14 (the NAT gateway absent from the plan is
+what proves the refactor changed nothing). Every count reconciled against what was added rather than
+accepted because it was green - twice a discrepancy was chased and explained (`test_meta.py`'s
+data-dependent skip; a suite "failure" that was my own invocation from the wrong directory).
+
+**Carry-over, all of it needing a judgement rather than code:** `AUD-CHAT-07`'s deadline (bound the
+replayed "Thinking…" the way D-317 bounds the exam's position wait) is the one clear piece of code
+left · `AUD-CHAT-14` recommended for closing as accepted · `@testing-library/react` on the first
+component test · OPEN_DECISIONS #6 and #8 unchanged · **and the tfvars image floor is bumped locally
+only** - that file is gitignored, so it must be redone on a fresh checkout before any apply, or the
+apply rolls staging back past this entire milestone.
 
 ### The failure path was the least-observed path (2026-08-17, D-393 → D-397)
 

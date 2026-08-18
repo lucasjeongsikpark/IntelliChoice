@@ -2768,7 +2768,31 @@ the subject).
 docstring matches what the falsification measured · what is stubbed, and why, is stated · the paths a
 browser cannot reach (SPEC §5.29's MCP-failure fallback) are named rather than skipped silently.
 
-## Milestone 13 — The failure path is the least-observed path *(D-393 → D-397, 2026-08-17)*
+## Milestone 13 — The failure path is the least-observed path *(D-393 → D-412, 2026-08-17/18)*
+
+> ### ✅ CLOSED 2026-08-18 — 18 sessions, 17 ✅ and one ⚠️
+>
+> **Every "Done when" clause below was checked individually against what was measured, not against
+> what was intended.** All hold. The one session marked ⚠️ rather than ✅ is **W5**, and the marker is
+> the finding: the WebKit project was built exactly as decided and then measured as **not closing the
+> gap it was chosen to close**. It is not a partial session - it is a completed session whose result
+> was negative, and marking it ✅ would have made the roadmap agree with the plan instead of with the
+> outcome.
+>
+> **Final verification on merged `main` (`0ddcf5d`):** `ruff` **All checks passed** · `pyright`
+> **0 errors** · pytest **1726 passed / 2 skipped** in 8:17 · Playwright **127 passed / 2 skipped**
+> in 6.5m across chromium, mobile and webkit · both frontends' `oxlint` exit 0 and both builds clean ·
+> **27 frontend unit tests** where the milestone began with none.
+>
+> **Scope grew and the growth is recorded rather than smoothed over.** The milestone was planned as
+> three backend items (W1–W3). It became eighteen sessions because each item was adjacent to another:
+> the SSE relay fix (W3) made its telemetry gap obvious (W4), the liveness work (W11) could not be
+> done until the keep-alive was observable (W12a), and that needed frontend test tooling (W12b),
+> which then paid for itself on the next P3 (W15). Nothing was added that was not on an audit list.
+>
+> **There is no W13** - see the note above that session's neighbours.
+
+
 
 Milestone 12 closed the audit's never-walked *browser* list. What remained from the 08-16 audit was
 a backend tail nobody had taken, and three of its items shared one shape: **the system is well
@@ -2991,6 +3015,11 @@ cancels the timer · a connect that never opens is still reported · **each guar
 own**, because removing the timer wholesale only fails 2 of 6 (the rest are "must not report"
 assertions that no timer satisfies trivially).
 
+> **There is no session W13.** The frontend unit-test tooling was folded into **W12b** rather than
+> given its own number, because it and the liveness timer were one indivisible change - the tooling
+> existed in order to test the timer. Recorded here so the gap reads as deliberate rather than as a
+> lost session.
+
 ### Session W14 — The NAT gateway follows its consumers ✅ *(done 2026-08-18, D-406)*
 
 `nat_gateway_enabled = var.langsmith_tracing_enabled` was correct while LangSmith was the only
@@ -3043,6 +3072,32 @@ with the code.
 **Done when:** the bands come from server classification with no client-side cutoff · an empty
 mastery table renders nothing rather than an empty heading · the renamed header keeps the flag data ·
 each departure from the decision as stated is recorded with the measurement that caused it.
+
+### Session W17 — The last two learning P3s, closed by reading ✅ *(done 2026-08-18, D-411)*
+
+**Outcome, and neither needed code.** `AUD-L-06` was **already fixed** by D-317 and is guarded
+non-vacuously (`journey-student.spec.ts:421` answers two questions first *"so the restored position is
+provably not just 'the first question'"*). `AEL-06` is real and **deliberately not built**: its (S)
+estimate is wrong - it needs a service worker with cache invalidation against CloudFront's hashed
+assets - and it would not give the student a working exam anyway, because answers cannot be queued
+locally by design (AUD-F-27, D-374). The whole benefit is replacing Chrome's offline page with our own.
+
+**Done when:** each item is dispositioned against the code rather than against the note · `AEL-06`'s
+refusal carries the argument that decides it, so it is not re-filed as an (S) · the running tally of
+this list being wrong is written where the next session reads it.
+
+### Session W18 — An escalated question says so ✅ *(done 2026-08-18, D-412)*
+
+**Outcome:** `AUD-CHAT-08` fixed - an escalation appended a second identical user bubble with nothing
+distinguishing it, and the `escalate: true` flag D-378 had already put on the turn was simply unused
+by the render. `AUD-CHAT-07` and `AUD-CHAT-14` measured and left, each with its reasoning: the
+composer being enabled after a reload is arguably *correct*, and the real residue is that the replayed
+"Thinking…" has no deadline (the shape D-317 solved with `POSITION_WAIT_MS`); and offering escalation
+on an out-of-scope refusal invites the escalations the refusal exists to prevent.
+
+**Done when:** the forwarded turn is labelled **and the original is not**, because a label on both
+says nothing · falsified by reverting the render · the two items left undone name the design rather
+than the symptom.
 
 ## The audit's never-walked list is now closed
 
