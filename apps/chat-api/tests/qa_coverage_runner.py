@@ -38,6 +38,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .escalation_stub import UnusedEscalationSends
+
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "qa_coverage_eval.yaml"
 
 
@@ -226,6 +228,7 @@ async def ask(
         mcp_call_repo=McpToolCallRepository(session),
         org_event_repo=OrgEventRepository(session),
         rate_limiter=InMemoryRateLimiter(max_per_window=1000, window_s=3600.0),
+        escalation_sends=UnusedEscalationSends(),
         admin_escalation_email="admin@example.test",
         access_probe_max_distance=settings.access_probe_max_distance,
         # AUD-C-23/D-175: the three fields the route passes and this harness did not.

@@ -28577,3 +28577,91 @@ code actually *does* rather than whether the patch applied.
 **Duplicate protection** (its own PR — it needs a table and a migration, and D-416's rule that the
 sweep must be global from the start applies) and **the modal textarea** in chat-web, staged the way
 D-402's endpoint and D-404's keepalive were: server first, client second.
+
+## D-421 — B4 part 2: the same question is not emailed to staff twice (accepted, 2026-08-18)
+
+The second of B4's two genuinely-missing pieces. The visitor presses "Ask an administrator",
+approves, and the email goes — then nothing visibly happens, because a human replies by email hours
+later, so they press it again. Staff receive the same question twice from the channel that exists
+*because* they are the fallback. **The rate limiter cannot see this**: it bounds volume and has no
+idea two sends are the same send.
+
+### The shape, and what each choice refuses
+
+`chat_escalation_sends(chat_session_id, question_fingerprint, sent_at)`, one row per email actually
+sent, additive migration `8509c0486d8d`.
+
+- **A fingerprint, never the question.** SHA-256 of the normalised question. Equality is the only
+  thing this table decides, so storing the text would put visitor free text in a new table for no
+  gain (SPEC §5.30). Normalisation is whitespace and case only — deliberately nothing cleverer,
+  because stemming or embedding similarity would make "is this a duplicate" a *judgement*, and a
+  judgement that silently suppresses a message to a human is the wrong place for one.
+- **A claim, not a check-then-send.** `ON CONFLICT DO NOTHING ... RETURNING` makes the database the
+  arbiter, so of two replicas resuming approvals in the same moment exactly one is told to send. A
+  separate SELECT would let both read "absent" and both send — the defect this table exists to
+  prevent, reintroduced by the shape of its own check.
+- **Committed independently of the request**, via the session factory (the reason `get_turn_cancellations`
+  takes one, plus one specific to this: the claim must be visible at the moment of the send rather
+  than at the end of the request, and must not be rolled back by a later failure).
+- **The claim is released when the send fails.** `EMAIL_FAILED_MESSAGE` tells the visitor to try again
+  in a few minutes; holding the claim through a Gmail failure would make that instruction impossible
+  to follow, refusing the retry as a duplicate of an email nobody received. SPEC §5.29's "preserve
+  draft" is about exactly that recovery.
+- **The sweep is global from the first line**, applying D-416's lesson rather than repeating its
+  mistake: a per-session sweep only reaps sessions that come back, so rows for sessions that never
+  return would accumulate with nothing able to reach them.
+- **One hour**, chosen against two failure modes rather than picked: shorter misses the case this
+  exists for (a visitor pressing again a few minutes later), longer swallows a legitimate follow-up —
+  "I asked yesterday and nobody replied" is a *different* request to a human.
+- **Keyed on the question, not the question plus the note.** A second note on the same question is
+  suppressed. That is the deliberate side of the trade: keying on the note would let anyone defeat the
+  check by adding a space.
+- **The visitor is told.** `EMAIL_ALREADY_SENT_MESSAGE`, because a second silent no-op reads as a
+  broken button, which is what makes someone press it a third time.
+
+### What it exposed in the test suite, which is the part worth keeping
+
+Adding it turned four passing tests red, and the cause was not the feature: **the escalation tests
+reused fixed literal session ids across runs**. The claim commits independently of the test's
+`rollback_session` — deliberately — so the suite passed once and failed on every run afterwards, with
+the second run's "duplicate" being the *first run's* email.
+
+Every real session id is a uuid4. The tests had been relying on a fiction that nothing previously
+noticed, and D-421 only made it visible. Fixed with one `_thread()` helper and 18 call sites, then
+**proven by running the file twice**: 14 passed, 14 passed.
+
+### Falsification
+
+Four guards, each failing the test written for it: no dedupe at all · the claim not released after a
+failed send · a session-blind key (which fails **six** tests, since every escalation then collides
+with every other) · and `claim()` reporting success on conflict.
+
+**And the enforcement added an hour earlier caught this PR.** `ruff format --check`, wired into CI by
+D-417/C8, rejected a hand-wrapped `Annotated[...]` the formatter wanted on one line — on the very
+next branch. `make fmt` is the target that writes; `make lint` only asks.
+
+### D-421 addendum — the test-isolation trap this walked into twice
+
+The feature is nine lines of node change; **getting its tests correct took three attempts**, and each
+failure was mine rather than the design's. Recorded because all three are properties of *any*
+independently-committing repository, not of this one.
+
+1. **Fixed literal session ids.** The claim commits outside the test's `rollback_session` — it has
+   to, so it is visible at send time — so a literal `"chat-zqxv-admin-1"` made the suite pass once
+   and fail on every run afterwards, the second run's "duplicate" being the first run's email. Fixed
+   with a `_thread()` helper that appends a uuid, which is what production does anyway. **Proven by
+   running the file twice.**
+2. **An engine per context construction.** Wiring the new field into five unrelated test contexts by
+   calling `create_engine()` inline leaked a connection pool per call — and it surfaced 21 failures
+   and 5 errors **in another app**, a full suite away from the change. `UnusedEscalationSends`
+   replaced them: it creates no engine and raises if a turn that claims not to escalate escalates.
+3. **A module-level engine.** The obvious fix for (2) was one engine per file — which fails with
+   `attached to a different loop`, because every test here drives the graph through its own
+   `asyncio.run` and asyncpg binds connections to the loop that opened them. The file *already*
+   documented this trap for `ChatTurnCancellationRepository` and I re-derived it anyway. The working
+   shape is a per-test `@asynccontextmanager` that disposes in a `finally`, mirroring
+   `rollback_session` itself.
+
+**The reusable rule:** a repository that commits independently of the request is a repository whose
+tests need an engine per event loop, disposal in a `finally`, unique keys per run, and a stand-in for
+call sites that must never reach it. Three of those four were learned here by breaking them.

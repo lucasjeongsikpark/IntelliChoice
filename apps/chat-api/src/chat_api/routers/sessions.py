@@ -17,6 +17,9 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response, status
 from intellichoice_db.models.cost_reservation import SCOPE_CHAT_TURN, SUBJECT_CHAT_API
 from intellichoice_db.repositories.chat import ChatSuggestionRepository
+from intellichoice_db.repositories.chat_escalation_send import (
+    ChatEscalationSendRepository,
+)
 from intellichoice_db.repositories.chat_turn_cancellation import (
     ChatTurnCancellationRepository,
 )
@@ -47,6 +50,7 @@ from chat_api.dependencies import (
     get_cost_ledger,
     get_db_session,
     get_email_rate_limiter,
+    get_escalation_sends,
     get_graph,
     get_mcp_registry,
     get_message_rate_limiter,
@@ -457,6 +461,7 @@ def _turn_context(
     bedrock_gateway: BedrockGateway,
     mcp_registry: McpToolRegistry,
     rate_limiter: RateLimiter,
+    escalation_sends: ChatEscalationSendRepository,
     query: str | None = None,
     client_ip: str | None = None,
 ) -> TurnContext:
@@ -471,6 +476,7 @@ def _turn_context(
         mcp_call_repo=McpToolCallRepository(db),
         org_event_repo=OrgEventRepository(db),
         rate_limiter=rate_limiter,
+        escalation_sends=escalation_sends,
         admin_escalation_email=settings.admin_escalation_email,
         query=query,
         candidate_limit=settings.retrieval_candidate_limit,
@@ -655,6 +661,7 @@ async def post_message(
     message_limiter: Annotated[RateLimiter, Depends(get_message_rate_limiter)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     cancellations: Annotated[ChatTurnCancellationRepository, Depends(get_turn_cancellations)],
+    escalation_sends: Annotated[ChatEscalationSendRepository, Depends(get_escalation_sends)],
     graph: Annotated[QAGraph, Depends(get_graph)],
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
 ) -> MessageResponse:
@@ -682,6 +689,7 @@ async def post_message(
         bedrock_gateway=bedrock_gateway,
         mcp_registry=mcp_registry,
         rate_limiter=rate_limiter,
+        escalation_sends=escalation_sends,
         query=query,
         client_ip=request.client.host if request.client else None,
     )
@@ -751,6 +759,7 @@ async def cancel_turn(
     claims: Annotated[TokenClaims | None, Depends(get_optional_claims)],
     graph: Annotated[QAGraph, Depends(get_graph)],
     cancellations: Annotated[ChatTurnCancellationRepository, Depends(get_turn_cancellations)],
+    escalation_sends: Annotated[ChatEscalationSendRepository, Depends(get_escalation_sends)],
 ) -> Response:
     """D-402: ask the turn identified by `client_turn_id` to stop at its next checkpoint.
 
@@ -799,6 +808,7 @@ async def respond_to_interrupt(
     rate_limiter: Annotated[RateLimiter, Depends(get_email_rate_limiter)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     cancellations: Annotated[ChatTurnCancellationRepository, Depends(get_turn_cancellations)],
+    escalation_sends: Annotated[ChatEscalationSendRepository, Depends(get_escalation_sends)],
     graph: Annotated[QAGraph, Depends(get_graph)],
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
 ) -> RespondResponse:
@@ -866,6 +876,7 @@ async def respond_to_interrupt(
         bedrock_gateway=bedrock_gateway,
         mcp_registry=mcp_registry,
         rate_limiter=rate_limiter,
+        escalation_sends=escalation_sends,
         client_ip=request.client.host if request.client else None,
     )
     resumed_turn_id = snapshot_values.get("client_turn_id")

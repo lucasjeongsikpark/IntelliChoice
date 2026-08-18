@@ -41,6 +41,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
 
 from .conftest import postgres_skip_reason, rollback_session
+from .escalation_stub import UnusedEscalationSends
 
 pytestmark = pytest.mark.skipif(
     (_reason := postgres_skip_reason()) is not None, reason=_reason or ""
@@ -162,6 +163,7 @@ def _ask_ctx(
         mcp_call_repo=McpToolCallRepository(session),
         org_event_repo=OrgEventRepository(session),
         rate_limiter=InMemoryRateLimiter(max_per_window=1000, window_s=3600.0),
+        escalation_sends=UnusedEscalationSends(),
         admin_escalation_email="admin@example.test",
         query=query,
     )
