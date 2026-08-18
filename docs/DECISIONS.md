@@ -27702,3 +27702,50 @@ W11's deleted control test was — `route.fulfill` cannot hold an SSE response o
 timeout cannot be shortened from a browser test. Writing it needs either the frontend unit-test
 tooling of OPEN_DECISIONS #14 or a decision to ship it untested; that is the user's call, and this
 is now #14's **fourth** concrete use case.
+
+## D-405 — W12b: frontend unit tests, and the liveness timer they unblocked (accepted, 2026-08-18)
+
+**OPEN_DECISIONS #14 is decided: vitest + jsdom in both frontends.** The user chose both apps over
+my recommendation of one-first, on the D-347 argument — two independently deployed frontends drifting
+is this project's single most repeated defect shape, and starting asymmetric is starting with the
+bug. Fair, and the mirrored timer below is the immediate proof: chat was where `EDGE-CHAT-02` was
+filed, and learning-web is where a stale stream costs a student their exam snapshot.
+
+**#14 was blocking four assertions, which is what moved it from preference to gap:** `errors.ts`'s
+status-to-message rules in both apps; `downloadIcs`'s DOM contract (covered the expensive way in
+D-399 instead); "the disconnect banner renders for `error` and nothing else" (a browser test was
+written, **measured flaky at 1 pass / 2 failures**, and deleted in D-403); and this timer, whose 40s
+window cannot be shortened from a browser test and whose stream cannot be held open by
+`route.fulfill`.
+
+**The timer.** 40s without a frame marks the stream stale and reports `error`, which is what raises
+the banner and its Reconnect button. 2.5× the server's 15s keepalive: tolerates one lost keepalive
+plus jitter, so a healthy-but-quiet stream is never reported — the failure mode that mattered, since
+an indicator that cries disconnect during a normal pause teaches the visitor to ignore it.
+
+Three design points, each tested:
+
+- **Armed at construction, not at `onopen`.** A connect that hangs with no response produces
+  neither event, and the indicator used to sit on "connecting" forever — the same indefinite-state
+  shape D-350 fixed for a different cause.
+- **Any inbound frame is proof of life, including an unparsable one.** The frame is skipped (D-216)
+  but the bytes arrived, so the connection is demonstrably up. Counting only *parsable* frames would
+  report a server sending malformed snapshots as disconnected, pointing the reader at the network
+  instead of at the payload.
+- **Cleared on teardown.** A pending timer would fire after the caller closed the stream, setting
+  state on an unmounted consumer and showing a banner for a stream nobody is watching.
+
+**Falsified per guard, because a combined revert only proves the first one.** Removing the timer
+entirely fails **2 of 6** — and the other four are "must not report" assertions that the *absence*
+of a timer satisfies trivially, so each was falsified on its own: disabling the initial arm fails
+only the never-opens test, and disabling the teardown clear fails only the teardown test.
+
+**Two mistakes the tooling caught within minutes of existing, which is the argument for it.**
+`test` is not a valid key on vite's `defineConfig` — it needs the re-export from `vitest/config`, and
+`npm run build` said so. And `constructor(public url: string)` is forbidden by this project's
+`erasableSyntaxOnly`; the test files sit **inside** `tsc -b` rather than beside it, so that surfaced
+as a build error rather than as a runtime surprise.
+
+**Scope held deliberately:** no `@testing-library/react`. Component rendering is a real third use
+case (the banner's render condition) but it needs another dependency, and the rule here is two clear
+uses before an abstraction. It gets added when the first component test is written, not in advance.

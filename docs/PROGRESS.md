@@ -138,17 +138,33 @@ moves that item from preference to "there is a class of assertion we cannot make
 
 **Recommended next, in priority order:**
 
-1. **W12b — the client liveness timer.** The server half shipped (**W12a/D-404**: both APIs now
-   emit `event: keepalive` instead of an invisible comment, so a client can finally tell "quiet"
-   from "dead"). The timer itself is **blocked on a decision, not on code**: it cannot be tested in
-   this harness — `route.fulfill` cannot hold an SSE response open and a 40s timeout cannot be
-   shortened from a browser test — so it needs **OPEN_DECISIONS #14**'s tooling or an explicit
-   decision to ship it untested. That is #14's **fourth** use case, and the last piece of
-   `EDGE-CHAT-02`.
-2. **OPEN_DECISIONS #14** — a judgement, not code: whether the frontends get unit-test tooling at
-   all. Recommendation is one app first, measured before doubling, for the reason D-397 exists.
-3. **The LangSmith/NAT decoupling** (recorded 2026-08-17), before OPEN_DECISIONS #6 is unblocked
-   rather than after.
+**✅ W12b (D-405) closed it, and closed OPEN_DECISIONS #14 with it.** The user chose **vitest +
+jsdom in both frontends** over a one-app-first recommendation, on the D-347 argument that starting
+asymmetric is starting with the bug. The mirrored liveness timer is the immediate proof.
+
+**The 08-16 audit's P2 list is now empty.** `EDGE-CHAT-02` was its last item.
+
+The timer: 40s without a frame marks the stream stale, armed at construction so a hanging connect is
+caught too, reset by any inbound frame **including an unparsable one** (the bytes arrived, so the
+connection is up — counting only parsable frames would blame the network for a payload bug), and
+cleared on teardown. 12 tests, and **each guard falsified on its own** because removing the timer
+wholesale only fails 2 of 6 — the other four are "must not report" assertions that no timer
+satisfies trivially.
+
+**The tooling caught two mistakes within minutes of existing**, which answers whether it earns its
+keep: `test` is not a valid key on vite's `defineConfig`, and `constructor(public url: string)` is
+forbidden by `erasableSyntaxOnly`. Both surfaced as *build* errors, because the test files sit inside
+`tsc -b` rather than beside it.
+
+**Recommended next, in priority order:**
+
+1. **The LangSmith/NAT decoupling** — before OPEN_DECISIONS #6 is unblocked rather than after,
+   because enabling the YouTube sync while tracing is off would leave it with no egress.
+2. **The frontend P3 polish list** from the live audit — raw ISO week ids and enums in the
+   parent-facing list, the report's 39-skill run-on, the non-clickable Review column, the duplicated
+   send-failure message. Now that vitest exists, the pure-function half of these is cheap.
+3. **`@testing-library/react`**, when the first component test is written — the banner's render
+   condition is waiting for it.
 
 ### Previous — a green baseline and the contracts nobody was testing (Milestone 12)
 
@@ -11086,6 +11102,13 @@ asking what the **code** did discriminates it immediately, on both engines: *no 
 lenient about a call that was never made.* The tick check is the subtle half — a timestamp
 comparison would not work, because the broken form also revokes "later", by microseconds in the
 same task.
+
+**Verification for W12b:** `ruff` clean · both frontends' `oxlint` exit 0 (the two remaining
+warnings are pre-existing in `StudentDashboardScreen`, not in the new files) · both `npm run build`
+clean, which is where the two config mistakes surfaced · **12 unit tests, 6 per app, all passing in
+under a second** · Playwright **127 passed / 2 skipped**, unchanged, which matters because the timer
+is live against the real APIs in that run and a wrong window would have fired during a journey ·
+**no Python changed**, so W12a's 1726 stands.
 
 **Verification for W12a:** `ruff` + `pyright` clean · pytest **1726 passed / 2 skipped / 1
 xfailed**, **+3** on 1723 and 3 is exactly what was added · falsified by restoring the comment form

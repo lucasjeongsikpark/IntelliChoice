@@ -2974,6 +2974,23 @@ restoring the comment form while keeping the constant importable, which fails 2 
 SSE response open, and a 40s timeout cannot be shortened from a browser test), so it waits on
 OPEN_DECISIONS #14 or an explicit decision to ship it untested. #14's fourth use case.
 
+### Session W12b — Frontend unit tests, and the liveness timer ✅ *(done 2026-08-18, D-405)*
+
+OPEN_DECISIONS #14 decided: **vitest + jsdom in both frontends**, the user's call over a
+one-app-first recommendation, on the D-347 argument that starting asymmetric is starting with the
+bug. The mirrored timer is the immediate proof.
+
+**Outcome:** a 40s liveness timer in both stream clients — armed at construction so a hanging
+connect is caught, reset by any inbound frame including an unparsable one, cleared on teardown —
+plus 12 unit tests and a `Test` step in both web CI jobs. This closes the last piece of
+`EDGE-CHAT-02` and therefore the 08-16 audit's P2 list.
+
+**Done when:** a quiet stream past the window reports `error` · a keepalive keeps a quiet stream
+trusted indefinitely · a snapshot and an unparsable frame both count as proof of life · teardown
+cancels the timer · a connect that never opens is still reported · **each guard falsified on its
+own**, because removing the timer wholesale only fails 2 of 6 (the rest are "must not report"
+assertions that no timer satisfies trivially).
+
 ## The audit's never-walked list is now closed
 
 Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found
