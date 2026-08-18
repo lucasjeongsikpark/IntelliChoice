@@ -27899,3 +27899,31 @@ So the word changed: `Review` → `Tutor review`, which names the data instead o
 The false promise is gone and nothing is lost. Recorded because the instruction was followed in
 intent and not in letter, and the reason is that the premise behind it did not survive contact with
 the code.
+
+## D-411 — W17: the last two learning P3s, one already fixed and one deliberately not built (accepted, 2026-08-18)
+
+**`AUD-L-06` was already fixed, and that is the fourth item on this list closed by reading rather
+than writing.** D-317 fixed the mid-exam position restore — the position arrives on a *second*
+transport, and `currentDisplayOrder`'s initial `0` was rendered as though it were an answer — and
+`journey-student.spec.ts:421` guards it non-vacuously: it answers **two** questions first *"so the
+restored position is provably not just 'the first question'"*, then asserts the question after reload
+equals the question before.
+
+The running tally of this list being wrong: `AUD-L-16` (fixed by D-390), the approval modal (fixed by
+D-381), *"learning-web has both a liveness timer and a reconnect control"* (it had one), and now this.
+Plus `AUD-L-10`'s percentage half and `AUD-L-11`'s premise. **Six.** The habit that produced them is
+cheap — read the code before implementing the note — and it has now saved more work than any single
+fix in this milestone.
+
+**`AEL-06` is real and deliberately not built.** *"Reloading mid-exam with no network drops the
+student out of the app entirely"* is true of any SPA with no service worker: the browser cannot fetch
+`index.html`, so Chrome's offline page wins. The audit's (S) estimate is wrong — the fix is a service
+worker caching the app shell, which brings cache invalidation against CloudFront's hashed assets and
+a new failure class where a stale shell runs old JS against a new API.
+
+**And it would not give the student a working exam**, which is the argument that decides it. With the
+network down every API call fails anyway, and answers cannot be queued locally *by design*: AUD-F-27
+and D-374 both refuse queueing, because "an answer that arrives after a finalize has nowhere valid to
+land" (AUD-F-02's 409). So the entire benefit is replacing Chrome's offline page with our own offline
+page — worth having one day, not worth a service worker's operational surface for a solo-maintained
+service now. Recorded with the reasoning so it is not re-filed as an (S).
