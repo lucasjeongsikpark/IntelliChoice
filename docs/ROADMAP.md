@@ -3007,6 +3007,22 @@ from the plan**, because the refactor computes the identical value · every othe
 is accounted for (D-401's unapplied alarm split plus the documented task-definition drift) · nothing
 applied.
 
+### Session W15 — `AUD-L-09`, and the tooling earning its keep ✅ *(done 2026-08-18, D-407)*
+
+A parent read `Week 2026-W31 — absent` on the one screen about their child. The reason mattered more
+than the week id: `unknown` is the **routine** production case (D-152 §2), and collapsing it to a raw
+enum told a parent their child was `unknown` where the truth is that the branch has not filled in the
+register.
+
+**Outcome:** two pure formatters with 14 unit tests, and **two real defects caught by them** — a
+time-zone category error that made the week label a day early for every parent outside UTC, and the
+missing fallback for an unrecognised enum member.
+
+**Done when:** `unknown` reads as "attendance not marked yet" and never as an absence · an
+unrecognised value never prints as a token · the week label names its Monday, including when week 1
+falls in the previous calendar year · the label cannot be shifted by a time zone · a malformed id
+degrades to itself rather than inventing a date.
+
 ## The audit's never-walked list is now closed
 
 Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found

@@ -174,9 +174,22 @@ deployed one are not the same number.
 
 **Recommended next, in priority order:**
 
-1. **The frontend P3 polish list** from the live audit — raw ISO week ids and enums in the
-   parent-facing list, the report's 39-skill run-on, the non-clickable Review column, the duplicated
-   send-failure message. Cheaper now that vitest exists for the pure-function half.
+**✅ W15 (D-407) took the first item and the new tooling paid for itself immediately.** A parent read
+`Week 2026-W31 — absent`; `unknown` is the **routine** case (D-152 §2), so the raw enum told a parent
+their child was `unknown` where the truth is that the branch has not filled in the register.
+
+**Two real defects caught by the unit tests, neither reachable from a browser walk.** The week
+formatter first took the org time zone, copying `formatOrgDate`'s D-324 pattern — but Monday 00:00
+UTC is 7pm **Sunday** in Chicago, so the label read `week of 7/26/2026` for a week starting on the
+27th. An ISO week id has no instant to convert, so the signature lost the zone. Off by a day for
+every parent outside UTC, and invisible to any walk. The second was the missing fallback for an
+unrecognised `AttendanceStatus` member.
+
+**Recommended next, in priority order:**
+
+1. **The rest of the frontend P3 list** — the report's 39-skill comma run-on and denominator-less
+   scores (`ReportView.tsx:47`), the non-clickable "Review" column (`StudentDashboardScreen.tsx:733`),
+   the duplicated send-failure message (`ChatScreen.tsx:413`), and the two mid-exam reload items.
 2. **`@testing-library/react`**, when the first component test is written — the banner's render
    condition is waiting for it.
 
@@ -11116,6 +11129,14 @@ asking what the **code** did discriminates it immediately, on both engines: *no 
 lenient about a call that was never made.* The tick check is the subtle half — a timestamp
 comparison would not work, because the broken form also revokes "later", by microseconds in the
 same task.
+
+**Verification for W15:** `ruff` clean · learning-web `oxlint` exit 0 · `tsc` and `npm run build`
+clean · **14 unit tests** (up from 6 in that app) · Playwright **127 passed / 2 skipped**, unchanged
+— nothing in `e2e/` asserted the old raw format, so nothing broke · **no Python changed**.
+
+**No browser assertion was added, and that is recorded rather than skipped:** reaching the blocked
+list as a parent needs a fixture put into a blocked state, which is more cost than value when the
+logic is pure, tested fourteen ways, and the wiring is two substitutions `tsc` checks.
 
 **Verification for W12b:** `ruff` clean · both frontends' `oxlint` exit 0 (the two remaining
 warnings are pre-existing in `StudentDashboardScreen`, not in the new files) · both `npm run build`

@@ -27794,3 +27794,41 @@ the arithmetic closes. Nothing unexplained, and nothing applied.
 **A side finding the plan produced**, corrected above in D-401: `sessions_completed_floor` is not
 deployed (`count` gated on a variable that is 0), so of the three alarms routed to the quiet channel
 only two exist in staging.
+
+## D-407 — W15: `AUD-L-09`, and the first defect the new tooling caught (accepted, 2026-08-18)
+
+The parent-facing blocked list rendered `Week {b.week_id} — {b.blocked_reason}`, so a parent read
+**`Week 2026-W31 — absent`**: an ISO week id and an `AttendanceStatus` value, verbatim, on the one
+screen they read about their child.
+
+**The reason mattered more than the week id.** `unknown` is the **routine** case in production, not
+a rare one — D-152 §2 records that `signups.attended = null` ("the branch manager has not marked it
+yet") is common, and CLAUDE.md carries that forward as the one production fact that must inform
+product work now. The server already keeps the two apart (`UNKNOWN_MESSAGE` vs `BLOCKED_MESSAGE`);
+the dashboard collapsed both to a raw enum. So a parent read `unknown` about their child where the
+truth is "nobody has filled in the register" — the difference between *your child missed a session*
+and *the branch has not done its paperwork*.
+
+`formatBlockedReason` maps the closed enum and falls back to the section's own wording ("attendance
+not confirmed") for anything unrecognised, so a future `AttendanceStatus` member cannot reach a
+parent as a token.
+
+**The week formatter was wrong, and the test caught it before anyone saw it.** The first version took
+the organization's time zone — copying `formatOrgDate`'s D-324 pattern — and formatted the week's
+Monday through it. Monday 00:00 **UTC** is 7pm **Sunday** in Chicago, so the label read `week of
+7/26/2026` for a week that starts on the 27th. The signature changed as a result: an ISO week id has
+no instant to convert, so it takes **no zone** and reads UTC parts directly. `formatOrgDate` needs
+the zone because `blocked_at` is a real instant; this does not, and passing one could only move the
+date. That is a category error the browser suite would never have found — the label would simply
+have been off by a day for every parent outside UTC.
+
+The ISO arithmetic was verified by **round-trip before the assertion was written**: week 1 is the
+week containing January 4th, so `2026-W01` begins on **2025-12-29**, in the previous calendar year —
+the case a `(week - 1) * 7 days from January 1st` implementation gets wrong.
+
+**This is D-405's argument being cashed on the first try.** Fourteen unit tests, two real defects
+caught (the zone shift, and the enum fallback), in a module that a browser walk reaches only when a
+fixture happens to be in a blocked state. Recorded plainly: **no browser assertion was added.**
+Nothing in `e2e/` asserts the old raw format, so nothing breaks, and reaching the blocked list as a
+parent needs a fixture put into that state — more cost than value when the logic is pure and the
+wiring is two substitutions `tsc` checks.
