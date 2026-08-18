@@ -176,6 +176,15 @@ export const SHAPES: Record<string, Shape> = {
       "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//IntelliChoice//EN\r\nBEGIN:VEVENT\r\nUID:e39a\r\nDTSTAMP:20260801T090000Z\r\nDTSTART:20260808T140000Z\r\nSUMMARY:Baton Rouge session\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
   },
 
+  /** The `cancel` branch of the calendar interrupt. `answer` is `nodes.py`'s
+   *  `CALENDAR_CANCELLED_MESSAGE`, quoted rather than paraphrased. */
+  "calendar cancelled": {
+    ...base,
+    intent: "calendar_action",
+    answer: "Okay, nothing was added to your calendar.",
+    citations: [],
+  },
+
   "rate-limited escalation": {
     ...base,
     answer: "I'm getting more questions than I can answer right now. An administrator can help.",

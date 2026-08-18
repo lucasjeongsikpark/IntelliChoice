@@ -390,6 +390,42 @@ clear the backlog in one pass.
 > still bypass the step with a middle-click; that is accepted rather than overlooked**, since the
 > destination is the same one the plain click leads to.
 
+## 13. ⏳ OPEN — a Chromium-only suite cannot hold the class of bug D-352 fixed
+
+> **Raised 2026-08-17 by V11 (D-392), by trying to close it and failing.** D-352 fixed two
+> browser-fragility bugs in `downloadIcs`: the anchor was never appended to the document, and
+> `revokeObjectURL` ran synchronously right after `click()`. Its own comment named the reason
+> nothing caught them — *"Chromium tolerates both, which is why the e2e suite (Chromium-only) has
+> been asserting the button is visible and never that a download happens."*
+>
+> `calendar-branches.spec.ts` now asserts that a download really happens, with the right filename
+> and well-formed VCALENDAR bytes. **It still does not hold the fix.** Reverting `downloadIcs` to its
+> pre-D-352 form and re-running: **both tests pass.** The comment was right, and no assertion written
+> against Chromium can be wrong about it.
+>
+> So the gap is the suite's shape. Everything in `e2e/` runs `chromium` (plus a `@mobile` project on
+> the same engine), and a whole class of defect — the one where a browser is *lenient* — is
+> structurally invisible.
+>
+> **Options:**
+> - **A. Add a `webkit` project scoped to a handful of specs.** WebKit is the strictest of the three
+>   about detached anchors and revoked object URLs, so it is the engine that would have caught D-352.
+>   Cost: a second browser download in CI, and a new flake surface on specs that have been stable.
+> - **B. Add `firefox` instead.** Cheaper to install, closer to Chromium in behaviour, so it catches
+>   less of exactly this class.
+> - **C. Leave it, and stop implying the suite covers browser-fragility.** Free, and honest as long
+>   as the limitation is written where someone will read it — which is now the case in the spec's own
+>   header.
+>
+> **Recommendation: A, scoped to one project running only the specs where browser behaviour is the
+> subject** (`calendar-branches`, and any future download/clipboard/file work) — not the whole suite.
+> That buys the one class Chromium cannot see for a few minutes of CI, without doubling the run or
+> the flake surface.
+>
+> **Cost of deferring:** nothing breaks. The suite keeps being unable to see leniency bugs, and
+> `downloadIcs` keeps working because Chromium is what the tests run and most users use. The next
+> D-352 gets found by a user on Safari.
+
 ## Not decisions — already settled, listed to stop them being re-litigated
 
 - **Auto-approval with no spot-check sampling** (D-289). A 20-item-per-wave sample was recommended

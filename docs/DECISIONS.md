@@ -27167,3 +27167,53 @@ summary was read through `grep -E "[0-9]+ (passed|failed|skipped)" | tail -2`, w
 "2 skipped / 115 passed" and hid the "1 failed" line directly above it. The count *not matching the
 expected +2* is what prompted a second look. **Filter output for what you expect to see and you will
 see it** — the same failure mode as every fixture-shaped-to-the-rule finding this milestone.
+
+## D-392 — V11: the last never-walked path, and the walk that proved it cannot verify what it set out to (accepted, 2026-08-17)
+
+**The last item on the audit's never-walked list, and the file under test says outright that it was
+never tested.** D-352 fixed two browser-fragility bugs in `downloadIcs` — the anchor was never
+appended to the document, and `revokeObjectURL` ran synchronously on the line after `click()` — and
+its own comment explains why nothing caught them: *"Chromium tolerates both, which is why the e2e
+suite (Chromium-only) has been asserting the button is visible and never that a download happens."*
+
+**Built:** `calendar-branches.spec.ts` — the `.ics` branch produces a **real download** (filename
+`intellichoice-event.ics`, bytes that start `BEGIN:VCALENDAR`, contain `BEGIN:VEVENT` and end
+`END:VCALENDAR`), and the `cancel` branch closes the dialog, says
+`CALENDAR_CANCELLED_MESSAGE` verbatim, and offers no file.
+
+**And then the falsification failed to fail, which is the actual result.** Reverting `downloadIcs`
+to its pre-D-352 form and re-running: **both tests still pass.** Chromium tolerates both bugs exactly
+as the comment said, so no assertion written against Chromium can discriminate them. **D-352 remains
+unverified**, and the reason is the suite's shape rather than the test's wording — every project in
+`e2e/` runs the same engine, so the class of defect where a browser is *lenient* is structurally
+invisible. Raised as **OPEN_DECISIONS #13** (add a WebKit project scoped to the specs where browser
+behaviour is the subject), and the spec's own header now states the limitation rather than implying
+coverage it does not have. The first version of that header claimed the assertion "fails if the
+anchor is not in the document" — measured false and corrected.
+
+**What the walk does hold** is still more than what it replaced: the control appears when and only
+when a file exists, the download really fires, and the bytes are well-formed. A broken blob, a
+missing control, a wrong filename or truncated content all fail it.
+
+**Scope, stated rather than implied.** The dialog is reached with a stubbed interrupt, as
+`interaction.spec.ts` does, because the local mock backend does not classify that question as a
+calendar action; what is *not* stubbed is `downloadIcs` itself. The `google` branch is not covered:
+its only browser-visible difference from `cancel` is the absence of the download control, which the
+cancel test already asserts, and its message is a server constant. SPEC §5.29's fourth path — an
+`McpToolError` falling back to generating the `.ics` — is not reachable from a browser at all.
+
+**A first-run failure worth keeping:** the walk timed out for 60s on a textarea that was never going
+to appear, because the rewrite dropped `seedGuest` and the app was sitting on its sign-in screen.
+The sibling spec seeds in a `beforeEach`; this one now does too.
+
+**A sibling defect fixed while reading, not while failing.** `ChatScreen`'s follow-up chips were
+`key={prompt}` — model-written strings that nothing dedupes, so two identical suggestions collide
+and React may omit a chip the visitor never gets offered. Same class as D-391 #4 in learning-web,
+found by reading this file rather than by a run. Keyed by position; the chat suite (69 tests) re-run
+after the change.
+
+**A property of the suite worth knowing:** `response-shapes.spec.ts` renders every entry in `SHAPES`
+in a loop, so adding the `"calendar cancelled"` fixture bought a `renders: calendar cancelled` test
+for free. That is also why the suite grew by three and not two, which is the arithmetic that made
+the count explainable rather than merely green.
+
