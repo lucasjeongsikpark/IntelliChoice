@@ -74,11 +74,21 @@ unable to submit" trap `ExamScreen`'s own comment describes. The third was stude
 question still need s an answer" on the modal that is their only way out. All three fixed, both
 expiry shapes covered, both failing against the pre-fix component.
 
-**Recommended next, in priority order:** (1) the one remaining never-walked path, measured and
-drivable — **the calendar `.ics` download**, whose own D-352
-comment admits the suite "has been asserting the button is *visible* and never that a download
-happens", so that fix shipped unverified; then learning-web's tutor-chat browser leg (deferred in V7
-with its reason); (2) the P2/P3 backend tail, still last — of which the only non-cosmetic
+**V11 (D-392) closed the never-walked list, and its result is about the suite rather than the code.**
+The `.ics` branch now produces a real, well-formed download instead of a visible button. But
+reverting D-352's fix and re-running showed **both tests still pass** — Chromium tolerates both bugs
+that fix addressed, exactly as its comment predicted. So D-352 stays unverified, the limitation is
+written in the spec's header rather than implied away, and closing it is **OPEN_DECISIONS #13** (a
+WebKit project scoped to specs where browser behaviour is the subject).
+
+**The audit's never-walked list is now closed.** Six sessions took every item; **five found
+something**, three of them defects a user would have met — the dashboard button that could not leave
+`/results`, the crash reports that never left the page, and the exam timer that trapped a student who
+reloaded after time ran out.
+
+**Recommended next, in priority order:** (1) **OPEN_DECISIONS #13**, which is a CI-cost judgement,
+not code; (2) learning-web's tutor-chat browser leg (deferred in V7 with its reason); (3) the P2/P3
+backend tail, still last — of which the only non-cosmetic
 item is **`AUD-L-16`, video help opening the full `youtube.com` watch page for a minor**, and
 `EDGE-CHAT-02`'s real root cause, that chat has no liveness timer or reconnect control where
 learning-web has both.

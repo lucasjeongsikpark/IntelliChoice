@@ -437,9 +437,15 @@ export function ChatScreen({
                   )}
                   {unaskedFollowups(turn.response.suggested_followups, transcript).length > 0 && (
                     <div className="suggestion-chips">
-                      {unaskedFollowups(turn.response.suggested_followups, transcript).map((prompt) => (
+                      {/* D-392: keyed by position, not by the prompt. These are model-written
+                          strings and nothing dedupes them, so two identical suggestions collide -
+                          React reports "two children with the same key" and may *omit* one, which
+                          is a chip the visitor never gets offered. The same defect was fixed in
+                          learning-web's narrative list (D-391); this is its sibling, found while
+                          reading this file rather than by a failing run. */}
+                      {unaskedFollowups(turn.response.suggested_followups, transcript).map((prompt, index) => (
                         <button
-                          key={prompt}
+                          key={index}
                           className="chip"
                           type="button"
                           disabled={busy}

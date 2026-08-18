@@ -2751,3 +2751,27 @@ the strongest evidence yet for finishing that list rather than moving to the P3 
 **Done when:** both ways a student meets a finished clock are covered (it runs out on screen; it
 arrives already expired) · both fail against the pre-fix component and pass after · the overview is
 *patched*, never fabricated · the walk has its own student, because it finalizes an exam.
+
+### Session V11 — The calendar branches and the .ics download ✅ *(done 2026-08-17, D-392)*
+
+The last never-walked path, closing the audit's list. **The result is not the test; it is what the
+test proved about the suite.**
+
+**Outcome:** the `.ics` branch now produces a real, well-formed download and the `cancel` branch is
+asserted. But reverting D-352's fix and re-running showed **both tests still pass** — Chromium
+tolerates both of the bugs that fix addressed, exactly as its comment predicted. So **D-352 is still
+unverified**, the limitation is now written in the spec's own header instead of being implied away,
+and closing it is **OPEN_DECISIONS #13** (a WebKit project scoped to specs where browser behaviour is
+the subject).
+
+**Done when:** the download is asserted as a download, not a visible button · the claim in the
+docstring matches what the falsification measured · what is stubbed, and why, is stated · the paths a
+browser cannot reach (SPEC §5.29's MCP-failure fallback) are named rather than skipped silently.
+
+## The audit's never-walked list is now closed
+
+Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found
+defects a user would have met: the dashboard button that could not leave `/results` (V1), the crash
+reports that never left the page (V9), and the exam timer that trapped a student who reloaded after
+time ran out (V10). The sixth, V11, found that the suite cannot see the class of bug it was written
+to check.
