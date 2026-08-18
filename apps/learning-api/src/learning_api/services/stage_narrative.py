@@ -108,6 +108,7 @@ async def payload_from_marker(
         None,
     )
 
+
 _SYSTEM_PROMPT = (
     "You are writing a short, warm, growth-oriented message for a K-12 student using a "
     "math tutoring app (SPEC §5.10.3: use phrases like 'skills to strengthen' and "

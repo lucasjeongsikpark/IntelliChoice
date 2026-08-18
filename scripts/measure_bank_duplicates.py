@@ -199,8 +199,10 @@ def main() -> None:
     cross = sum(1 for _, a, b in near if a["skill"] != b["skill"])
     print(f"    of which cross-skill: {cross}")
     for score, a, b in sorted(near, key=lambda t: -t[0])[: args.show]:
-        print(f"\n  [{score:.2f}] {a['topic']}/{a['skill']} d{a['difficulty']}  vs  "
-              f"{b['topic']}/{b['skill']} d{b['difficulty']}")
+        print(
+            f"\n  [{score:.2f}] {a['topic']}/{a['skill']} d{a['difficulty']}  vs  "
+            f"{b['topic']}/{b['skill']} d{b['difficulty']}"
+        )
         print(f"      A: {a['stem'][:110]}")
         print(f"      B: {b['stem'][:110]}")
 

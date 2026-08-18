@@ -223,8 +223,6 @@ def test_a_withdrawn_consent_does_not_silently_downgrade_to_anonymous() -> None:
     )
     with TestClient(app) as client:
         anonymous_response = client.post("/chat/sessions", json={})
-        revoked_response = client.post(
-            "/chat/sessions", json={}, headers=_auth_header(revoked)
-        )
+        revoked_response = client.post("/chat/sessions", json={}, headers=_auth_header(revoked))
     assert anonymous_response.status_code in (200, 201)
     assert revoked_response.status_code == 403

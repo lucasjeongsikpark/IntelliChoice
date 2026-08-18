@@ -48,9 +48,7 @@ async def _seed(session: AsyncSession, *, name: str, stem: str, origin: str = "c
     topic = await curriculum.create_topic(
         Topic(curriculum_version="v1", name=name, grade_band="1-2")
     )
-    skill = await curriculum.create_skill(
-        Skill(topic_id=topic.topic_id, name=f"{name}_skill")
-    )
+    skill = await curriculum.create_skill(Skill(topic_id=topic.topic_id, name=f"{name}_skill"))
     template = await questions.create_template(
         QuestionTemplate(
             authoring_mode="authored",

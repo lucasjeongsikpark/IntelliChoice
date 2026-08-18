@@ -643,9 +643,7 @@ async def post_message(
     rate_limiter: Annotated[RateLimiter, Depends(get_email_rate_limiter)],
     message_limiter: Annotated[RateLimiter, Depends(get_message_rate_limiter)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
-    cancellations: Annotated[
-        ChatTurnCancellationRepository, Depends(get_turn_cancellations)
-    ],
+    cancellations: Annotated[ChatTurnCancellationRepository, Depends(get_turn_cancellations)],
     graph: Annotated[QAGraph, Depends(get_graph)],
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
 ) -> MessageResponse:
@@ -722,9 +720,7 @@ async def post_message(
         confidence=result.get("confidence"),
         missing_information=result.get("missing_information"),
         escalation_recommended=result.get("escalation_recommended", False),
-        access_hint=(
-            AccessHintResponse(message=access_hint["message"]) if access_hint else None
-        ),
+        access_hint=(AccessHintResponse(message=access_hint["message"]) if access_hint else None),
         suggested_followups=await _suggested_followups(db, result, citations),
         ics_content=result.get("ics_content"),
         pending_interrupt=(
@@ -743,9 +739,7 @@ async def cancel_turn(
     client_turn_id: Annotated[str, Path(max_length=64)],
     claims: Annotated[TokenClaims | None, Depends(get_optional_claims)],
     graph: Annotated[QAGraph, Depends(get_graph)],
-    cancellations: Annotated[
-        ChatTurnCancellationRepository, Depends(get_turn_cancellations)
-    ],
+    cancellations: Annotated[ChatTurnCancellationRepository, Depends(get_turn_cancellations)],
 ) -> Response:
     """D-402: ask the turn identified by `client_turn_id` to stop at its next checkpoint.
 
@@ -777,9 +771,7 @@ async def cancel_turn(
     snapshot = await graph.aget_state(_graph_config(chat_session_id))
     if snapshot.values:
         _assert_session_access(snapshot.values, claims)
-    await cancellations.request(
-        chat_session_id=chat_session_id, client_turn_id=client_turn_id
-    )
+    await cancellations.request(chat_session_id=chat_session_id, client_turn_id=client_turn_id)
     return Response(status_code=202)
 
 
@@ -795,9 +787,7 @@ async def respond_to_interrupt(
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     rate_limiter: Annotated[RateLimiter, Depends(get_email_rate_limiter)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
-    cancellations: Annotated[
-        ChatTurnCancellationRepository, Depends(get_turn_cancellations)
-    ],
+    cancellations: Annotated[ChatTurnCancellationRepository, Depends(get_turn_cancellations)],
     graph: Annotated[QAGraph, Depends(get_graph)],
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
 ) -> RespondResponse:
@@ -810,9 +800,7 @@ async def respond_to_interrupt(
     await _claim_turn(db, chat_session_id)
     snapshot = await graph.aget_state(_graph_config(chat_session_id))
     if not snapshot.values:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="chat session not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="chat session not found")
     snapshot_values = snapshot.values
 
     # D-346: **before** anything that describes the thread's state. This check used to sit
@@ -830,9 +818,7 @@ async def respond_to_interrupt(
 
     pending = _pending_task_interrupt(snapshot)
     if pending is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="no interrupt is pending"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="no interrupt is pending")
     if pending.value.get("type") != body.interrupt_type:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -909,15 +895,11 @@ async def respond_to_interrupt(
         confidence=result.get("confidence"),
         missing_information=result.get("missing_information"),
         escalation_recommended=result.get("escalation_recommended", False),
-        access_hint=(
-            AccessHintResponse(message=access_hint["message"]) if access_hint else None
-        ),
+        access_hint=(AccessHintResponse(message=access_hint["message"]) if access_hint else None),
         suggested_followups=await _suggested_followups(db, result, citations),
         ics_content=result.get("ics_content"),
         pending_interrupt=(
-            _pending_interrupt_preview(next_pending, result)
-            if next_pending is not None
-            else None
+            _pending_interrupt_preview(next_pending, result) if next_pending is not None else None
         ),
         client_turn_id=result.get("client_turn_id"),
         reason=result.get("reason"),

@@ -53,9 +53,7 @@ def extract_branches(html: str) -> list[BranchRecord]:
 
         online_only = any("online" in line.lower() for line in lines)
         hours_raw = lines[-1] if lines else None
-        address_lines = [
-            line for line in lines[:-1] if not line.lower().startswith("online")
-        ]
+        address_lines = [line for line in lines[:-1] if not line.lower().startswith("online")]
         address = ", ".join(address_lines) if address_lines else None
 
         branch_external_id = _slug_from_url(detail_url)

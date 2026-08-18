@@ -62,9 +62,7 @@ class UnknownQuestionVariantError(Exception):
     new raise site should fail typecheck rather than silently pick one of the two.
     """
 
-    def __init__(
-        self, question_variant_id: str, reason: Literal["unknown", "not_served"]
-    ) -> None:
+    def __init__(self, question_variant_id: str, reason: Literal["unknown", "not_served"]) -> None:
         self.question_variant_id = question_variant_id
         self.reason = reason
         super().__init__(
@@ -343,9 +341,7 @@ async def _upsert_skill_mastery(
             raw_accuracy=mastery_bootstrap.raw_accuracy(attempts),
             weighted_score=mastery_bootstrap.weighted_score(attempts),
             accuracy_by_difficulty=mastery_bootstrap.accuracy_by_difficulty(attempts),
-            highest_consistent_difficulty=mastery_bootstrap.highest_consistent_difficulty(
-                attempts
-            ),
+            highest_consistent_difficulty=mastery_bootstrap.highest_consistent_difficulty(attempts),
             recommended_difficulty=mastery_bootstrap.recommended_difficulty(attempts),
         )
     )

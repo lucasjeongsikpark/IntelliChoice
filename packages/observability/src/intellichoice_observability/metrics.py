@@ -36,9 +36,7 @@ EXAM_COMPLETIONS = Counter(
 SESSIONS_COMPLETED = Counter(
     "learning_sessions_completed_total", "Full pre->study->post sessions completed"
 )
-LEARNING_GAIN = Histogram(
-    "learning_gain_score", "Post - pre accuracy gain per completed session"
-)
+LEARNING_GAIN = Histogram("learning_gain_score", "Post - pre accuracy gain per completed session")
 SUPPORT_USAGE = Counter(
     "learning_support_usage_total",
     "Hint/solution/video assistance used during study",
@@ -76,9 +74,7 @@ QA_CITATIONS_PER_ANSWER = Histogram(
     "qa_citations_per_answer", "Verified citations returned per grounded answer"
 )
 QA_EMAIL_ESCALATIONS = Counter("qa_email_escalations_total", "Admin-escalation emails sent")
-QA_MAPS_CALLS = Counter(
-    "qa_maps_calls_total", "Branch-locator maps calls", labelnames=("result",)
-)
+QA_MAPS_CALLS = Counter("qa_maps_calls_total", "Branch-locator maps calls", labelnames=("result",))
 QA_CALENDAR_CALLS = Counter(
     "qa_calendar_calls_total", "Calendar intent lookups", labelnames=("result",)
 )
@@ -149,9 +145,9 @@ def install_http_metrics_middleware(app: FastAPI, *, service_name: str) -> None:
         HTTP_REQUESTS.labels(
             app=service_name, method=request.method, path=path, status=status
         ).inc()
-        HTTP_REQUEST_DURATION.labels(
-            app=service_name, method=request.method, path=path
-        ).observe(duration_s)
+        HTTP_REQUEST_DURATION.labels(app=service_name, method=request.method, path=path).observe(
+            duration_s
+        )
 
     @app.middleware("http")
     async def _record_http_metrics(

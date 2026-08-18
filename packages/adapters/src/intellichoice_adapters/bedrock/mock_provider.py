@@ -162,9 +162,7 @@ def _equation_design_json(payload: dict) -> dict:
     thing = settings[len(payload.get("avoid_scenarios") or []) % len(settings)]
     return {
         "reasoning": "mock design: one addition, sized to the requested tier",
-        "scenario_sketch": (
-            f"A child has {left} {thing} and is given {right} more; how many now?"
-        ),
+        "scenario_sketch": (f"A child has {left} {thing} and is given {right} more; how many now?"),
         "unknown_meaning": "the total number of counters",
         "equation": f"Eq(x, {left} + {right})",
         "final_answer": str(left + right),
@@ -203,9 +201,7 @@ def _authored_generated_item_json(payload: dict) -> dict:
             left, right = int(found[-2]), int(found[-1])
     total = left + right
     return {
-        "stem": (
-            f"Solve using {skill_name} (difficulty {difficulty}): what is {left} + {right}?"
-        ),
+        "stem": (f"Solve using {skill_name} (difficulty {difficulty}): what is {left} + {right}?"),
         "context_block": None,
         # Distractors stay a fixed distance from the answer so exactly one option matches
         # whatever the numbers become, and none of them collide with each other.

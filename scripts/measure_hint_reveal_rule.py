@@ -206,8 +206,7 @@ async def _judge_once(gateway, item, *, clause: str, spend: float) -> tuple[dict
 
 async def _condition(gateway, items, *, clause: str, repeat: int, budget: float, spend: float):
     results = {
-        i.question_template_id: ItemResult(i.question_template_id, i.skill_id)
-        for i in items
+        i.question_template_id: ItemResult(i.question_template_id, i.skill_id) for i in items
     }
     reasons: list[tuple[str, bool, str]] = []
     for run in range(repeat):
@@ -291,8 +290,7 @@ async def main() -> int:
     settings = get_pipeline_settings()
     print(f"provider: {settings.bedrock_provider}   judge: {settings.bedrock_judge_model_id}")
     print(
-        f"population: {len(items)} items   repeat: {args.repeat}   "
-        f"budget: {args.run_budget_cents}c"
+        f"population: {len(items)} items   repeat: {args.repeat}   budget: {args.run_budget_cents}c"
     )
     print(f"skills: {dict(Counter(i.skill_id for i in items))}\n")
 
@@ -312,9 +310,7 @@ async def main() -> int:
         c = _report("control: hints that state the answer", c_results)
         calls = sum(len(r.reveals) for r in c_results.values())
         caught = sum(sum(r.reveals) for r in c_results.values())
-        unanimous = sum(
-            1 for r in c_results.values() if r.reveals and all(r.reveals)
-        )
+        unanimous = sum(1 for r in c_results.values() if r.reveals and all(r.reveals))
         rate = caught / calls if calls else 0.0
         print(f"\n  true-positive rate: {caught}/{calls} = {rate:.0%}")
         print(f"  caught unanimously: {unanimous} of {len(c_results)} items")
@@ -370,9 +366,7 @@ async def main() -> int:
     print(f"\nspend: {spend:.2f} cents")
     if args.dump:
         with open(args.dump, "w") as fh:
-            json.dump(
-                {"A": a, "B": b, "a_reasons": a_reasons, "spend_cents": spend}, fh, indent=2
-            )
+            json.dump({"A": a, "B": b, "a_reasons": a_reasons, "spend_cents": spend}, fh, indent=2)
         print(f"wrote {args.dump}")
     return 0
 

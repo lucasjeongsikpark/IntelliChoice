@@ -32,6 +32,4 @@ class HintEvent(Base):
     personalized_hint_text: Mapped[str] = mapped_column(String, nullable=False)
     misconception_tag: Mapped[str | None] = mapped_column(String, nullable=True)
     was_personalized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

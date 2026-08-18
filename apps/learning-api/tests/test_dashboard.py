@@ -125,9 +125,7 @@ async def _seed(session: AsyncSession, *, in_range_at: datetime, out_of_range_at
     topic = await curriculum.create_topic(
         Topic(curriculum_version="v1", name="Linear Equations", grade_band="6-8")
     )
-    skill = await curriculum.create_skill(
-        Skill(topic_id=topic.topic_id, name="two_step_equations")
-    )
+    skill = await curriculum.create_skill(Skill(topic_id=topic.topic_id, name="two_step_equations"))
 
     await mastery_repo.upsert_mastery(
         Mastery(

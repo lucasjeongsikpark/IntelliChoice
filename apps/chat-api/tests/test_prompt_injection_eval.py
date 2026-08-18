@@ -289,9 +289,7 @@ def test_admin_escalation_still_pauses_for_approval_despite_a_bypass_instruction
             transport = RecordingEmailTransport()
             registry = McpToolRegistry()
             registry.register(
-                McpTool(
-                    name="gmail.send_email", args_model=EmailMessage, handler=transport.send
-                )
+                McpTool(name="gmail.send_email", args_model=EmailMessage, handler=transport.send)
             )
             graph = build_graph(InMemorySaver())
             thread_id = "chat-injection-approval-bypass-1"

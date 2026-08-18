@@ -231,8 +231,7 @@ def _exam_row_counts(student_external_id: str) -> tuple[int, int]:
             async with engine.connect() as conn:
                 sessions = await conn.execute(
                     text(
-                        "SELECT count(*) FROM assessment_sessions "
-                        "WHERE student_external_id = :sid"
+                        "SELECT count(*) FROM assessment_sessions WHERE student_external_id = :sid"
                     ),
                     {"sid": student_external_id},
                 )
@@ -1021,9 +1020,7 @@ def test_exam_clock_deferral_is_capped_so_stalling_buys_nothing() -> None:
         first_viewed_at=started + timedelta(hours=3),
     )
 
-    assert flow.exam_clock_start(row) == started + timedelta(
-        seconds=flow.EXAM_VIEW_GRACE_SECONDS
-    )
+    assert flow.exam_clock_start(row) == started + timedelta(seconds=flow.EXAM_VIEW_GRACE_SECONDS)
 
 
 def test_an_untimed_exam_never_expires_whatever_the_clock_says() -> None:

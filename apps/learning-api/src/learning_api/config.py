@@ -10,7 +10,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="LEARNING_", env_file=".env", extra="ignore")
 
     environment: str = "dev"
-    database_url: str = "postgresql+asyncpg://intellichoice:intellichoice@localhost:5432/intellichoice"
+    database_url: str = (
+        "postgresql+asyncpg://intellichoice:intellichoice@localhost:5432/intellichoice"
+    )
     mysql_url: str = "mysql+aiomysql://intellichoice:intellichoice@localhost:3306"
 
     # D-092: RDS's native `manage_master_user_password` (real auto-rotation, S33) makes

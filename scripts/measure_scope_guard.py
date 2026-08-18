@@ -320,18 +320,17 @@ def _report(outcomes: list[list[_Outcome]], spend: _Spend, repeat: int) -> None:
             }
             if len(verdicts) > 1:
                 flipped = True
-                rendered = ", ".join(f"{'in' if s else 'out'}/{i}" for s, i in sorted(
-                    verdicts, key=lambda v: (bool(v[0]), str(v[1]))
-                ))
+                rendered = ", ".join(
+                    f"{'in' if s else 'out'}/{i}"
+                    for s, i in sorted(verdicts, key=lambda v: (bool(v[0]), str(v[1])))
+                )
                 print(f"  {case_id}: {rendered}")
         if not flipped:
             print("  none - every case answered identically on every repeat")
 
 
 async def _run(args: argparse.Namespace) -> int:
-    cases = _load_cases(
-        Path(args.probe_fixture), Path(args.coverage_fixture), args.query_field
-    )
+    cases = _load_cases(Path(args.probe_fixture), Path(args.coverage_fixture), args.query_field)
     if args.dry_run:
         for case in cases:
             print(f"[{case.klass}] {case.case_id}: {case.query}")
@@ -350,9 +349,7 @@ async def _run(args: argparse.Namespace) -> int:
         )
     _report(runs, spend, args.repeat)
     if args.dump:
-        Path(args.dump).write_text(
-            json.dumps([[asdict(o) for o in run] for run in runs], indent=2)
-        )
+        Path(args.dump).write_text(json.dumps([[asdict(o) for o in run] for run in runs], indent=2))
         print(f"\nmeasurements written to {args.dump}", file=sys.stderr)
     return 0
 

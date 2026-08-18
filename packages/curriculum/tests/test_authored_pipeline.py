@@ -275,20 +275,22 @@ class _ScriptedAuthoredGateway:
         elif name == "QuestionJudgeResponse":
             assert isinstance(payload, QuestionJudgePayload)
             assert self._last_item is not None
-            value = self._judge or (
-                self._judge_factory() if self._judge_factory else None
-            ) or QuestionJudgeResponse(
-                reasoning="scripted judge",
-                # The judge no longer receives a proposed difficulty (D-194), so the
-                # double cannot echo one. Agreeing with the item's own proposal is what
-                # makes the default path "the two readings agree"; a test that wants a
-                # disagreement passes `judge=`.
-                reviewed_difficulty=self._last_item.proposed_difficulty,
-                difficulty_reasoning="scripted judge difficulty reasoning, long enough",
-                is_ambiguous=False,
-                is_aligned=True,
-                is_age_appropriate=True,
-                hint_quality_score=5,
+            value = (
+                self._judge
+                or (self._judge_factory() if self._judge_factory else None)
+                or QuestionJudgeResponse(
+                    reasoning="scripted judge",
+                    # The judge no longer receives a proposed difficulty (D-194), so the
+                    # double cannot echo one. Agreeing with the item's own proposal is what
+                    # makes the default path "the two readings agree"; a test that wants a
+                    # disagreement passes `judge=`.
+                    reviewed_difficulty=self._last_item.proposed_difficulty,
+                    difficulty_reasoning="scripted judge difficulty reasoning, long enough",
+                    is_ambiguous=False,
+                    is_aligned=True,
+                    is_age_appropriate=True,
+                    hint_quality_score=5,
+                )
             )
         else:
             raise AssertionError(f"unexpected response_model {name}")
@@ -599,8 +601,6 @@ def test_unregistered_topic_raises_pipeline_config_error() -> None:
 # --- Golden bad-item fixtures (ROADMAP S20 "Done when") ----------------------------
 
 
-
-
 def test_disagreeing_solver_rejected_with_persisted_reasons() -> None:
     async def run() -> None:
         curriculum = load_curriculum()
@@ -720,7 +720,6 @@ def test_the_judge_and_solver_decide_after_they_reason_not_before() -> None:
     solver_fields = SolverResponse.model_json_schema()["properties"]
     assert "no_option_matches" in solver_fields
     assert "is_unambiguous" in solver_fields
-
 
 
 def test_near_duplicate_rejected_with_persisted_reasons() -> None:
@@ -1394,7 +1393,8 @@ def test_the_plan_the_preflight_reports_is_the_plan_the_runner_executes() -> Non
 
 
 def test_cli_filters_generate_only_the_requested_skills_and_difficulties() -> None:
-    plan = pipeline_cli.build_plan(topic_id="linear_equations",
+    plan = pipeline_cli.build_plan(
+        topic_id="linear_equations",
         skill_ids=["linear_both_sides"],
         difficulties=[3, 4],
         candidates_per_slot=3,
@@ -1633,7 +1633,8 @@ def test_preflight_and_dry_run_make_no_provider_call() -> None:
 def test_preflight_reports_every_field_a_paid_decision_needs() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan(topic_id="linear_equations",
+            plan = pipeline_cli.build_plan(
+                topic_id="linear_equations",
                 skill_ids=["linear_both_sides"],
                 difficulties=[4],
                 candidates_per_slot=2,
@@ -1677,7 +1678,8 @@ def test_per_candidate_settlement_survives_a_duplicate_id() -> None:
     async def run() -> None:
         curriculum = load_curriculum()
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan(skill_ids=["linear_one_step"],
+            plan = pipeline_cli.build_plan(
+                skill_ids=["linear_one_step"],
                 difficulties=[1],
                 candidates_per_slot=1,
                 seed_offset=_TEST_RESERVED_SEED_OFFSET_7,
@@ -1889,9 +1891,7 @@ def test_a_difficulty_stage_rejection_persists_the_candidate_and_both_readings()
                     hint_quality_score=5,
                 ),
             )
-            outcome, run_row = await _reject_and_fetch(
-                session, gateway, seed=501004, difficulty=4
-            )
+            outcome, run_row = await _reject_and_fetch(session, gateway, seed=501004, difficulty=4)
             assert outcome.rejected_at == "difficulty"  # type: ignore[attr-defined]
             snapshot = run_row.stage_results["candidate_snapshot"]
             # Test 10: all three difficulty readings are recoverable from one row.
@@ -2180,9 +2180,10 @@ def test_repair_feedback_passes_deterministic_failures_verbatim() -> None:
     # Objective, mechanical facts about the item. Nothing here is a verdict, and these are
     # the defects most worth repairing - D-197 measured 4 of 10 items failing exactly this.
     failures = ["SymPy-solved answer 21/5 does not match declared correct option 'b' ('7')"]
-    assert ai_pipeline.repair_feedback(
-        stage="validation", reasons=failures, stage_results={}
-    ) == failures
+    assert (
+        ai_pipeline.repair_feedback(stage="validation", reasons=failures, stage_results={})
+        == failures
+    )
 
 
 def test_repair_feedback_never_reveals_which_option_a_solver_chose() -> None:
@@ -2197,10 +2198,14 @@ def test_repair_feedback_never_reveals_which_option_a_solver_chose() -> None:
         reasons=raw,
         stage_results={
             "solver_a": {
-                "selected_option": "b", "no_option_matches": False, "is_unambiguous": True
+                "selected_option": "b",
+                "no_option_matches": False,
+                "is_unambiguous": True,
             },
             "solver_b": {
-                "selected_option": "a", "no_option_matches": False, "is_unambiguous": True
+                "selected_option": "a",
+                "no_option_matches": False,
+                "is_unambiguous": True,
             },
         },
     )
@@ -2216,10 +2221,14 @@ def test_repair_feedback_describes_a_solver_objection_without_its_verdict() -> N
         reasons=["solver_b reached an answer that is not among the options (closest='a')"],
         stage_results={
             "solver_a": {
-                "selected_option": "a", "no_option_matches": False, "is_unambiguous": True
+                "selected_option": "a",
+                "no_option_matches": False,
+                "is_unambiguous": True,
             },
             "solver_b": {
-                "selected_option": "a", "no_option_matches": True, "is_unambiguous": False
+                "selected_option": "a",
+                "no_option_matches": True,
+                "is_unambiguous": False,
             },
         },
     )
@@ -2414,16 +2423,20 @@ def test_every_failed_attempt_keeps_its_own_snapshot_and_attempt_number() -> Non
             # Scoped to this slot: the database carries every earlier run's rejections,
             # so a bare count would assert a fact about the whole table.
             rows = (
-                await session.execute(
-                    select(QuestionValidationRun).where(QuestionValidationRun.outcome == "rejected")
+                (
+                    await session.execute(
+                        select(QuestionValidationRun).where(
+                            QuestionValidationRun.outcome == "rejected"
+                        )
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             mine = [
                 r
                 for r in rows
-                if (r.stage_results or {}).get("candidate_snapshot", {}).get(
-                    "planned_template_id"
-                )
+                if (r.stage_results or {}).get("candidate_snapshot", {}).get("planned_template_id")
                 == "authored-linear_equations-d2-801004"
             ]
             assert len(mine) == 1, "the failed attempt must leave exactly one audit row"
@@ -2744,8 +2757,11 @@ def test_a_design_that_never_solves_cleanly_fails_cheaply_and_never_authors() ->
                         equation="Eq(15 + 3*g, 27 - 2*g)",
                         final_answer="12/5",
                     ),
-                    input_tokens=1, output_tokens=1, cost_cents=0.01,
-                    model_id="test", repaired=False,
+                    input_tokens=1,
+                    output_tokens=1,
+                    cost_cents=0.01,
+                    model_id="test",
+                    repaired=False,
                 )
             if name == "AuthoredGeneratedItemResponse":
                 self.authored += 1
@@ -2766,6 +2782,8 @@ def test_a_design_that_never_solves_cleanly_fails_cheaply_and_never_authors() ->
             assert outcome.rejected_at == "design"
             # The whole economic argument: no full-size authoring call was ever made.
             assert gateway.authored == 0
+
+
 # --- D-199: a circuit-breaker refusal is not a verdict on a question ------------------
 
 
@@ -2851,15 +2869,15 @@ def test_every_authorable_skill_has_a_required_equation_structure() -> None:
     skill is defined by.
     """
     authorable = {
-        skill
-        for skills in ai_pipeline.TOPIC_SKILL_DIFFICULTIES.values()
-        for skill in skills
+        skill for skills in ai_pipeline.TOPIC_SKILL_DIFFICULTIES.values() for skill in skills
     }
     missing = authorable - set(ai_pipeline.SKILL_STRUCTURES)
     assert missing == set(), f"skills with no required equation structure: {missing}"
     # The two that collided must now demand different shapes.
     assert "BOTH sides" in ai_pipeline.SKILL_STRUCTURES["linear_both_sides"]
     assert "distributed" in ai_pipeline.SKILL_STRUCTURES["linear_distribute"]
+
+
 def test_a_real_generator_failure_is_still_a_generator_rejection() -> None:
     # The other half: the separation must not swallow genuine failures.
     async def run() -> None:
@@ -3480,8 +3498,8 @@ def test_the_same_candidate_is_rejected_for_a_skill_that_declares_no_form() -> N
             )
             assert outcome.status == "rejected"
             assert outcome.rejected_at == "validation", outcome.rejected_at
-            assert any(
-                "more than one option matches" in r for r in outcome.reasons
-            ), outcome.reasons
+            assert any("more than one option matches" in r for r in outcome.reasons), (
+                outcome.reasons
+            )
 
     asyncio.run(run())

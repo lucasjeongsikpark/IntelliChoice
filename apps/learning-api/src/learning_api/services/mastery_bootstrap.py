@@ -71,9 +71,7 @@ async def resolve_graded_attempts(
     # mastery`), so the per-attempt round-trips grew with the session; two `IN (...)`
     # queries make it flat. `get_variants`/`get_templates` are the AUD-F-31 batch forms.
     attempts = list(attempts)
-    variants = await question_repo.get_variants(
-        [a.question_variant_id for a in attempts]
-    )
+    variants = await question_repo.get_variants([a.question_variant_id for a in attempts])
     templates = await question_repo.get_templates(
         [v.question_template_id for v in variants.values()]
     )

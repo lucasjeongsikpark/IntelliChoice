@@ -155,9 +155,7 @@ async def build_pre_exam(
         if len(variant_rows) >= EXAM_QUESTION_COUNT:
             break
         surplus = [
-            t
-            for t in templates_by_difficulty[difficulty]
-            if t.question_template_id not in taken
+            t for t in templates_by_difficulty[difficulty] if t.question_template_id not in taken
         ]
         wanted = min(EXAM_QUESTION_COUNT - len(variant_rows), len(surplus))
         for template in rng.sample(surplus, wanted):
@@ -211,10 +209,7 @@ async def build_post_exam(
     )
 
     canonical_variants = await question_repo.get_canonical_variants(
-        [
-            template.question_template_id
-            for template in templates.values()
-        ]
+        [template.question_template_id for template in templates.values()]
     )
     variant_rows = []
     for pre_item in pre_items:

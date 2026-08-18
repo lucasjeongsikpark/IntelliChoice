@@ -111,7 +111,7 @@ def _item_json(*, extra: str = "", hints: int = 3, difficulty: int = 3) -> str:
         f'"stem": "{_TELLTALE}", '
         '"option_a": "1", "option_b": "2", "option_c": "3", "option_d": "4", '
         '"correct_option": "a", '
-        f"\"hint_ladder\": [{hint_list}], "
+        f'"hint_ladder": [{hint_list}], '
         '"canonical_solution": {"steps": [{"step_number": 1, "explanation": "e", '
         '"expression": "x"}], "final_answer": "1"}, '
         '"estimated_time_seconds": 90, '

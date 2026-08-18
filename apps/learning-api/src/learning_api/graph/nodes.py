@@ -732,18 +732,16 @@ async def finalize_exam(state: LearningState, runtime: Runtime[TurnContext]) -> 
         else:
             weak_skill_names = [await _skill_name(ctx, sid) for sid in target_skill_ids]
             narrative_stage = "pre_outro"
-            narrative_text, narrative_evidence, bedrock_spend_cents = (
-                await _fire_stage_narrative(
-                    ctx,
-                    state,
-                    StageNarrativePayload(
-                        stage="pre_outro",
-                        grade=grade,
-                        weak_skill_names=weak_skill_names,
-                        target_skill_name=weak_skill_names[0] if weak_skill_names else None,
-                    ),
-                    bedrock_spend_cents,
-                )
+            narrative_text, narrative_evidence, bedrock_spend_cents = await _fire_stage_narrative(
+                ctx,
+                state,
+                StageNarrativePayload(
+                    stage="pre_outro",
+                    grade=grade,
+                    weak_skill_names=weak_skill_names,
+                    target_skill_name=weak_skill_names[0] if weak_skill_names else None,
+                ),
+                bedrock_spend_cents,
             )
 
     if result.learning_gain is not None:
@@ -1351,8 +1349,7 @@ def _chat_reply_from_content(content: dict) -> str:
     if content["type"] == "video":
         if "video_title" in content:
             return (
-                f"Here's a video that might help: {content['video_title']} "
-                f"({content['video_url']})"
+                f"Here's a video that might help: {content['video_title']} ({content['video_url']})"
             )
         return content["message"]
     steps = "; ".join(f"{step['explanation']}" for step in content["steps"])
@@ -1540,8 +1537,7 @@ async def run_chat_turn(
         )
         SUPPORT_USAGE.labels(support_type="hint").inc()
         reply_text = (
-            f"{content['hint_text']} (hint {content['hint_level']} of "
-            f"{content['max_hint_level']})"
+            f"{content['hint_text']} (hint {content['hint_level']} of {content['max_hint_level']})"
         )
     elif intent in ("request_solution", "request_video"):
         choice_value = intent.removeprefix("request_")

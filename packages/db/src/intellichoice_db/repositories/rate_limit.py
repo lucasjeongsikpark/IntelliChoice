@@ -66,9 +66,7 @@ class RateLimitRepository:
             await session.commit()
             return True
 
-    async def attempts_since(
-        self, *, scope: str, caller_key_hash: str, window: timedelta
-    ) -> int:
+    async def attempts_since(self, *, scope: str, caller_key_hash: str, window: timedelta) -> int:
         """Read-only, no lock - for tests and for answering "how close is this caller?"
         without consuming an attempt.
         """
@@ -81,9 +79,7 @@ class RateLimitRepository:
             )
 
     @staticmethod
-    async def _count_since(
-        session, *, scope: str, caller_key_hash: str, cutoff: datetime
-    ) -> int:
+    async def _count_since(session, *, scope: str, caller_key_hash: str, cutoff: datetime) -> int:
         stmt = select(func.count()).where(
             RateLimitEvent.scope == scope,
             RateLimitEvent.caller_key_hash == caller_key_hash,

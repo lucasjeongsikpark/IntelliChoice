@@ -237,9 +237,7 @@ def _decompose_trace(spans: list[ReadableSpan]) -> RequestProfile | None:
     sql_spans = [span for span in under_root if _is_sql(span)]
     node_spans = [span for span in under_root if span.name == "langgraph.submit_answer"]
     node_ms = sum(_ms(span) for span in node_spans)
-    sql_inside_node = [
-        span for node in node_spans for span in descendants(node) if _is_sql(span)
-    ]
+    sql_inside_node = [span for node in node_spans for span in descendants(node) if _is_sql(span)]
 
     return RequestProfile(
         root_ms=_ms(root),

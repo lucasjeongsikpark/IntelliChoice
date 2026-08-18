@@ -35,17 +35,12 @@ def test_correct_label_solution_takes_precedence_over_hint() -> None:
 
 
 def test_incorrect_label_interim_without_solution() -> None:
-    assert (
-        study_outcomes.incorrect_label(frozenset(), terminal=False) == study_outcomes.INCORRECT
-    )
+    assert study_outcomes.incorrect_label(frozenset(), terminal=False) == study_outcomes.INCORRECT
 
 
 def test_incorrect_label_answer_revealed_after_solution() -> None:
     history = frozenset({study_outcomes.SOLUTION})
-    assert (
-        study_outcomes.incorrect_label(history, terminal=False)
-        == study_outcomes.ANSWER_REVEALED
-    )
+    assert study_outcomes.incorrect_label(history, terminal=False) == study_outcomes.ANSWER_REVEALED
 
 
 def test_incorrect_label_terminal_is_unresolved() -> None:

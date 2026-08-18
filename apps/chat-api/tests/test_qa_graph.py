@@ -303,8 +303,7 @@ def test_anonymous_query_with_only_higher_role_content_yields_access_hint() -> N
                 session,
                 audience="branch_manager",
                 chunk_text=(
-                    "Branch managers should escalate unresolved zqxvchunk handbook "
-                    "disputes."
+                    "Branch managers should escalate unresolved zqxvchunk handbook disputes."
                 ),
             )
 
@@ -677,8 +676,7 @@ def test_the_access_probe_degrades_to_keyword_only_when_its_embedding_fails() ->
                 session,
                 audience="branch_manager",
                 chunk_text=(
-                    "Branch managers should escalate unresolved zqxvchunk handbook "
-                    "disputes."
+                    "Branch managers should escalate unresolved zqxvchunk handbook disputes."
                 ),
             )
             gateway = _EmbeddingFailsAfterRetrievalGateway()
@@ -725,9 +723,7 @@ def test_every_layer_applies_the_same_access_probe_ceiling() -> None:
         inspect.signature(_Repo.count_matching_by_audience).parameters["max_distance"].default
     )
     turn_context_default = next(
-        f.default
-        for f in dataclasses.fields(TurnContext)
-        if f.name == "access_probe_max_distance"
+        f.default for f in dataclasses.fields(TurnContext) if f.name == "access_probe_max_distance"
     )
 
     assert Settings().access_probe_max_distance == ACCESS_PROBE_MAX_DISTANCE
@@ -820,8 +816,7 @@ def test_an_access_hint_does_not_offer_escalation() -> None:
                 session,
                 audience="branch_manager",
                 chunk_text=(
-                    "Branch managers should escalate unresolved zqxvchunk handbook "
-                    "disputes."
+                    "Branch managers should escalate unresolved zqxvchunk handbook disputes."
                 ),
             )
 

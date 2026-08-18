@@ -22,9 +22,7 @@ OPTION_KEYS = ("a", "b", "c", "d")
 _MAX_PERMUTATION_ATTEMPTS = 12
 
 
-def _permute_options(
-    *, canonical_variant: QuestionVariant, seed: int
-) -> tuple[list[str], str]:
+def _permute_options(*, canonical_variant: QuestionVariant, seed: int) -> tuple[list[str], str]:
     """Return `canonical_variant`'s four options in a new order, plus the remapped answer key.
 
     Seeded from `seed`, which the caller has already drawn from the session RNG, so this
@@ -161,9 +159,7 @@ def _static_variant_row(
         avoid_rendered_question is not None
         and canonical_variant.rendered_question == avoid_rendered_question
     ):
-        options, correct_option = _permute_options(
-            canonical_variant=canonical_variant, seed=seed
-        )
+        options, correct_option = _permute_options(canonical_variant=canonical_variant, seed=seed)
         logger.info(
             "static_variant_repeats_rendering",
             extra={
@@ -220,9 +216,7 @@ async def generate_and_store_variant(
     on `renders_from_canonical_variant`, which D-226 removed along with the shape templates
     that were its only False case.
     """
-    canonical_variant = await question_repo.get_variant_for_template(
-        template.question_template_id
-    )
+    canonical_variant = await question_repo.get_variant_for_template(template.question_template_id)
     return await question_repo.create_variant(
         build_variant_row(
             template=template,

@@ -33,12 +33,8 @@ SPEC_5_19_4_TOPICS = {
 
 def test_scope_prompt_covers_spec_topics() -> None:
     prompt = SCOPE_AND_INTENT_SYSTEM_PROMPT.lower()
-    missing = [
-        topic for topic, phrase in SPEC_5_19_4_TOPICS.items() if phrase not in prompt
-    ]
-    assert not missing, (
-        f"SCOPE_AND_INTENT_SYSTEM_PROMPT omits SPEC §5.19.4 topics: {missing}"
-    )
+    missing = [topic for topic, phrase in SPEC_5_19_4_TOPICS.items() if phrase not in prompt]
+    assert not missing, f"SCOPE_AND_INTENT_SYSTEM_PROMPT omits SPEC §5.19.4 topics: {missing}"
 
 
 def test_clarification_message_names_the_organization() -> None:
@@ -91,12 +87,8 @@ INTENT_DEFINITION_PHRASES = {
 
 def test_scope_prompt_defines_intents() -> None:
     prompt = SCOPE_AND_INTENT_SYSTEM_PROMPT.lower()
-    missing = [
-        label for label, phrase in INTENT_DEFINITION_PHRASES.items() if phrase not in prompt
-    ]
-    assert not missing, (
-        f"SCOPE_AND_INTENT_SYSTEM_PROMPT lost intent definitions: {missing}"
-    )
+    missing = [label for label, phrase in INTENT_DEFINITION_PHRASES.items() if phrase not in prompt]
+    assert not missing, f"SCOPE_AND_INTENT_SYSTEM_PROMPT lost intent definitions: {missing}"
 
 
 def test_the_scope_payload_cannot_carry_a_role() -> None:

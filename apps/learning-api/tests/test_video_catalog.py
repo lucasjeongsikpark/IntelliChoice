@@ -95,9 +95,11 @@ def test_search_video_returns_a_seeded_catalog_match() -> None:
                     grade_band="3-5",
                     difficulty_min=1,
                     difficulty_max=3,
-                    embedding=(await gateway.create_embedding(
-                        texts=["Solve one-step linear equations"], session_spend_cents=0.0
-                    )).vectors[0],
+                    embedding=(
+                        await gateway.create_embedding(
+                            texts=["Solve one-step linear equations"], session_spend_cents=0.0
+                        )
+                    ).vectors[0],
                     last_synced_at=datetime.now(UTC),
                 )
             )

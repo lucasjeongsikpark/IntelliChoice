@@ -77,9 +77,7 @@ def build_payload(
     `rendered_question` is context block + stem for D-196's reason: judging the stem alone
     means judging text no student is served.
     """
-    rendered_question = (
-        f"{item.context_block}\n\n{item.stem}" if item.context_block else item.stem
-    )
+    rendered_question = f"{item.context_block}\n\n{item.stem}" if item.context_block else item.stem
     return HintSolutionReviewPayload(
         rendered_question=rendered_question,
         option_a=item.option_a,

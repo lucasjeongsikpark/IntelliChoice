@@ -111,14 +111,23 @@ class McpToolRegistry:
             # does not exist - is precisely the shape a wiring bug or a prompt injection
             # produces, so it was the one that left no trace at all.
             await self._audit(
-                audit_repo, tool_name, caller_external_id, False, "McpToolError", start,
+                audit_repo,
+                tool_name,
+                caller_external_id,
+                False,
+                "McpToolError",
+                start,
             )
             raise McpToolError(f"unknown tool {tool_name!r}")
 
         if tool.allowed_roles is not None and caller_role not in tool.allowed_roles:
             await self._audit(
-                audit_repo, tool_name, caller_external_id, False,
-                "ToolPermissionError", start,
+                audit_repo,
+                tool_name,
+                caller_external_id,
+                False,
+                "ToolPermissionError",
+                start,
             )
             raise ToolPermissionError(f"role {caller_role!r} may not call {tool_name!r}")
 
@@ -126,8 +135,12 @@ class McpToolRegistry:
             args = tool.args_model.model_validate(raw_args)
         except Exception as exc:
             await self._audit(
-                audit_repo, tool_name, caller_external_id, False,
-                type(exc).__name__, start,
+                audit_repo,
+                tool_name,
+                caller_external_id,
+                False,
+                type(exc).__name__,
+                start,
             )
             raise ToolValidationError(str(exc)) from exc
 
@@ -135,14 +148,22 @@ class McpToolRegistry:
             result = await asyncio.wait_for(tool.handler(args), timeout=tool.timeout_s)
         except TimeoutError as exc:
             await self._audit(
-                audit_repo, tool_name, caller_external_id, False,
-                "ToolTimeoutError", start,
+                audit_repo,
+                tool_name,
+                caller_external_id,
+                False,
+                "ToolTimeoutError",
+                start,
             )
             raise ToolTimeoutError(f"{tool_name!r} exceeded {tool.timeout_s}s") from exc
         except Exception as exc:
             await self._audit(
-                audit_repo, tool_name, caller_external_id, False,
-                type(exc).__name__, start,
+                audit_repo,
+                tool_name,
+                caller_external_id,
+                False,
+                type(exc).__name__,
+                start,
             )
             raise ToolExecutionError(f"{tool_name!r} failed: {type(exc).__name__}") from exc
 

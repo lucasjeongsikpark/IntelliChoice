@@ -212,9 +212,7 @@ def test_the_shipped_record_is_live() -> None:
     """
     curriculum = load_curriculum()
     topics = {t.topic_id: t for t in curriculum.topics}
-    by_id = {
-        t.question_template_id: t for ts in load_authored_bank().values() for t in ts
-    }
+    by_id = {t.question_template_id: t for ts in load_authored_bank().values() for t in ts}
     stale = []
     for template_id, verdict in load_adjudications().items():
         item = by_id[template_id]
@@ -279,9 +277,11 @@ def test_partition_reports_new_and_lapsed_and_suppresses_only_known() -> None:
     assert [i.question_template_id for i in findings.lapsed] == ["lapsed-1"]
     assert [i.question_template_id for i in findings.moot] == ["moot-1"]
     # A clean item with no verdict is in no bucket at all - it is not a finding.
-    assert "clean" not in {i.question_template_id for b in
-                           (findings.new, findings.known, findings.lapsed, findings.moot)
-                           for i in b}
+    assert "clean" not in {
+        i.question_template_id
+        for b in (findings.new, findings.known, findings.lapsed, findings.moot)
+        for i in b
+    }
 
 
 def test_an_empty_record_reports_every_finding_as_new() -> None:

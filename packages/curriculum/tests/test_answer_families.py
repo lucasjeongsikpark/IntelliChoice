@@ -90,9 +90,12 @@ def test_the_old_predicate_and_the_new_one_disagree_on_exactly_the_reported_case
     ],
 )
 def test_counting_accepts_a_whole_positive_answer(equation, answer):
-    assert validate_equation_design(
-        _design(equation, answer), target_difficulty=3, family=ANSWER_FAMILIES["counting"]
-    ) == []
+    assert (
+        validate_equation_design(
+            _design(equation, answer), target_difficulty=3, family=ANSWER_FAMILIES["counting"]
+        )
+        == []
+    )
 
 
 @pytest.mark.parametrize(
@@ -126,9 +129,12 @@ def test_counting_still_rejects_a_fractional_answer(equation, answer):
     ],
 )
 def test_rational_accepts_what_counting_refuses(equation, answer):
-    assert validate_equation_design(
-        _design(equation, answer), target_difficulty=3, family=ANSWER_FAMILIES["rational"]
-    ) == []
+    assert (
+        validate_equation_design(
+            _design(equation, answer), target_difficulty=3, family=ANSWER_FAMILIES["rational"]
+        )
+        == []
+    )
 
 
 @pytest.mark.parametrize(
@@ -158,9 +164,7 @@ def test_a_wrong_final_answer_is_caught_under_every_family():
 
 def test_the_default_family_is_the_behaviour_the_constant_had():
     """Every caller that does not pass a family keeps exactly its old behaviour."""
-    assert validate_equation_design(
-        _design("Eq(x, 428 * 6)", "2568"), target_difficulty=3
-    ) == []
+    assert validate_equation_design(_design("Eq(x, 428 * 6)", "2568"), target_difficulty=3) == []
     assert validate_equation_design(_design("Eq(x, 3.75 + 2.4)", "6.15"), target_difficulty=3)
 
 
@@ -201,7 +205,7 @@ def test_no_hand_written_skill_registry_remains_in_the_pipeline_source():
     """
     source = pathlib.Path(ai_pipeline.__file__).read_text()
     assert "TOPIC_SKILL_DIFFICULTIES: dict[str, dict[str, list[int]]] = {\n" not in source
-    assert "SKILL_STRUCTURES: dict[str, str] = {\n    \"" not in source
+    assert 'SKILL_STRUCTURES: dict[str, str] = {\n    "' not in source
 
 
 def test_every_authorable_skill_declares_a_structure():
@@ -211,9 +215,7 @@ def test_every_authorable_skill_declares_a_structure():
     slot got an equation with the variable on one side.
     """
     content = load_curriculum()
-    missing = [
-        s.skill_id for s in content.skills if s.difficulty_tiers and not s.structure
-    ]
+    missing = [s.skill_id for s in content.skills if s.difficulty_tiers and not s.structure]
     assert missing == []
 
 

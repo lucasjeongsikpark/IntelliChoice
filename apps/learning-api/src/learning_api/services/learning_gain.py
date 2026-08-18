@@ -48,18 +48,14 @@ def support_dependency(study_attempts: list[StudyAttempt]) -> SupportDependency:
     hint dependency (a nudge short of the full solution); `correct_after_solution` ->
     solution dependency. Returns all-zero when there was no study phase.
     """
-    resolving = [
-        a for a in study_attempts if a.outcome_label in _RESOLVING_LABELS
-    ]
+    resolving = [a for a in study_attempts if a.outcome_label in _RESOLVING_LABELS]
     total = len(resolving)
     if total == 0:
         return SupportDependency(0.0, 0.0, 0.0)
     independent = sum(1 for a in resolving if a.outcome_label == study_outcomes.INDEPENDENT_CORRECT)
     _hint_labels = (study_outcomes.CORRECT_AFTER_HINT, study_outcomes.CORRECT_AFTER_VIDEO)
     hint = sum(1 for a in resolving if a.outcome_label in _hint_labels)
-    solution = sum(
-        1 for a in resolving if a.outcome_label == study_outcomes.CORRECT_AFTER_SOLUTION
-    )
+    solution = sum(1 for a in resolving if a.outcome_label == study_outcomes.CORRECT_AFTER_SOLUTION)
     return SupportDependency(independent / total, hint / total, solution / total)
 
 

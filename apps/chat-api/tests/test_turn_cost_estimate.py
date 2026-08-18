@@ -82,9 +82,7 @@ def test_an_unpriced_model_cannot_under_reserve() -> None:
         top_k=DEFAULT_TOP_K,
     )
     priced = [
-        _worst_case_cents(
-            model_id, candidate_limit=DEFAULT_CANDIDATE_LIMIT, top_k=DEFAULT_TOP_K
-        )
+        _worst_case_cents(model_id, candidate_limit=DEFAULT_CANDIDATE_LIMIT, top_k=DEFAULT_TOP_K)
         for model_id in _MODEL_RATES_PER_1K_CENTS
     ]
     assert unknown >= max(priced)

@@ -1,5 +1,3 @@
-
-
 def test_prompt_caching_is_offered_only_to_families_measured_to_accept_it() -> None:
     """An unsupported `cachePoint` is a `ValidationException`, i.e. a failed paid call.
 

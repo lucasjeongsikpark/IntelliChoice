@@ -943,7 +943,8 @@ async def calendar_no_event(state: QAState, runtime: Runtime[TurnContext]) -> di
         # Nothing scheduled is a real, correct answer from the org calendar; "I could not
         # find a dated event to add" is the assistant asking for a better question.
         "reason": (
-            TurnReason.ANSWER if message == NO_UPCOMING_EVENTS_MESSAGE
+            TurnReason.ANSWER
+            if message == NO_UPCOMING_EVENTS_MESSAGE
             else TurnReason.NEEDS_CLARIFICATION
         ),
         "citations": [],
@@ -1059,9 +1060,7 @@ def _format_branch_locator_answer(result: BranchLocatorResult) -> str:
         # audience is US families; the internal figure stays metric (`distance_km`, what the
         # Maps route and `haversine_km` both return) and only the user-facing string converts.
         miles = b.distance_km / _KM_PER_MILE
-        lines.append(
-            f"- {b.name}: {miles:.1f} miles away{duration}{estimate_note} - {b.address}"
-        )
+        lines.append(f"- {b.name}: {miles:.1f} miles away{duration}{estimate_note} - {b.address}")
     return "\n".join(lines)
 
 
@@ -1108,10 +1107,7 @@ async def branch_locator_consent(state: QAState, runtime: Runtime[TurnContext]) 
     assert isinstance(decision, dict)
     try:
         location = GeocodeQuery.model_validate(
-            {
-                k: decision.get(k)
-                for k in ("zip_code", "city", "address", "latitude", "longitude")
-            }
+            {k: decision.get(k) for k in ("zip_code", "city", "address", "latitude", "longitude")}
         )
     except ValidationError:
         return {

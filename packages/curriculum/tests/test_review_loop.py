@@ -239,7 +239,7 @@ def test_the_repair_prompt_forbids_moving_the_answer_and_the_house_style() -> No
 
 def test_the_repair_payload_carries_at_least_one_defect() -> None:
     """`min_length=1`: a repair prompt with no defects is a re-roll (§4.6)."""
-    
+
     with pytest.raises(ValidationError):
         build_payload(_item(), [], skill_name="s", grade_band="6-8")
 
@@ -269,9 +269,7 @@ def test_collateral_edits_names_positions_no_defect_asked_about() -> None:
     model property rather than a guarantee and a prompt clause cannot enforce it.
     """
     item = _item()
-    defect = HintSolutionDefect(
-        target="hint_ladder", index=3, problem="p", suggested_fix="f"
-    )
+    defect = HintSolutionDefect(target="hint_ladder", index=3, problem="p", suggested_fix="f")
     # Rung 3 was named; rung 1 was not.
     repair = HintSolutionRepairResponse(
         reasoning="r",
@@ -286,9 +284,7 @@ def test_collateral_edits_names_positions_no_defect_asked_about() -> None:
 
 def test_editing_a_named_position_is_not_collateral() -> None:
     item = _item()
-    defect = HintSolutionDefect(
-        target="hint_ladder", index=1, problem="p", suggested_fix="f"
-    )
+    defect = HintSolutionDefect(target="hint_ladder", index=1, problem="p", suggested_fix="f")
     repair = HintSolutionRepairResponse(
         reasoning="r",
         hint_ladder=["REWRITTEN", "Divide both sides.", "Divide 52 by 4."],
@@ -304,9 +300,7 @@ def test_an_unlocated_defect_puts_its_whole_target_in_scope() -> None:
     reported as a violation.
     """
     item = _item()
-    defect = HintSolutionDefect(
-        target="hint_ladder", index=None, problem="p", suggested_fix="f"
-    )
+    defect = HintSolutionDefect(target="hint_ladder", index=None, problem="p", suggested_fix="f")
     repair = HintSolutionRepairResponse(
         reasoning="r",
         hint_ladder=["all", "three", "rewritten"],
@@ -413,9 +407,7 @@ def test_contributed_defects_apply_to_the_first_round_only() -> None:
     """
     outcome = _run(
         first_round_defects=[
-            HintSolutionDefect(
-                target="canonical_solution", index=2, problem="p", suggested_fix="f"
-            )
+            HintSolutionDefect(target="canonical_solution", index=2, problem="p", suggested_fix="f")
         ]
     )
     assert len(outcome.rounds) == 2
@@ -453,9 +445,7 @@ def test_the_panel_still_decides_acceptance_when_a_defect_was_contributed() -> N
         item=_item(hint_ladder=["Divide 52 by 4.", "Divide 52 by 4.", "What is 52/4?"]),
         repairer=_NoOpRepairer(),
         first_round_defects=[
-            HintSolutionDefect(
-                target="canonical_solution", index=2, problem="p", suggested_fix="f"
-            )
+            HintSolutionDefect(target="canonical_solution", index=2, problem="p", suggested_fix="f")
         ],
     )
     assert outcome.status == "discarded"
@@ -468,9 +458,7 @@ def test_a_repair_that_leaves_the_contributed_defect_unresolved_is_rejected() ->
     """
     outcome = _run(
         first_round_defects=[
-            HintSolutionDefect(
-                target="canonical_solution", index=2, problem="p", suggested_fix="f"
-            )
+            HintSolutionDefect(target="canonical_solution", index=2, problem="p", suggested_fix="f")
         ],
         contributed_resolved=lambda _item: False,
     )
@@ -480,7 +468,7 @@ def test_a_repair_that_leaves_the_contributed_defect_unresolved_is_rejected() ->
 
 
 def test_the_item_keeps_its_original_text_when_a_repair_is_rejected() -> None:
-    """"Reject the repair, keep the item" - the audit still cannot reject an *item*, only
+    """ "Reject the repair, keep the item" - the audit still cannot reject an *item*, only
     decline to repair one. For bank repair that is identical to doing nothing, which is why
     this does not make the audit the gate D-257 forbade.
     """
@@ -488,9 +476,7 @@ def test_the_item_keeps_its_original_text_when_a_repair_is_rejected() -> None:
     outcome = _run(
         item=original,
         first_round_defects=[
-            HintSolutionDefect(
-                target="canonical_solution", index=2, problem="p", suggested_fix="f"
-            )
+            HintSolutionDefect(target="canonical_solution", index=2, problem="p", suggested_fix="f")
         ],
         contributed_resolved=lambda _item: False,
     )
@@ -501,9 +487,7 @@ def test_the_item_keeps_its_original_text_when_a_repair_is_rejected() -> None:
 def test_a_resolved_contributed_defect_lets_the_repair_stand() -> None:
     outcome = _run(
         first_round_defects=[
-            HintSolutionDefect(
-                target="canonical_solution", index=2, problem="p", suggested_fix="f"
-            )
+            HintSolutionDefect(target="canonical_solution", index=2, problem="p", suggested_fix="f")
         ],
         contributed_resolved=lambda _item: True,
     )
@@ -516,9 +500,7 @@ def test_without_a_verifier_the_previous_behaviour_is_unchanged() -> None:
     """
     outcome = _run(
         first_round_defects=[
-            HintSolutionDefect(
-                target="canonical_solution", index=2, problem="p", suggested_fix="f"
-            )
+            HintSolutionDefect(target="canonical_solution", index=2, problem="p", suggested_fix="f")
         ]
     )
     assert outcome.status == "accepted"
@@ -672,9 +654,7 @@ def test_notes_are_not_carried_when_the_step_count_changed() -> None:
     item = _item(
         canonical_solution=SolutionResponse(
             steps=[
-                SolutionStep(
-                    step_number=1, explanation="e", expression="x", common_mistake="note"
-                ),
+                SolutionStep(step_number=1, explanation="e", expression="x", common_mistake="note"),
                 SolutionStep(step_number=2, explanation="f", expression="y"),
             ],
             final_answer="13",

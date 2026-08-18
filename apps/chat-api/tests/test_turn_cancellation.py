@@ -246,6 +246,7 @@ def test_an_over_long_turn_id_is_refused_rather_than_stored() -> None:
 
     assert response.status_code == 422
 
+
 def _request_cancellation_aged(session_id: str, turn_id: str, older_than: timedelta) -> None:
     """Insert a row that is already `older_than` old, on the **database's** clock.
 

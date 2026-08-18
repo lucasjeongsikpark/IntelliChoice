@@ -176,6 +176,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         circuit_cooldown_s=settings.bedrock_circuit_cooldown_s,
         session_budget_cents=settings.bedrock_session_budget_cents,
     )
+
     # D-208: a second gateway, for the one task whose call is a different size.
     # Same providers and same model registry as above - only the ceiling differs. Built
     # here rather than inside the scheduler so provider selection (mock vs real) stays in
@@ -262,15 +263,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # D-272: the same trade for hints. ~2.3s per rung, spent rewriting a sentence
             # the authored bank already holds - so the rung is served instantly and the
             # rewrite arrives over SSE. Mock provider keeps it inline, same as above.
-            app.state.hint_personalization_scheduler = (
-                BackgroundHintPersonalizationScheduler(
-                    session_factory=app.state.db_session_factory,
-                    gateway_factory=_narrative_gateway,
-                    graph_getter=lambda: app.state.learning_graph,
-                    events=app.state.session_events,
-                    profile_adapter=adapter,
-                    snapshot_builder=build_personalized_hint_snapshot,
-                )
+            app.state.hint_personalization_scheduler = BackgroundHintPersonalizationScheduler(
+                session_factory=app.state.db_session_factory,
+                gateway_factory=_narrative_gateway,
+                graph_getter=lambda: app.state.learning_graph,
+                events=app.state.session_events,
+                profile_adapter=adapter,
+                snapshot_builder=build_personalized_hint_snapshot,
             )
         else:
             app.state.study_narrative_scheduler = None
@@ -372,6 +371,7 @@ install_dev_token_gate_middleware(app, endpoint_is_open=_dev_token_endpoint_is_o
 # that's lifespan-scoped, since it needs the per-lifespan `engine`s (see `lifespan` above).
 install_request_logging_middleware(app)
 install_http_metrics_middleware(app, service_name=get_settings().otel_service_name)
+
 
 @app.exception_handler(BedrockGatewayError)
 async def _bedrock_gateway_error_handler(request: Request, exc: Exception) -> JSONResponse:

@@ -162,9 +162,7 @@ def _hint_events_for_variant(question_variant_id: str) -> list[HintEvent]:
             session_factory = create_session_factory(engine)
             async with session_scope(session_factory) as session:
                 result = await session.execute(
-                    select(HintEvent).where(
-                        HintEvent.question_variant_id == question_variant_id
-                    )
+                    select(HintEvent).where(HintEvent.question_variant_id == question_variant_id)
                 )
                 return list(result.scalars().all())
         finally:

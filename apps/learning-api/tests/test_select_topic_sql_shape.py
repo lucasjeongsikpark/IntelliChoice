@@ -490,74 +490,74 @@ def _content(views: list[flow.QuestionItemView]) -> list[tuple[str, str, str, st
 # Regenerated from the bank, as every previous re-capture was.
 _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
     (
-        'Keisha is preparing for a running challenge. Each week, her training increases by a fixed amount.\n\nKeisha is training for a 10-kilometer running race. She runs 2 kilometers the first week and plans to add 1 kilometer each week. In which week will she reach exactly 10 kilometers?',  # noqa: E501
-        '8 weeks',
-        '12 weeks',
-        '9 weeks',
-        '10 weeks',
+        "Keisha is preparing for a running challenge. Each week, her training increases by a fixed amount.\n\nKeisha is training for a 10-kilometer running race. She runs 2 kilometers the first week and plans to add 1 kilometer each week. In which week will she reach exactly 10 kilometers?",  # noqa: E501
+        "8 weeks",
+        "12 weeks",
+        "9 weeks",
+        "10 weeks",
     ),
     (
-        'A student saves some money for a game. After earning $12 from chores, they have $28 total. How much had they saved before the chores?',  # noqa: E501
-        '14',
-        '40',
-        '2',
-        '16',
+        "A student saves some money for a game. After earning $12 from chores, they have $28 total. How much had they saved before the chores?",  # noqa: E501
+        "14",
+        "40",
+        "2",
+        "16",
     ),
     (
-        'A student buys several identical notebooks at $3 each and a pen for $4, spending $28 total. How many notebooks did the student buy?',  # noqa: E501
-        '8 notebooks',
-        '12 notebooks',
-        '24 notebooks',
-        '9 notebooks',
+        "A student buys several identical notebooks at $3 each and a pen for $4, spending $28 total. How many notebooks did the student buy?",  # noqa: E501
+        "8 notebooks",
+        "12 notebooks",
+        "24 notebooks",
+        "9 notebooks",
     ),
     (
-        'Marcus has 50 trading cards. He gives 6 cards to each of his friends and has 2 cards left. How many friends received cards from Marcus?',  # noqa: E501
-        '9 friends',
-        '48 friends',
-        '8 friends',
-        '7 friends',
+        "Marcus has 50 trading cards. He gives 6 cards to each of his friends and has 2 cards left. How many friends received cards from Marcus?",  # noqa: E501
+        "9 friends",
+        "48 friends",
+        "8 friends",
+        "7 friends",
     ),
     (
-        'Liam has 120 trading cards and gives Emma 5 cards every week. Emma starts with no cards. After how many weeks will they have the same number of cards?',  # noqa: E501
-        '6',
-        '8',
-        '12',
-        '24',
+        "Liam has 120 trading cards and gives Emma 5 cards every week. Emma starts with no cards. After how many weeks will they have the same number of cards?",  # noqa: E501
+        "6",
+        "8",
+        "12",
+        "24",
     ),
     (
-        'A chef is preparing a large batch of soup. She starts with a 10-liter pot that already has 2 liters of broth. She pours in soup at a rate of 0.5 liters per minute. How many minutes until the pot contains 8 liters of soup?',  # noqa: E501
-        '10 minutes',
-        '20 minutes',
-        '16 minutes',
-        '12 minutes',
+        "A chef is preparing a large batch of soup. She starts with a 10-liter pot that already has 2 liters of broth. She pours in soup at a rate of 0.5 liters per minute. How many minutes until the pot contains 8 liters of soup?",  # noqa: E501
+        "10 minutes",
+        "20 minutes",
+        "16 minutes",
+        "12 minutes",
     ),
     (
-        'Maya and Leo each have savings accounts. Maya starts with $100 and withdraws $3 every week. Leo starts with $40 and deposits $2 every week. After how many weeks will both accounts have the same balance?',  # noqa: E501
-        '20 weeks',
-        '30 weeks',
-        '8 weeks',
-        '12 weeks',
+        "Maya and Leo each have savings accounts. Maya starts with $100 and withdraws $3 every week. Leo starts with $40 and deposits $2 every week. After how many weeks will both accounts have the same balance?",  # noqa: E501
+        "20 weeks",
+        "30 weeks",
+        "8 weeks",
+        "12 weeks",
     ),
     (
-        'Pool A holds 40 liters and fills at 4 liters per minute. Pool B holds 100 liters and drains at 2 liters per minute. After how many minutes do the pools hold the same amount?',  # noqa: E501
-        '10',
-        '15',
-        '20',
-        '5',
+        "Pool A holds 40 liters and fills at 4 liters per minute. Pool B holds 100 liters and drains at 2 liters per minute. After how many minutes do the pools hold the same amount?",  # noqa: E501
+        "10",
+        "15",
+        "20",
+        "5",
     ),
     (
-        'Leo packs 2 identical boxes. Each box holds 4 more items than the size of Mia’s group, plus he adds 1 loose item. Mia packs 3 groups of items, each the size of her group, and adds 3 loose items. They end up with the same number of items. How many items are in one of Mia’s groups?',  # noqa: E501
-        '10',
-        '4',
-        '6',
-        '5',
+        "Leo packs 2 identical boxes. Each box holds 4 more items than the size of Mia’s group, plus he adds 1 loose item. Mia packs 3 groups of items, each the size of her group, and adds 3 loose items. They end up with the same number of items. How many items are in one of Mia’s groups?",  # noqa: E501
+        "10",
+        "4",
+        "6",
+        "5",
     ),
     (
-        'Liam buys 3 identical packs of game cards. Each pack has x regular cards and 5 bonus cards. He also buys 2x individual regular cards. Altogether, he has 35 cards. How many regular cards are in each pack?',  # noqa: E501
-        '4',
-        '2',
-        '8',
-        '6',
+        "Liam buys 3 identical packs of game cards. Each pack has x regular cards and 5 bonus cards. He also buys 2x individual regular cards. Altogether, he has 35 cards. How many regular cards are in each pack?",  # noqa: E501
+        "4",
+        "2",
+        "8",
+        "6",
     ),
 )
 

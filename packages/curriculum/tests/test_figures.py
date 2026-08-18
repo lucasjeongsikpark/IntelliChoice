@@ -185,9 +185,7 @@ def test_a_reading_declared_without_a_figure_fails_closed():
 
 
 def test_a_reading_the_figure_kind_cannot_answer_fails_closed():
-    result = validate_authored_item(
-        2, _item(), figure=CLOCK, figure_reading="chart_max_label"
-    )
+    result = validate_authored_item(2, _item(), figure=CLOCK, figure_reading="chart_max_label")
     assert result.passed is False
     assert any("does not apply" in f for f in result.failures)
 

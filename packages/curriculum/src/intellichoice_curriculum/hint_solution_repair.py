@@ -103,9 +103,7 @@ def build_payload(
     skill_name: str,
     grade_band: str,
 ) -> HintSolutionRepairPayload:
-    rendered_question = (
-        f"{item.context_block}\n\n{item.stem}" if item.context_block else item.stem
-    )
+    rendered_question = f"{item.context_block}\n\n{item.stem}" if item.context_block else item.stem
     return HintSolutionRepairPayload(
         rendered_question=rendered_question,
         option_a=item.option_a,

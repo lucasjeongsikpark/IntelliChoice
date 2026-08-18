@@ -100,9 +100,7 @@ class AnthropicBedrockProvider:
             # The last round forces the emit tool; earlier ones let the model choose, which
             # is what makes calling a tool possible at all - a forced single tool cannot.
             last = round_index == max_tool_rounds or not tools
-            choice: dict[str, Any] = (
-                {"tool": {"name": _TOOL_NAME}} if last else {"auto": {}}
-            )
+            choice: dict[str, Any] = {"tool": {"name": _TOOL_NAME}} if last else {"auto": {}}
             try:
                 response = await asyncio.to_thread(
                     self._client.converse,
@@ -153,9 +151,7 @@ class AnthropicBedrockProvider:
                         {
                             "toolResult": {
                                 "toolUseId": call["toolUseId"],
-                                "content": [
-                                    {"json": tool_executor(call["name"], call["input"])}
-                                ],
+                                "content": [{"json": tool_executor(call["name"], call["input"])}],
                             }
                         }
                         for call in helper_calls

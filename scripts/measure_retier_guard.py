@@ -182,8 +182,7 @@ def _warm_up_cost(rows: list[QuestionValidationRun], gap_seconds: float) -> None
         if total[bucket]:
             share = blocked[bucket] / total[bucket] * 100
             print(
-                f"  {str(bucket):>13}   {blocked[bucket]:>4} / "
-                f"{total[bucket]:<5} ({share:>5.1f}%)"
+                f"  {str(bucket):>13}   {blocked[bucket]:>4} / {total[bucket]:<5} ({share:>5.1f}%)"
             )
     print(
         f"\n  structural floor: {4 * len(runs)} candidate-slots cannot be re-tiered no matter "

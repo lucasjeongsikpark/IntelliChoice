@@ -370,9 +370,7 @@ def test_hybrid_search_restrict_to_branch_hides_other_branches() -> None:
             result_ids = {chunk.chunk_id for chunk in results}
             assert org_wide_chunk.chunk_id in result_ids
             assert branch_a_chunk.chunk_id in result_ids
-            assert all(
-                chunk.branch_external_id in (None, "branch-a") for chunk in results
-            )
+            assert all(chunk.branch_external_id in (None, "branch-a") for chunk in results)
 
     asyncio.run(run())
 
@@ -393,9 +391,7 @@ def test_access_probe_candidates_excludes_what_the_caller_can_read_and_orders_by
         async with rollback_session() as session:
             repo = RagRepository(session)
             for audience, axis in (("public", 3), ("tutor", 5), ("parent", 7)):
-                document = await _seed_document(
-                    session, audience=audience, academic_year=year
-                )
+                document = await _seed_document(session, audience=audience, academic_year=year)
                 await _seed_chunk(
                     session,
                     document,

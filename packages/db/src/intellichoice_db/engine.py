@@ -15,7 +15,9 @@ _LOCAL_HOSTS = {None, "localhost", "127.0.0.1"}
 
 # Dev-only hardcoded default, mirroring apps/learning-api/config.py (SPEC D-006 rationale):
 # this is replaced by real settings-driven config when the app wiring lands, not tuned here.
-DEFAULT_DATABASE_URL = "postgresql+asyncpg://intellichoice:intellichoice@localhost:5432/intellichoice"
+DEFAULT_DATABASE_URL = (
+    "postgresql+asyncpg://intellichoice:intellichoice@localhost:5432/intellichoice"
+)
 
 
 def database_url_from_component_env_vars() -> str | None:

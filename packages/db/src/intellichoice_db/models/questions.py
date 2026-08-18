@@ -72,9 +72,7 @@ class QuestionTemplate(Base):
     # item that reloads UNGATED - `check_reading_matches_the_figure` is the only
     # verification such an item has.
     figure_reading: Mapped[str | None] = mapped_column(String, nullable=True)
-    stem_embedding: Mapped[list[float] | None] = mapped_column(
-        Vector(EMBEDDING_DIM), nullable=True
-    )
+    stem_embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
     review_priority: Mapped[str] = mapped_column(String, nullable=False, default="normal")
 
     variants: Mapped[list["QuestionVariant"]] = relationship(back_populates="template")

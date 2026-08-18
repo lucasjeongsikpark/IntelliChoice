@@ -148,9 +148,7 @@ async def _select_template(
         # rather than jumping to whatever is free. Ties keep candidate order, so `rng.choice`
         # below is still reproducible from the session seed (Phase 10).
         if recommended_difficulty is not None:
-            unused_any_tier.sort(
-                key=lambda t: abs(t.difficulty_label - recommended_difficulty)
-            )
+            unused_any_tier.sort(key=lambda t: abs(t.difficulty_label - recommended_difficulty))
             nearest = abs(unused_any_tier[0].difficulty_label - recommended_difficulty)
             unused_any_tier = [
                 t

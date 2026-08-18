@@ -120,9 +120,7 @@ def _file_owned_template_fields(
         # file value and every load rewrote all six coordinate items. A tuple-typed field
         # in a JSON column is idempotent only when it is dumped the way it is stored.
         "figure_spec": (
-            template_def.figure_spec.model_dump(mode="json")
-            if template_def.figure_spec
-            else None
+            template_def.figure_spec.model_dump(mode="json") if template_def.figure_spec else None
         ),
         "figure_reading": template_def.figure_reading,
         "hint_ladder": template_def.hint_ladder,

@@ -93,12 +93,22 @@ def replica_count() -> int | None:
     try:
         out = subprocess.run(
             [
-                "aws", "ecs", "describe-services",
-                "--cluster", "intellichoice-staging",
-                "--services", "intellichoice-staging-chat-api",
-                "--query", "services[0].runningCount", "--output", "text",
+                "aws",
+                "ecs",
+                "describe-services",
+                "--cluster",
+                "intellichoice-staging",
+                "--services",
+                "intellichoice-staging-chat-api",
+                "--query",
+                "services[0].runningCount",
+                "--output",
+                "text",
             ],
-            capture_output=True, text=True, timeout=30, check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
         )
         return int(out.stdout.strip())
     except Exception:

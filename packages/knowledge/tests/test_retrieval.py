@@ -708,9 +708,7 @@ def test_probe_sends_passages_but_returns_only_audiences_and_scores() -> None:
 
     async def run() -> None:
         repo = _FakeRepo([_chunk("p-1", "secret parent-only text", audience="parent")])
-        gateway = _FakeGateway(
-            scores=[RerankedScore(candidate_index=0, relevance_score=0.95)]
-        )
+        gateway = _FakeGateway(scores=[RerankedScore(candidate_index=0, relevance_score=0.95)])
 
         result = await _probe(repo, gateway)
 
@@ -719,8 +717,6 @@ def test_probe_sends_passages_but_returns_only_audiences_and_scores() -> None:
         assert "secret parent-only text" in payload.model_dump_json()
         # ...and the way back carries no ids, no titles, no text.
         assert set(result.matches) == {"parent"}
-        assert all(
-            set(vars(match)) == {"count", "score"} for match in result.matches.values()
-        )
+        assert all(set(vars(match)) == {"count", "score"} for match in result.matches.values())
 
     asyncio.run(run())

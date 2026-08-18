@@ -112,9 +112,7 @@ def throwaway_question() -> Iterator[tuple[str, str]]:
             factory = create_session_factory(engine)
             async with session_scope(factory) as session:
                 await session.execute(
-                    delete(ProblemReport).where(
-                        ProblemReport.question_template_id == template_id
-                    )
+                    delete(ProblemReport).where(ProblemReport.question_template_id == template_id)
                 )
                 await session.execute(
                     delete(QuestionVariant).where(
@@ -176,9 +174,7 @@ async def _cleanup_served(session_ids: list[str]) -> None:
         factory = create_session_factory(engine)
         async with session_scope(factory) as session:
             await session.execute(
-                delete(AssessmentItem).where(
-                    AssessmentItem.assessment_session_id.in_(session_ids)
-                )
+                delete(AssessmentItem).where(AssessmentItem.assessment_session_id.in_(session_ids))
             )
             await session.execute(
                 delete(AssessmentSession).where(
@@ -282,9 +278,7 @@ def test_five_distinct_reporters_quarantine_and_stop_delivery(
 
 def test_non_student_role_is_forbidden(throwaway_question: tuple[str, str]) -> None:
     _, variant_id = throwaway_question
-    parent_token = issuer.issue(
-        sub="some-parent", role=Role.PARENT, audience=Audience.LEARNING
-    )
+    parent_token = issuer.issue(sub="some-parent", role=Role.PARENT, audience=Audience.LEARNING)
     with TestClient(app) as client:
         resp = client.post(
             f"/learning/questions/{variant_id}/reports",
@@ -328,9 +322,9 @@ def test_a_variant_never_served_to_the_reporter_is_indistinguishable_from_unknow
     assert unserved.status_code == 404
     assert unknown.status_code == 404
     # Same shape apart from the id echoed back - a prober cannot tell the cases apart.
-    assert unserved.json()["detail"].replace(variant_id, "X") == unknown.json()[
-        "detail"
-    ].replace("does-not-exist", "X")
+    assert unserved.json()["detail"].replace(variant_id, "X") == unknown.json()["detail"].replace(
+        "does-not-exist", "X"
+    )
 
 
 def test_invalid_report_type_returns_400(throwaway_question: tuple[str, str]) -> None:

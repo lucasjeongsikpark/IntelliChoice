@@ -111,9 +111,7 @@ async def _pending_search_terms(
     return selected, covered, len(uncovered) - len(selected)
 
 
-def _build_provider(
-    settings: YoutubeSyncSettings, search_terms: list[str]
-) -> YoutubeProvider:
+def _build_provider(settings: YoutubeSyncSettings, search_terms: list[str]) -> YoutubeProvider:
     if settings.youtube_provider == "youtube":
         # `fake` stays the dev default (D-002's posture, same footing as Gmail/Calendar/
         # Maps). `check_real_sync_preflight` has already refused a run that cannot work,

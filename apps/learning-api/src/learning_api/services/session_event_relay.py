@@ -171,9 +171,7 @@ class SessionEventRelay:
         """
         if self._publisher is None or self._loop is None:
             return
-        payload = json.dumps(
-            {"origin": self._bus.origin, "session_id": session_id, "event": event}
-        )
+        payload = json.dumps({"origin": self._bus.origin, "session_id": session_id, "event": event})
         if len(payload.encode()) > MAX_PAYLOAD_BYTES:
             # Not truncated: a half-snapshot would render as though it were whole.
             SSE_RELAY_FAILURES.labels(reason="payload_too_large").inc()

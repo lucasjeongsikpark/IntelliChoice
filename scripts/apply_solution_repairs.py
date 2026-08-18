@@ -86,12 +86,9 @@ def main() -> int:
             # than reimplementing the rule (D-223: one rule, one implementation).
             template["hint_ladder"] = record["after_hint_ladder"]
             before = [
-                SolutionStep.model_validate(x)
-                for x in template["canonical_solution"]["steps"]
+                SolutionStep.model_validate(x) for x in template["canonical_solution"]["steps"]
             ]
-            after = [
-                SolutionStep.model_validate(x) for x in record["after_solution_steps"]
-            ]
+            after = [SolutionStep.model_validate(x) for x in record["after_solution_steps"]]
             template["canonical_solution"]["steps"] = [
                 step.model_dump() for step in carry_misconception_notes(before, after)
             ]
@@ -100,8 +97,11 @@ def main() -> int:
         if changed and args.write:
             path.write_text(yaml.safe_dump(parsed, sort_keys=False, allow_unicode=True))
 
-    seen = {t for p in _BANK.glob("*.yaml") for t in
-            [x["question_template_id"] for x in yaml.safe_load(p.read_text())["templates"]]}
+    seen = {
+        t
+        for p in _BANK.glob("*.yaml")
+        for t in [x["question_template_id"] for x in yaml.safe_load(p.read_text())["templates"]]
+    }
     missing = [tid for tid in usable if tid not in seen]
 
     print(f"accepted in dump          : {len(usable)}")

@@ -670,8 +670,7 @@ class PreflightReport:
 def _design_model(settings: CurriculumPipelineSettings) -> str:
     """Which model designs the equation - the authoring model unless split (D-205)."""
     return (
-        settings.bedrock_equation_design_model_id
-        or settings.bedrock_authored_generation_model_id
+        settings.bedrock_equation_design_model_id or settings.bedrock_authored_generation_model_id
     )
 
 
@@ -713,11 +712,7 @@ async def preflight(
     """
     planned_skills = {slot.skill_id for slot in plan.slots}
     known_skills = set(
-        (
-            await session.execute(
-                select(Skill.skill_id).where(Skill.skill_id.in_(planned_skills))
-            )
-        )
+        (await session.execute(select(Skill.skill_id).where(Skill.skill_id.in_(planned_skills))))
         .scalars()
         .all()
     )
@@ -734,9 +729,7 @@ async def preflight(
         .scalars()
         .all()
     )
-    generator_model = (
-        settings.bedrock_authored_generation_model_id
-    )
+    generator_model = settings.bedrock_authored_generation_model_id
     solver_a = settings.bedrock_generation_model_id
     solver_b = settings.bedrock_review_model_id
     solvers_differ = underlying_model(solver_a) != underlying_model(solver_b)

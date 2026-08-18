@@ -293,9 +293,7 @@ def test_the_node_picks_the_origin_from_the_request_not_from_the_intent() -> Non
             # `escalate=True` is the "Contact an administrator" button - a user action on
             # the request itself, so naming the reason is reporting, not guessing.
             forwarded = await graph.ainvoke(
-                AskInput(
-                    session_id="chat-zqxv-origin-2", query=ADMIN_QUERY, escalate=True
-                ),
+                AskInput(session_id="chat-zqxv-origin-2", query=ADMIN_QUERY, escalate=True),
                 config=_config("chat-zqxv-origin-2"),
                 context=_ctx(session, email_transport=transport),
             )

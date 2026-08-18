@@ -120,9 +120,7 @@ def main() -> int:
                     if not words:
                         continue
                     per_band[band].append(words)
-                    worst.append(
-                        (words, band, topic_id, field_name, sentence[:110])
-                    )
+                    worst.append((words, band, topic_id, field_name, sentence[:110]))
                 fk = _flesch_kincaid(text)
                 if fk is not None:
                     per_band_fk[band].append(fk)

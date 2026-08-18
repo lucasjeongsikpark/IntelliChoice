@@ -96,9 +96,7 @@ def _entry(document_id: str) -> DocumentManifestEntry:
 
 async def _ingest_doc(session: AsyncSession, document_id: str, provider: str) -> int:
     entry = _entry(document_id)
-    store = _DictContentStore(
-        {entry.source_path: "# Title\n\n## Section\n\nreembed test content"}
-    )
+    store = _DictContentStore({entry.source_path: "# Title\n\n## Section\n\nreembed test content"})
     _, chunks_created, _ = await ingest_entry(
         session,
         entry,
@@ -114,8 +112,7 @@ async def _ingest_doc(session: AsyncSession, document_id: str, provider: str) ->
 async def _doc_provenance(session: AsyncSession, document_id: str) -> list[tuple[str, str]]:
     result = await session.execute(
         text(
-            "SELECT embedding_provider, embedding_model_id FROM rag_chunks "
-            "WHERE document_id = :d"
+            "SELECT embedding_provider, embedding_model_id FROM rag_chunks WHERE document_id = :d"
         ),
         {"d": document_id},
     )

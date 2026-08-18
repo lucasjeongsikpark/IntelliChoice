@@ -1256,8 +1256,6 @@ def test_rag_repository_round_trip() -> None:
     asyncio.run(run())
 
 
-
-
 def test_evaluation_repository_round_trip() -> None:
     async def run() -> None:
         async with rollback_session() as session:
@@ -1387,9 +1385,7 @@ def test_youtube_repository_round_trip() -> None:
             assert result_ids[:2] == ["zqxvrepo-close", "zqxvrepo-far"]
 
             # Upserting the same natural key again updates in place, not a duplicate.
-            updated_close = _video(
-                "zqxvrepo-close", embedding=axis_a, skill_ids=["zqxvrepo_skill"]
-            )
+            updated_close = _video("zqxvrepo-close", embedding=axis_a, skill_ids=["zqxvrepo_skill"])
             updated_close.title = "Updated Title"
             await repo.upsert_video(updated_close)
             reloaded = await repo.get_video("zqxvrepo-close")
@@ -1618,9 +1614,7 @@ def test_org_team_member_repository_round_trip() -> None:
             marked = await repo.mark_inactive_except([])
             assert marked >= 1
             active = await repo.list_members()
-            assert "zqxvrepo-administration-jane-doe" not in {
-                m.team_member_id for m in active
-            }
+            assert "zqxvrepo-administration-jane-doe" not in {m.team_member_id for m in active}
 
     asyncio.run(run())
 
@@ -1757,11 +1751,7 @@ def test_chat_suggestion_repository_round_trip() -> None:
             assert reloaded is not None
             assert reloaded.prompt_text == "Which branch is closest to my home?"
 
-            active = [
-                s.id
-                for s in await repo.list_active()
-                if s.id.startswith("zqxvrepo-")
-            ]
+            active = [s.id for s in await repo.list_active() if s.id.startswith("zqxvrepo-")]
             assert active == ["zqxvrepo-general-about", "zqxvrepo-branches-nearest"]
 
     asyncio.run(run())

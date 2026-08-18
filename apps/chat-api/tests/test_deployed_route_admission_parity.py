@@ -68,16 +68,12 @@ def _string_list(field: str, block: str) -> list[str]:
 
 
 def _cloudfront_patterns() -> list[str]:
-    return _string_list(
-        "api_path_patterns", _block_body('module "cloudfront_chat"', _terraform())
-    )
+    return _string_list("api_path_patterns", _block_body('module "cloudfront_chat"', _terraform()))
 
 
 def _alb_patterns() -> list[str]:
     text = _terraform()
-    admitted = _string_list(
-        "path_patterns", _block_body('module "ecs_service_chat_api"', text)
-    )
+    admitted = _string_list("path_patterns", _block_body('module "ecs_service_chat_api"', text))
     # Scoped to the `path_pattern` sub-block because that rule holds **two** `values` lists,
     # the second being the `X-IntelliChoice-App` header's `["chat"]` - see the sibling file
     # for why taking the first match would be a silent trap.
@@ -119,9 +115,7 @@ def test_the_route_walk_is_not_vacuous() -> None:
 def test_the_two_paths_registered_outside_the_router_prefix_are_listed_explicitly() -> None:
     """`/me` and `/dev/token` are the ones a `/chat/*` pattern does not cover."""
     text = _terraform()
-    service_list = _string_list(
-        "path_patterns", _block_body('module "ecs_service_chat_api"', text)
-    )
+    service_list = _string_list("path_patterns", _block_body('module "ecs_service_chat_api"', text))
 
     assert "/me" in _cloudfront_patterns() and "/me" in service_list
     assert "/dev/token" in _cloudfront_patterns()

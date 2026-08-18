@@ -386,9 +386,7 @@ async def retrieve(
     # never what §5.21.8's threshold trigger meant, and an empty result here is the trigger
     # firing - the graph routes it to the access-hint/no-source path without paying for a
     # synthesis call that would have quoted a passage rated 0.05.
-    scored = [
-        (chunk, score_by_index.get(index, 0.0)) for index, chunk in enumerate(candidates)
-    ]
+    scored = [(chunk, score_by_index.get(index, 0.0)) for index, chunk in enumerate(candidates)]
     ranked = [
         chunk for chunk, score in sorted(scored, key=_by_score) if score > min_relevance_score
     ]

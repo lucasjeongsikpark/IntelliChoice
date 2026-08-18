@@ -23,15 +23,9 @@ ACCESS_HINT_MESSAGES: dict[str, str] = {
         "That's part of branch management materials - available to branch managers. "
         "Log in with a branch manager account to see it."
     ),
-    "tutor": (
-        "That's available to tutors - log in with a tutor account to see it."
-    ),
-    "parent": (
-        "That's available to parents - log in with a parent account to see it."
-    ),
-    "student": (
-        "That's available to students - log in with a student account to see it."
-    ),
+    "tutor": ("That's available to tutors - log in with a tutor account to see it."),
+    "parent": ("That's available to parents - log in with a parent account to see it."),
+    "student": ("That's available to students - log in with a student account to see it."),
 }
 _ACCESS_HINT_PRIORITY = ("branch_manager", "tutor", "parent", "student")
 
@@ -102,9 +96,7 @@ def build_access_hint(
     candidates = [
         (audience, match)
         for audience, match in audience_matches.items()
-        if audience not in accessible
-        and audience in ACCESS_HINT_MESSAGES
-        and match.count > 0
+        if audience not in accessible and audience in ACCESS_HINT_MESSAGES and match.count > 0
     ]
     if not candidates:
         return None

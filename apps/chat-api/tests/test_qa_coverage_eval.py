@@ -82,9 +82,7 @@ def _gateway():
 def test_qa_coverage_eval(capsys: pytest.CaptureFixture[str]) -> None:
     async def run():
         async with rollback_session() as session:
-            return await run_all(
-                session, _gateway(), min_relevance_score=MOCK_MIN_RELEVANCE_SCORE
-            )
+            return await run_all(session, _gateway(), min_relevance_score=MOCK_MIN_RELEVANCE_SCORE)
 
     scores = score(asyncio.run(run()))
 
@@ -92,9 +90,7 @@ def test_qa_coverage_eval(capsys: pytest.CaptureFixture[str]) -> None:
         print("\n--- qa coverage eval (MockBedrockProvider) ---")
         print(format_report(scores))
 
-    assert_categories_present(
-        scores, list(MOCK_THRESHOLDS) + list(MOCK_MEASURED_ONLY)
-    )
+    assert_categories_present(scores, list(MOCK_THRESHOLDS) + list(MOCK_MEASURED_ONLY))
 
     failures = [
         f"{category} {scores[category].rate:.2f} below {threshold} "
@@ -117,9 +113,7 @@ def test_eval_refuses_to_run_over_an_empty_effective_public_corpus() -> None:
             await session.execute(
                 text("UPDATE rag_documents SET status = 'draft' WHERE audience = 'public'")
             )
-            return await run_all(
-                session, _gateway(), min_relevance_score=MOCK_MIN_RELEVANCE_SCORE
-            )
+            return await run_all(session, _gateway(), min_relevance_score=MOCK_MIN_RELEVANCE_SCORE)
 
     with pytest.raises(AssertionError, match="AUD-C-17"):
         asyncio.run(run())

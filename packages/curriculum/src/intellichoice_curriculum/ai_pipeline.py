@@ -621,7 +621,7 @@ def judge_system_prompt(topic: TopicDef) -> str:
     next to the topic they describe.
     """
     return (
-            "You are an independent judge reviewing one authored K-12 math question for "
+        "You are an independent judge reviewing one authored K-12 math question for "
         "difficulty fit, ambiguity, curriculum alignment, age-appropriateness, and the "
         "quality of its hint ladder. Be strict: a genuinely ambiguous, misaligned, or "
         "unsafe question must be flagged. "
@@ -717,10 +717,8 @@ def judge_system_prompt(topic: TopicDef) -> str:
         "Rate the EQUATION the student must solve, not the wrapping. Every item here is set in "
         "a story; that is the house style and it does NOT by itself raise the tier. A short "
         "preliminary calculation to get a number out of the scenario does not either. "
-            + " ".join(
-                f"{tier} = {text}." for tier, text in sorted(topic.difficulty_anchors.items())
-            )
-            + " "
+        + " ".join(f"{tier} = {text}." for tier, text in sorted(topic.difficulty_anchors.items()))
+        + " "
         "Use the whole range. If an item genuinely sits between two anchors, choose the higher "
         "one when the extra step is structural and the lower one when it is only arithmetic. "
         # D-237, and the mirror image of D-200 above. D-200 defended the *bottom* of the scale
@@ -740,6 +738,7 @@ def judge_system_prompt(topic: TopicDef) -> str:
         "you is not a reason to withhold the top of the scale, and neither is a harder "
         "question you can imagine but are not looking at."
     )
+
 
 # Small, fixed set of hand-written few-shot exemplars (this project has no pre-authored
 # hint/solution content to draw from - hints are otherwise only ever LLM-generated at
@@ -972,9 +971,7 @@ async def _call(
     """
     # Forwarded only when asked for, so the `BedrockGateway` Protocol stays as narrow as it
     # was and every scripted test double keeps working unchanged (D-202).
-    extra: dict = (
-        {"tools": tools, "tool_executor": execute_pipeline_tool} if tools else {}
-    )
+    extra: dict = {"tools": tools, "tool_executor": execute_pipeline_tool} if tools else {}
     # Same reason, same shape (D-233): only the judge needs a longer timeout, so a caller
     # that does not ask keeps the gateway's own value and the Protocol keeps its narrow
     # signature.
@@ -993,7 +990,6 @@ async def _call(
     except BedrockGatewayError as exc:
         return None, exc.cost_cents, str(exc)
     return result.value, result.cost_cents, None
-
 
 
 # D-202: the SymPy check the deterministic gate used to run *after* generation, offered to
@@ -1170,9 +1166,7 @@ def validate_equation_design(
             f"equation solves to {solved}, which is not a whole number - {family.guidance}"
         )
     elif family.positive_only and solved.is_positive is not True:
-        failures.append(
-            f"equation solves to {solved}, which is not positive - {family.guidance}"
-        )
+        failures.append(f"equation solves to {solved}, which is not positive - {family.guidance}")
     return failures
 
 
@@ -1279,6 +1273,8 @@ async def _design_equation(
             return value, total, []
         previous.append(f"equation {value.equation!r} rejected: {'; '.join(failures)}")
     return None, total, previous
+
+
 # Prefix on the error string a circuit-open generator failure carries, so the one place
 # that classifies the rejection does not have to match on the breaker's wording (D-199).
 _CIRCUIT_OPEN_MARKER = "circuit_open"
@@ -1435,8 +1431,7 @@ def repair_feedback(
         defects.append("An independent reviewer found the question ambiguous.")
     if judge.get("is_aligned") is False:
         defects.append(
-            "An independent reviewer found the question does not test the skill it was "
-            "written for."
+            "An independent reviewer found the question does not test the skill it was written for."
         )
     if judge.get("is_age_appropriate") is False:
         defects.append("An independent reviewer found the content unsuitable for the grade band.")
@@ -2034,7 +2029,7 @@ async def _attempt_authored_candidate(
     if difficulty.decision == "rejected":
         return await _reject(difficulty.reasons, stage_results, "difficulty")
 
-# A re-tier is a disagreement a human still has to look at - the judge decided where
+    # A re-tier is a disagreement a human still has to look at - the judge decided where
     # the item goes, and nobody has confirmed it belongs there.
     review_priority = review_priority_for(
         judge={
@@ -2270,8 +2265,7 @@ async def generate_authored_candidate(
                         "equation_design": {"passed": False, "attempts": design_failures}
                     },
                     reasons=[
-                        "equation design never reached a model: "
-                        + "; ".join(design_failures[-1:])
+                        "equation design never reached a model: " + "; ".join(design_failures[-1:])
                         if provider_only
                         else f"equation design failed after {design_attempts} attempts"
                     ],

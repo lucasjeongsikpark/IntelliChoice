@@ -66,9 +66,7 @@ class _FakeGateway:
 
 def test_generate_hint_returns_validated_content_on_success() -> None:
     async def run() -> None:
-        hint = HintResponse(
-            hint_text="h", concept_reminder="c", next_step_prompt="n", difficulty=1
-        )
+        hint = HintResponse(hint_text="h", concept_reminder="c", next_step_prompt="n", difficulty=1)
         gateway = _FakeGateway(
             BedrockGenerationResult(
                 value=hint,
@@ -236,10 +234,18 @@ def test_stored_solution_is_preferred_over_generating_one() -> None:
     stored = tutor.stored_solution(
         {
             "steps": [
-                {"step_number": 1, "explanation": "Set the two totals equal.",
-                 "expression": "5w - 12 = 3w + 4", "common_mistake": None},
-                {"step_number": 2, "explanation": "Divide both sides by 2.",
-                 "expression": "w = 8", "common_mistake": None},
+                {
+                    "step_number": 1,
+                    "explanation": "Set the two totals equal.",
+                    "expression": "5w - 12 = 3w + 4",
+                    "common_mistake": None,
+                },
+                {
+                    "step_number": 2,
+                    "explanation": "Divide both sides by 2.",
+                    "expression": "w = 8",
+                    "common_mistake": None,
+                },
             ],
             "final_answer": "8",
         },
@@ -478,9 +484,7 @@ class _CapturingGateway:
 
 def test_generate_hint_forwards_relevant_learning_fact_to_the_wire_payload() -> None:
     async def run() -> None:
-        hint = HintResponse(
-            hint_text="h", concept_reminder="c", next_step_prompt="n", difficulty=1
-        )
+        hint = HintResponse(hint_text="h", concept_reminder="c", next_step_prompt="n", difficulty=1)
         gateway = _CapturingGateway(hint)
         await tutor.generate_hint(
             gateway=gateway,

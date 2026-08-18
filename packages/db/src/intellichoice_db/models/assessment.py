@@ -36,9 +36,7 @@ class AssessmentSession(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # S22 (SPEC §5.9/§5.13, AssessmentPolicy): informational only, not backfilled for rows
     # created before this session - only discoverable via items before now.
-    topic_id: Mapped[str | None] = mapped_column(
-        ForeignKey("topics.topic_id"), nullable=True
-    )
+    topic_id: Mapped[str | None] = mapped_column(ForeignKey("topics.topic_id"), nullable=True)
     # JSON snapshot of the AssessmentPolicy applied at creation time (learning_api.services.
     # exam_policy) - stored so a later change to the policy constants can't retroactively
     # alter an already-in-progress exam's rules.

@@ -139,7 +139,6 @@ def _stream_session_factory() -> async_sessionmaker[AsyncSession]:
     return create_session_factory(create_engine())
 
 
-
 def test_dev_token_issues_a_verifiable_token() -> None:
     client = TestClient(app)
     resp = client.post("/dev/token", json={"role": "student", "sub": STUDENT_UNLINKED})
@@ -614,9 +613,7 @@ def test_stream_connect_rereads_state_after_the_narrative_call(
         # U3/D-325: the third element is the stage, so the snapshot can title the narrative.
         return "Welcome to math practice!", [], "pre_intro"
 
-    monkeypatch.setattr(
-        "learning_api.routers.stream._maybe_fire_pre_intro", _fake_pre_intro
-    )
+    monkeypatch.setattr("learning_api.routers.stream._maybe_fire_pre_intro", _fake_pre_intro)
 
     async def _fetch() -> SessionSnapshotEvent:
         profile_adapter = MySQLProfileAdapter(MYSQL_URL)

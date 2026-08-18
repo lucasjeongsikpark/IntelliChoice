@@ -76,9 +76,7 @@ async def _initial_snapshot(
 
     snapshot = await graph.aget_state(_graph_config(chat_session_id))
     if not snapshot.values:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="chat session not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="chat session not found")
     state = snapshot.values
     owner = state.get("user_external_id")
     if owner is not None and (claims is None or claims.sub != owner):
@@ -106,9 +104,7 @@ async def _initial_snapshot(
         escalation_recommended=state.get("escalation_recommended", False),
         # D-351: built field by field rather than `**access_hint`, because the state dict
         # carries `required_role` and this is the boundary that must not pass it on.
-        access_hint=(
-            AccessHintResponse(message=access_hint["message"]) if access_hint else None
-        ),
+        access_hint=(AccessHintResponse(message=access_hint["message"]) if access_hint else None),
         suggested_followups=followups,
         ics_content=state.get("ics_content"),
         pending_interrupt=(

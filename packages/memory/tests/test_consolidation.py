@@ -131,9 +131,7 @@ async def _seed_topic_skill(session: AsyncSession) -> Seed:
     topic = await curriculum.create_topic(
         Topic(curriculum_version="v1", name="Linear Equations", grade_band="6-8")
     )
-    skill = await curriculum.create_skill(
-        Skill(topic_id=topic.topic_id, name="linear_one_step")
-    )
+    skill = await curriculum.create_skill(Skill(topic_id=topic.topic_id, name="linear_one_step"))
     return Seed(topic_id=topic.topic_id, skill_id=skill.skill_id)
 
 
@@ -189,9 +187,7 @@ def test_candidate_dropped_when_no_evidence_ids_resolve() -> None:
             gateway = _FakeGateway(
                 [
                     MemoryUpdateResponse(
-                        facts_to_add=[
-                            _weak_skill_candidate(seed.skill_id, ["not-a-real-event-id"])
-                        ]
+                        facts_to_add=[_weak_skill_candidate(seed.skill_id, ["not-a-real-event-id"])]
                     )
                 ]
             )
@@ -311,9 +307,7 @@ def test_new_fact_below_minimum_evidence_is_provisional() -> None:
             gateway = _FakeGateway(
                 [
                     MemoryUpdateResponse(
-                        facts_to_add=[
-                            _weak_skill_candidate(seed.skill_id, [event.event_id])
-                        ]
+                        facts_to_add=[_weak_skill_candidate(seed.skill_id, [event.event_id])]
                     )
                 ]
             )
@@ -353,9 +347,7 @@ def test_new_fact_active_with_enough_events_across_enough_sessions() -> None:
                 [
                     MemoryUpdateResponse(
                         facts_to_add=[
-                            _weak_skill_candidate(
-                                seed.skill_id, [e.event_id for e in events]
-                            )
+                            _weak_skill_candidate(seed.skill_id, [e.event_id for e in events])
                         ]
                     )
                 ]
@@ -971,9 +963,7 @@ def test_consolidation_sends_a_fact_count_derived_budget() -> None:
 
 
 def _summary(event_id: str, chars: int) -> MemoryEventSummary:
-    return MemoryEventSummary(
-        event_id=event_id, event_type="study_outcome", summary="x" * chars
-    )
+    return MemoryEventSummary(event_id=event_id, event_type="study_outcome", summary="x" * chars)
 
 
 # **The sizes below are absolute, not derived from the constants under test, and that is the

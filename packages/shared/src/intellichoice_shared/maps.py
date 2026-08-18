@@ -44,8 +44,7 @@ class GeocodeQuery(BaseModel):
         ]
         if sum(forms) != 1:
             raise ValueError(
-                "exactly one of zip_code, city, address, or (latitude, longitude) "
-                "must be provided"
+                "exactly one of zip_code, city, address, or (latitude, longitude) must be provided"
             )
         return self
 

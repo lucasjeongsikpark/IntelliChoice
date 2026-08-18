@@ -158,9 +158,7 @@ async def review_panel(
             )
         else:
             readings.append(
-                ReviewerReading(
-                    reviewer=name, response=result.value, cost_cents=result.cost_cents
-                )
+                ReviewerReading(reviewer=name, response=result.value, cost_cents=result.cost_cents)
             )
 
     defects, discarded = merge_defects(readings, item)

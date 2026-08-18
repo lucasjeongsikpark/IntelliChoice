@@ -155,9 +155,7 @@ async def _audit_item(
     return verdict, spend
 
 
-async def _judge_item(
-    gateway, item: AuthoredTemplateDef, spend: float
-) -> tuple[dict, float]:
+async def _judge_item(gateway, item: AuthoredTemplateDef, spend: float) -> tuple[dict, float]:
     """One blind judge call. The judge never sees the declared tier (D-194), which is what
     makes the comparison below worth making at all.
     """
@@ -420,8 +418,10 @@ async def _self_test(items: list[AuthoredTemplateDef], budget_cents: float) -> i
     print()
 
     scored = caught + missed
-    print(f"\nnegative control: {caught}/{scored} deliberately-wrong items caught "
-          f"({errored} call failures, not scored), {_spend_note(spend)}")
+    print(
+        f"\nnegative control: {caught}/{scored} deliberately-wrong items caught "
+        f"({errored} call failures, not scored), {_spend_note(spend)}"
+    )
     if errored:
         print(
             f"{errored} call(s) failed. A failure is not evidence either way - a panel whose "
@@ -457,8 +457,10 @@ async def _run(items: list[AuthoredTemplateDef], budget_cents: float) -> int:
     for verdict in flagged:
         detail = verdict.error or "; ".join(verdict.objections)
         print(f"\n  {verdict.question_template_id}")
-        print(f"    declared={verdict.declared} solver_a={verdict.solver_a} "
-              f"solver_b={verdict.solver_b}")
+        print(
+            f"    declared={verdict.declared} solver_a={verdict.solver_a} "
+            f"solver_b={verdict.solver_b}"
+        )
         print(f"    {detail}")
     if flagged:
         print(

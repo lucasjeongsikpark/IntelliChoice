@@ -446,8 +446,7 @@ async def _checkpoint_writes_for_thread(thread_id: str) -> list[tuple[str, str, 
         async with session_factory() as session:
             result = await session.execute(
                 text(
-                    "SELECT channel, type, blob FROM checkpoint_writes "
-                    "WHERE thread_id = :thread_id"
+                    "SELECT channel, type, blob FROM checkpoint_writes WHERE thread_id = :thread_id"
                 ),
                 {"thread_id": thread_id},
             )
@@ -494,9 +493,7 @@ def test_resume_coordinates_do_not_outlive_the_locator_turn_in_checkpoint_writes
         # The audit measured the coordinates surviving two further turns; the purge
         # must not break the thread for them either.
         for query in ("zqxvchunk handbook", "What is the nearest branch to me?"):
-            followup = client.post(
-                f"/chat/sessions/{session_id}/messages", json={"query": query}
-            )
+            followup = client.post(f"/chat/sessions/{session_id}/messages", json={"query": query})
             assert followup.status_code == 200
 
     rows = asyncio.run(_checkpoint_writes_for_thread(session_id))
@@ -570,9 +567,7 @@ def test_the_other_location_forms_also_do_not_outlive_the_locator_turn(
         "the decoded writes do not even contain the query, so the absence of the location "
         "below proves nothing about whether it was stored"
     )
-    assert value not in decoded, (
-        f"the {form} survived the locator turn in a checkpointed field"
-    )
+    assert value not in decoded, f"the {form} survived the locator turn in a checkpointed field"
 
 
 def test_an_anonymous_caller_cannot_continue_an_owned_thread() -> None:

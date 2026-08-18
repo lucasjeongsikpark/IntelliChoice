@@ -111,9 +111,7 @@ async def get_current_claims(request: Request) -> TokenClaims:
     """
     auth_header = request.headers.get("authorization")
     if not auth_header or not auth_header.lower().startswith("bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
     token = auth_header.split(" ", 1)[1]
     try:
         claims = get_token_verifier().verify(token, Audience.LEARNING)

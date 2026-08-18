@@ -167,10 +167,7 @@ def _chart_items() -> list[tuple[AuthoredTemplateDef, object]]:
             final = answer
         elif kind == "difference":
             top, bottom = max(values), min(values)
-            stem = (
-                f"The chart shows {title.lower()}. How much more is the highest than "
-                f"the lowest?"
-            )
+            stem = f"The chart shows {title.lower()}. How much more is the highest than the lowest?"
             answer = str(top - bottom)
             options = [answer, str(top + bottom), str(top), str(bottom)]
             expression = f"Eq(x, {top} - {bottom})"
@@ -375,9 +372,7 @@ def _shape_items() -> list[tuple[AuthoredTemplateDef, object]]:
                     generator_model="authored-figure-script",
                     random_seed=720100 + index,
                     answer_expression=expr,
-                    figure_spec=ShapeFigure(
-                        shape=shape, side_lengths=sides, unit=unit
-                    ),
+                    figure_spec=ShapeFigure(shape=shape, side_lengths=sides, unit=unit),
                 ),
                 None,
             )
@@ -464,9 +459,7 @@ def _grid_items() -> list[tuple[AuthoredTemplateDef, object]]:
                             {
                                 "step_number": 1,
                                 "explanation": "Read each point off the grid, across then up.",
-                                "expression": " ".join(
-                                    f"({px:g}, {py:g})" for px, py in points
-                                ),
+                                "expression": " ".join(f"({px:g}, {py:g})" for px, py in points),
                                 "common_mistake": "reading up before across",
                             },
                             {

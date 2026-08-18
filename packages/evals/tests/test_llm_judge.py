@@ -82,9 +82,7 @@ def _no_real_bedrock_creds_reason() -> str | None:
     return None
 
 
-@pytest.mark.skipif(
-    (_reason := _no_real_bedrock_creds_reason()) is not None, reason=_reason or ""
-)
+@pytest.mark.skipif((_reason := _no_real_bedrock_creds_reason()) is not None, reason=_reason or "")
 def test_run_llm_judge_against_real_bedrock_creds() -> None:
     """Runs only when someone asks for it with `EVAL_REAL_BEDROCK=1` - the point is that the
     skip condition and the real-provider wiring are correct, per ROADMAP S30's own "Done when"

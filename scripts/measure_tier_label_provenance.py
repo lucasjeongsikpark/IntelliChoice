@@ -125,7 +125,7 @@ async def main() -> int:
     )
     print(
         "\nThis is NOT a defect count. D-301's decision is that `difficulty_label` means "
-        "\"the tier the\nplan asked for\", which is what the study planner plays in order. "
+        '"the tier the\nplan asked for", which is what the study planner plays in order. '
         "The number matters because\nit bounds how much of any tier-4/5 shortage is a "
         "labelling artefact rather than missing content."
     )

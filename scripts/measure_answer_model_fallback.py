@@ -214,7 +214,7 @@ async def main() -> None:
                 item, whole_numbers=_counts_in_whole_numbers(snapshot.get("skill_id"))
             )
             report.verdicts[verdict] += 1
-            line = f"  [{snapshot.get('skill_id','?')}] {item.equation}  ->  {detail}"
+            line = f"  [{snapshot.get('skill_id', '?')}] {item.equation}  ->  {detail}"
             if verdict == "recovered" and len(report.recovered_examples) < 8:
                 report.recovered_examples.append(f"{line}\n      stem: {item.stem[:110]}")
             if verdict == "still_wrong" and len(report.wrong_examples) < 6:
@@ -239,8 +239,7 @@ async def main() -> None:
                 report.control_flips.append(f"  {item.equation}")
 
     print(
-        f"\nRe-gated {len(rows)} stored runs from the last {args.hours}h "
-        f"(free, no model call).\n"
+        f"\nRe-gated {len(rows)} stored runs from the last {args.hours}h (free, no model call).\n"
     )
     print(f"Candidates rejected for an answer mismatch: {report.considered}")
     for verdict, n in report.verdicts.most_common():

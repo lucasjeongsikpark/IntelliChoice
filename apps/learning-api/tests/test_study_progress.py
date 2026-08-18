@@ -57,9 +57,7 @@ def _attempt(variant: str, label: str | None) -> StudyAttempt:
 
 
 def test_no_attempts_yet_is_zero_of_five_on_the_first_skill() -> None:
-    progress = study_progress.compute(
-        _session(), [_item("v1", SKILLS[0])], []
-    )
+    progress = study_progress.compute(_session(), [_item("v1", SKILLS[0])], [])
     assert progress.skills_total == 5
     assert progress.skills_resolved == 0
     assert progress.current_skill_position == 1

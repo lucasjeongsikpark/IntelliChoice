@@ -29,6 +29,4 @@ class InterruptApproval(Base):
     # admin-escalation/calendar actions, so there's no external id to record for them -
     # learning-api requires auth on every endpoint and always supplies one.
     decided_by_external_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    decided_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

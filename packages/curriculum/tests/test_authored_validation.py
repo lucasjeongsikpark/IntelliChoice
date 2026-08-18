@@ -32,9 +32,7 @@ def _good_item(**overrides: object) -> AuthoredGeneratedItemResponse:
             "Add the two numbers together directly.",
         ],
         canonical_solution=SolutionResponse(
-            steps=[
-                SolutionStep(step_number=1, explanation="Add the numbers.", expression="2 + 2")
-            ],
+            steps=[SolutionStep(step_number=1, explanation="Add the numbers.", expression="2 + 2")],
             final_answer="4",
         ),
         misconception_tags=["off_by_one"],
@@ -94,9 +92,7 @@ def test_correct_answer_written_as_an_equation_is_accepted() -> None:
         equation="Eq(2*x + 7, 1)",
         option_a="−3",
         canonical_solution=SolutionResponse(
-            steps=[
-                SolutionStep(step_number=1, explanation="Subtract 7.", expression="2x = -6")
-            ],
+            steps=[SolutionStep(step_number=1, explanation="Subtract 7.", expression="2x = -6")],
             final_answer="−3",
         ),
     )

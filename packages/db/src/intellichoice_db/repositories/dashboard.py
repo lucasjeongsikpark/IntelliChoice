@@ -19,9 +19,7 @@ from intellichoice_db.models.assessment import AssessmentAttempt, AssessmentSess
 from intellichoice_db.models.mastery import LearningGain, StudyAttempt, StudyItem
 
 
-def _apply_range(
-    stmt: Select, column, start: datetime | None, end: datetime | None
-) -> Select:
+def _apply_range(stmt: Select, column, start: datetime | None, end: datetime | None) -> Select:
     if start is not None:
         stmt = stmt.where(column >= start)
     if end is not None:
@@ -70,4 +68,3 @@ class DashboardRepository:
         stmt = stmt.order_by(AssessmentAttempt.submitted_at)
         result = await self._session.execute(stmt)
         return [(row[0], row[1]) for row in result.all()]
-

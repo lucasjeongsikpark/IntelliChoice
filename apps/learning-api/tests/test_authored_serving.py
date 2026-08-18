@@ -376,9 +376,7 @@ def test_an_exam_still_reaches_full_length_when_one_difficulty_is_short() -> Non
                 ),
                 {"topic_id": TOPIC_ID, "keep": keep.question_template_id},
             )
-            counts = await question_repo.get_active_questions_by_difficulty(
-                TOPIC_ID, DIFFICULTIES
-            )
+            counts = await question_repo.get_active_questions_by_difficulty(TOPIC_ID, DIFFICULTIES)
             assert len(counts[3]) == 1, "fixture must leave difficulty 3 short"
             assert sum(len(v) for v in counts.values()) >= EXAM_QUESTION_COUNT
 
@@ -444,9 +442,7 @@ def test_every_topic_the_picker_calls_available_can_actually_build_an_exam() -> 
                 }
                 for topic in curriculum.topics
             }
-            options = build_topic_options(
-                curriculum=curriculum, active_counts=counts, grade=None
-            )
+            options = build_topic_options(curriculum=curriculum, active_counts=counts, grade=None)
             available = [o.topic_id for o in options if o.available]
             assert available, "fixture assumes a stocked bank"
 
@@ -458,9 +454,7 @@ def test_every_topic_the_picker_calls_available_can_actually_build_an_exam() -> 
                     topic_id=topic_id,
                     rng=random.Random(SEED),
                 )
-                items = await AssessmentRepository(session).get_items(
-                    exam.assessment_session_id
-                )
+                items = await AssessmentRepository(session).get_items(exam.assessment_session_id)
                 assert len(items) == EXAM_QUESTION_COUNT, (
                     f"{topic_id} is offered but built {len(items)} of "
                     f"{EXAM_QUESTION_COUNT} questions"
@@ -474,14 +468,10 @@ def test_every_topic_the_picker_calls_available_can_actually_build_an_exam() -> 
             # So the gap is synthesised: thin one topic to one item short of an exam and
             # assert it is withdrawn from the picker. That is the boundary the 503 lives on.
             thin = available[0]
-            counts_for = await question_repo.get_active_questions_by_difficulty(
-                thin, DIFFICULTIES
-            )
-            keep = [
-                template
-                for templates in counts_for.values()
-                for template in templates
-            ][: EXAM_QUESTION_COUNT - 1]
+            counts_for = await question_repo.get_active_questions_by_difficulty(thin, DIFFICULTIES)
+            keep = [template for templates in counts_for.values() for template in templates][
+                : EXAM_QUESTION_COUNT - 1
+            ]
             await session.execute(
                 text(
                     "update question_templates set active_status = 'retired' "

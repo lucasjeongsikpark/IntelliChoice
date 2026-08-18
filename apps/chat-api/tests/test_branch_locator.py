@@ -124,9 +124,7 @@ def _registry(maps_provider: FakeMapsProvider) -> McpToolRegistry:
         McpTool(name="gmail.send_email", args_model=EmailMessage, handler=_unused_send)
     )
     registry.register(
-        McpTool(
-            name="calendar.create_event", args_model=CalendarEvent, handler=_unused_calendar
-        )
+        McpTool(name="calendar.create_event", args_model=CalendarEvent, handler=_unused_calendar)
     )
     registry.register(
         McpTool(name="maps.geocode", args_model=GeocodeQuery, handler=maps_provider.geocode)

@@ -241,9 +241,7 @@ class Findings:
     status: dict[str, Status] = field(default_factory=dict)
 
 
-def partition_findings(
-    items: list[JudgedItem], verdicts: dict[str, Adjudication]
-) -> Findings:
+def partition_findings(items: list[JudgedItem], verdicts: dict[str, Adjudication]) -> Findings:
     """Split a judge run into new / known / lapsed / moot.
 
     Pure and separate from the audit script on purpose. This is the code that decides what

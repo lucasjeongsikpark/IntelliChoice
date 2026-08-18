@@ -340,8 +340,7 @@ async def _rerank(
     spend.add(result.cost_cents)
     by_index = {s.candidate_index: s.relevance_score for s in result.value.scores}
     return {
-        candidate.chunk_id: by_index.get(index, 0.0)
-        for index, candidate in enumerate(candidates)
+        candidate.chunk_id: by_index.get(index, 0.0) for index, candidate in enumerate(candidates)
     }
 
 
@@ -443,9 +442,7 @@ def nearest_hint(row: _Row, cut: float, candidates: Sequence[_Candidate] | None 
     """Production's rule as of AUD-C-22's first half: closest chunk per audience."""
     best: dict[str, float] = {}
     for candidate in _under(candidates if candidates is not None else row.semantic, cut):
-        best[candidate.audience] = min(
-            best.get(candidate.audience, 1.0), candidate.distance
-        )
+        best[candidate.audience] = min(best.get(candidate.audience, 1.0), candidate.distance)
     return _hint({a: AudienceMatch(count=1, score=1.0 - d) for a, d in best.items()})
 
 
@@ -454,9 +451,7 @@ def priority_only_hint(row: _Row, cut: float):
     that named branch_manager for a parent's question. Kept as the baseline every other row in
     the table has to beat.
     """
-    return _hint(
-        {c.audience: AudienceMatch(count=1) for c in _under(row.semantic, cut)}
-    )
+    return _hint({c.audience: AudienceMatch(count=1) for c in _under(row.semantic, cut)})
 
 
 def topk_hint(row: _Row, cut: float, k: int, weight: str, per_document: bool = False):
@@ -484,9 +479,7 @@ def topk_hint(row: _Row, cut: float, k: int, weight: str, per_document: bool = F
             term = math.exp(-candidate.distance / EXP_TAU)
         scores[candidate.audience] = scores.get(candidate.audience, 0.0) + term
         counts[candidate.audience] = counts.get(candidate.audience, 0) + 1
-    return _hint(
-        {a: AudienceMatch(count=counts[a], score=s) for a, s in scores.items()}
-    )
+    return _hint({a: AudienceMatch(count=counts[a], score=s) for a, s in scores.items()})
 
 
 def _fused(row: _Row, cut: float, limit: int) -> list[_Candidate]:
@@ -790,16 +783,11 @@ async def _collect(args: argparse.Namespace, gateway: BedrockGateway, spend: _Sp
             async with session.begin():
                 chunks = (
                     await session.execute(
-                        text(
-                            "SELECT chunk_id, chunk_text FROM rag_chunks WHERE status='approved'"
-                        )
+                        text("SELECT chunk_id, chunk_text FROM rag_chunks WHERE status='approved'")
                     )
                 ).all()
                 embeddings = await _gather_limited(
-                    [
-                        (lambda t=chunk_text: _embed(gateway, t, spend))
-                        for _, chunk_text in chunks
-                    ],
+                    [(lambda t=chunk_text: _embed(gateway, t, spend)) for _, chunk_text in chunks],
                     args.concurrency,
                 )
                 for (chunk_id, _), vector in zip(chunks, embeddings, strict=True):
@@ -881,9 +869,7 @@ async def _collect(args: argparse.Namespace, gateway: BedrockGateway, spend: _Sp
                     ).scalar()
                     src = (
                         (
-                            await session.execute(
-                                _SRC, {"vec": vec, "c": case["source_chunk_id"]}
-                            )
+                            await session.execute(_SRC, {"vec": vec, "c": case["source_chunk_id"]})
                         ).scalar()
                         if case["source_chunk_id"]
                         else None
@@ -921,11 +907,7 @@ async def _collect(args: argparse.Namespace, gateway: BedrockGateway, spend: _Sp
     # for ten minutes.
     rerank_scores = await _gather_limited(
         [
-            (
-                lambda r=row: _rerank(
-                    gateway, r.case["query"], r.semantic[:RERANK_TOP_K], spend
-                )
-            )
+            (lambda r=row: _rerank(gateway, r.case["query"], r.semantic[:RERANK_TOP_K], spend))
             for row in rows
         ],
         args.concurrency,
@@ -1048,9 +1030,7 @@ def _report(args: argparse.Namespace, rows: list[_Row], skipped: list[str], spen
     print("-" * (len(hdr) - 1))
 
     def line(label: str, fn) -> None:
-        print(
-            "{:>26} | {:>5} | {:>5} | {:>6} | {:>9} | {:>8}".format(label, *tally(fn))
-        )
+        print("{:>26} | {:>5} | {:>5} | {:>6} | {:>9} | {:>8}".format(label, *tally(fn)))
 
     for ratio in RATIOS:
         line(f"kw >={ratio}", lambda r, x=ratio: kw_legacy_hint(r, x))
@@ -1139,18 +1119,14 @@ def _report(args: argparse.Namespace, rows: list[_Row], skipped: list[str], spen
         for margin in (0.05, 0.1):
             line(
                 f"pf >{floor:.2f} m{margin:.2f}",
-                lambda r, f=floor, m=margin: rerank_prefloor_margin_hint(
-                    r, f, m, cut=0.60
-                ),
+                lambda r, f=floor, m=margin: rerank_prefloor_margin_hint(r, f, m, cut=0.60),
             )
     if args.hyde:
         for cut in (0.60, 0.65):
             for margin in (0.1, 0.2):
                 line(
                     f"hyde rr <={cut:.2f} m{margin:.2f}",
-                    lambda r, c=cut, m=margin: rerank_margin_hint(
-                        r, 0.5, m, hyde=True, cut=c
-                    ),
+                    lambda r, c=cut, m=margin: rerank_margin_hint(r, 0.5, m, hyde=True, cut=c),
                 )
 
     # AUD-C-25/D-179: the row that is the code. Printed last and separated, because it is not
@@ -1235,9 +1211,7 @@ def _parity(rows: list[_Row], against: str = "pf_f09_m01") -> None:
             score = row.rerank.get(candidate.chunk_id)
             if score is not None:
                 best[candidate.audience] = max(best.get(candidate.audience, 0.0), score)
-        bests = "  ".join(
-            f"{a}={s:.2f}" for a, s in sorted(best.items(), key=lambda kv: -kv[1])
-        )
+        bests = "  ".join(f"{a}={s:.2f}" for a, s in sorted(best.items(), key=lambda kv: -kv[1]))
         print(
             f"    {row.case['id']:<28} {row.case['category']:<14} "
             f"{(theirs.required_role if theirs else '-'):>12} -> "
@@ -1259,10 +1233,7 @@ def _stability(rows: list[_Row]) -> None:
     for row in repeated:
         n = len(row.rerank_repeats)
         expected = row.case["expected_required_role"]
-        print(
-            f"\n  {row.case['id']} ({row.case['category']}, expected="
-            f"{expected}) x{n} repeats"
-        )
+        print(f"\n  {row.case['id']} ({row.case['category']}, expected={expected}) x{n} repeats")
         by_chunk_audience = {c.chunk_id: c.audience for c in row.semantic}
         for index, scores in enumerate(row.rerank_repeats):
             best: dict[str, float] = {}
@@ -1341,27 +1312,25 @@ def _open_text(path: Path, mode: str):
 
 
 def _dump_rows(rows: list[_Row], path: Path) -> None:
-    payload = (
-        json.dumps(
-            [
-                {
-                    "case": row.case,
-                    "n_lex": row.n_lex,
-                    "kw_legacy": [
-                        {"audience": k.audience, "matched": int(k.matched)} for k in row.kw_legacy
-                    ],
-                    "kw_ranked": row.kw_ranked,
-                    "semantic": [vars(c) for c in row.semantic],
-                    "accessible": row.accessible,
-                    "src": row.src,
-                    "rerank": row.rerank,
-                    "hyde_semantic": [vars(c) for c in row.hyde_semantic],
-                    "hyde_rerank": row.hyde_rerank,
-                    "rerank_repeats": row.rerank_repeats,
-                }
-                for row in rows
-            ]
-        )
+    payload = json.dumps(
+        [
+            {
+                "case": row.case,
+                "n_lex": row.n_lex,
+                "kw_legacy": [
+                    {"audience": k.audience, "matched": int(k.matched)} for k in row.kw_legacy
+                ],
+                "kw_ranked": row.kw_ranked,
+                "semantic": [vars(c) for c in row.semantic],
+                "accessible": row.accessible,
+                "src": row.src,
+                "rerank": row.rerank,
+                "hyde_semantic": [vars(c) for c in row.hyde_semantic],
+                "hyde_rerank": row.hyde_rerank,
+                "rerank_repeats": row.rerank_repeats,
+            }
+            for row in rows
+        ]
     )
     with _open_text(path, "w") as handle:
         handle.write(payload)
@@ -1435,9 +1404,7 @@ async def _run(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--probe-fixture", default="apps/chat-api/tests/fixtures/probe_eval.yaml"
-    )
+    parser.add_argument("--probe-fixture", default="apps/chat-api/tests/fixtures/probe_eval.yaml")
     parser.add_argument(
         "--coverage-fixture", default="apps/chat-api/tests/fixtures/qa_coverage_eval.yaml"
     )

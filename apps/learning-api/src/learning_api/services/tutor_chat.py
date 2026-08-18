@@ -70,8 +70,16 @@ SAFETY_RESPONSE = (
 )
 
 _SAFETY_KEYWORDS = (
-    "kill myself", "suicide", "hurt myself", "self harm", "self-harm",
-    "want to die", "end my life", "hurting me", "abuse", "being hurt",
+    "kill myself",
+    "suicide",
+    "hurt myself",
+    "self harm",
+    "self-harm",
+    "want to die",
+    "end my life",
+    "hurting me",
+    "abuse",
+    "being hurt",
 )
 
 # D-207: both prompts now bound the reply's *length* as well as its content. The ceiling
@@ -205,6 +213,7 @@ async def _tutor_chat_call(
         relevant_learning_fact=relevant_learning_fact,
         redacted_message=redacted_message,
     )
+
     async def _call(max_output_tokens: int, spend: float):
         return await gateway.generate_structured(
             task=BedrockTask.TUTOR_CHAT,
@@ -226,9 +235,7 @@ async def _tutor_chat_call(
         # apology, which is what staging did. Still bounded: one retry, then the fallback.
         truncation_cost = exc.cost_cents
         try:
-            result = await _call(
-                _RETRY_CHAT_REPLY_TOKENS, session_spend_cents + truncation_cost
-            )
+            result = await _call(_RETRY_CHAT_REPLY_TOKENS, session_spend_cents + truncation_cost)
         except BedrockGatewayError as retry_exc:
             return _fallback_chat_response(), truncation_cost + retry_exc.cost_cents
     except BedrockGatewayError as exc:

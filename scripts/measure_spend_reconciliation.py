@@ -97,8 +97,10 @@ async def main() -> int:
         return 0
 
     median_design = statistics.median(per_attempt)
-    print(f"\ncost per design attempt:    median {median_design:.4f}c "
-          f"(min {min(per_attempt):.4f}, max {max(per_attempt):.4f}, n={len(per_attempt)})")
+    print(
+        f"\ncost per design attempt:    median {median_design:.4f}c "
+        f"(min {min(per_attempt):.4f}, max {max(per_attempt):.4f}, n={len(per_attempt)})"
+    )
 
     if accepted_without:
         avg = statistics.mean(float(r.cost_cents) for r in accepted_without)
@@ -110,8 +112,10 @@ async def main() -> int:
 
     if accepted_with_design:
         recorded = [float(_design(r)["cost_cents"]) for r in accepted_with_design]
-        print(f"\npost-D-294 accepted rows:   {len(recorded)} record a design cost, "
-              f"median {statistics.median(recorded):.4f}c")
+        print(
+            f"\npost-D-294 accepted rows:   {len(recorded)} record a design cost, "
+            f"median {statistics.median(recorded):.4f}c"
+        )
         missing = [r for r in accepted_with_design if not _design(r).get("cost_cents")]
         if missing:
             print(f"  WARNING: {len(missing)} claim a passed design with no cost recorded")

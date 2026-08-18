@@ -55,6 +55,4 @@ class StudentReport(Base):
     # states the same rule for every row instead of leaving a permanent "may be missing" case
     # for the next reader (and for the unique constraint) to reason about.
     idempotency_key: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

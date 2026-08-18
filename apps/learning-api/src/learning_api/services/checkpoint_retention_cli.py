@@ -158,9 +158,7 @@ async def _delete_checkpoint(session: AsyncSession, thread_id: str) -> None:
     transaction so a crash cannot leave the rows gone and the summary still claiming they exist.
     """
     for table in _CHECKPOINT_TABLES:
-        await session.execute(
-            text(f"DELETE FROM {table} WHERE thread_id = :t"), {"t": thread_id}
-        )
+        await session.execute(text(f"DELETE FROM {table} WHERE thread_id = :t"), {"t": thread_id})
 
 
 async def _ensure_consolidated(
