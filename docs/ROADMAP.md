@@ -3099,6 +3099,52 @@ on an out-of-scope refusal invites the escalations the refusal exists to prevent
 says nothing · falsified by reverting the render · the two items left undone name the design rather
 than the symptom.
 
+## Milestone 14 — The last stuck state, and the exit that was already there *(D-413, 2026-08-18)*
+
+> ### ✅ CLOSED 2026-08-18 — one session, every clause checked against what was measured
+>
+> **Verification:** `ruff` **All checks passed** · `pyright` **0 errors** · pytest **1726 passed / 2
+> skipped / 1 xfailed** (unchanged — no Python touched) · Playwright **127 passed / 2 skipped** in
+> 6.4m across three projects, identical to the baseline · chat-web **36** unit tests, up from 6 ·
+> learning-web **21**, unchanged · both builds clean.
+>
+> **Ten guards falsified individually**, including two bugs in the change itself that were found by
+> re-reading it rather than by any failing test — a retried turn and a late-answered turn each kept a
+> stale terminal flag.
+
+Milestone 13 closed the 08-16 audit's P2 list and left exactly one item that was code rather than a
+judgement: `AUD-CHAT-07`'s missing deadline, with its design already named by D-412. This milestone
+is that item.
+
+It kept the habit that has paid every time: **read the subject before implementing the note.** Doing
+so found two defects the note does not mention, both in the same eight lines, and one of them worse
+than the item itself — the visitor's only visible exit from the stuck state was a button that had
+never done anything after a reload.
+
+### Session W19 — A replayed turn can end, and Stop can stop it ✅ *(done 2026-08-18, D-413)*
+
+**Outcome:** the replayed `Thinking…` now resolves into the existing retryable state after
+`REQUEST_TIMEOUT_MS`, a value derived from the server's own turn deadline rather than picked - the
+reload does not shorten how long an answer is legitimately allowed to take. Two unnamed defects fixed
+with it: `cancelTurn` did nothing at all on a replayed turn (both in-flight refs are `null` at mount),
+and it aborted whatever was in flight rather than the turn whose Stop was clicked. The new state is a
+fifth `ChatTurn` state rather than a reuse of `error`, because *"That message couldn't be sent."* is
+false for a turn that was sent - the `AEL-01` shape. `isPendingTurn` moved to `lib/turnState.ts` so
+the render gate and the deadline read one definition.
+
+`@testing-library/react` arrived here as OPEN_DECISIONS #14 said it would, in both frontends, and the
+harness needed a fix of its own: without `globals: true` its `afterEach(cleanup)` is never
+registered, so `screen` queries match markup left by earlier tests in the same file - measured as a
+screen with two Stop buttons reporting three.
+
+**Done when:** a replayed pending turn reaches a retryable state at the deadline and **not before** ·
+the wording does not claim the message failed to send, asserted against a real render with the
+"couldn't be sent" branch as a control · Stop on a replayed turn calls D-402's endpoint with **that**
+turn's id and does not touch a different in-flight turn · an unfinished snapshot is cleared, so no
+turn can reach an end state that renders nothing · "pending" has exactly one definition · **each of
+the eight guards falsified separately**, including one falsification that had to be redone because
+the patch, not the test, was worthless.
+
 ## The audit's never-walked list is now closed
 
 Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found

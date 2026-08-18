@@ -73,6 +73,18 @@ to rot, because nothing fails when it does.)*
   its regression test manufactures the window with `route.continue()` rather than waiting to be
   lucky.
 
+  **The deadline half generalises past render gates, and D-413 is the second instance.** Any client
+  state whose only exit is a message that may never arrive needs a bound, or the silent case becomes
+  a permanent one. chat-web replays its transcript from `sessionStorage` on reload, so a turn that was
+  in flight comes back as `Thinking…` with no request behind it — the sole thing that can finish it is
+  the stream matching a snapshot to its `client_turn_id`, and two ordinary paths never produce one
+  (the question never reached the server, so the checkpoint names a different turn and the snapshot is
+  correctly dropped; or the process died mid-turn, so the checkpoint's state is unfinished and the
+  bubble stays even *with* a response). **The bound is derived, not chosen**: it equals the live
+  request's own `REQUEST_TIMEOUT_MS`, because a reload must not shorten how long an answer is allowed
+  to take — a shorter one marks turns lost while the graph is still working, and the snapshot arriving
+  afterwards clears the state again, so the visitor watches a bubble flap.
+
 - **A client rule that matches on the *content* of a server response is unverified until a test
   drives the server to produce it** (D-383, and it has now shipped three unreachable rules). Both
   web clients map a failure to a sentence by matching on **status plus a substring of the detail**,
@@ -1131,6 +1143,20 @@ to rot, because nothing fails when it does.)*
   every line passes through, not at the call sites: a call-site rule is vigilance, and it is the
   fourteenth call site that leaks. The redactor remains a floor — emails, URLs and phone numbers,
   not arbitrary prose — so this is depth behind "do not put text in logs", never a licence to.
+- **The end states a client can show must be mutually exclusive, and each must claim only what
+  happened** (D-413, and both halves have their own past defect). A turn in chat-web can end five
+  ways, three of which carry an `error` string — failed to send, stopped by the visitor, and lost to a
+  reload. **Exclusivity is structural, not stylistic**: the branches are conditions on the same object,
+  so a new state that reuses an existing field renders *beside* the old branch rather than instead of
+  it, which is `EDGE-CHAT-07` (one failure printed twice). **Honesty is the other half**: the failure
+  bubble says *"That message couldn't be sent."*, and a turn replayed by a reload shows `Thinking…`
+  precisely *because* it was sent — so reusing that state would have told a visitor the opposite of
+  what happened, which is `AEL-01` (a submit failure that told a student their progress *was* saved).
+  A fifth state with its own wording is cheaper than either. The mechanical form: one predicate module
+  owns "is this turn still pending" so the render gate and the logic that ends the wait cannot
+  disagree, and each branch's exclusion clause is asserted by rendering the real component — a
+  hand-copied version of the conditions would pass whatever they said.
+
 - **A test double is part of the schema's blast radius** (D-238). `MockBedrockProvider` dispatches
   on `json_schema["title"]`, a string match that connects nothing to the model it names, so D-194's
   field rename left two branches compiling, passing every test, and returning JSON that failed
