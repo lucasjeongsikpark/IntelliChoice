@@ -28078,3 +28078,47 @@ transition do with it".
 **Verification:** `ruff` clean · `pyright` 0 errors · pytest **1726 passed / 2 skipped / 1 xfailed**
 (unchanged, no Python touched) · Playwright **127 passed / 2 skipped**, identical to the baseline ·
 chat-web **36** unit tests where it had 6 · learning-web **21**, unchanged.
+
+## D-414 — W20: the disconnect banner's render condition, and the two properties beside it (accepted, 2026-08-18)
+
+**The last of the four assertions OPEN_DECISIONS #14 was raised for.** D-403 wrote this one in a
+browser, measured it flaky (1 pass / 2 failures over three isolated runs) and deleted it; #14 recorded
+it as the case that *"moves this item from preference to there is a class of assertion we cannot
+make"*. With `streamState` as a prop it is one line.
+
+**What the browser suite already held, and what it structurally cannot.**
+`stream-disconnect-visible.spec.ts` asserts the banner *appears* on a dead stream and that Reconnect
+opens a new one — the positive direction, and it is the more valuable one. The missing half is
+*"`error` **and nothing else**"*, which needs a stream that opens and **stays open**: `route.fulfill`
+cannot hold an SSE response open, so the harness's own stub closes the body, `onerror` fires, and the
+banner correctly appears — the deleted control was racing the app being right. Asserting the negative
+direction is D-221's rule (*"score both directions and treat the negative controls as a first-class
+number"*) applied to a render condition rather than to a gate.
+
+**Two properties came with it, both directions of a rule the suite only half-covers.**
+
+- **`role="alert"` is not exclusive.** The banner and a failed turn's bubble both use it, so on a
+  healthy stream the only alert on screen must be the turn's. An always-firing banner fails that test
+  as well as the two negative ones — which is what makes it more than a restatement of them.
+- **The connection dot's `idle` state, in the direction the defect was in.** D-343 measured a fresh
+  session announcing an indefinite "connecting" for a connection that had never been attempted, since
+  the effect deliberately returns early until the first turn exists. `accessibility.spec.ts` asserts
+  the dot is **not** idle once a turn exists; nothing asserted that it **is** before one. Both
+  directions now exist, in the two places each is cheapest.
+
+**learning-web is deliberately not covered, and the reason is worth more than the omission.** It has
+the same banner *and* a richer rule — `error` with no snapshot is a full takeover screen ("We lost the
+connection"), `error` with a snapshot is the banner — but both conditions live inside `App.tsx`'s
+render logic, which cannot be rendered without mocking the session hook. **Extracting the banner JSX
+into a component would move the markup and leave the condition untested**, producing a test that looks
+like coverage and asserts nothing anyone doubted. Recorded as carry-over so the next person prices the
+real work (mocking `useLearningSession`) rather than the cosmetic version. This is the D-347 asymmetry
+being *named* rather than papered over.
+
+**Falsification:** five guards, each failing the intended test — the banner firing on `connecting`,
+firing unconditionally (3 tests, including the alert-exclusivity one), a decorative Reconnect button, a
+dot with no `idle` state, and a banner without `role="alert"`.
+
+**No product code changed** — six assertions on existing behaviour — so pytest and Playwright are
+unaffected by construction; both were green on this commit's parent (`d4fa9fc`) an hour earlier.
+chat-web is at **42** unit tests, from 6 at the start of the day.

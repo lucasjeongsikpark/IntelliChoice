@@ -3101,16 +3101,20 @@ than the symptom.
 
 ## Milestone 14 — The last stuck state, and the exit that was already there *(D-413, 2026-08-18)*
 
-> ### ✅ CLOSED 2026-08-18 — one session, every clause checked against what was measured
+> ### ✅ CLOSED 2026-08-18 — two sessions, every clause checked against what was measured
 >
 > **Verification:** `ruff` **All checks passed** · `pyright` **0 errors** · pytest **1726 passed / 2
 > skipped / 1 xfailed** (unchanged — no Python touched) · Playwright **127 passed / 2 skipped** in
-> 6.4m across three projects, identical to the baseline · chat-web **36** unit tests, up from 6 ·
+> 6.4m across three projects, identical to the baseline · chat-web **42** unit tests, up from 6 ·
 > learning-web **21**, unchanged · both builds clean.
 >
-> **Ten guards falsified individually**, including two bugs in the change itself that were found by
+> **Fifteen guards falsified individually**, including two bugs in W19's change that were found by
 > re-reading it rather than by any failing test — a retried turn and a late-answered turn each kept a
 > stale terminal flag.
+>
+> **W20 spends the tooling W19 installed**, on the assertion that justified asking for it: the
+> disconnect banner's render condition, which a browser measured flaky and deleted. The milestone
+> therefore both fixes the last stuck state and pays off the last of OPEN_DECISIONS #14's four debts.
 
 Milestone 13 closed the 08-16 audit's P2 list and left exactly one item that was code rather than a
 judgement: `AUD-CHAT-07`'s missing deadline, with its design already named by D-412. This milestone
@@ -3144,6 +3148,26 @@ turn's id and does not touch a different in-flight turn · an unfinished snapsho
 turn can reach an end state that renders nothing · "pending" has exactly one definition · **each of
 the eight guards falsified separately**, including one falsification that had to be redone because
 the patch, not the test, was worthless.
+
+### Session W20 — The banner's render condition, in the direction a browser cannot see ✅ *(done 2026-08-18, D-414)*
+
+**Outcome:** the fourth and last of the assertions OPEN_DECISIONS #14 was argued from. The browser
+suite already holds that the banner *appears* on a dead stream and that Reconnect opens a new one; what
+it cannot hold is *"`error` and nothing else"*, because showing a healthy stream produces no banner
+needs an SSE response the harness cannot keep open — D-403 wrote that control, measured it flaky, and
+deleted it. Two properties came with it: `role="alert"` is shared with a failed turn's bubble, so on a
+healthy stream the only alert must be the turn's; and the connection dot's `idle` state is now asserted
+in the direction D-343's defect was in, where the browser suite only had the opposite one.
+
+**learning-web deliberately not covered**, and named rather than papered over: it has the same banner
+plus a richer rule (no snapshot → a takeover screen, snapshot → the banner), but both conditions sit
+inside `App.tsx`, so the real work is mocking the session hook. Extracting the JSX would move markup
+and leave the condition untested — coverage-shaped and worth nothing.
+
+**Done when:** the banner is asserted **absent** for `connecting` and `open`, not only present for
+`error` · Reconnect is proven wired rather than decorative · exactly one `role="alert"` on a healthy
+stream with a failed turn · the dot reads idle before any turn exists · **five guards falsified
+separately**, and no product code changed.
 
 ## The audit's never-walked list is now closed
 
