@@ -27832,3 +27832,70 @@ fixture happens to be in a blocked state. Recorded plainly: **no browser asserti
 Nothing in `e2e/` asserts the old raw format, so nothing breaks, and reaching the blocked list as a
 parent needs a fixture put into that state — more cost than value when the logic is pure and the
 wiring is two substitutions `tsc` checks.
+
+## D-408 — `EDGE-CHAT-07` closed as accepted: two channels, one event (accepted, 2026-08-18)
+
+*"The send-failure message is printed twice - once in the transcript bubble and once in the banner
+above the composer."* **Built, then reverted, then closed as accepted** — and the reverting is the
+part worth recording.
+
+The fix was straightforward and followed an existing precedent in the same function: a ref mirroring
+`wasCancelledRef`, so `run` suppresses the banner for a failure already stated on a turn. D-352 had
+written that argument down for cancellations — *"a user-initiated cancel is already stated on the
+turn itself; a red page banner on top of it would read as a failure the user did not cause."*
+
+**It failed an existing test that asserts the banner deliberately.**
+`response-shapes.spec.ts`'s AUD-C-10 regression: *"The page-level banner still renders - it was never
+the problem, it just could not clear a per-turn bubble."* So the audit calls the duplicate a defect
+while a test asserts it exists.
+
+**Reverted rather than resolved by editing the test.** Changing an assertion to match a change is
+how a deliberate behaviour becomes an accident, and the disagreement was real rather than stale: the
+bubble is precise but scrolls away in a long transcript, while the banner sits exactly where the
+visitor is about to retype. Two channels serving two moments is defensible.
+
+**The user's decision: keep both.** Closed as accepted, with the reasoning here so it is not
+re-filed. The `isSignedOut` detail is worth keeping too, since it would matter to whoever revisits
+this: the suppression must not cover it, or a turn-stated 401 stops signing the user out.
+
+## D-409 — W16: the report's 39 skills, grouped by the server's own classification (accepted, 2026-08-18)
+
+`AUD-L-10` had two halves and **one was already fixed**: `_RATE_FACTS` + `formatRate` turned
+proportions into percentages, with a comment about a student reading `Overall accuracy: 0.24`. What
+remained was 39 skills joined into one paragraph on the artefact a parent trusts.
+
+**Two bands, not the three the decision asked for, and that is a constraint rather than a
+preference.** "Strong / Developing / Needs work" needs two cutoffs. This system defines exactly one -
+`WEAK_SKILL_THRESHOLD = 0.7` - and `intellichoice_shared.mastery_policy` exists *because* **"two
+definitions of a classification threshold is how the same skill ends up 'weak' to one subsystem and
+'proficient' to another"** (AUD-L-13/D-156). A middle cut invented here would be a third definition,
+on a parent-facing report, disagreeing with what the study plan actually targets.
+
+**And no threshold appears in the client at all**, which is the better half of the design. The server
+already ships `weak_skill_names`, computed from that one constant, so the partition is set membership
+rather than a number TypeScript has to keep in step. A `0.7` in the client would be the
+cross-language copy `mastery_policy` warns about, in the one place no test could catch it drifting.
+
+**A structural test was written and removed as redundant.** It read the module's own source and
+asserted no `0.<digit>` appeared. That needed `node:fs`, which this app has no types for, which
+`npm run build` caught while `tsc --noEmit` passed - the build's project references are the real gate,
+the same lesson as D-405's vite config. Adding `@types/node` would have bought nothing: a future edit
+that partitioned on a score fails the *behavioural* assertion by construction, since a skill scoring
+0.01 and absent from the weak list can only land in `confident` if scores are ignored. Behaviour is
+also a stronger guard than a regex - a threshold spelled `7 / 10` would have walked straight past it.
+
+## D-410 — W16: `AUD-L-11`'s column was renamed, not removed (accepted, 2026-08-18)
+
+The decision taken was **remove the column** - *"a promise the product does not keep is worse than an
+absent affordance"* - on the audit's description: *"'Review' column promises something to open but no
+history row is clickable."*
+
+**Measuring it first changed the answer, and the option I offered was wrong.** The column is not
+inert. It renders `⚠️ Flagged` or `—` from `tutor_review_flagged`, which is the session that exhausted
+the retry ladder with a skill still unresolved (`learning_tutor_review_flagged_total`). Removing it
+would have **deleted a real fact about a child's session** in order to fix a misleading word.
+
+So the word changed: `Review` → `Tutor review`, which names the data instead of implying an action.
+The false promise is gone and nothing is lost. Recorded because the instruction was followed in
+intent and not in letter, and the reason is that the premise behind it did not survive contact with
+the code.

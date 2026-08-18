@@ -187,9 +187,29 @@ unrecognised `AttendanceStatus` member.
 
 **Recommended next, in priority order:**
 
-1. **The rest of the frontend P3 list** — the report's 39-skill comma run-on and denominator-less
-   scores (`ReportView.tsx:47`), the non-clickable "Review" column (`StudentDashboardScreen.tsx:733`),
-   the duplicated send-failure message (`ChatScreen.tsx:413`), and the two mid-exam reload items.
+**✅ W16 (D-408 → D-410) took three P3 judgements, and two could not be done as decided.** The
+pattern that has run all session held again: the decision was sound, the *premise* it rested on was
+not.
+
+- **`EDGE-CHAT-07`** — fix built, then **reverted**. An existing test asserts the duplicate banner
+  deliberately (*"it was never the problem"*), so the audit and the suite disagree. Editing the
+  assertion to match my change would have turned a deliberate behaviour into an accident. Closed as
+  accepted: the bubble is precise but scrolls away, the banner sits where the visitor retypes.
+- **`AUD-L-10`** — **two** bands, not the three asked for. Three needs two cutoffs and this system
+  defines one; `mastery_policy.py` exists because a second definition is how a skill becomes "weak"
+  to one subsystem and "proficient" to another. The partition uses the server's `weak_skill_names`,
+  so **no threshold exists in the client** — a `0.7` in TypeScript would be the cross-language copy
+  that module warns about, where no test could see it drift.
+- **`AUD-L-11`** — **renamed, not removed.** The column is not inert: it renders `⚠️ Flagged` from
+  `tutor_review_flagged`, the session that exhausted the retry ladder unresolved. Removing it would
+  have deleted a real fact about a child's session to fix a misleading word. `Review` → `Tutor
+  review`.
+
+**Recommended next, in priority order:**
+
+1. **The two mid-exam reload P3s** — `AUD-L-06` (a reload restores the first unanswered question,
+   not the student's actual position) and `AEL-06` (a reload with no network drops the student to
+   Chrome's offline page). Both `ExamScreen`/`main.tsx`, both real for a student mid-exam.
 2. **`@testing-library/react`**, when the first component test is written — the banner's render
    condition is waiting for it.
 
@@ -11129,6 +11149,17 @@ asking what the **code** did discriminates it immediately, on both engines: *no 
 lenient about a call that was never made.* The tick check is the subtle half — a timestamp
 comparison would not work, because the broken form also revokes "later", by microseconds in the
 same task.
+
+**Verification for W16:** `ruff` clean · learning-web `oxlint` exit 0 · `tsc` + `npm run build`
+clean · **21 unit tests** in learning-web (up from 14) · Playwright **127 passed / 2 skipped** ·
+**no Python changed**.
+
+**Two process notes.** A structural test was written and removed as redundant: it read the module's
+own source to assert no threshold literal appeared, which needed `node:fs` types this app lacks —
+caught by `npm run build` while `tsc --noEmit` passed, so **the build's project references are the
+real gate**. And a "suite failure" I reported mid-run was my own invocation: `npx playwright test`
+from the repo root globs the whole tree and now collides with the new vitest files. Run from `e2e`,
+it is clean. `make e2e` is the invocation that cannot get this wrong.
 
 **Verification for W15:** `ruff` clean · learning-web `oxlint` exit 0 · `tsc` and `npm run build`
 clean · **14 unit tests** (up from 6 in that app) · Playwright **127 passed / 2 skipped**, unchanged
