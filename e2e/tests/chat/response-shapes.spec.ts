@@ -237,8 +237,12 @@ test("the composer is disabled while an interrupt is pending, and re-enabled aft
   await page.goto(CHAT_WEB);
   await ask(page, "please email an administrator");
 
-  await expect(page.locator("textarea")).toBeDisabled();
+  // `#chat-composer`, not a bare `textarea`: D-420 added a note field inside the approval modal,
+  // so while a modal is open the page has two. The loose locator would not merely be ambiguous -
+  // the modal's own textarea is *also* disabled while `busy`, so it could satisfy this assertion
+  // while saying nothing about the composer, which is the element the test is about.
+  await expect(page.locator("#chat-composer")).toBeDisabled();
   await page.getByRole("button", { name: /approve & send/i }).click();
-  await expect(page.locator("textarea")).toBeEnabled({ timeout: 20_000 });
+  await expect(page.locator("#chat-composer")).toBeEnabled({ timeout: 20_000 });
   await expect(page.getByText("I've sent your question")).toBeVisible();
 });

@@ -28665,3 +28665,48 @@ independently-committing repository, not of this one.
 **The reusable rule:** a repository that commits independently of the request is a repository whose
 tests need an engine per event loop, disposal in a `finally`, unique keys per run, and a stand-in for
 call sites that must never reach it. Three of those four were learned here by breaking them.
+
+## D-422 — B4 part 3: the note field, and the loose locator it exposed (accepted, 2026-08-18)
+
+The client half of D-420, staged last the way D-402's endpoint and D-404's keepalive were. The
+approval modal gains **one** editable field; the draft above it stays read-only, which is the decision
+rather than a limitation — a freely editable body would make *"your original question is preserved"* a
+convention the first edit could remove.
+
+**Three details that are choices rather than defaults.** `maxLength` mirrors the server's 1000 so the
+cap is felt while typing, since the server answers **422** past it rather than truncating — the
+client-side bound is a courtesy and the server's is the control. An empty or whitespace-only field
+sends **nothing** rather than `""`, so "did they write anything?" never becomes a question about
+whitespace. And **declining carries no note at all**: nothing is sent, so there is nothing for a note
+to attach to, and a server receiving one on a decline would be right to wonder which half to believe.
+
+### A passing test that was measuring nothing
+
+The first version of the component test set `.value` and dispatched an `input` event. React tracks a
+controlled value through its own property descriptor, so **the component's state never changed** — and
+the failure mode was worse than a red test: *"an empty note sends nothing"* and *"a whitespace-only
+note sends nothing"* both **passed**, because nothing had been typed either time. A test whose
+assertion is "nothing was sent" is exactly the one that cannot tell *trimmed to nothing* from *never
+typed*. `fireEvent.change` fixed it, and the whitespace guard now fails when trimming is removed,
+which it could not before.
+
+Six guards falsified: the note never sent · an empty note sent as `""` · whitespace not trimmed ·
+declining carrying the note · an unbounded field · the controls staying live while busy.
+
+### And it broke a browser spec, correctly
+
+`response-shapes.spec.ts`'s *"the composer is disabled while an interrupt is pending"* used
+`page.locator("textarea")`, and a modal now puts a second one on the page. **The fix is the locator,
+not the assertion** — the behaviour under test did not change, so narrowing to `#chat-composer`
+preserves the meaning rather than editing an assertion to match my change (EDGE-CHAT-07's rule).
+
+The interesting part is that the loose locator was worse than ambiguous: the modal's own textarea is
+**also** disabled while `busy`, so it could have satisfied `toBeDisabled()` while saying nothing about
+the composer — the element the test exists for. Three other specs use the same bare locator in flows
+with no modal open; the comment left at the fix says why that is now a trap rather than a style
+preference.
+
+**Verification:** chat-web **49** unit tests (from 42), build clean, `oxlint` exit 0 · Playwright
+**127 passed / 2 skipped** across three projects. **B4 is complete** — refusal reasons already existed
+and were finer than asked, escalation was already scoped correctly, and the two genuinely missing
+pieces (the note, duplicate protection) plus this client half are now in.

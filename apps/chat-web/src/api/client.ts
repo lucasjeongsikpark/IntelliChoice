@@ -126,7 +126,12 @@ export function postMessage(
 }
 
 export type RespondBody =
-  | { interrupt_type: "email_approval"; approved: boolean }
+  // D-420: `note` is the visitor's own addition to the server-composed draft, and the only
+  // part of the email they author. Bounded server-side at 1000 characters as a 422 rather
+  // than a truncation, so sending more is a refusal rather than a half-sentence arriving
+  // over their name. Omitted entirely on a decline - nothing is sent, so there is nothing
+  // for a note to attach to.
+  | { interrupt_type: "email_approval"; approved: boolean; note?: string }
   | { interrupt_type: "calendar_action"; choice: "google" | "ics" | "cancel" }
   | {
       interrupt_type: "location_consent";
