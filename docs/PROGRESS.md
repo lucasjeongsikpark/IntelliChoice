@@ -10861,6 +10861,54 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
 
 ## Session log
 
+### The audit's never-walked list, closed one path at a time (2026-08-17, D-387 → D-392)
+
+**Built:** `pii-typed-by-a-visitor.spec.ts`, three parametrised location-form invariant cases,
+`deployed-authorization.spec.ts` (6 clauses), `crash-reporting.spec.ts` (both apps),
+`exam-expiry.spec.ts` (both expiry shapes), `calendar-branches.spec.ts`, the video interstitial, and
+fixture `student-ext-13`. **Fixed:** the crash-report URL in both apps, three defects in the exam
+expiry path, two duplicate-key lists, and a student-visible grammar break.
+
+**Five of six walks found something, and three were defects a user would have met.** The crash
+reports never left the page in local development (a bare relative URL against the vite origin). A
+student who reloaded *after* the exam clock ran out was trapped — `onExpire` only fired on the
+transition to zero, so an already-expired countdown auto-finalized nothing while every answer 409'd,
+which is the exact trap `ExamScreen`'s own comment describes. And `1 question still need s an answer`
+was on the modal that had become their only way out.
+
+**V11's result is about the suite, not the code, and it is the one worth remembering.** The `.ics`
+walk was written to verify D-352's browser-fragility fix. Reverting that fix and re-running: **both
+tests still passed.** Chromium tolerates both bugs exactly as D-352's comment predicted, so no
+Chromium-only assertion can hold it. The docstring claiming otherwise was corrected to what the
+falsification measured, and closing the gap is now **OPEN_DECISIONS #13**.
+
+**Two decisions were the user's, and one overturned my recommendation.** #12 (video help → the full
+youtube.com page) went to the user rather than being patched, because `VideoContent` had chosen the
+link over an embed deliberately; the user chose the interstitial over my embed proposal, and the
+reasoning holds — the embed removes the comments and recommendations rail but puts a third-party
+frame inside a page that loads nothing external, which is the property the original author was
+protecting.
+
+**Verification:** `ruff` + `pyright` + `tsc` clean throughout · pytest **1694 passed / 2 skipped /
+1 xfailed** · Playwright **119 passed / 2 skipped** at the end, from 108 at the start · V8 additionally
+**6 of 6 against staging** · every fix watched failing before it was believed.
+
+**Four defects in my own test code, all caught by falsification rather than review:** a route walk
+that missed all six routers (FastAPI 0.141's nested `_IncludedRouter`), a terraform parser that would
+read a header value as a URL path if two conditions were reordered, a PII check blind to `%40`, and
+an IDOR assertion that would have passed on a 405 from a route that is a POST. Each reads correctly.
+
+**One process failure worth more than any of them:** a suite summary read through
+`grep … | tail -2` showed "115 passed" and hid the "1 failed" line directly above it. The count not
+matching the expected +2 is the only reason it was caught. Filter output for what you expect and you
+will see exactly that.
+
+**Carry-over:** **OPEN_DECISIONS #13** (a WebKit project scoped to browser-behaviour specs) and **#6**
+(the video catalog, still blocked on the YouTube API key) are judgements, not code. Then
+learning-web's tutor-chat browser leg, then the P2/P3 tail — of which only `EDGE-CHAT-02`'s root
+cause is more than cosmetic: chat has no liveness timer or reconnect control where learning-web has
+both. Staging still serves the pre-patch image; deploys are `workflow_dispatch` only.
+
 ### Three carry-over items, measured before being built (2026-08-17, D-384 → D-386)
 
 **Built:** the runtime `apt-get -y upgrade` layer in both Dockerfiles;

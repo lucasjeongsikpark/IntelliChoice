@@ -99,6 +99,17 @@ to rot, because nothing fails when it does.)*
   body is the same defect wearing test clothing — the rule matched itself, and the empty-body path
   through `client.ts` had never run.
 
+- **The browser suite runs one engine, so it cannot see a defect that a lenient browser tolerates**
+  (D-392). Every project in `e2e/` is Chromium (the `@mobile` project is the same engine at a phone
+  width). D-352 fixed two `downloadIcs` bugs — an anchor never appended to the document, and
+  `revokeObjectURL` called synchronously after `click()` — and its comment named the consequence:
+  the suite "has been asserting the button is visible and never that a download happens". V11 wrote
+  the download assertion and then **reverted the fix to check it**: both tests still passed. Chromium
+  tolerates both, so no assertion written here can hold that class. This is a property of the
+  harness, not of any test, and it bounds what a browser spec in this repo is allowed to claim — a
+  spec that says "this proves the fix" about browser *behaviour* is overclaiming unless a second
+  engine runs it. OPEN_DECISIONS #13 carries the options.
+
 - **Whether a request reaches the app is decided by two hand-maintained lists, and both fail
   silently** (D-385). CloudFront's `api_path_patterns` selects which paths go to the ALB origin
   instead of the SPA bucket, and the ALB listener rule's `path_patterns` selects which reach a
