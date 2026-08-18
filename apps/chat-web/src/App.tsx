@@ -212,8 +212,8 @@ function App() {
           pending={pending}
           busy={busy}
           error={error}
-          onApprove={(approved) =>
-            void respond({ interrupt_type: "email_approval", approved })
+          onApprove={(approved, note) =>
+            void respond({ interrupt_type: "email_approval", approved, note })
           }
         />
       )}

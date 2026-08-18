@@ -587,6 +587,29 @@ button.chip {
   margin: 8px 0;
 }
 
+/* D-420: the one editable field in the approval modal. Left-aligned against the modal's centred
+   text because it is a form control the visitor types into, and the draft above it is left-aligned
+   for the same reason - a label centred over a textarea reads as a caption. */
+.note-field {
+  display: block;
+  text-align: left;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+
+.modal textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+
 .modal-actions {
   display: flex;
   gap: 8px;
