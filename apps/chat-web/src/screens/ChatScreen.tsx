@@ -274,6 +274,19 @@ export function ChatScreen({
         {transcript.map((turn) => (
           <div key={turn.id}>
             <div className="message-row user">
+              {/* **D-412 (`AUD-CHAT-08`): say that this one went to a person.** "Ask an
+                  administrator" appends a *new* turn carrying the same `query` (see
+                  `escalateTurn`), so the transcript showed the identical question twice with
+                  nothing distinguishing them - it read as though the visitor had asked it again
+                  rather than forwarded it. The flag was already on the turn: D-378 put
+                  `escalate: true` there so `retryTurn` could reproduce it, and the render simply
+                  never used it.
+
+                  A label rather than a different bubble style, because the distinction is
+                  informational and colour alone is what EDGE-CHAT-04 was about. */}
+              {turn.escalate === true && (
+                <span className="escalated-label">Sent to an administrator</span>
+              )}
               <div className="bubble">{turn.query}</div>
             </div>
             {/* D-347: gated on `turn.response`, not `turn.response.answer`.

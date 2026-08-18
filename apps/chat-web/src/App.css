@@ -506,6 +506,17 @@ button.chip {
   margin: 0;
 }
 
+/* D-412: the "this went to a person" label on an escalated question. Small and above the
+   bubble rather than inside it, so the question text itself is unchanged - a visitor scanning
+   the transcript for what they asked still reads exactly what they typed. */
+.escalated-label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted, #5f6368);
+  margin-bottom: 4px;
+  text-align: right;
+}
+
 /* Interrupt modals */
 
 /* D-381: `overflow-y` here and `max-height` below are what make a tall dialog reachable.

@@ -27927,3 +27927,38 @@ and D-374 both refuse queueing, because "an answer that arrives after a finalize
 land" (AUD-F-02's 409). So the entire benefit is replacing Chrome's offline page with our own offline
 page — worth having one day, not worth a service worker's operational surface for a solo-maintained
 service now. Recorded with the reasoning so it is not re-filed as an (S).
+
+## D-412 — W18: an escalated question says so, and the other two chat P3s are measured (accepted, 2026-08-18)
+
+**`AUD-CHAT-08` fixed.** *"Escalating re-appends your question verbatim and unlabelled, so the
+transcript looks like you asked it twice."* `escalateTurn` appends a **new** turn carrying the same
+`query`, so two identical user bubbles appeared with nothing distinguishing them. The flag was
+already there — D-378 put `escalate: true` on the turn so `retryTurn` could reproduce it — and the
+render simply never used it.
+
+A text label ("Sent to an administrator") rather than a different bubble colour, because the
+distinction is informational and colour alone is what `EDGE-CHAT-04` was about. Asserted inside
+`escalate-from-refusal.spec.ts`, which already performs an escalation, **with both directions**: the
+forwarded turn is labelled and the original is not, since a label on both says nothing. Falsified by
+reverting the render.
+
+**`AUD-CHAT-07` measured, not built, and it needs a design choice.** *"After a mid-turn reload the
+composer and Send are re-enabled while the in-flight turn still shows 'Thinking…'."* Half is already
+covered — `sse-reconnect.spec.ts:109` asserts a turn left in flight by a reload is completed by the
+stream's initial frame. What is left is the *window* before that frame, and the composer being
+enabled in it is arguably **correct**: locking it would strand a visitor whose old turn has actually
+finished but whose snapshot is slow, which is the AUD-C-10 family ("no timeout meant the stuck state
+never resolved on its own") and against D-352/D-381's explicit preference for releasing the composer.
+
+The real residue is that the replayed "Thinking…" has **no deadline**. `ExamScreen` solved exactly
+this shape with a bounded wait (D-317's `POSITION_WAIT_MS`), and the same treatment here — resolve an
+unrecovered turn into the existing retryable state after N seconds — is the fix worth doing. Left for
+its own session with the design named rather than half-built.
+
+**`AUD-CHAT-14` measured, and the current behaviour is arguably right.** *"Out-of-scope refusal offers
+no escalation or contact affordance."* An out-of-scope refusal means the question is not something
+this organization answers, and SPEC §5.19.4's copy already names what it *does* cover. Offering "ask a
+human" there invites exactly the escalations the refusal exists to prevent, and D-164's precedence
+rule already keeps escalation off the access-hint path for a related reason. Recommend closing as
+accepted; not doing so unilaterally, because it is a product call about what the org wants in its
+inbox.
