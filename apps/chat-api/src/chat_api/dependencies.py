@@ -3,6 +3,9 @@ from functools import lru_cache
 
 from fastapi import HTTPException, Request, status
 from intellichoice_adapters.fake_auth import JwtTokenVerifier, TokenError
+from intellichoice_db.repositories.chat_escalation_send import (
+    ChatEscalationSendRepository,
+)
 from intellichoice_db.repositories.chat_turn_cancellation import (
     ChatTurnCancellationRepository,
 )
@@ -115,6 +118,16 @@ def get_turn_cancellations(request: Request) -> ChatTurnCancellationRepository:
     began.
     """
     return ChatTurnCancellationRepository(request.app.state.db_session_factory)
+
+
+def get_escalation_sends(request: Request) -> ChatEscalationSendRepository:
+    """D-421's duplicate protection. The session *factory* for the same reason as the two above,
+    and one specific to this one: the claim must be committed **before** the Gmail call, so it is
+    visible to every replica at the moment of the send rather than at the end of the request. A
+    claim that committed with the request would be invisible to a concurrent approval and would be
+    rolled back by any later failure - both of which are the duplicate it exists to prevent.
+    """
+    return ChatEscalationSendRepository(request.app.state.db_session_factory)
 
 
 async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:

@@ -4,10 +4,14 @@
 """
 
 import asyncio
+import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import pytest
 from chat_api.graph.build import AskInput, build_graph
 from chat_api.graph.nodes import (
+    EMAIL_ALREADY_SENT_MESSAGE,
     EMAIL_DECLINED_MESSAGE,
     EMAIL_FAILED_MESSAGE,
     EMAIL_SENT_MESSAGE,
@@ -17,7 +21,11 @@ from chat_api.graph.nodes import (
 from chat_api.services import admin_escalation
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
+from intellichoice_db.engine import create_engine, create_session_factory
 from intellichoice_db.models.interrupts import InterruptApproval
+from intellichoice_db.repositories.chat_escalation_send import (
+    ChatEscalationSendRepository,
+)
 from intellichoice_db.repositories.interrupts import InterruptApprovalRepository
 from intellichoice_db.repositories.mcp import McpToolCallRepository
 from intellichoice_db.repositories.org import OrgEventRepository
@@ -38,6 +46,7 @@ from langgraph.types import Command
 from sqlalchemy import select
 
 from .conftest import postgres_skip_reason, rollback_session
+from .escalation_stub import UnusedEscalationSends
 
 pytestmark = pytest.mark.skipif(
     (_reason := postgres_skip_reason()) is not None, reason=_reason or ""
@@ -111,6 +120,7 @@ def _ctx(
     *,
     email_transport,
     rate_limiter: InMemoryRateLimiter | None = None,
+    escalation_sends: ChatEscalationSendRepository | None = None,
     query: str = ADMIN_QUERY,
 ) -> TurnContext:
     return TurnContext(
@@ -123,10 +133,43 @@ def _ctx(
         mcp_call_repo=McpToolCallRepository(session),
         org_event_repo=OrgEventRepository(session),
         rate_limiter=rate_limiter or InMemoryRateLimiter(max_per_window=5, window_s=3600.0),
+        escalation_sends=escalation_sends or UnusedEscalationSends(),
         admin_escalation_email="admin@example.test",
         client_ip="203.0.113.5",
         query=query,
     )
+
+
+@asynccontextmanager
+async def _sends() -> AsyncIterator[ChatEscalationSendRepository]:
+    """A real escalation repository for one test, on that test's own event loop.
+
+    **Per test and disposed, not module-level.** Each test here drives the graph with its own
+    `asyncio.run`, so an engine created in the first test's loop cannot serve the second - asyncpg
+    binds its connections to the loop that opened them, and the failure is
+    `attached to a different loop` inside the escalation node. `test_turn_cancellation.py` already
+    documents this trap for the other independently-committing repository; this is the same shape.
+
+    Disposed in a `finally` for `rollback_session`'s reason: a helper that opens undisposed pools
+    beside it is how a suite starts failing on connection exhaustion in a different app.
+    """
+    engine = create_engine()
+    try:
+        yield ChatEscalationSendRepository(create_session_factory(engine))
+    finally:
+        await engine.dispose()
+
+
+def _thread(name: str) -> str:
+    """A fresh session id per run, which is what production does and these tests did not.
+
+    D-421 exposed this rather than caused it: the escalation claim is committed independently of
+    the test's `rollback_session` - deliberately, since it has to be visible to every replica at
+    send time - so a fixed literal id made the suite pass once and fail on every run afterwards,
+    with the second run's "duplicate" being the *first* run's email. Every real session id is a
+    uuid4, so a suffix here removes a fiction rather than working around the feature.
+    """
+    return f"chat-zqxv-{name}-{uuid.uuid4().hex[:8]}"
 
 
 def _config(thread_id: str) -> RunnableConfig:
@@ -143,15 +186,15 @@ def test_admin_escalation_pauses_then_sends_only_after_approval() -> None:
     """Phase 15 (§6.16) pattern: no external action before approval."""
 
     async def run() -> None:
-        async with rollback_session() as session:
+        async with rollback_session() as session, _sends() as sends:
             graph = build_graph(InMemorySaver())
             transport = RecordingEmailTransport()
-            thread_id = "chat-zqxv-admin-1"
+            thread_id = _thread("admin-1")
 
             paused = await graph.ainvoke(
                 AskInput(session_id=thread_id, query=ADMIN_QUERY),
                 config=_config(thread_id),
-                context=_ctx(session, email_transport=transport),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
             assert paused["__interrupt__"][0].value["type"] == "email_approval"
             assert transport.sent == []
@@ -159,7 +202,7 @@ def test_admin_escalation_pauses_then_sends_only_after_approval() -> None:
             result = await graph.ainvoke(
                 Command(resume={"approved": True}),
                 config=_config(thread_id),
-                context=_ctx(session, email_transport=transport),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
             assert result["answer"] == EMAIL_SENT_MESSAGE
             assert len(transport.sent) == 1
@@ -177,20 +220,20 @@ def test_admin_escalation_pauses_then_sends_only_after_approval() -> None:
 
 def test_admin_escalation_declined_sends_nothing() -> None:
     async def run() -> None:
-        async with rollback_session() as session:
+        async with rollback_session() as session, _sends() as sends:
             graph = build_graph(InMemorySaver())
             transport = RecordingEmailTransport()
-            thread_id = "chat-zqxv-admin-decline-1"
+            thread_id = _thread("admin-decline-1")
 
             await graph.ainvoke(
                 AskInput(session_id=thread_id, query=ADMIN_QUERY),
                 config=_config(thread_id),
-                context=_ctx(session, email_transport=transport),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
             result = await graph.ainvoke(
                 Command(resume={"approved": False}),
                 config=_config(thread_id),
-                context=_ctx(session, email_transport=transport),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
             assert result["answer"] == EMAIL_DECLINED_MESSAGE
             assert transport.sent == []
@@ -207,20 +250,20 @@ def test_gmail_send_failure_preserves_draft() -> None:
     """
 
     async def run() -> None:
-        async with rollback_session() as session:
+        async with rollback_session() as session, _sends() as sends:
             graph = build_graph(InMemorySaver())
             transport = FailingEmailTransport()
-            thread_id = "chat-zqxv-admin-fail-1"
+            thread_id = _thread("admin-fail-1")
 
             await graph.ainvoke(
                 AskInput(session_id=thread_id, query=ADMIN_QUERY),
                 config=_config(thread_id),
-                context=_ctx(session, email_transport=transport),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
             result = await graph.ainvoke(
                 Command(resume={"approved": True}),
                 config=_config(thread_id),
-                context=_ctx(session, email_transport=transport),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
             assert result["answer"] == EMAIL_FAILED_MESSAGE
             assert result["email_draft"]["body"]  # draft preserved for a retry
@@ -234,21 +277,23 @@ def test_gmail_send_failure_preserves_draft() -> None:
 
 def test_rate_limit_blocks_repeated_anonymous_escalation() -> None:
     async def run() -> None:
+        # No `_sends()`: the limiter refuses before the send, so `UnusedEscalationSends` is the
+        # right default here and would fail loudly if that ever stopped being true.
         async with rollback_session() as session:
             graph = build_graph(InMemorySaver())
             transport = RecordingEmailTransport()
             limiter = InMemoryRateLimiter(max_per_window=1, window_s=3600.0)
 
             first = await graph.ainvoke(
-                AskInput(session_id="chat-zqxv-rl-1", query=ADMIN_QUERY),
-                config=_config("chat-zqxv-rl-1"),
+                AskInput(session_id=_thread("rl-1"), query=ADMIN_QUERY),
+                config=_config(_thread("rl-1")),
                 context=_ctx(session, email_transport=transport, rate_limiter=limiter),
             )
             assert first["__interrupt__"][0].value["type"] == "email_approval"
 
             second = await graph.ainvoke(
-                AskInput(session_id="chat-zqxv-rl-2", query=ADMIN_QUERY),
-                config=_config("chat-zqxv-rl-2"),
+                AskInput(session_id=_thread("rl-2"), query=ADMIN_QUERY),
+                config=_config(_thread("rl-2")),
                 context=_ctx(session, email_transport=transport, rate_limiter=limiter),
             )
             assert "__interrupt__" not in second
@@ -275,16 +320,16 @@ def test_the_node_picks_the_origin_from_the_request_not_from_the_intent() -> Non
     """
 
     async def run() -> None:
-        async with rollback_session() as session:
+        async with rollback_session() as session, _sends() as sends:
             graph = build_graph(InMemorySaver())
             transport = RecordingEmailTransport()
 
             # No `escalate`: the scope guard classified this `admin_contact`, which is a
             # model decision, so the draft must not assert what the user wanted.
             routed = await graph.ainvoke(
-                AskInput(session_id="chat-zqxv-origin-1", query=ADMIN_QUERY),
-                config=_config("chat-zqxv-origin-1"),
-                context=_ctx(session, email_transport=transport),
+                AskInput(session_id=_thread("origin-1"), query=ADMIN_QUERY),
+                config=_config(_thread("origin-1")),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
             body = routed["email_draft"]["body"]
             assert "the assistant routed it to an administrator" in body
@@ -293,9 +338,9 @@ def test_the_node_picks_the_origin_from_the_request_not_from_the_intent() -> Non
             # `escalate=True` is the "Contact an administrator" button - a user action on
             # the request itself, so naming the reason is reporting, not guessing.
             forwarded = await graph.ainvoke(
-                AskInput(session_id="chat-zqxv-origin-2", query=ADMIN_QUERY, escalate=True),
-                config=_config("chat-zqxv-origin-2"),
-                context=_ctx(session, email_transport=transport),
+                AskInput(session_id=_thread("origin-2"), query=ADMIN_QUERY, escalate=True),
+                config=_config(_thread("origin-2")),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
             assert (
                 "asked a question the assistant could not answer"
@@ -400,22 +445,22 @@ def test_a_users_note_is_attributed_and_the_question_survives_it() -> None:
     """
 
     async def run() -> None:
-        async with rollback_session() as session:
+        async with rollback_session() as session, _sends() as sends:
             graph = build_graph(InMemorySaver())
             transport = RecordingEmailTransport()
-            thread_id = "chat-zqxv-admin-note-1"
+            thread_id = _thread("admin-note-1")
 
             await graph.ainvoke(
                 AskInput(session_id=thread_id, query=ADMIN_QUERY),
                 config=_config(thread_id),
-                context=_ctx(session, email_transport=transport),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
             await graph.ainvoke(
                 Command(
                     resume={"approved": True, "note": "It is urgent - the deadline is Friday."}
                 ),
                 config=_config(thread_id),
-                context=_ctx(session, email_transport=transport),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
 
             body = transport.sent[0].body
@@ -434,20 +479,20 @@ def test_a_blank_note_adds_nothing_rather_than_an_empty_heading() -> None:
     """
 
     async def run() -> None:
-        async with rollback_session() as session:
+        async with rollback_session() as session, _sends() as sends:
             graph = build_graph(InMemorySaver())
             transport = RecordingEmailTransport()
-            thread_id = "chat-zqxv-admin-note-2"
+            thread_id = _thread("admin-note-2")
 
             await graph.ainvoke(
                 AskInput(session_id=thread_id, query=ADMIN_QUERY),
                 config=_config(thread_id),
-                context=_ctx(session, email_transport=transport),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
             await graph.ainvoke(
                 Command(resume={"approved": True, "note": "   \n  "}),
                 config=_config(thread_id),
-                context=_ctx(session, email_transport=transport),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
 
             assert "From the user:" not in transport.sent[0].body
@@ -464,20 +509,20 @@ def test_the_note_never_enters_the_checkpointed_draft() -> None:
     """
 
     async def run() -> None:
-        async with rollback_session() as session:
+        async with rollback_session() as session, _sends() as sends:
             graph = build_graph(InMemorySaver())
             transport = RecordingEmailTransport()
-            thread_id = "chat-zqxv-admin-note-3"
+            thread_id = _thread("admin-note-3")
 
             await graph.ainvoke(
                 AskInput(session_id=thread_id, query=ADMIN_QUERY),
                 config=_config(thread_id),
-                context=_ctx(session, email_transport=transport),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
             result = await graph.ainvoke(
                 Command(resume={"approved": True, "note": "please call rather than email"}),
                 config=_config(thread_id),
-                context=_ctx(session, email_transport=transport),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
             )
 
             assert "please call rather than email" in transport.sent[0].body
@@ -488,5 +533,110 @@ def test_the_note_never_enters_the_checkpointed_draft() -> None:
                 "the note was written back into the checkpointed draft, so a replay would quote "
                 "it twice"
             )
+
+    asyncio.run(run())
+
+
+def test_the_same_question_is_not_emailed_to_staff_twice() -> None:
+    """D-421: the visitor sees no reply in the chat - a human replies by email hours later - so
+    they press "Ask an administrator" again. Staff must not receive the same question twice from
+    the channel that exists because they are the fallback.
+
+    The rate limiter cannot do this: it bounds *volume* and has no idea two sends are the same
+    send. Asserted on the transport rather than on the table, because the property is "no second
+    email", not "a row exists".
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session, _sends() as sends:
+            graph = build_graph(InMemorySaver())
+            transport = RecordingEmailTransport()
+
+            first, second = _thread("dedupe-1a"), _thread("dedupe-1b")
+            for i, thread_id in enumerate((first, second)):
+                await graph.ainvoke(
+                    AskInput(session_id=thread_id, query=ADMIN_QUERY),
+                    config=_config(thread_id),
+                    context=_ctx(session, email_transport=transport, escalation_sends=sends),
+                )
+                result = await graph.ainvoke(
+                    Command(resume={"approved": True}),
+                    config=_config(thread_id),
+                    context=_ctx(session, email_transport=transport, escalation_sends=sends),
+                )
+                # Two *different* sessions asking the same thing are two requests a human should
+                # see, so the dedupe is per session - which makes the second thread the control
+                # for the same-session case below rather than a duplicate itself.
+                assert result["answer"] == EMAIL_SENT_MESSAGE, f"send {i} did not go out"
+
+            assert len(transport.sent) == 2, "the per-session scope collapsed two visitors into one"
+
+            # Now the real case: **the same session**, the same question, a second approval.
+            thread_id = first
+            await graph.ainvoke(
+                AskInput(session_id=thread_id, query=ADMIN_QUERY),
+                config=_config(thread_id),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
+            )
+            repeat = await graph.ainvoke(
+                Command(resume={"approved": True}),
+                config=_config(thread_id),
+                context=_ctx(session, email_transport=transport, escalation_sends=sends),
+            )
+
+            assert repeat["answer"] == EMAIL_ALREADY_SENT_MESSAGE, (
+                "the repeat was reported as a fresh send, so the visitor has no idea it was "
+                "suppressed and will press again"
+            )
+            assert len(transport.sent) == 2, "the same question was emailed to staff twice"
+
+    asyncio.run(run())
+
+
+def test_a_failed_send_can_be_retried_rather_than_refused_as_a_duplicate() -> None:
+    """The claim reserves the *send*, so it has to be surrendered when the send does not happen.
+
+    `EMAIL_FAILED_MESSAGE` tells the visitor to try again in a few minutes. Holding the claim
+    through a Gmail failure would make that instruction impossible to follow: the retry would be
+    refused as a duplicate of an email nobody ever received. SPEC §5.29's "preserve draft" is about
+    exactly this recovery.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session, _sends() as sends:
+            graph = build_graph(InMemorySaver())
+            failing = FailingEmailTransport()
+            working = RecordingEmailTransport()
+            thread_id = _thread("dedupe-2")
+
+            await graph.ainvoke(
+                AskInput(session_id=thread_id, query=ADMIN_QUERY),
+                config=_config(thread_id),
+                context=_ctx(session, email_transport=failing, escalation_sends=sends),
+            )
+            failed = await graph.ainvoke(
+                Command(resume={"approved": True}),
+                config=_config(thread_id),
+                context=_ctx(session, email_transport=failing, escalation_sends=sends),
+            )
+            assert failed["answer"] == EMAIL_FAILED_MESSAGE
+
+            # The retry the message invites, against a transport that works this time.
+            await graph.ainvoke(
+                AskInput(session_id=thread_id, query=ADMIN_QUERY),
+                config=_config(thread_id),
+                context=_ctx(session, email_transport=working, escalation_sends=sends),
+            )
+            retried = await graph.ainvoke(
+                Command(resume={"approved": True}),
+                config=_config(thread_id),
+                context=_ctx(session, email_transport=working, escalation_sends=sends),
+            )
+
+            assert retried["answer"] == EMAIL_SENT_MESSAGE, (
+                "the retry after a failed send was refused as a duplicate of an email that was "
+                "never delivered"
+            )
+            assert len(working.sent) == 1
 
     asyncio.run(run())

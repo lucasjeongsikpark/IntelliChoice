@@ -46,6 +46,7 @@ from langgraph.types import Command
 from sqlalchemy import select, text
 
 from .conftest import postgres_skip_reason, rollback_session
+from .escalation_stub import UnusedEscalationSends
 
 pytestmark = pytest.mark.skipif(
     (_reason := postgres_skip_reason()) is not None, reason=_reason or ""
@@ -172,6 +173,7 @@ def _ctx(session, *, calendar_transport, query: str = CALENDAR_QUERY) -> TurnCon
         mcp_call_repo=McpToolCallRepository(session),
         org_event_repo=OrgEventRepository(session),
         rate_limiter=InMemoryRateLimiter(max_per_window=5, window_s=3600.0),
+        escalation_sends=UnusedEscalationSends(),
         admin_escalation_email="admin@example.test",
         client_ip="203.0.113.5",
         query=query,

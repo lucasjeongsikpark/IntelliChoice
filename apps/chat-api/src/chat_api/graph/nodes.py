@@ -13,6 +13,9 @@ from datetime import UTC, date, datetime
 
 from intellichoice_adapters.ics import generate_ics
 from intellichoice_db.models.interrupts import InterruptApproval
+from intellichoice_db.repositories.chat_escalation_send import (
+    ChatEscalationSendRepository,
+)
 from intellichoice_db.repositories.interrupts import InterruptApprovalRepository
 from intellichoice_db.repositories.mcp import McpToolCallRepository
 from intellichoice_db.repositories.org import OrgEventRepository
@@ -185,6 +188,13 @@ RATE_LIMITED_MESSAGE = (
 )
 EMAIL_SENT_MESSAGE = "Your message has been sent to an administrator."
 EMAIL_DECLINED_MESSAGE = "Okay, the message was not sent."
+# D-421: the visitor pressed "Ask an administrator" for a question that already went.
+# Told rather than silently ignored - a second silent no-op reads as the button being
+# broken, which is what makes someone press it a third time.
+EMAIL_ALREADY_SENT_MESSAGE = (
+    "That question has already been sent to an administrator. They'll reply directly - "
+    "there's no need to send it again."
+)
 # SPEC §5.29 "Gmail MCP failure -> Preserve draft".
 EMAIL_FAILED_MESSAGE = (
     "The message could not be sent right now. Please try again in a few minutes, or "
@@ -231,6 +241,9 @@ class TurnContext:
     mcp_call_repo: McpToolCallRepository
     org_event_repo: OrgEventRepository
     rate_limiter: RateLimiter
+    #: D-421: one row per escalation actually emailed, so pressing "Ask an administrator"
+    #: twice does not send staff the same question twice.
+    escalation_sends: ChatEscalationSendRepository
     admin_escalation_email: str
     query: str | None = None
     candidate_limit: int = 30
@@ -771,6 +784,10 @@ async def admin_escalation(state: QAState, runtime: Runtime[TurnContext]) -> dic
     """
     ctx = _ctx(runtime)
     assert state.email_draft is not None
+    # Set by `prepare_admin_escalation`, which built the draft from it and ran to completion
+    # before this node started - asserted rather than defaulted so a future route that
+    # reaches here without a resolved question fails loudly instead of fingerprinting "".
+    assert state.standalone_query is not None
     draft = state.email_draft
 
     decision = interrupt({"type": "email_approval"})
@@ -792,25 +809,46 @@ async def admin_escalation(state: QAState, runtime: Runtime[TurnContext]) -> dic
     caller_external_id = _caller_external_id(ctx)
 
     if approved:
-        try:
-            with traced_span("mcp.gmail.send_email"):
-                await ctx.mcp_registry.call(
-                    "gmail.send_email",
-                    EmailMessage(
-                        recipient=ctx.admin_escalation_email,
-                        subject=draft.subject,
-                        body=body,
-                    ).model_dump(),
-                    caller_external_id=caller_external_id,
-                    audit_repo=ctx.mcp_call_repo,
+        # **D-421: claimed before the send, not checked after it.** Two replicas can be resuming
+        # approvals in the same moment, so the database decides which one sends - a
+        # check-then-send would let both read "not sent yet" and both send, which is the defect
+        # this guards, reintroduced by the shape of its own check.
+        #
+        # Keyed on the question rather than the whole draft, so a second *note* on the same
+        # question is suppressed too. That is the deliberate side of the trade: keying on the note
+        # would let anyone defeat the check by adding a space.
+        claimed = await ctx.escalation_sends.claim(
+            chat_session_id=state.session_id, question=state.standalone_query
+        )
+        if not claimed:
+            message = EMAIL_ALREADY_SENT_MESSAGE
+        else:
+            try:
+                with traced_span("mcp.gmail.send_email"):
+                    await ctx.mcp_registry.call(
+                        "gmail.send_email",
+                        EmailMessage(
+                            recipient=ctx.admin_escalation_email,
+                            subject=draft.subject,
+                            body=body,
+                        ).model_dump(),
+                        caller_external_id=caller_external_id,
+                        audit_repo=ctx.mcp_call_repo,
+                    )
+                message = EMAIL_SENT_MESSAGE
+                QA_EMAIL_ESCALATIONS.inc()
+            except McpToolError:
+                # SPEC §5.29 "Gmail MCP failure -> Preserve draft" - the approval itself is
+                # still recorded below; the failed *send* is a separate fact captured by
+                # the `mcp_tool_calls` audit row's `success=False`.
+                #
+                # D-421: and the claim goes back. A claim reserves the *send*, so holding it
+                # after a failure would refuse the visitor's retry as a duplicate of an email
+                # nobody received - and `EMAIL_FAILED_MESSAGE` explicitly invites that retry.
+                await ctx.escalation_sends.release(
+                    chat_session_id=state.session_id, question=state.standalone_query
                 )
-            message = EMAIL_SENT_MESSAGE
-            QA_EMAIL_ESCALATIONS.inc()
-        except McpToolError:
-            # SPEC §5.29 "Gmail MCP failure -> Preserve draft" - the approval itself is
-            # still recorded below; the failed *send* is a separate fact captured by
-            # the `mcp_tool_calls` audit row's `success=False`.
-            message = EMAIL_FAILED_MESSAGE
+                message = EMAIL_FAILED_MESSAGE
     else:
         message = EMAIL_DECLINED_MESSAGE
 
