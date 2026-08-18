@@ -3200,6 +3200,125 @@ the stream's own or it would be unreachable code · no timer survives the wait e
 **first component test** runs on the `setupFiles` D-413 mirrored there in advance · **five guards
 falsified separately** · the browser suite re-run, because unlike W20 this is product code.
 
+## Milestone 15 — The deploy, the decisions, and two of my own claims measured false *(D-416 → D-423, 2026-08-18)*
+
+> ### ✅ CLOSED 2026-08-18 — six sessions, seven PRs, every one merged on a full nine-check pass
+>
+> **Verification on merged `main` (`6f107c1`):** see PROGRESS's session log for the numbers.
+>
+> **The shape of the day: two of my own recorded claims were measured false, and both had already
+> influenced a decision the user made.** The tfvars rollback warning (D-418) had created a phantom
+> blocker for D-401/D-406, and the embedding-parallelisation estimate (D-423) was the basis for
+> choosing "latency first". Neither was caught by review; both fell to one measurement each.
+>
+> **And branch protection arrived mid-milestone**, so the last five PRs merged under a rule rather
+> than under my patience.
+
+### Session W22 — The first deploy since Milestone 11, and the defect its own probe found ✅ *(done 2026-08-18, D-416)*
+
+**Outcome:** staging deployed for the first time in three milestones — it had been **27 commits
+behind**, on an image predating Milestones 12, 13 *and* 14. Verified independently of the workflow's
+verdict: both services on the exact SHA, one additive migration applied before the switch, `/dev/token`
+closed on both probes, canary clean, rollback never triggered. **Verify by the served bundle's
+*content*, not its hash** — the CSS hashes matched my local builds and the JS hashes did not, because
+CI's Node 22 and an explicit empty `API_BASE` produce different minifier output from identical source.
+
+A post-deploy probe then found an unauthenticated 202 on `POST .../turns/{id}/cancel`. **Not** an
+authorization bypass, but the sweep inside `request()` was session-scoped, so a fabricated id left a row
+nothing could reach. Two of my own analyses of it were wrong first, and the second would have shipped a
+regression that a three-session-old test refuted before it was written.
+
+**Done when:** the deployed image is asserted by SHA *and* by strings only today's build contains · the
+migration is additive and applied before services move · the sweep is global and falsified both ways ·
+the wrong analyses are recorded rather than replaced.
+
+### Session W23 — Twelve decisions recorded, and two documents that were wrong ✅ *(done 2026-08-18, D-417)*
+
+**Outcome:** every open item answered in one pass and recorded so none is re-derived. `main` protected
+with the nine checks required and `enforce_admins` on — measured first as `protected: false`, required
+checks **none**, which is why every green merge until then was green because someone waited.
+
+**Two documents were wrong when re-read, and both mattered.** OPEN_DECISIONS #6 claimed the video
+catalog held *"4 videos covering 4 of 112 skills"* and was about to justify declaring video intervention
+absent at launch; staging holds **497 videos, 363 active, 102 of 112 skills** — the user's recollection
+was right and the figure was two days stale. There *was* a real loss event (182 rows wrongly
+deactivated on 08-15 by my own D-326 guard) and it was recovered the same day. OPEN_DECISIONS #7
+recommended the **opposite** of what D-341 decided, and D-341 exists explicitly to stop that question
+being re-derived.
+
+**Done when:** every decision has a record with its reasoning · the video timeline is established from
+history **and** confirmed by a live read · #7 defers to D-341 with the recommending wording removed
+rather than annotated · branch protection verified safe first (no path-filtered job that could strand a
+required check).
+
+### Session W24 — `ruff format` adopted, in one mechanical commit ✅ *(done 2026-08-18, D-417/C8)*
+
+**Outcome:** **168 of 437 Python files** reformatted in a single commit that can be skipped wholesale
+when bisecting, then `ruff format --check` wired into **CI as well as `make lint`** — CI runs
+`uv run ruff check .` directly and never invokes the Makefile, so the Makefile alone would have enforced
+formatting on the machine of whoever remembered to run it. The recorded 116/415 was stale.
+
+**And the formatter reformats Python inside Markdown by default** (ruff 0.16.3; 24 files under `docs/`,
+56 repo-wide), which collapsed a deliberately aligned comment in an audit finding. Scoped away from
+`*.md`: the write-ups quote snippets *to demonstrate a defect*, and reformatting one can destroy what it
+demonstrates.
+
+**Done when:** the mechanical commit contains no functional change · enforcement lives where branch
+protection can see it · `make fmt` writes and `make lint` only asks · the stale figure is corrected
+everywhere it appears.
+
+### Session W25 — The image floor already derived itself, and the two applies happened ✅ *(done 2026-08-18, D-418 → D-419)*
+
+**Outcome:** A3 asked for the image floor to be derived from ECS at apply time. **D-244 built that a
+month ago**, so the gate was holding D-401/D-406 behind a solved problem — and the reason I believed
+otherwise was a warning of mine, repeated all day and written into three documents. `terraform plan`
+proved the direction: with the pin two deploys stale, every task definition moved **forward** to the
+running image. The defect was the *check*, which failed on the one input Terraform does not read.
+
+D-401 and D-406 then applied: the quiet SNS channel with exactly four alarms on it, three task
+definitions re-registered on the same image, the services untouched, post-apply plan `No changes`. **A
+transient refresh reported the CloudTrail bucket as deleted** and would have replaced the policy,
+encryption, versioning and lifecycle rules of a live audit-log bucket; `plan -out` and reading the saved
+plan is what caught it.
+
+**Done when:** the claim is measured rather than argued · the check judges only what has a consumer and
+no longer demands a gitignored file · the wrong claim is corrected in place in three documents · the
+apply is verified against reality and converges to `No changes`.
+
+### Session W26 — B4: human escalation, six-sevenths of which already existed ✅ *(done 2026-08-18, D-420 → D-422)*
+
+**Outcome:** the requested refusal taxonomy already existed and was **finer** than the six specified
+(`TurnReason` has nine), and escalation was already offered at exactly **one of twelve** call sites — no
+corpus answer *and* no role-gated match. What was missing: an editable draft and duplicate protection.
+
+The user chose "the server keeps the frame, the visitor adds a note", which makes *"the original question
+is preserved"* a property rather than a convention. Redacted at the request boundary, bounded as a 422
+rather than a truncation, applied at send time only. Duplicate protection is a fingerprint table with a
+claim (not check-then-send), released when the send fails, swept globally, keyed on the question.
+
+**Done when:** the note is attributed and the question provably survives it · a blank note adds nothing
+· the note never enters the checkpointed draft · the same question is not emailed twice and a *failed*
+send can still be retried · the client sends nothing on a decline · **each of the fifteen guards across
+the three parts falsified separately** (5 + 4 + 6).
+
+### Session W27 — B6 part 1: the latency split, measured ✅ *(done 2026-08-18, D-423)*
+
+**Outcome:** a grounded turn makes **four sequential Bedrock round trips**, written down nowhere until
+now. Measured on staging: `RAG_ANSWER` 4124 ms (~42%), retrieval 3411 ms (~35%), `scope_guard` 2129 ms
+(~22%), **`create_embedding` 124 ms (~1.3%)**. That **cancelled the optimisation I had proposed and the
+user had approved** — parallelising the embedding would have saved 1.3% at the cost of ~8 KB per
+checkpoint or a cancellation boundary. The lever the measurement found instead is overlapping
+`scope_guard` with *retrieval*: ~22%, no prompt changed, no quality delta.
+
+**Left specified rather than half-built**, with three code-verified constraints: retrieval's input is
+written before `scope_guard`; `QAState` holds chunk **ids not bodies**, so the answer node must re-fetch
+rather than checkpoint text; and every non-`document_qa` turn would pay one wasted rerank, which is
+broader than I first stated.
+
+**Done when:** the split is measured rather than derived · the cancelled optimisation is recorded with
+why it was wrong · the replacement is verified against the code before being recommended · nothing is
+half-built.
+
 ## The audit's never-walked list is now closed
 
 Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found

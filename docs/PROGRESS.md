@@ -7,6 +7,37 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**✅ MILESTONE 15 IS CLOSED — six sessions, seven PRs, every decision on the open list answered
+(2026-08-18, D-416 → D-423 — ROADMAP Milestone 15, W22–W27).**
+
+**Start here: two of my own recorded claims were measured false this milestone, and each had already
+changed a decision the user made.** The tfvars rollback warning created a phantom blocker for
+D-401/D-406; the embedding-parallelisation estimate (1.3%, not 25%) was the basis for choosing "latency
+first". Neither was caught by review — reviewing a claim re-reads the claim. Both fell to one
+measurement each. **A warning repeated often enough starts being cited instead of checked.**
+
+**The one clear piece of code left is B6's overlap:** run `scope_guard` concurrently with retrieval for
+~22% off every grounded turn, with no prompt changed and therefore no quality delta. D-423 specifies it
+and verified three constraints in the code — retrieval's input is written *before* `scope_guard`,
+`QAState` holds chunk **ids not bodies** (so the answer node re-fetches rather than checkpointing text),
+and every non-`document_qa` turn pays one wasted rerank. **Nothing about it needs re-deriving.**
+
+**⚠️ Three things carried into the next session:**
+
+1. **The SNS email subscription is `PendingConfirmation`**, so four informational alarms currently reach
+   a topic with **no confirmed subscriber**. One click, not optional.
+2. **`chat_escalation_sends` is not on staging** until the next deploy. The pipeline runs migrations
+   before switching services, so deploying is all that is needed.
+3. **An answer cache remains a decision, not an optimisation** — citations carry `effective_to`, so a
+   cached answer can outlive its sources' effective window (rule 5). Fixable by clamping each entry's
+   TTL to its earliest citation expiry.
+
+**Verification on merged `main` (`6f107c1`):** `ruff` clean · `ruff format --check` clean · `pyright`
+0 errors · pytest **1735 passed / 2 skipped** · Playwright **127 passed / 2 skipped** · chat-web **49**
+unit tests, learning-web **26** · both builds clean.
+
+### Previous — Milestone 14 closed (W19–W21)
+
 **✅ MILESTONE 14 IS CLOSED — three sessions: the last audit item that was code, the last blocked
 assertion, and W19's defect checked against the sibling app (2026-08-18, D-413 → D-415 — ROADMAP
 Milestone 14, W19–W21).**
@@ -11250,6 +11281,69 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
   rows for the fixture student used).
 
 ## Session log
+
+### Session log — the deploy, twelve decisions, and two of my own claims measured false (2026-08-18, D-416 → D-423)
+
+**Goal:** deploy, then execute every decision the user made in one pass. Six sessions (W22–W27), seven
+PRs, all merged on a full nine-check pass — the last five under branch protection rather than under my
+patience.
+
+**Built:** the first staging deploy since Milestone 11 (27 commits behind) · the cancel endpoint's
+global sweep · branch protection with nine required checks · `ruff format` adopted and enforced in CI ·
+the image-consistency check rewritten and D-401/D-406 applied · B4's three parts (the escalation note,
+duplicate protection with a new table, the modal field) · B6's measured latency split.
+
+**Verification on merged `main` (`6f107c1`):** `ruff` clean · `ruff format --check` clean · `pyright`
+0 errors · pytest **1735 passed / 2 skipped / 1 xfailed** · Playwright **127 passed / 2 skipped** ·
+chat-web **49** unit tests, learning-web **26** · both builds clean, both `oxlint` exit 0.
+
+> **The finding that matters most: two of my own recorded claims were measured false, and each had
+> already changed a decision the user made.**
+>
+> - **The tfvars rollback warning (D-418).** I said all day, and wrote into three documents, that an
+>   apply on a fresh checkout would roll staging back past Milestone 13. D-244 made Terraform adopt the
+>   *deployed* image a month ago; `adopt_deployed_image` defaults to true. `terraform plan` moved every
+>   task definition **forward**. The check had been refusing applies over the one input Terraform does
+>   not read — **a phantom blocker, and the reason the user gated D-401/D-406 behind fixing it.**
+> - **The embedding-parallelisation estimate (D-423).** From "four Bedrock calls across ~10s" I
+>   reasoned ~2.5s each and pitched overlapping the embedding with scope classification. The embedding
+>   is **124 ms**: a 1.3% win for ~8 KB per checkpoint or a lost cancellation boundary. The user chose
+>   "latency first" partly on that pitch.
+>
+> Neither was caught by review — reviewing a claim re-reads the claim. Both fell to one measurement
+> each: a `terraform plan`, and two k6 runs plus one X-Ray query. **A warning repeated often enough
+> starts being cited instead of checked.**
+
+**Two documents were wrong when re-read, and both were about to cost something.** OPEN_DECISIONS #6
+said the video catalog held *"4 videos covering 4 of 112 skills"* and recommended considering that
+video intervention be declared absent at launch; staging holds **497 videos, 363 active, 102 of 112
+skills servable** — the user's recollection was right and the figure was two days stale. There *was* a
+real loss event (182 rows wrongly deactivated on 08-15 by my own D-326 guard) recovered the same day.
+And #7 recommended the **opposite** of D-341, which exists explicitly to stop that question being
+re-derived.
+
+**B4 was six-sevenths already built**, which reading found before anything was written: nine
+`TurnReason` values rather than the six specified, and escalation already offered at exactly one of
+twelve call sites. What was missing was an editable draft and duplicate protection.
+
+**A transient `terraform refresh` reported a healthy CloudTrail bucket as deleted**, and applying that
+plan would have replaced the policy, encryption, versioning and lifecycle rules of a live audit-log
+bucket. `plan -out` plus reading the saved plan is what caught it — procedure, not insight.
+
+**Falsification:** every guard this session was broken individually — 8 (D-416), 5 (D-420), 4 (D-421),
+6 (D-422). **Two falsification patches were themselves worthless before they were right**, both on the
+same day: one rebound a local variable instead of writing state, the other swapped an `if` condition
+while leaving the new fallback in place. Both reported *"nothing failed"* for real guards.
+
+**And a passing test of mine was measuring nothing** (D-422): the component test set `.value` and
+dispatched `input`, which React's controlled input ignores, so *both* "sends nothing" assertions passed
+because nothing had been typed either time.
+
+**Carry-over:** B6's overlap is **specified, not built** (three code-verified constraints in D-423) ·
+the `chat_escalation_sends` migration is not on staging until the next deploy · the SNS subscription is
+**`PendingConfirmation`**, so four informational alarms currently reach a topic with no confirmed
+subscriber · an answer cache remains a decision, because citations carry `effective_to` and a cached
+answer can outlive its sources.
 
 ### Session log — the exit that was already there, and a falsification that lied (2026-08-18, D-413)
 
