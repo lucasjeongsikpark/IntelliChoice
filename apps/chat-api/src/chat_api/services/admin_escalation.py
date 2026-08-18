@@ -12,6 +12,14 @@ from pydantic import BaseModel
 # wrapper (SPEC §5.24.2 "maximum body length").
 _MAX_BODY_LENGTH = 4000
 
+# D-420: the visitor's own addition to the draft, bounded well inside `_MAX_BODY_LENGTH` so a
+# note can never push the server-composed frame out of the email it is attached to. 1000 rather
+# than the question's 2000: this is context *beside* a question that is already in the body, not a
+# second question.
+MAX_NOTE_CHARS = 1000
+
+_NOTE_HEADING = "From the user:"
+
 # D-221: which of the two paths into `prepare_admin_escalation` built this draft. The
 # distinction is not "what did the user want" - it is *what does this system actually
 # know*, which is a narrower thing and the only honest basis for a sentence an
@@ -96,3 +104,32 @@ def build_escalation_draft(
     lines.append(f"Chat session: {chat_session_id}")
     body = "\n".join(lines)[:_MAX_BODY_LENGTH]
     return EmailDraftState(subject=subject, body=body)
+
+
+def append_user_note(body: str, note: str | None) -> str:
+    """Attach the visitor's own note to a server-composed draft (D-420 / B4).
+
+    **The server keeps the frame and the visitor adds to it**, which is the decision rather than a
+    simplification. Requirement 3 of the escalation spec is that the draft carry the visitor's
+    original question *verbatim*; a fully editable body would make that a convention enforced by
+    nobody, since the first thing an edit can remove is the question. Here the opening line, the
+    `Question:` line, `missing_information` and the session id are all still
+    `build_escalation_draft`'s output, and this only appends.
+
+    **Attributed, because the reader acts on it.** An administrator decides how to reply from this
+    email. Text the visitor wrote and text the system composed must not read as one voice, so the
+    note arrives under its own heading and quoted - the same reason D-221 rewrote the opening line
+    rather than leaving a sentence that claimed something the system did not know.
+
+    Assumes the note is **already redacted**, and that is deliberate: redaction happens at the
+    request boundary in `/respond` (the rule D-072/AUD-C-24 applies to `/messages`), so the raw
+    text never reaches the graph, the checkpoint, or this function. Doing it here instead would put
+    the unredacted string one layer deeper before it was cleaned.
+
+    Empty and whitespace-only notes append nothing at all - a heading with nothing under it would
+    tell an administrator the visitor wrote something and then hide it.
+    """
+    if note is None or not note.strip():
+        return body
+    quoted = "\n".join(f"> {line}" for line in note.strip().splitlines())
+    return "\n".join([body, "", _NOTE_HEADING, quoted])[:_MAX_BODY_LENGTH]

@@ -384,3 +384,109 @@ def test_the_draft_never_carries_a_recipient() -> None:
     )
     assert "@" not in draft.body
     assert "@" not in draft.subject
+
+
+def test_a_users_note_is_attributed_and_the_question_survives_it() -> None:
+    """D-420 (B4): the visitor adds context; the server keeps the frame.
+
+    The decision behind the shape: a fully editable body would make *"the draft carries the
+    original question verbatim"* a convention rather than a property, since the first thing an
+    edit can remove is the question. Both halves are asserted together for that reason - a note
+    that appended correctly while dropping the question would satisfy either assertion alone.
+
+    Attributed and quoted because an administrator decides how to reply from this email, and text
+    the visitor wrote must not read in the same voice as text the system composed - the same
+    reasoning D-221 applied to the opening line.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            graph = build_graph(InMemorySaver())
+            transport = RecordingEmailTransport()
+            thread_id = "chat-zqxv-admin-note-1"
+
+            await graph.ainvoke(
+                AskInput(session_id=thread_id, query=ADMIN_QUERY),
+                config=_config(thread_id),
+                context=_ctx(session, email_transport=transport),
+            )
+            await graph.ainvoke(
+                Command(
+                    resume={"approved": True, "note": "It is urgent - the deadline is Friday."}
+                ),
+                config=_config(thread_id),
+                context=_ctx(session, email_transport=transport),
+            )
+
+            body = transport.sent[0].body
+            assert "From the user:" in body, "the note arrived unattributed"
+            assert "> It is urgent - the deadline is Friday." in body, "the note was not quoted"
+            assert "billing issue" in body, (
+                "the note replaced the server-composed frame instead of being added to it"
+            )
+
+    asyncio.run(run())
+
+
+def test_a_blank_note_adds_nothing_rather_than_an_empty_heading() -> None:
+    """A heading with nothing under it tells an administrator the visitor wrote something and
+    then hides it. Whitespace-only counts as blank, because a textarea produces that easily.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            graph = build_graph(InMemorySaver())
+            transport = RecordingEmailTransport()
+            thread_id = "chat-zqxv-admin-note-2"
+
+            await graph.ainvoke(
+                AskInput(session_id=thread_id, query=ADMIN_QUERY),
+                config=_config(thread_id),
+                context=_ctx(session, email_transport=transport),
+            )
+            await graph.ainvoke(
+                Command(resume={"approved": True, "note": "   \n  "}),
+                config=_config(thread_id),
+                context=_ctx(session, email_transport=transport),
+            )
+
+            assert "From the user:" not in transport.sent[0].body
+
+    asyncio.run(run())
+
+
+def test_the_note_never_enters_the_checkpointed_draft() -> None:
+    """The note is applied at send time only.
+
+    `state.email_draft` is the server-composed frame, and it is checkpointed. Writing the note
+    back into it would mean a replay of this node quotes the note a second time - the shape D-021
+    warns about, since a resume replays the node body from the top.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            graph = build_graph(InMemorySaver())
+            transport = RecordingEmailTransport()
+            thread_id = "chat-zqxv-admin-note-3"
+
+            await graph.ainvoke(
+                AskInput(session_id=thread_id, query=ADMIN_QUERY),
+                config=_config(thread_id),
+                context=_ctx(session, email_transport=transport),
+            )
+            result = await graph.ainvoke(
+                Command(resume={"approved": True, "note": "please call rather than email"}),
+                config=_config(thread_id),
+                context=_ctx(session, email_transport=transport),
+            )
+
+            assert "please call rather than email" in transport.sent[0].body
+            draft = result.get("email_draft")
+            assert draft is not None
+            body = draft["body"] if isinstance(draft, dict) else draft.body
+            assert "please call rather than email" not in body, (
+                "the note was written back into the checkpointed draft, so a replay would quote "
+                "it twice"
+            )
+
+    asyncio.run(run())
