@@ -61,11 +61,12 @@ open**: chat has no liveness timer and no reconnect control, where learning-web 
 
 ## Still open
 
-- **`AEL-06`** (P3) Reloading mid-exam with no network drops the student out of the app entirely (Chrome offline page) · `apps/learning-web/src/main.tsx:33` (S)
+- **`AEL-06`** ⏸ **real, and deliberately not built — analysed 2026-08-18 (D-411).** True of any SPA with no service worker: reload with no network means the browser cannot fetch `index.html`, so Chrome's offline page wins. The (S) estimate is wrong; the fix is a service worker caching the app shell, which brings cache invalidation against CloudFront's hashed assets and a new failure class (a stale shell running old JS against a new API).
+  **And it would not give the student a working exam.** With the network down every API call fails regardless, and answers *cannot* be queued locally by design: AUD-F-27 and D-374 both refuse that, because "an answer that arrives after a finalize has nowhere valid to land" (AUD-F-02's 409). So the whole benefit is replacing Chrome's offline page with our own offline page. That is worth having one day and is not worth a service worker's operational surface now. Recorded with the reasoning so it is not re-filed as an (S).
 - **`AUD-CHAT-07`** (P3) After a mid-turn reload the composer and Send are re-enabled while the in-flight turn still shows "Thinking…" · `apps/chat-web/src/hooks/useChatSession.ts:68` (M)
 - **`AUD-CHAT-08`** (P3) Escalating re-appends your question verbatim and unlabelled, so the transcript looks like you asked it twice
 - **`AUD-CHAT-14`** (P3) Out-of-scope refusal offers no escalation or contact affordance, only generic re-orientation chips
-- **`AUD-L-06`** (P3) Mid-exam reload restores the first unanswered question, not the student's actual position · `apps/learning-web/src/screens/ExamScreen.tsx:323` (M)
+- **`AUD-L-06`** ✅ **already fixed when measured 2026-08-18 (D-411)** — D-317 fixed the position restore (the exam's position arrives on a *second* transport, and `currentDisplayOrder`'s initial `0` was being rendered as though it were an answer), and `journey-student.spec.ts:421` guards it non-vacuously: it answers **two** questions first *"so the restored position is provably not just 'the first question'"*, then asserts the question after reload equals the question before. Fourth item on this list to be closed by reading the code rather than by writing any.
 - **`AUD-L-09`** (P3) Raw ISO week ids and a raw attendance enum in the parent-facing blocked list
 - **`AUD-L-10`** (P3) Generated student report dumps 39 skills as one comma run-on and shows raw, denominator-less scores · `apps/learning-web/src/components/ReportView.tsx:47` (S)
 - **`AUD-L-11`** (P3) "Review" column promises something to open but no history row is clickable · `apps/learning-web/src/screens/StudentDashboardScreen.tsx:733` (M)

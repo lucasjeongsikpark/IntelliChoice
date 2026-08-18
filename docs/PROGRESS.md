@@ -207,9 +207,26 @@ not.
 
 **Recommended next, in priority order:**
 
-1. **The two mid-exam reload P3s** — `AUD-L-06` (a reload restores the first unanswered question,
-   not the student's actual position) and `AEL-06` (a reload with no network drops the student to
-   Chrome's offline page). Both `ExamScreen`/`main.tsx`, both real for a student mid-exam.
+**✅ W17 (D-411) closed both, and neither needed code.** `AUD-L-06` was **already fixed** by D-317
+and is guarded non-vacuously — `journey-student.spec.ts:421` answers two questions first *"so the
+restored position is provably not just 'the first question'"*. `AEL-06` is real and **deliberately not
+built**: the (S) estimate is wrong (it needs a service worker, with cache invalidation against
+CloudFront's hashed assets), and it would not give the student a working exam anyway, because answers
+cannot be queued locally *by design* (AUD-F-27, D-374). The whole benefit is replacing Chrome's
+offline page with our own.
+
+> **The tally worth keeping: this carry-over list has now been wrong six times this milestone.**
+> `AUD-L-16` (fixed by D-390), the approval modal (D-381), *"learning-web has both"* (it had one),
+> `AUD-L-10`'s percentage half, `AUD-L-11`'s premise, and `AUD-L-06`. Reading the code before
+> implementing the note has saved more work this milestone than any single fix in it.
+
+**Recommended next, in priority order:**
+
+1. **The three remaining chat P3s** — `AUD-CHAT-07` (after a mid-turn reload the composer is
+   re-enabled while the turn still shows "Thinking…"), `AUD-CHAT-08` (escalating re-appends your
+   question verbatim and unlabelled), `AUD-CHAT-14` (an out-of-scope refusal offers no contact
+   affordance). **Measure each before implementing** — on this list's record, at least one is
+   already fixed.
 2. **`@testing-library/react`**, when the first component test is written — the banner's render
    condition is waiting for it.
 
