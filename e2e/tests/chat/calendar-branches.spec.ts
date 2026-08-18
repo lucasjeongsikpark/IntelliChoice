@@ -31,6 +31,14 @@
  * the WebKit project does buy is narrower and real: these paths now run on the engine every
  * iPhone and iPad uses.
  *
+ * **Resolved, D-399 — but not here, and that is the point.** `ics-download-dom-contract.spec.ts`
+ * holds D-352 by patching `HTMLAnchorElement.prototype.click` and `URL.revokeObjectURL` and
+ * asserting what the *code* did: was the anchor in the document when it was clicked, and did the
+ * revoke wait for a later task. Both halves falsified against the pre-D-352 form. Everything above
+ * remains true of *this* file - a download assertion cannot see the fix, on either engine - and the
+ * lesson generalises: when a browser is free to forgive the bug, assert the call rather than the
+ * reaction.
+ *
  * What these tests *do* hold, which is still more than "the button is visible": the control appears
  * when and only when a file exists, a real download fires with the right filename, and the bytes
  * are a well-formed VCALENDAR. A broken blob, a missing control, a wrong filename or truncated

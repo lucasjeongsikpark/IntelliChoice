@@ -56,16 +56,42 @@ both took under ten minutes to falsify. A recommendation is a hypothesis until t
 first pass, both regex counts over single-line calls; the live logs from the W5 run showed one
 neither had seen, and an AST sweep put it at **22**.
 
-**Next session, decided rather than recommended:** (1) learning-web's tutor-chat browser leg
-(deferred in V7 with its reason); (2) **OPEN_DECISIONS #13's residual — the user chose the unit
-test**: assert in jsdom that `downloadIcs` has the anchor in `document.body` when `click()` fires
-and revokes on a later tick. It tests the code's contract with the DOM rather than a browser's
-intolerance of breaking it, which is why it works where two engines did not — *no engine can be
-lenient about a call that was never made.* Then (3) the rest of the 08-16 backend tail — per-student spend attribution (the spend alarm
-cannot answer "which student is looping?"), the single-inbox alarm target, chat's Stop that does not
-stop the server, and the approval modal with no `max-height` on the one screen that sends real
-email; (4) `EDGE-CHAT-02`'s root cause, that chat has no liveness timer or reconnect control where
-learning-web has both.
+**✅ Both of those are done, same day (W6/W7, D-398 → D-399).**
+
+- **W6 (D-398) — the tutor-chat browser leg, and the deferral was priced wrong by two orders of
+  magnitude.** V7 deferred it as costing "a full pre-exam walk"; the walk is **4.6 s** and the two
+  tests run in 3.4 s and 3.2 s. The 300 s timeouts on the sibling specs are safety margin, not
+  duration. It had also stopped being optional: D-389's crash-sink fix made "a crash report fired
+  while the text is in state" a live carrier in learning-web. All three assertions falsified
+  separately — an injected `?q=` beacon, an injected `console.log`, and a redacted echo.
+- **W7 (D-399) — D-352 is held, on the third attempt.** V11 asserted a real download and could not
+  discriminate the fix; W5 added WebKit and that failed too. Both asserted a *browser's reaction*.
+  `ics-download-dom-contract.spec.ts` patches `click` and `revokeObjectURL` and asserts the code's
+  **contract with the DOM** instead — *no engine can be lenient about a call that was never made.*
+  Both halves falsified independently. **OPEN_DECISIONS #13 is closed.**
+
+**A scope note worth reading before #14.** The user chose "a jsdom unit test" for #13 on the
+understanding it was the cheapest option. It is not: **neither frontend has any unit-test setup at
+all** — no vitest, no jsdom, no testing-library — so that route meant a framework plus CI wiring
+plus exporting `downloadIcs` purely to be imported. The chosen *property* shipped exactly as
+intended, for one spec file and no new dependency; the missing tooling is now **OPEN_DECISIONS #14**
+with its own recommendation rather than smuggled in behind a one-line contract test. That is the
+**third cost estimate of mine to be wrong in two days**, and all three were wrong in the same
+direction: assumed expensive, measured cheap; assumed cheap, measured expensive.
+
+**Recommended next, in priority order:**
+
+1. **The rest of the 08-16 backend tail.** Per-student spend attribution (the spend-spike alarm
+   cannot answer "which student is looping?", which is a cost-bug control, not polish) and the
+   single-inbox alarm target.
+2. **The two chat P2s with user-visible impact.** Stop aborts only the HTTP request while the graph
+   runs on holding the session lock, so the next question is refused as *"still working on your last
+   question"*; and the approval modal — **the one screen that sends real email** — has no
+   `max-height`, so a long body puts the heading above the fold and both buttons below it.
+3. **`EDGE-CHAT-02`'s root cause**: chat has no liveness timer and no reconnect control where
+   learning-web has both.
+4. **OPEN_DECISIONS #14** — a judgement, not code: whether the frontends get unit-test tooling at
+   all. Recommendation is one app first, measured before doubling, for the reason D-397 exists.
 
 ### Previous — a green baseline and the contracts nobody was testing (Milestone 12)
 
@@ -10979,8 +11005,30 @@ and say so — the cancellation test (which fails if `except Exception` is ever 
 measured) and the task-reference test (which asserts the reference rather than reproducing a
 collection).
 
+**Then W6 and W7, the same day.** The tutor-chat browser leg V7 had deferred as expensive turned out
+to cost **4.6 s** for the walk and ~3.4 s per test — the 300 s timeouts on the sibling specs are
+safety margin, not duration — and it had stopped being optional in between, because D-389's
+crash-sink fix made "a crash report fired while the text is in state" a live carrier in
+learning-web. Its three assertions are falsified separately, since a combined injection only proves
+whichever fires first.
+
+**W7 closed D-352 on the third attempt, and the reason the first two failed is the reusable part.**
+V11 asserted a real download; W5 added a stricter engine. Both were asserting a *browser's reaction*
+to broken code, and a browser is free to forgive it. Patching `click` and `revokeObjectURL` and
+asking what the **code** did discriminates it immediately, on both engines: *no engine can be
+lenient about a call that was never made.* The tick check is the subtle half — a timestamp
+comparison would not work, because the broken form also revokes "later", by microseconds in the
+same task.
+
+**Verification for W6/W7:** `ruff` **All checks passed** · `pyright` **0 errors** · `tsc` clean ·
+Playwright **125 passed / 2 skipped** in 6.2m, **+4** on the 121 this milestone started from, which
+is exactly what was added (2 tutor-chat PII tests, and the DOM contract on both engines). **No
+Python changed in W6/W7**, so pytest's 1711 from the W1–W5 run still stands rather than being
+re-asserted here.
+
 **Carry-over:** per-student spend attribution and the single-inbox alarm target are the last two
-observability items from the 08-16 audit. `downloadIcs` is still held by no browser in this suite.
+observability items from the 08-16 audit. **OPEN_DECISIONS #14** is new: neither frontend has any
+unit-test setup, which W7 discovered by needing one and routing around it.
 
 ### The audit's never-walked list, closed one path at a time (2026-08-17, D-387 → D-392)
 

@@ -390,7 +390,29 @@ clear the backlog in one pass.
 > still bypass the step with a middle-click; that is accepted rather than overlooked**, since the
 > destination is the same one the plain click leads to.
 
-## 13. ⚠️ DECIDED AND BUILT 2026-08-17 — option A, and **it did not close the gap it was chosen to close**
+## 13. ✅ CLOSED 2026-08-17 by D-399 — after two remedies that did not close it
+
+> **Held at last, and not by a browser.** `ics-download-dom-contract.spec.ts` patches
+> `HTMLAnchorElement.prototype.click` and `URL.revokeObjectURL` via `addInitScript` and asserts the
+> **code's contract with the DOM** — was the anchor in `document.body` at click time, and did the
+> revoke wait for a later task. Both halves falsified independently against the pre-D-352 form.
+> *No engine can be lenient about a call that was never made.*
+>
+> **Not a jsdom unit test, deliberately, and the intent is unchanged.** The user chose "the unit
+> test" on the understanding that it was the cheapest candidate. It is not: neither frontend has any
+> unit-test setup — no vitest, no jsdom, no testing-library — so that route means a test framework
+> plus CI wiring plus exporting `downloadIcs` out of `ChatScreen.tsx` solely to be imported. The
+> chosen *property* — test the calls, not the browser's tolerance — is exactly what shipped, for one
+> spec file and no new dependency. **A frontend unit-test framework is now its own open item (#14)
+> rather than something smuggled in behind a one-line contract test.**
+>
+> The WebKit project from D-397 stays, on its own narrower merits.
+>
+> ---
+>
+> ### The history, kept because three attempts on one fix is the useful part
+>
+> ## Previously: ⚠️ DECIDED AND BUILT 2026-08-17 — option A, and **it did not close the gap it was chosen to close**
 
 > **The decision:** add a WebKit project scoped to the specs where browser behaviour is the subject.
 > **Built (D-397):** `e2e/playwright.config.ts` has a `webkit` project grepped to `@browser`, and
@@ -460,6 +482,37 @@ clear the backlog in one pass.
 > **Cost of deferring:** nothing breaks. The suite keeps being unable to see leniency bugs, and
 > `downloadIcs` keeps working because Chromium is what the tests run and most users use. The next
 > D-352 gets found by a user on Safari.
+
+## 14. ⏳ OPEN — neither frontend has any unit-test setup at all
+
+> **Raised 2026-08-17 by D-399, by needing one and routing around it.** OPEN_DECISIONS #13's chosen
+> remedy was "a jsdom unit test". Writing it revealed that `apps/chat-web` and `apps/learning-web`
+> have **no test tooling whatsoever** — no vitest, no jsdom, no testing-library; their `scripts` are
+> `dev`, `build`, `lint`, `preview`. Every frontend assertion this project has ever made runs
+> through Playwright against a live stack.
+>
+> That is not obviously wrong — the browser suite is genuinely good, and it catches things a unit
+> test cannot. But it means anything cheap to unit test is either expensive (a full browser walk) or
+> untested, and there is a growing list of pure functions that deserve the cheap version:
+> `downloadIcs`'s DOM contract (now covered the expensive way), `errors.ts`'s status→message rules
+> in both apps, `formatDateLabel`, `RichText`'s parser, and the exam-timer arithmetic that D-391
+> found three defects in.
+>
+> **Options:**
+> - **A. Add vitest + jsdom to both frontends**, wire `npm test` into the two CI jobs, and move the
+>   pure-function assertions there over time. Cost: two new devDependency sets, two configs, two CI
+>   steps, and a second place to look when something fails.
+> - **B. Add it to one app first** (chat-web is smaller) and see whether it earns its keep before
+>   duplicating. Cheaper to reverse.
+> - **C. Leave it.** Keep everything in Playwright and accept that cheap assertions cost a browser.
+>
+> **Recommendation: B.** The list above is real but short, and this project's own recent history is
+> that a capability added on the argument that it "would have caught X" should be measured against X
+> before being doubled — which is precisely what D-397 failed to do.
+>
+> **Cost of deferring:** nothing breaks. Pure-function bugs keep being found by browser walks, or
+> not at all — D-391's "1 question still need s an answer" was a string-concatenation bug found by
+> a human reading a screenshot.
 
 ## Not decisions — already settled, listed to stop them being re-litigated
 

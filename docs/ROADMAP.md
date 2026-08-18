@@ -2852,6 +2852,36 @@ on the original option list and is recorded there now.
 positive control proving the reverted code was actually served · every place that claimed WebKit
 would catch D-352 is corrected, including the spec header, the config comment, and #13 itself.
 
+### Session W6 — The tutor-chat browser leg V7 deferred ✅ *(done 2026-08-17, D-398)*
+
+D-387 deferred this as costing "a full pre-exam walk". Measured: the walk takes **4.6 s** and the
+two tests run in **3.4 s and 3.2 s** — the 300 s timeouts on the sibling specs are safety margin,
+not duration. The fourth carry-over in recent sessions to shrink when measured.
+
+It also stopped being optional in between: D-389 fixed learning-web's crash-report sink, so "a crash
+report fired while the text is in state" — the carrier the chat-side sibling exists to catch — is a
+live path here now rather than a theoretical one.
+
+**Done when:** typed PII leaves the page exactly once, in `POST /learning/sessions/{id}/chat` ·
+nothing reaches the console · the student still reads their own words · **each of the three is
+falsified separately**, because a combined injection only proves whichever assertion fires first.
+
+### Session W7 — D-352, held on the third attempt ✅ *(done 2026-08-17, D-399)*
+
+V11 asserted a real download and could not discriminate the fix. W5 added WebKit on the
+recommendation that WebKit is strict about exactly these mistakes, and that failed too. Both were
+asserting a **browser's reaction** to broken code, and a browser is free to forgive it.
+
+**Outcome:** `ics-download-dom-contract.spec.ts` patches `HTMLAnchorElement.prototype.click` and
+`URL.revokeObjectURL` and asserts the **code's contract with the DOM** — the anchor was in
+`document.body` at click time, and the revoke waited for a later task. *No engine can be lenient
+about a call that was never made.* OPEN_DECISIONS #13 is closed; the missing frontend unit-test
+tooling it exposed is now #14.
+
+**Done when:** the spec passes on the current code and **each half fails separately** against the
+pre-D-352 form · the tick check discriminates a same-task revoke, which a timestamp comparison would
+not · every place recording D-352 as unheld is corrected.
+
 ## The audit's never-walked list is now closed
 
 Six sessions (V6–V11) took every item on it. **Five of the six found something**, and three found
