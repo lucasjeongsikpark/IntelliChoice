@@ -28185,3 +28185,73 @@ watching for the suite's result matched `failed (404ms)` inside a *test name* �
 alternative in the grep — and reported the run finished when it was 14 tests in. The same anchor error
 cost a false "suite finished" reading earlier in this milestone. **A pattern that watches for
 completion has to be anchored to the summary's shape, not to a word that appears in the output.**
+
+## D-416 — The first staging deploy since Milestone 11, and the defect its own probe found (accepted, 2026-08-18)
+
+**The deploy.** `44a12df` to staging, run 32171998780, pinned by head SHA rather than by "the latest
+run is green" (PROGRESS's S42 correction — a watcher once matched the *previous* run). All 28 steps
+green; the automatic rollback step never ran. **Staging had been 27 commits behind** — the running
+image `gha-df79b290bf65` was from PR #309, predating **Milestones 12, 13 and 14 entirely**, so this
+single deploy carried the unobserved-500 fix, the log redaction, the SSE fan-out repair (1 event in 5
+delivered), the exam-timer trap, the crash-report loop, the CVE `apt-get upgrade`, and the whole
+stream-visibility chain.
+
+**Verified independently of the workflow's verdict**, which is the habit S35's `/dev/token` incident
+bought: both services on `gha-44a12dfc9549` with rollout `COMPLETED` and running == desired
+(learning-api td:150, chat-api td:148) · one migration (`a1c7e2b90d44`, additive) applied before the
+services moved · `/healthz` 200 on both edges · and the **served bundles asserted by content**, not by
+hash: learning-web carries *"This is taking longer than usual"* (D-415, an hour old), chat-web carries
+*"We lost track of this question when the page reloaded."* (D-413).
+
+**A hash comparison would have been the wrong instrument, and nearly misled me.** The served CSS
+hashes match my local builds exactly while the **JS hashes differ** — CI's Node 22 and its explicit
+empty `API_BASE` produce different minifier output from identical source. Content assertions answer
+"is my code deployed"; hashes answer "was it built on my laptop".
+
+### The probe found a defect, in code I wrote three sessions ago
+
+`POST /chat/sessions/{invented-uuid}/turns/probe/cancel` answers **202 to an anonymous caller**, with
+a negative control (`.../nonsense`) answering 404, so the route is genuinely admitted and the call
+genuinely accepted.
+
+**It is not an authorization bypass.** For a session that exists, `_assert_session_access` runs and a
+stranger gets 403 — `test_a_stranger_cannot_cancel_an_owned_sessions_turn` already held that, in both
+directions.
+
+**My first two analyses of it were both wrong, and the second would have shipped a regression.**
+
+1. *"The row is provably useless."* False. `POST /chat/sessions` persists **nothing** — it returns a
+   bare uuid4, deliberately (D-345: *"a session id costs nothing until a message spends against it"*).
+   A visitor pressing Stop on their **first** turn is therefore cancelling a session with no
+   checkpoint yet, and that row is exactly the one the running turn will consume.
+2. *"Skip the write when the session has no graph state."* This would have **silently restored the
+   defect D-402 exists to fix** for every first turn. The existing suite says so out loud:
+   `test_the_endpoint_records_a_cancellation_and_is_idempotent` creates a session, cancels a turn
+   before any message, and asserts the row exists. **A test written three sessions ago refuted a fix
+   before it was written.**
+
+**What the defect actually is:** the sweep inside `request()` was scoped to `chat_session_id`, so it
+reaped a session's own leftovers and nothing else. A caller using a fresh fabricated id each time
+leaves a row nothing can reach — not the observing turn (that session has none) and not the sweep
+(that id never returns). Severity **low**: ~100 bytes a row, behind the global per-IP limiter, on a
+synthetic environment.
+
+**The fix is one `WHERE` clause and touches no authorization path.** The sweep is now global, so
+**any** Stop press reaps **all** expired rows and the table is bounded by 15 minutes of insert traffic
+rather than by callers being well behaved. `STALE_AFTER` is 15 minutes against a 50s server-side turn
+deadline, so nothing it deletes can belong to a live turn. No index on `requested_at`, deliberately:
+the table is meant to hold approximately zero rows, and the sweep working is what keeps that true.
+
+**The response stays 202 for both cases.** `/respond` 404s an unknown session and D-346 records that
+as *"a deliberate limit rather than a claim of full indistinguishability"* — accepted because ids are
+uuid4. That precedent is not one to extend for free: this endpoint's client discards the response
+entirely (`api.cancelTurn` swallows both outcomes), so a 404 would buy the caller nothing while
+turning the endpoint into an oracle for which session ids exist.
+
+**Falsification:** reverting the sweep to per-session fails exactly the new test; making it ignore age
+fails **six**, including its own negative control — the pre-existing suite was already protecting
+against "delete everything".
+
+**Not redeployed.** The user chose the fix without a second pipeline run: the live impact is slow
+storage growth on a synthetic environment, and the deployed build is otherwise an hour old. It lands
+on the next deploy.

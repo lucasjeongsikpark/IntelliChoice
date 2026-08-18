@@ -24,15 +24,20 @@ on winning a race against a graph that finishes in milliseconds under the fakes.
 """
 
 import asyncio
+import uuid
+from datetime import timedelta
 
 from chat_api.main import app
 from fastapi.testclient import TestClient
 from intellichoice_adapters.fake_auth import FakeTokenIssuer
 from intellichoice_db.engine import create_engine, create_session_factory
+from intellichoice_db.models.chat_turn_cancellation import ChatTurnCancellation
 from intellichoice_db.repositories.chat_turn_cancellation import (
+    STALE_AFTER,
     ChatTurnCancellationRepository,
 )
 from intellichoice_shared.auth import Audience, Role
+from sqlalchemy import func, insert
 
 issuer = FakeTokenIssuer()
 
@@ -240,3 +245,78 @@ def test_an_over_long_turn_id_is_refused_rather_than_stored() -> None:
         response = client.post(f"/chat/sessions/{session_id}/turns/{'x' * 65}/cancel")
 
     assert response.status_code == 422
+
+def _request_cancellation_aged(session_id: str, turn_id: str, older_than: timedelta) -> None:
+    """Insert a row that is already `older_than` old, on the **database's** clock.
+
+    The age is expressed as SQL arithmetic (`now() - interval`) rather than a Python
+    `datetime`, because the sweep compares against `func.now()`: computing the timestamp here
+    would put the test on one clock and the code under test on another, and a container whose
+    clock drifts by a second would decide the outcome.
+    """
+
+    async def run() -> None:
+        engine = create_engine()
+        try:
+            factory = create_session_factory(engine)
+            async with factory() as session:
+                await session.execute(
+                    insert(ChatTurnCancellation).values(
+                        chat_session_id=session_id,
+                        client_turn_id=turn_id,
+                        requested_at=func.now() - older_than,
+                    )
+                )
+                await session.commit()
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())
+
+
+def test_a_stale_row_for_any_session_is_swept_by_the_next_cancellation() -> None:
+    """D-416: the sweep is global, and this is the property that makes the table self-limiting.
+
+    **Found on the deployed edge, not by reading.** `POST /chat/sessions/{invented}/turns/x/cancel`
+    answers **202** to an anonymous caller, because `POST /chat/sessions` persists nothing (D-345 -
+    a session id is a bare uuid4 until a message spends against it) and so the endpoint cannot tell
+    a real session from a fabricated one. It must not try, either: a visitor pressing Stop on their
+    *first* turn has no checkpoint yet, so refusing to write without one would silently restore the
+    defect D-402 exists to fix.
+
+    While the sweep was scoped to `chat_session_id`, every fabricated id left a row that nothing
+    could ever reach - not the observing turn (that session has none) and not the sweep (that id
+    never returns). Unscoped, any Stop press reaps all expired rows, so the table is bounded by 15
+    minutes of insert traffic rather than by callers being well behaved.
+    """
+    stale_session = "sess-stale-" + uuid.uuid4().hex
+    live_session = "sess-live-" + uuid.uuid4().hex
+    _request_cancellation_aged(stale_session, "turn-abandoned", STALE_AFTER + timedelta(minutes=1))
+    assert _is_requested(stale_session, "turn-abandoned") is True, "the fixture did not insert"
+
+    # A cancellation for an entirely unrelated session.
+    _request_cancellation(live_session, "turn-live")
+
+    assert _is_requested(stale_session, "turn-abandoned") is False, (
+        "a stale row for another session survived, so nothing reaps a fabricated session id"
+    )
+    assert _is_requested(live_session, "turn-live") is True, "the sweep took the new row with it"
+
+
+def test_a_fresh_row_for_another_session_is_left_alone() -> None:
+    """The negative control, and it is what stops the fix above from being 'delete everything'.
+
+    Two visitors can have live cancellations at the same time - one on each of two replicas, which
+    is the case D-395's fan-out exists for. A sweep that ignored `requested_at` would cancel one
+    visitor's Stop because another visitor pressed theirs.
+    """
+    other_session = "sess-fresh-" + uuid.uuid4().hex
+    mine = "sess-mine-" + uuid.uuid4().hex
+    _request_cancellation(other_session, "turn-theirs")
+
+    _request_cancellation(mine, "turn-mine")
+
+    assert _is_requested(other_session, "turn-theirs") is True, (
+        "a live cancellation belonging to another session was swept"
+    )
+    assert _is_requested(mine, "turn-mine") is True
