@@ -27107,3 +27107,63 @@ new spec: the step appears on click, "Open the video" carries the same `href` wi
 and `rel="noreferrer"` (which on a page a minor is signed into is what stops the destination learning
 where the click came from, and stops it reaching back through `window.opener`), and "Stay here"
 actually dismisses it.
+
+## D-391 — V10: the exam timer, and three defects on the path nobody had walked (accepted, 2026-08-17)
+
+**The audit's worst-case never-walked path, and it had three things wrong with it.** `ExamScreen`'s
+own comment names the risk: an expired exam refuses further answers (`submit_answer` → 409 "exam
+time limit exceeded - finalize to submit"), so if `handleExpire`'s automatic finalize does not work,
+a student is "unable to answer AND unable to submit - trapped in a screen with no exit". Nothing had
+ever driven it.
+
+**1. `onExpire` fired from inside a state updater.** `ExamTimer` called it within
+`setDisplay((prev) => …)`, and React runs updaters during the render phase, so `handleExpire`'s
+`setStatusMessage`/`setModalOpen` were a setState into *another component mid-render*: "Cannot update
+a component (`ExamScreen`) while rendering a different component (`ExamTimer`)". It works today and
+is the shape that stops working under concurrent rendering. Moved to an effect keyed on `display`.
+
+**2. The same guard meant a countdown that *arrived* at zero fired nothing at all.** The updater
+returned early on `prev <= 0`, so `onExpire` only ever ran on the transition to zero. A student who
+reloads after time ran out gets `remaining_seconds: 0` — no auto-finalize, every answer 409'd, no way
+forward. **That is the trap the comment feared, reachable by a plain reload**, and it is the defect
+that matters here. The effect covers both the tick to zero and the arrival at zero; `firedRef` still
+makes it once per countdown.
+
+**3. A student-visible grammar break in the modal that is now their only way out.**
+`SubmitConfirmationModal` had `still need{" "}` *before* the conditional plural, putting the space on
+the wrong side: `1 question still need s an answer` in the singular, and a double space in the
+plural. Found by reading what the walk actually rendered.
+
+**The walk itself was wrong twice before it was right, both times in ways this session keeps
+repeating.** It first asserted before choosing a topic — `/exam/overview` is not fetched until the
+exam begins — and skipped itself with "no timer" while the timer existed. Then it counted a route
+handler on *entry* rather than on completion, so it read the counter mid-`route.fetch()` and skipped
+again: the D-288 shape a third time, count the acknowledgement rather than the attempt. And its
+`toContainText(/unanswered/i)` assumed copy the product does not use; the real sentence names the
+count and lists the question numbers, which is better, so the assertion was rewritten from the
+measured string (D-386's rule).
+
+**The clock is patched, not the payload.** `route.fetch()` retrieves the real `/exam/overview` and
+only `remaining_seconds` is overwritten — fabricating that response would mean inventing items,
+positions and statuses, and a fixture invented to satisfy a test proves only that the test agrees
+with itself. Parametrised over **6** (runs out on screen) and **0** (arrives expired, the reload
+case). Both fail against the pre-fix component — the `0` case with nothing on screen at all — and
+pass after, which is how the trap was established rather than argued.
+
+**`student-ext-13` exists for this walk** because it *finalizes* an exam, and a completed session is
+the one state a later spec cannot resume past (D-288).
+
+**A fourth defect, found by the full suite rather than by the walk.** `journey-terminal` failed with
+"Encountered two children with the same key" — `StageTransitionScreen` renders the narrative
+evidence list as `<li key={line}>`, keyed by **server-written prose**. Two skills left unresolved
+produce the same sentence, and React's own warning says it handles the collision by duplicating or
+**omitting** a child: a silently missing line on the screen that explains a student's own progress.
+It is data-dependent, which is why five earlier full runs today were green on the same code, and why
+it surfaced now — that walk happened to leave two skills unresolved. Keyed by position instead; the
+list is render-only and never reordered.
+
+**And a process note worth more than the fix.** That failure nearly went unreported: the suite
+summary was read through `grep -E "[0-9]+ (passed|failed|skipped)" | tail -2`, which showed
+"2 skipped / 115 passed" and hid the "1 failed" line directly above it. The count *not matching the
+expected +2* is what prompted a second look. **Filter output for what you expect to see and you will
+see it** — the same failure mode as every fixture-shaped-to-the-rule finding this milestone.

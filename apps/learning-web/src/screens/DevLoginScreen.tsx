@@ -37,6 +37,9 @@ const FIXTURE_IDS: { label: string; role: Role; sub: string }[] = [
     role: "student",
     sub: "student-ext-12",
   },
+  // Its exam gets *finalized* by the expiry walk, so signing in by hand may land on a finished
+  // session rather than a fresh one - the same caveat as Lena above.
+  { label: "Student — Eli Expiry (grade 3, present)", role: "student", sub: "student-ext-13" },
   { label: "Parent — Priya One (1 linked child)", role: "parent", sub: "parent-ext-1" },
   { label: "Parent — Paul Two (2 linked children)", role: "parent", sub: "parent-ext-2" },
   { label: "Parent — Pia Three (1 linked child, Kai)", role: "parent", sub: "parent-ext-3" },

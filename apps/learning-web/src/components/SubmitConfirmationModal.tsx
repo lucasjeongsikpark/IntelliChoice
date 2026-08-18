@@ -50,7 +50,12 @@ export function SubmitConfirmationModal({ overview, busy, onConfirm, onCancel }:
         <h2 id="submit-confirm-title">Submit exam?</h2>
         {unanswered.length > 0 ? (
           <p>
-            {unanswered.length} question{unanswered.length === 1 ? "" : "s"} still need{" "}
+            {/* D-391: the `{" "}` used to sit *before* the conditional "s", which put the space on
+                the wrong side of it - "1 question still need s an answer" in the singular, and a
+                double space in the plural. Found by the first walk of the expiry path; the singular
+                is the one a student would notice. Kept as one expression per word ending so the
+                two forms cannot drift apart again. */}
+            {unanswered.length} question{unanswered.length === 1 ? "" : "s"} still need
             {unanswered.length === 1 ? "s" : ""} an answer: {questionList(unanswered)}. They'll
             be marked incorrect if you submit now.
           </p>

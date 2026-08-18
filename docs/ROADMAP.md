@@ -2727,3 +2727,27 @@ reason, so this is a judgement about children and third-party frames, not a patc
 report is asserted **landed**, not merely sent · the deliberate `react_render_crash` console error is
 allowed rather than asserted away, because the code says it should be loud · the server log shows the
 §5.30 redaction applied to a real crash stack.
+
+### Session V10 — The exam timer running out ✅ *(done 2026-08-17, D-391)*
+
+The audit's never-walked path with the worst failure mode, and **three defects were behind it** —
+the strongest evidence yet for finishing that list rather than moving to the P3 tail.
+
+**Outcome:**
+1. `ExamTimer` called `onExpire` from inside a `setDisplay` updater, which React runs during render —
+   a setState into `ExamScreen` mid-render. Moved to an effect.
+2. The same code returned early on `prev <= 0`, so a countdown that **arrived** at zero fired
+   nothing. A student reloading after time ran out got no auto-finalize and a 409 on every answer:
+   the "unable to answer AND unable to submit" trap `ExamScreen`'s comment describes, reachable by a
+   plain reload. **This is the one that mattered.**
+3. `SubmitConfirmationModal` rendered "1 question still need s an answer" — the space sat on the
+   wrong side of the conditional plural, on the screen that is now the student's only way out.
+
+4. **Found by the suite, not the walk:** `StageTransitionScreen` keys the narrative evidence list by
+   the sentence itself, so two skills left unresolved collide and React may **omit** a line from the
+   screen that explains a student's own progress. Data-dependent, which is why five green runs today
+   preceded it.
+
+**Done when:** both ways a student meets a finished clock are covered (it runs out on screen; it
+arrives already expired) · both fail against the pre-fix component and pass after · the overview is
+*patched*, never fabricated · the walk has its own student, because it finalizes an exam.

@@ -175,6 +175,9 @@ export const FIXTURES = {
    * week and two specs must not answer it differently.
    */
   studentUnknownEmail: { role: "student", sub: "student-ext-12" },
+  /** The exam-expiry walk's own student (V10): it finalizes an exam, which is the one session
+   *  state another spec cannot resume past. */
+  studentExpiry: { role: "student", sub: "student-ext-13" },
   /** One linked child - exercises the auto-select path. */
   parentOneChild: { role: "parent", sub: "parent-ext-1" },
   /** Two linked children - exercises the child_selection interrupt. */

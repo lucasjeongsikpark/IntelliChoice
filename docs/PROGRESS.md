@@ -66,10 +66,16 @@ anchor with a real `href` (the click is intercepted, not the element replaced), 
 screen readers and the existing spec assertion all keep working; a middle-click bypasses the step,
 accepted and written down.
 
-**Recommended next, in priority order:** (1) the two remaining never-walked paths, both measured and
-both drivable — **the exam timer running out** (`ExamTimer` takes `remainingSeconds` from the server,
-so a stubbed small value drives it; the stake is a student who can neither answer, since an expired
-exam 409s, nor submit if `handleExpire` fails) and **the calendar `.ics` download**, whose own D-352
+**V10 (D-391) walked the exam timer and found three defects, one of them a trap.** `ExamTimer` fired
+`onExpire` from inside a state updater (a setState into `ExamScreen` mid-render), and the same guard
+meant a countdown that *arrived* at zero fired nothing at all — so a student reloading after time ran
+out got no auto-finalize and a 409 on every answer, which is precisely the "unable to answer AND
+unable to submit" trap `ExamScreen`'s own comment describes. The third was student-visible: "1
+question still need s an answer" on the modal that is their only way out. All three fixed, both
+expiry shapes covered, both failing against the pre-fix component.
+
+**Recommended next, in priority order:** (1) the one remaining never-walked path, measured and
+drivable — **the calendar `.ics` download**, whose own D-352
 comment admits the suite "has been asserting the button is *visible* and never that a download
 happens", so that fix shipped unverified; then learning-web's tutor-chat browser leg (deferred in V7
 with its reason); (2) the P2/P3 backend tail, still last — of which the only non-cosmetic
