@@ -2044,12 +2044,17 @@ What is left, in order of value:
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
 13. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-15. **`ruff format` is not enforced and never has been** (D-243). `make lint` runs `ruff check .`
-   only, and `ruff format --check .` reports **116 of 415 files** would be reformatted. This is not
-   a consequence of D-240's `.gitignore` bug — it is repo-wide and predates it. The cost is that
-   any session touching a file and running the formatter drags unrelated reformatting into its
-   diff, which is exactly what happened here and was reverted. Adding `ruff format --check` to
-   `make lint` means one large mechanical commit first; worth doing, worth doing on its own.
+15. ~~**`ruff format` is not enforced and never has been** (D-243).~~ **CLOSED 2026-08-18
+   (D-417/C8).** Adopted exactly as this item asked: one mechanical commit first
+   (**168 of 437 Python files**, no functional change, skippable wholesale when bisecting), then
+   `ruff format --check` in `make lint` **and in CI's `Lint` job** — the second half matters,
+   because CI runs `uv run ruff check .` directly rather than `make lint`, so the Makefile alone
+   would have enforced formatting only on the machine of whoever remembered to run it.
+   The **116 of 415** recorded here was stale; the run also exposed that ruff 0.16.3 formats
+   Python code blocks **inside Markdown** by default and had collapsed a deliberately aligned
+   comment in an audit write-up, so the formatter is now scoped away from `*.md` — the docs quote
+   snippets to *demonstrate* defects, and reformatting one can destroy what it demonstrates.
+   `make fmt` is the target that writes; `make lint` only asks.
 17. ~~`review_priority="high"` has saturated and no longer triages.~~ **CLOSED 2026-08-10
    (D-248).** The field has exactly one consumer - it sorts the review queue - so it needed a bar
    most items do not clear. `high` now means **the item could reach a student and mislead them**
@@ -3015,7 +3020,8 @@ found by looking at the tool input directly rather than inferring a fourth time.
 **An unrelated thing surfaced and was deliberately left alone:** `ruff format` has never been
 enforced here — `make lint` runs `ruff check` only, and **116 of 415 files** would be reformatted.
 Running the formatter on one file pulled in changes to code this session never touched, so it was
-reverted rather than smuggled into the diff. Carry-over.
+reverted rather than smuggled into the diff. Carry-over. *(Closed 2026-08-18 by D-417/C8; the count
+had grown to **168 of 437 Python files** by then — see carry-over 15.)*
 
 ### Session log — the AI observability leg was dark for weeks, and is now live (2026-08-09/10, D-242)
 

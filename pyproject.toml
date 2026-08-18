@@ -27,6 +27,18 @@ target-version = "py312"
 # Alembic autogenerates these in its own single-line-per-column style; not hand-written.
 extend-exclude = ["packages/db/alembic/versions"]
 
+[tool.ruff.format]
+# D-417/C8: **the formatter reformats Python code blocks inside Markdown by default** (ruff 0.16.3
+# does; measured - it considers 24 files under `docs/`). That is actively wrong for this repo: the
+# write-ups quote snippets *to demonstrate a defect*, so reformatting one can destroy the thing
+# being demonstrated. The first run collapsed a deliberately aligned `# <- no bar, no condition` in
+# an audit finding, which is a historical record rather than code anyone runs.
+#
+# Scoped to the formatter rather than `extend-exclude`, which would also take it out of
+# `ruff check` - and `ruff check` does not lint these blocks today, so there is nothing to change
+# there.
+exclude = ["*.md"]
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
