@@ -1,3 +1,36 @@
+> **⛔ 이 문서의 대상 작업은 D-152로 동결되었습니다 — FROZEN by D-152 (막힌 게 아니라, 미룬 것).**
+> *Banner added 2026-08-20 (W-20); shape copied from `docs/S42_OPEN_QUESTIONS.md`, the only S42-era
+> file where the freeze was visible from inside. `D-152` appeared **zero times** in this file before
+> this banner.*
+>
+> **Integration is closed until the user reopens it — not blocked, deferred by choice.** The user's
+> sequencing decision (D-152): finish and test this codebase against the dev fakes first, *then*
+> integrate. Nothing below is a work list today; it is reference for the day the freeze lifts.
+>
+> **Read standalone, this document directs four actions `CLAUDE.md` forbids. None of them may be
+> taken:**
+>
+> 1. **Measure AWS→icrest reachability** — §3.1's decision gate, §5's S42 row, §7-A1, I11's ladder.
+> 2. **Request the production API base URL or a test account** — §4's additive-asks block, §5's S42
+>    row, §8's closing paragraph.
+> 3. **Finalize the §3.1 auth option** — O1b stays a *recommendation* until measured, right before
+>    S44 (register entry `AUTH-OPTION-O1B`). §3.1's "Decision gate" and §5's S42 row both read as
+>    instructions to close it; they are suspended.
+> 4. **Rewrite the MySQL dev fake to match production's schema** — I3, and `S42_DISCOVERY.md` §9's
+>    row list. The fake's shape is wrong *on purpose*; the `ProfileAdapter` Protocol is the seam.
+>
+> **No measurement or verification performed here can meet the reopen condition.** The freeze lifts
+> only when the user says integration is starting — it is a decision, not an evidence threshold, so
+> "we measured it and it works" is not a reason to proceed. Live register entries:
+> `D152-FREEZE`, `S43-SCOPE`, `AUTH-OPTION-O1B`, `F2-ADAPTER-SHAPE`, `F3-DEVTOKEN-S44`.
+>
+> **What is still live in here:** the Tier 0/1/2 boundary taxonomy (above), the I1–I15 catalog (§3.2),
+> §4's accepted-reduced-scope table, the nine §2.6 gate criteria, and §7's accepted residual risks —
+> **R8 and R9 in particular, whose expiry conditions are load-bearing and are quoted verbatim there.**
+> Frozen-session acceptance criteria live in `docs/reference/integration/ROADMAP_FROZEN_SESSIONS.md`.
+> The one production fact that informs product work *now*: `signups.attended = null` is **routine**,
+> so `AttendanceStatus.UNKNOWN` → blocked is a routine path, not a rare one (D-152 §2).
+
 # Integration Plan — Chat & Learning apps with the existing production system
 
 Rewritten 2026-07-24 under a hardened scope constraint (user-set, supersedes the two
@@ -38,6 +71,12 @@ schema, data formats, roles, and operational constraints — its own
 These are observations, not work items. Where a fact is also a weakness, it appears
 again in §7 as an accepted residual risk.
 
+> **Read with §8 (2026-08-20, W-36).** §8 patches this section **by reference** — it lists "three
+> corrections" to §1 without editing the bullets, so §1 read alone is stale by three facts
+> (`attendanceClaimed` as a second attendance column; `chapterRole` + the `permissions` CSV as
+> independent access grants; UTC storage versus a hardcoded fixed UTC−6 in three report queries).
+> Two *further* facts, from `S42_DISCOVERY.md`, are corrected **in place** below.
+
 - **Auth**: HS256 JWTs, payload `{id: <accountId>}`, 12 h expiry, signed with a
   source-visible literal secret. Frontend keeps the token in per-origin
   `sessionStorage` and sends it as a `?token=` query param. No SSO/handoff mechanism
@@ -52,6 +91,39 @@ again in §7 as an accepted residual risk.
   email), `calendars` (dated sessions per location, `deleted` soft-flag), `signups`
   (account + optional child + calendar, `attended` nullable boolean), `chapters`,
   `alerts`.
+
+  > **Corrected in place 2026-08-20 (W-36) — source: [S42_DISCOVERY.md](S42_DISCOVERY.md) §4, §4.1,
+  > §6.2 (D-151).** Two facts in the bullet above were read from source and came back wrong. The
+  > uncorrected copy is the one a session reads first and these are *production-system* facts, so
+  > the corrections sit here rather than only in the later document:
+  >
+  > 1. **"`accounts` (23 columns)" — 23 is the count of Sequelize *model attributes*, not the width
+  >    of the physical table.** The table is **28 columns** once Sequelize adds `id`, `createdAt`,
+  >    `updatedAt` and the FKs `locationId` and `chapterId` (both nullable). S42_DISCOVERY §4 marks
+  >    the §1 claim ✅ *for model attributes* and asks explicitly for it to be restated here so a
+  >    reader does not mistake it for table width. Consequence: any column-count assertion in a
+  >    schema-snapshot contract test (I12) must say which of the two numbers it means.
+  > 2. **"`role` is free text — Parent/Student/Tutor/Manager *by convention*" — there is no
+  >    convention holding it.** This is one of S42_DISCOVERY's two REFUTED-with-correction results
+  >    (KC3, §4.1): the register endpoint persists client-supplied `req.body.role` **verbatim**, the
+  >    Parent/Student/Tutor limit exists **only** in the frontend's three radio buttons, and
+  >    `Manager` — which maps to branch-level permissions — is therefore **self-assignable**
+  >    (§6.2). A second path reaches the same escalation on an *existing* account:
+  >    `account.controller.js:56` overwrites `password`, `role` and `code` on a duplicate signup
+  >    when `verifiedAt === null`. **Production role strings are unvalidated user input.** So: I7's
+  >    mapping must fail closed on anything outside the four known values (it already does), and
+  >    §7-A2's assumption that live role strings match the four known values is **not** a safe
+  >    assumption — it is an unmeasured hope, and `SELECT DISTINCT role` against live data is the
+  >    only way to learn what is actually stored (frozen; `S42_OPEN_QUESTIONS.md` D1). Per D-153 §7
+  >    the org intends to fix this, and **our side does not relax when it lands** (CLAUDE.md rule 3).
+  >
+  > Two further S42_DISCOVERY corrections touch this document *outside* §1 and are **not** applied
+  > here, to keep this pass in scope — recorded so they are not lost: **(a)** §6.7 — `GET /` returns
+  > 200, so "no health endpoint" (§3.1's operational-reliability row, §7-R7) is inaccurate for
+  > *liveness*; it never touches the database, so 200 on `/` does not imply the app can serve data.
+  > **(b)** §4.5 — the engine is **MariaDB**, and the database is named `ic` (proved by
+  > `scripts/drop-indexes.sh` running `sudo mariadb ic`); this file's scope note and §1 both say
+  > "MySQL".
 - **Attendance** is per-session (`signups.attended` against a `calendars.startTime`),
   recorded by branch managers, sometimes for "non-registered" ad-hoc children who have
   no account linkage.
@@ -66,6 +138,18 @@ again in §7 as an accepted residual risk.
 ---
 
 ## 2. Phase 0 — audit first, then stabilize (before any integration discovery)
+
+> **HISTORICAL as of 2026-08-20 (W-20) — narrative preserved in place, not deleted.** §2.1–§2.5 are
+> the Phase-0 *plan* as written 2026-07-24: why an audit was chosen over a known-issues fix list,
+> how S35–S41 were structured, and what the stabilization backlog looked like then. All of that
+> **executed** — the audits ran, the dispositions landed in `DECISIONS.md`, and the session log is
+> the record. Read §2 for the *reasoning* (it is the only place this project's "unit tests miss what
+> live verification finds" argument is written out, and it is still true), never for current status:
+> the seeded backlog in §2.5, the session numbering in §2.2, and the strike-throughs in §2.5 are all
+> snapshots of 2026-07-28.
+>
+> **§2.6 is the exception and is NOT historical.** Its nine exit criteria are cited from outside this
+> document (including `e2e/README.md`) and are preserved verbatim as the gate's definition.
 
 ### 2.1 Why a full audit rather than a known-issues fix list
 
@@ -449,6 +533,33 @@ ship on their CloudFront default domains (reduced scope, ugly but functional).
 
 ## 5. Session plan (S35+, continuing ROADMAP numbering)
 
+**Reduced to two pointers, 2026-08-20 (W-20/W-36/W-23).** This section is no longer a session plan.
+It never had a status column, and two other documents did — so a reader who trusted the table below
+was reading the *oldest* of three homes for session status. There are now exactly two places to look:
+
+- **S43–S51 (the frozen sessions)** → `docs/reference/integration/ROADMAP_FROZEN_SESSIONS.md`. That
+  file exists so that archiving `ROADMAP.md` does not archive live acceptance criteria; it is the
+  home for the frozen sessions' "done when" definitions. Everything in it is **frozen by D-152** and
+  carries the freeze annotation — including S48–S51, which used to carry none anywhere.
+- **S35–S42 (executed)** → `docs/archive/ROADMAP.md`, **historical**. *Note:* `ROADMAP.md` is still
+  at `docs/ROADMAP.md` at the moment this pointer was written; it archives to `docs/archive/ROADMAP.md`
+  later in the same migration (step 9). The pointer is written to its **destination** path
+  deliberately — repoint here if the archive step does not land.
+
+**Per-session statuses are deliberately NOT carried forward** from the table below. Copying them
+would re-create the third status home this pass exists to remove.
+
+> **HISTORICAL — quarantined 2026-08-20, content untouched.** The original table and dependency
+> spine are kept verbatim rather than deleted, because deleting them would lose information that
+> lives nowhere else: the **`Depends on` column** (the dependency reasoning behind the ordering) and
+> the **per-session content summaries** for S42–S47, which are the shortest statement anywhere of
+> what each integration session was meant to *do*. Read them as a 2026-07-24 projection.
+> **Do not execute the S42 row** — it directs three of the four actions the freeze prohibits (see
+> the banner at the top of this file). Its "select the §3.1 auth option" instruction is superseded by
+> register entry `AUTH-OPTION-O1B`; its "whether signups carries `attended`" question is already
+> answered in §8; and the S43 row's premise is superseded by `S43-SCOPE` plus `S42_DISCOVERY.md` §9's
+> tombstone.
+
 Numbering beyond S41 is indicative — it shifts if the audit backlog needs more than
 two stabilization sessions.
 
@@ -619,6 +730,28 @@ anywhere), API reliability history (no monitoring of any kind exists, so no data
 and DNS ownership. The request itself is drafted in a working file kept **outside this repo**
 (gitignored — outbound communication drafts are not committed); the *findings* it rests on are all
 in D-099, which is.
+
+> **Annotated 2026-08-20 — unresolved tension, do not read the rule above as descriptive.** Register
+> entry `COMMITTED-ORG-DRAFTS` (from risk R7.2); user decision **UD-12(f), open**.
+>
+> The rule stated above — "outbound communication drafts are not committed" — is **partially
+> honoured**:
+>
+> - **Honoured** for the org-asks drafts themselves. That working file now lives at
+>   `docs/2026-07-24-org-asks-drafts.md`, is listed in `.gitignore` (line 69 as of 2026-08-20; the
+>   register cites line 67, which has since shifted) and is **untracked** today — it was explicitly
+>   untracked in commit `3ee2445` ("Untrack the outbound org-asks draft; keep it local"). Its
+>   pre-`3ee2445` content remains in git history, which the rule does not address.
+> - **Not honoured** for the other outbound drafts. **Three committed drafts** were found:
+>   `S42_ORG_ASKS.md` (the file since untracked, above), `S42_SECURITY_REPORT.md` and
+>   `ENROLLMENT_FAQ_APPROVAL.md`. The latter two are tracked today.
+>
+> **Whether the rule was silently superseded or the files violate it is not decided here, and this
+> annotation does not decide it** — that is UD-12(f), and it needs a judgement, not more code. A
+> related inconsistency rides on the same decision: the two org-facing S42 drafts implement
+> **opposite** policies on mentioning the committed-credentials issue — the org-asks drafts exclude
+> it from any sent message, while `S42_SECURITY_REPORT.md` includes it as known context. Nothing in
+> this document, and nothing in this annotation, sends anything: outbound sends are a user action.
 
 **§7 gains one standing note.** Every `/api/accounts/*` route beyond login/register is reachable by
 any authenticated account regardless of role (code-verified in the analysis docs). We inherit no

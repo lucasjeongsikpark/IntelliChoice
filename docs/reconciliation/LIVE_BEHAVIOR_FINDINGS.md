@@ -1,3 +1,7 @@
+> **ARCHIVED 2026-08-20.** Point-in-time audit evidence (reconciliation, 2026-08-19/20) — **do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** Phase 3B-2 material live findings (LB-01 … LB-08) — every number here is bound to its probe window and build SHA. **Superseded by:** the 166-entry register at `docs/reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md`.
+
 # LIVE_BEHAVIOR_FINDINGS.md — Phase 3B-2 material findings
 
 **Date:** 2026-08-19 (probe window **2026-08-20T03:30Z – 05:00Z** UTC)
@@ -51,7 +55,7 @@ restated as 2 of 6 reachable).
 | pytest, whole suite (local, HEAD `344f016`) | `collected 1738 items` | `1735 passed, 2 skipped, 1 xfailed in 500.43s`, EXIT=0 |
 | Playwright, local target | `Running 129 tests using 1 worker` | `127 passed (6.5m)` / `2 skipped`, EXIT=0, 0 did-not-run |
 | Playwright, staging (`journey-student.spec.ts`) | 2 tests, one process, `workers: 1`, `retries: 0` | `2 passed (28.5s)`, EXIT=0, `{expected: 2, skipped: 0, unexpected: 0, flaky: 0}` |
-| Guest RAG turn, staging chat | `POST /chat/sessions` → 200; 1 message → 200 | `scope="in_scope"`, 1 citation, `access_hint = null`, 10.55 s |
+| Guest RAG turn, staging chat | `POST /chat/sessions` → 200; 1 message → 200 | `scope="in_scope"`, 1 citation, `access_hint = null`, **10.55 s — pre-D-423, build `gha-44a12dfc9549`** *(both labels added 2026-08-20, step 7d; see LB-08)* |
 | Free source arms (REQ-46 rule history, WORK-29 doc-vs-decision) | git history + source re-read | rule frozen since 2026-08-04; two doc-side drifts found |
 
 Claim-level outcome: **LIVE_CONFIRMED 3** (TEST-28, WORK-05, WORK-13) · **LIVE_PARTIALLY_CONFIRMED 2**
@@ -432,6 +436,8 @@ two (`deployed-authorization.spec.ts:188` and `:218`, both guarded
 **What was found.**
 
 1. **Latency corroborates D-423.** The guest QA turn measured **10.55 s** (session creation 0.25 s)
+   **— pre-D-423, on staging build `gha-44a12dfc9549` (build SHA label added 2026-08-20, step 7d:
+   this number must never be quoted without both facts)** —
    against D-423's recorded `10.62 s` and "~10.6s p95 accepted for launch"
    (`docs/DECISIONS.md:28716`, `:28729-28730`; k6 `http_req_duration` p95 13.1 s). Because
    `6f107c1` is undeployed (LB-05), this number is from a build that **predates** D-423's

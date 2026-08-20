@@ -1,3 +1,7 @@
+> **ARCHIVED 2026-08-20.** Point-in-time audit evidence (reconciliation, 2026-08-19/20) — **do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** resolved remediation record — D-310's rotation **executed 2026-08-20T03:20:57Z** (`:66`; the step-7d instruction's "2026-08-18" is this file's *CloudTrail access-review* window at `:45`, not the apply); never an active exposure; the `ps`-visibility residual is unmeasured, not cleared. **Superseded by:** the 166-entry register at `docs/reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md`.
+
 # REMEDIATION_D310_ROTATION.md — rotation of the D-310-exposed staging token secrets
 
 **Date:** 2026-08-20 (all times UTC). **Authorized by:** user approval of the remediation plan,

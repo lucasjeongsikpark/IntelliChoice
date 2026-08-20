@@ -1,7 +1,42 @@
+> **⛔ 이 문서의 후속 작업은 D-152로 동결되었습니다 — FROZEN by D-152 (막힌 게 아니라, 미룬 것).**
+> *Banner added 2026-08-20 (W-20); shape copied from `docs/S42_OPEN_QUESTIONS.md`, the only S42-era
+> file where the freeze was visible from inside. `D-152` appeared **zero times** in this file before
+> this banner.*
+>
+> **Integration is closed until the user reopens it — not blocked, deferred by choice** (D-152). The
+> **findings** below stay live and are the largest block of production facts in the repository; the
+> **actions** they imply do not. Specifically, none of the following may be taken from this document:
+> measuring AWS→icrest reachability, requesting the production API base URL or a test account,
+> finalizing the §3.1 auth option, or rewriting the MySQL dev fake to match production's schema.
+> **§9 is the sharpest hazard: it instructs an action `CLAUDE.md` now prohibits** — see the tombstone
+> on it. No measurement performed here can meet the reopen condition; the freeze lifts on the user's
+> word, not on evidence.
+>
+> Live register entries: `D152-FREEZE`, `S43-SCOPE`, `AUTH-OPTION-O1B`, `F2-ADAPTER-SHAPE`.
+
 # S42 Discovery — the production system, read from its own source
 
 **Date:** 2026-08-01 · **Decision record:** D-151 · **Status:** source half complete; runtime half
-still owed (§7)
+~~still owed (§7)~~ **frozen by D-152 (§7)** — *corrected 2026-08-20 (W-20): the runtime facts are
+**deferred by choice**, not outstanding work this project owes anyone. Nothing is waiting on us and
+we are waiting on nothing; §7 is a list to re-read on the day integration reopens.*
+
+> **Staleness — read before quoting anything below (added 2026-08-20, W-37/W-20).** Every fact here
+> was read from a **checkout of 2026-08-01** (the body was edited 2026-08-02; **the header date did
+> not move when those edits landed**, so "2026-08-01" is the checkout date, not the last-edited
+> date). That is **19 days** before this note, against a database whose schema runs
+> `sequelize.sync({ alter: true })` on **every boot** (§4.5) and whose deployed build has never been
+> compared to this checkout (§7). **This file's own central drift finding therefore applies to
+> itself.** Concretely: treat §4's schema as a 2026-08-01 *snapshot*, not as current state, and note
+> that `S42_OPEN_QUESTIONS.md` group **B2** ("does the deployed build match this checkout?") must be
+> answered before anything here is trusted at integration time — which means the whole file's
+> trust level is gated on a measurement that is itself frozen. That is the correct state, not a gap.
+>
+> **Forward pointer (W-36).** This is the *indexed* S42 document, but it is not the current form of
+> the org-facing questions: **[S42_OPEN_QUESTIONS.md](S42_OPEN_QUESTIONS.md) supersedes §7** and is
+> the live tracking list (it cites this file as evidence while replacing its ask list). The
+> supersession previously pointed only one way — the superseding document linked here, this one
+> carried no pointer back out.
 
 The existing `go.intellichoice.org` system's source was made available locally at
 `../IntelliChoice-web` (`icrest/` = Node/Express + Sequelize backend, `icweb/` = CRA React
@@ -269,6 +304,20 @@ data**. Availability measurement must exercise a DB-backed endpoint.
 
 ## 7. What still needs the org
 
+> **⛔ SUPERSEDED 2026-08-20 (W-20/W-36) — kept for its reasoning, not as a work list.**
+> **Superseded by:** [S42_OPEN_QUESTIONS.md](S42_OPEN_QUESTIONS.md), which is the live register of
+> what source could not answer, grouped A/B/C/D/E with urgency **relative to integration start**.
+> Also frozen by D-152: the asks below are not to be sent, and the measurements are not to be run.
+>
+> Four things changed after this section was written, and it does not reflect any of them (D-153):
+> **Message B (DNS)** was answered — the org confirmed it can add the records at integration time,
+> so it is **closed**, not "unchanged". **Message A (timezone)** was demoted from blocker to a
+> confirmation question, closed on evidence: the public schedule has no Sunday and no 00:00–01:00
+> sessions, so both conventions produce the same date *and* the same week. **Message D (capacity)**
+> has a fixed planning assumption (~1,000 users over a week), unmeasured but decided. The **live-system
+> reads** at the end of this section survive as `S42_OPEN_QUESTIONS.md` group D, behind the frozen
+> read-only-account ask. Read §7 for *why* each question exists; read the register for its status.
+
 Source access collapsed most of the original asks. What genuinely remains:
 
 **Message A (timezone) — still needed, unchanged.** Source confirmed the facts; the *decision*
@@ -300,6 +349,21 @@ week a session belongs to.
 
 ## 8. Recommendation for the auth decision (yours to make)
 
+> **⛔ SUPERSEDED 2026-08-20 (W-20) — the recommendation stands; its *status* does not.**
+> **Superseded by:** register entry **`AUTH-OPTION-O1B`**, which is now the single home for this
+> item's state. The operative rule: **O1b remains a *recommendation* until measured, and the
+> measurement happens right before S44 — not now** (D-152; `CLAUDE.md`'s deferred-integration
+> section). So the closing line below ("this is a recommendation, not a decision") is *more* true
+> than when it was written, and §8's pointer to "DECISIONS.md before S44 implements" must not be
+> read as a task to start. Do not finalize the §3.1 option, do not measure reachability to decide
+> between O1b and O2, and do not request the credentials either option would need.
+>
+> Still live and unaffected by the freeze: the §2-based *technical* argument for O1b (attendance
+> needs no DB path, so the coupling is to a public HTTP contract), the O2 fallback's stated cost, and
+> the two gaps **no** auth option closes — branch address/coordinates have no production source at
+> all, and manager email must be derived from `accounts.locationId` where `role = 'Manager'`, which
+> §6.2 proves is an unvalidated string.
+
 **O1b**, on the evidence in §2: the signups listing carries per-child `attended` scoped to the
 caller, so attendance needs no DB path, and the integration stays coupled to a *public HTTP
 contract* rather than to production's internals. Concretely the new stack would: call
@@ -322,6 +386,31 @@ name), and **manager email** must be derived by joining `accounts` on `locationI
 DECISIONS.md with §7 residual-risk acceptance before S44 implements.
 
 ## 9. Consequences for the new stack (S43's real work list)
+
+> **⛔ SUPERSEDED 2026-08-20 (W-20) — and its instruction is now PROHIBITED. Read this before the
+> table.**
+> **Superseded by:** register entry **`S43-SCOPE`** and **D-152**.
+>
+> **The sentence below — "Every row below must be fixed before `IcProfileAdapter` contract tests mean
+> anything" — directs an action `CLAUDE.md` forbids. A reader who obeys §9 violates `CLAUDE.md`.**
+> The rule is explicit: *do not rewrite the MySQL dev fake to match production's schema.* The fake's
+> shape is **wrong on purpose** and that is safe, because the `ProfileAdapter` Protocol
+> (`StudentProfile` / `BranchInfo` / `AttendanceStatus`) is **SPEC-derived, not fake-derived** — so
+> every mismatch in the table stays behind the adapter seam until integration reopens. The
+> "must-fix" severities are therefore **not** current severities; they are what the same table would
+> mean *after* the freeze lifts.
+>
+> **What is still live here, and it is the valuable part:** the table is the best single statement of
+> *where* production and the dev fake diverge, and the closing paragraph's conclusion — that the right
+> shape is **production-shaped fixtures captured from source**, not an incrementally extended fake —
+> is the reasoning `S43-SCOPE` and `F2-ADAPTER-SHAPE` rest on.
+>
+> **What remains a live obligation despite the freeze:** keeping the seam honest. Anything that makes
+> an app-level decision depend on the *fake's schema* rather than on the Protocol is a real defect
+> today. And one row understates itself: the last row calls `attended = null` ⇒ `UNKNOWN` "cosmetic —
+> same intent". Per D-152 §2, `signups.attended = null` is **routine** in production, so
+> `AttendanceStatus.UNKNOWN` → blocked is a **routine** path, not a rare one — which is a product fact
+> that must inform work *now*, not at S43.
 
 The MySQL dev fake models a system that **does not exist**. Every row below must be fixed before
 `IcProfileAdapter` contract tests mean anything — a green test against the current fake is

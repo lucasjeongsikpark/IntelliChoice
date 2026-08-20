@@ -1,3 +1,7 @@
+> **ARCHIVED 2026-08-20.** Point-in-time audit evidence (reconciliation, 2026-08-19/20) — **do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** Phase 3A.5 material local-execution findings — what running the repository, rather than reading it, surfaced or sharpened. **Superseded by:** the 166-entry register at `docs/reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md`.
+
 # LOCAL_EXECUTION_FINDINGS.md — Phase 3A.5 material findings
 
 **Date:** 2026-08-19

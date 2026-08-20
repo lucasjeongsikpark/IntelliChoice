@@ -1,3 +1,7 @@
+> **ARCHIVED 2026-08-20.** Point-in-time audit evidence (reconciliation, 2026-08-19/20) — **do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** Phase 3A repository-state evidence — the code readings behind the drift register, all at HEAD `344f016`. **Superseded by:** the 166-entry register at `docs/reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md`.
+
 # REPOSITORY_STATE_EVIDENCE.md — Phase 3A repository-observed-state verification
 
 **Date:** 2026-08-19

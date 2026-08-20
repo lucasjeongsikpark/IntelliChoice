@@ -1,3 +1,25 @@
+> **COMPLETED 2026-08-20 — the questions in this document are answered. The measurements stand.**
+>
+> **What still stands:** every measurement below, **as of 2026-08-14, on staging**, read via a
+> read-only `ops-task`. This is the only staging checkpoint sizing that exists anywhere, and it is
+> reference material, not an open question.
+>
+> **What is answered:** §8's recommendation and **all four of §9's questions** were decided by
+> **D-333** (with **D-332** landing `learning_sessions` the same day). Read §8 and §9 as the record
+> of what was *asked*, not as open work. Per-item annotations are inline below.
+>
+> **D-333's precondition, verbatim, because it gates any future retention change:**
+>
+> > Before deleting any eligible checkpoint, run long-term memory consolidation first.
+>
+> **Environment labelling — do not "reconcile" these numbers with anyone else's.** Every figure in
+> this document is **staging** (checkpoint tables **~285 MB** total). `OPEN_DECISIONS` #4 quotes
+> **development** (~4.8 GB). They are roughly 17× apart because they measure **different
+> environments**, not because one is wrong. Picking one would destroy information.
+>
+> Pointer: **D-333** (deletion windows, consolidation gate), **D-332** (`learning_sessions`),
+> **D-331** (records this measurement), **D-336** (closes §10).
+
 # U7 — Consolidating checkpoints into durable memory
 
 **Status:** design review, **measured**. Steps 1–2 of §8 are done; no deletion code written.
@@ -51,6 +73,9 @@ not what is filling staging.
 
 ### 1.2 Where the bytes are, by phase — the finding that should decide this session
 
+**Environment: staging, 2026-08-14** (same read as §1.1). Every figure in this subsection is
+staging; none of it is development.
+
 | phase | threads | bytes | share | per thread |
 |---|---|---|---|---|
 | `pre_exam` (abandoned mid-exam) | 1,581 | 119.4 MB | **64.7%** | 75 KB |
@@ -76,7 +101,7 @@ more. The dry-run's honest answer today is **zero threads, zero bytes**.
 | | |
 |---|---|
 | a completed session | **350 KB** (staging, n=9) · 233 KB (dev, n=4,023) |
-| an abandoned pre-exam session | **75 KB** |
+| an abandoned pre-exam session | **75 KB** (staging) |
 
 **Does not transfer — the thread mix.** Staging's 4,382 threads are almost entirely e2e-harness
 walks, which abandon at `pre_exam` constantly and complete rarely. A real student population has a
@@ -88,6 +113,9 @@ That matters more in this product than in most: D-152 §2 records that
 `AttendanceStatus.UNKNOWN → blocked` is a **routine** production path, not a rare one.
 
 ### 1.4 Projection
+
+**Built from the staging per-session bytes above** (0.35 MB/completed session, staging, n=9) against
+staging's free space. Not a development measurement and not a production one.
 
 | assumption | value |
 |---|---|
@@ -265,6 +293,12 @@ thing here.**
 1. **Do not write the completed-session deletion yet.** It reclaims 1.7% of checkpoint bytes and
    zero bytes today. Nothing is eligible for at least another 8 days on staging, and there is no
    production data at all.
+
+   > **[Annotation 2026-08-20 — absolute date supplied; recommendation superseded.]** "Another
+   > 8 days" is measured from **2026-08-14**, so the 30-day floor's first eligibility on staging is
+   > approximately **2026-08-22**. The claim was self-expiring as written and is now anchored;
+   > re-measure rather than trusting either form. The recommendation itself was **superseded by
+   > D-333**, which chose the windows and shipped the deletion **dry-run by default**.
 2. **Add `learning_sessions` (§2.4) regardless of when deletion ships.** It is additive, it is the
    "store it separately" half of your design, and every day it does not exist is a day the five
    §2.3 fields are recorded nowhere. This is the piece with value independent of retention.
@@ -277,15 +311,55 @@ thing here.**
 
 ## 9. What is still open
 
+> **[Annotation 2026-08-20 — nothing in this section is still open. All four were answered by
+> D-333, one of them (question 2) by D-332 on the same day this document was written.]** The
+> questions are kept as the record of what was asked. Per-question answers are inline.
+
 1. **Age floor** — not yet chosen. The dry-run reports **zero eligible at 30, 90 and 180 days**, so
    the choice costs nothing today and can be made on principle rather than on reclaim.
+
+   > **ANSWERED — D-333.** Three windows were chosen, with consolidation as a gate: *"Before
+   > deleting any eligible checkpoint, run long-term memory consolidation first."* Chat and
+   > abandoned/pending checkpoints take a **90-day inactivity** window. The job ships **dry-run by
+   > default**. Read D-333 for the windows and for the classifier hole it records against itself.
+
 2. **Does `learning_sessions` get built now?** My recommendation is yes (§8.2), independent of the
    deletion job.
+
+   > **ANSWERED — yes, and it is built.** Decided by **D-332**, the same day this document was
+   > written. Verified in the repository on 2026-08-20:
+   >
+   > - **Migrated:** `packages/db/alembic/versions/6538a95bc990_d331_learning_sessions.py`.
+   > - **Modelled:** `LearningSession` / `__tablename__ = "learning_sessions"` in
+   >   `packages/db/src/intellichoice_db/models/learning_session.py`, with
+   >   `LearningSessionRepository` in `packages/db/src/intellichoice_db/repositories/`.
+   > - **Produced, on a schedule:** `session_consolidation_cli.py` in
+   >   `apps/learning-api/src/learning_api/services/`, scheduled in
+   >   `terraform/modules/scheduled-jobs/main.tf` ("Project completed learning threads into
+   >   learning_sessions (U7/D-332)").
+   > - **Consumed:** the retention job reads eligibility from it
+   >   (`checkpoint_retention_cli.py`), which is what makes D-333's consolidation gate enforceable.
+   >
+   > Note for anyone reading migration history: an **earlier, unrelated** `learning_sessions` table
+   > was dropped by `f3d82932ed10` as an S5 stand-in. The table described here is the new D-331/D-332
+   > one, not that one revived.
+
 3. **Chat checkpoints (§3)** — currently unbounded and addressed by no policy. In scope for a
    follow-up, or filed?
+
+   > **ANSWERED — D-333.** Chat checkpoints are covered by the 90-day inactivity window, and D-333
+   > records what it decided about consolidating a chat thread before deleting it (chat-api persists
+   > nothing about its conversations, and a full chat-summary table was explicitly *not* built).
+   > §3's structural warning still stands as a design constraint: a job keyed on
+   > `phase == 'completed'` silently skips every chat thread, so thread kind must be classified
+   > explicitly.
+
 4. **Abandoned sessions (§8.3)** — you scoped them out, correctly, on the reasoning that mixing
    windows is how the wrong policy gets applied. §1.2 says they are also where the growth is. Worth
    revisiting as its own session?
+
+   > **ANSWERED — D-333.** Abandoned/pending checkpoints were brought in scope under the same
+   > 90-day inactivity window, which is the re-scoping §8.3 argued for.
 
 ---
 
@@ -295,3 +369,10 @@ One completed staging thread (`98abc0f0…`) has **two** `learning_gain` rows fo
 `pre_assessment_session_id`; the other eight have one. Either a re-finalize legitimately writes a
 second row or gain is computed twice for one cycle. **Out of U7's scope** and recorded as a
 carry-over rather than investigated here.
+
+> **[Annotation 2026-08-20 — no longer a carry-over. CLOSED by D-336.]** The carry-over was picked
+> up and closed: a cycle finalized twice showed a parent the same session twice. Of the two
+> candidate explanations offered above, it was **gain computed twice for one cycle**, not a
+> legitimate re-finalize. D-336 closes it on both halves — the cause cannot recur (a guard plus a
+> database constraint), and the existing duplicate rows were cleaned up with the earliest row
+> surviving. Do not re-investigate from this section; read D-336.

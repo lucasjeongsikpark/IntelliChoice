@@ -1,3 +1,16 @@
+> ARCHIVED 2026-08-20. Historical record — do not treat as current state.
+> Current state: docs/PROJECT_STATE.md
+> Reason: the session-by-session plan is fully executed or frozen, and the live acceptance criteria
+> for the frozen sessions have been extracted. Superseded by: docs/PROJECT_STATE.md (current state)
+> and docs/reference/integration/ROADMAP_FROZEN_SESSIONS.md (the S42–S51 scope). This file moves to
+> **docs/archive/ROADMAP.md**; inbound pointers should be repathed there, not deleted.
+>
+> Everything below line 1 is history. The gate ledger, the session logs, the milestone
+> retrospectives, the missing glyphs and the duplicate blocks are all preserved unedited as the
+> record of what was believed when — they are **not** evidence of current state. Where a number or
+> attribution here was found wrong by the 2026-08-19/20 reconciliation, a dated annotation sits
+> beside it rather than replacing it.
+
 # IntelliChoice Implementation Roadmap
 
 This is the session-by-session plan for building the platform described in [SPEC.md](SPEC.md)
@@ -703,6 +716,14 @@ which stop the line.
 
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 
+> **⚠️ Scope label added 2026-08-20 (`AUDIT-COUNT-INSTRUMENT`, W-12).** Both counts in this
+> paragraph are counts **of the `AUDIT_FINDINGS.md` register, frozen 2026-08-05** — not
+> project-wide statements. Two later registers exist in separate namespaces and filed **46**
+> (`AUDIT_2026_08_16.md`) and **48** (`AUDIT_LIVE_2026_08_17.md`) findings after this register
+> froze, so "the audit backlog is empty" is true of one register and **unknown project-wide**. A
+> bare `AUD-*` id no longer identifies one finding; cite `<document>:<id>`
+> (`AUDIT-ID-NAMESPACE`, W-17).
+>
 > **✅ Phase 0B's audit backlog is empty as of D-183 (2026-08-05).** S40–S41 took "all P1s +
 > cheap P2s" (below); the rest were dispositioned or fixed session by session. **0 findings are
 > open** in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) as of D-183 (2026-08-05); this line read
@@ -770,6 +791,14 @@ which stop the line.
 >   docs/AUDIT_FINDINGS.md | sort -u
 > ```
 >
+> **⚠️ Scope label added 2026-08-20 (`AUDIT-COUNT-INSTRUMENT`, W-12):** the `awk` above reads
+> **`docs/AUDIT_FINDINGS.md` only** — the register frozen 2026-08-05. Its output is a count **of
+> that register**, never of the project. The 08-16 and 08-17 registers are separate files in
+> separate namespaces and this command cannot see them. One property this instruction asserts is
+> also still **unverified**: that every `### AUD-…` section has an Index row (that is exactly the
+> property that failed before D-174), as is the check that the four extra-pipe rows still keep
+> status in field 5.
+>
 > That returns **0** as of 2026-08-05 (D-183; it returned 1 from D-181 through D-182) — the Phase 0B
 > audit backlog is empty. D-182→D-183 is the case to remember for *how a finding actually closes*:
 > D-182 found the mechanism and shipped the fix and the count did not move, because the decisive
@@ -782,6 +811,12 @@ which stop the line.
 > each step came from building or running an instrument rather than from reading the code more
 > carefully. (It returned 6 when
 > this instruction was written, 5 after D-175, 3 after D-176, 1 after D-177, 0 after D-183.)
+>
+> **⚠️ Scope label added 2026-08-20 (`AUDIT-COUNT-INSTRUMENT`, W-12):** every figure in the running
+> series above — 6 → 5 → 3 → 1 → 0 — is a count **of register `AUDIT_FINDINGS.md`, frozen
+> 2026-08-05**. The series says nothing about the 08-16 or 08-17 registers, which did not exist when
+> it was written. This is the register's standing caveat on count-shaped claims: **re-derive a count,
+> never quote one**, and state which register it is a count of.
 >
 > **A finding can also be filed and closed without ever appearing in this count** (AUD-C-27, D-181).
 > That is not the count hiding work: the row and the detail section both exist, and the arithmetic
@@ -1404,6 +1439,28 @@ round-trips moved the queueing instead of removing it. **The ~$216/month obligat
 the successor target is **AUD-F-32** (~726 ms per answer request that is neither SQL nor graph work).
 AUD-F-30 is fixed the same session, after the measurement rather than with it (D-129 §6).
 
+> **⚠️ Arithmetic and attribution annotation, 2026-08-20 (`TRACEABILITY-ARITHMETIC`, W-11 —
+> DRIFT-02/DRIFT-38/DRIFT-39). Coverage is complete; two labels below are wrong.**
+>
+> 1. **The denominator, not the sweep.** Every "**37 of 37** sections" and the "**2 of 37**"
+>    tranche-1 figure in this block count the launch-scope denominator as 37. The scope section
+>    excludes **§5.17 (all of it)**, which leaves **36** launch-scope sections — 37 is reachable only
+>    by counting the excluded section's own disposition inside the launch-scope denominator. Read
+>    these as *36 launch-scope sections, all swept, plus §5.17 dispositioned*. The sweep itself is
+>    genuinely complete: every top-level section §5.0–§5.36 received a verdict. (TRACEABILITY's own
+>    tranche-5 running total "Sections swept: 21 of 37" is stale on the same denominator.)
+> 2. **Three exclusion attributions are thinner than the citations imply.** In the denominator
+>    parenthetical below: **D-004** supports "EKS-only concepts" generically, but the words *Pod
+>    Security Standards* and *NetworkPolicy* **do not appear in D-004**; the companion "§6.19 Phase
+>    18 (D-078)" attribution used in TRACEABILITY has no supporting text (`6.19` appears nowhere in
+>    `DECISIONS.md`); and **D-087** does carry the WAF deferral but the strings **"S50" and "A7"
+>    appear nowhere in it**. Treat all three as **inferences**, not quotations. This matters because
+>    the exclusion table is the denominator of the claim above it.
+> 3. **GuardDuty.** T-01 below is right that GuardDuty is absent, and its "tracked to S50 A7"
+>    disposition was never reflected in the S50 A7 scope list — corrected there (this file's
+>    Sessions 48–51 block) on the same date. GuardDuty (D-125) is also **absent from the exclusion
+>    list** although it is equally deferred, so the exclusion enumeration may be incomplete.
+
 **✅ CRITERION 1 IS MET (2026-07-30, D-129) — the one sentence got written.** T-02 is dispositioned:
 **S45 builds §5.1.2's first-visit notice; the §6.1 legal-and-policy track enumerates the eleven
 disclosures first**, in that order, because a notice drafted from an implementer's reading of the
@@ -1515,9 +1572,16 @@ all now reachable. **1** is unassessed since S37.
 S48 production environment (`terraform/environments/production`: multi-AZ, ≥2 tasks, deletion
 protection, dev-token gates off, domains + ACM + additive DNS, alarms to a monitored inbox);
 S49 real credentials + feature-flag audit (SES or email flag-off; Maps/Calendar/YouTube
-real-or-off) and the live connectivity path; S50 A7 close-out (WAF, backup-restore drill, ZAP
-on prod config, runbook updated for the integrated topology); S51 pilot start + graduated
+real-or-off) and the live connectivity path; S50 A7 close-out (WAF, **GuardDuty**, backup-restore
+drill, ZAP on prod config, runbook updated for the integrated topology); S51 pilot start + graduated
 rollout (allowlist → single-branch pilot → all branches → public chat).
+
+> **⚠️ GuardDuty added to the S50 A7 scope list 2026-08-20 (`TRACEABILITY-ARITHMETIC`, W-11 /
+> DRIFT-02; also `SEC-17-GUARDDUTY`).** TRACEABILITY tracks §5.30.3's GuardDuty requirement "to
+> S50 A7", and this list named WAF, the backup-restore drill, ZAP and the runbook — **and no
+> GuardDuty**, so a required control was deferred to a destination that did not list it. Phase 3B
+> confirmed GuardDuty is genuinely absent at **account** level, which makes the omission real rather
+> than clerical. The parallel S50 A7 scope list in `INTEGRATION_PLAN.md` carries the same fix.
 
 **Dependency spine:** S35 → the four audits → stabilization → **gate** → discovery (S42) →
 adapter → auth → consent/scoping → integration testing. Parallel: A6 real content — the

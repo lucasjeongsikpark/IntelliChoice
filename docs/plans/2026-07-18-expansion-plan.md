@@ -1,3 +1,28 @@
+> **ARCHIVED 2026-08-20 — EXECUTED PLAN.** This plan was **fully executed** as sessions
+> **S17–S28**, shipped **2026-07-19/20**. The D-049 renumbering applies throughout: the task-id →
+> session map at `:32-34` is the live translation layer, and the former S18–S23 are now S29–S34.
+> **Current state: `docs/PROJECT_STATE.md`.**
+> Reason for keeping it intact: it is the only place the design rationale exists in full — the ten
+> architecture calls, the schema/API/graph/LLM/frontend designs, the 13 tasks (§18) and twelve risks
+> (§19). `ROADMAP.md` carries a live pointer here telling readers to read this plan rather than
+> re-derive its design, which is why the file is archived and **not deleted**.
+> **This file PREDATES the D-082/D-111 MongoDB→MySQL correction (2026-07-22 / 2026-07-28).** Its
+> seven Mongo references (`:174`, `:458`, `:588`, `:674`, `:715`, `:719`, `:746`, as of 2026-08-20 —
+> `mongo_fixtures.py`, `seed-mongo`,
+> "resolved per request from Mongo") are **dated, not edited**: `docs/plans/` was excluded from the
+> MySQL doc sweep. Read every Mongo mention as "the org datastore", which is MySQL 8.4 behind the
+> read-only `ProfileAdapter`.
+> **§1 is a 2026-07-18 snapshot, not a status report.** Its two "Does not exist" verdicts (§1.5 stage
+> introductions at `:116`, §1.6 contextual learning chat at `:122` — line numbers as of 2026-08-20)
+> and every "Gap." paragraph are
+> **long false** — those features shipped in S17–S28 — and they sit ~87 lines below the status line
+> above, so a reader who starts at §1 concludes that month-old shipped features are unbuilt. Read all
+> of §1 as a statement about 2026-07-18 only. Two further dated premises: §2's
+> `effective_from: 2026-08-01` "(future)" at `:156` is now inverted (that date is past), and §9's
+> heading at `:473` ("supersedes/expands ROADMAP S17") contradicts `:30`, which names ROADMAP the
+> source of truth — `:30` wins.
+> *(Body text below is unedited by design; corrections live in the annotations above.)*
+
 # Expansion Plan — LLM Question Bank, Assessment UX, Tutoring Chat, Memory, Dashboards, and Real Chat Content
 
 Date: 2026-07-18 · Status: **accepted — merged into ROADMAP.md as sessions S17–S28 (D-049)**

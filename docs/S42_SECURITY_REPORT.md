@@ -3,6 +3,17 @@
 **Source:** [S42_DISCOVERY.md](S42_DISCOVERY.md) §6, dispositioned in DECISIONS.md D-153 §5/§7.
 **Drafted:** 2026-08-02 (S43).
 
+**Send status: no send recorded as of 2026-08-20.** A corpus grep in English and Korean returns zero
+send confirmations; this file has no send-status field, so unsent was previously indistinguishable
+from sent-and-unlogged. This line states the known fact, not an inference.
+
+> **Cross-reference, neutral — the 6-digit `accounts.code` severity is not agreed across documents.**
+> §6.4 / item 4 below rates it **(Medium)**; `INTEGRATION_PLAN.md` §7-R3 describes the same weakness
+> as a **permanent account-takeover residual**. Both readings are recorded here as they stand and
+> **neither is edited to match the other** — reconciling them **before** this report is sent is part
+> of **UD-8** (organization communications). Noted so a sender sees the discrepancy rather than
+> discovering it afterward.
+
 These were found while reading `../IntelliChoice-web` (`icrest`/`icweb`) to answer integration
 questions — **not** by probing the running system. They are in the **existing** `go.intellichoice.org`
 system, which this project does not modify (production is frozen by constraint). We are not fixing

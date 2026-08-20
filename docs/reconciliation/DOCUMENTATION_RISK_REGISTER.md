@@ -1,3 +1,7 @@
+> **ARCHIVED 2026-08-20.** Point-in-time audit evidence (reconciliation, 2026-08-19/20) — **do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** Phase-1 documentation risk register — the 49 structural risks in the pre-migration docs corpus. **Superseded by:** the 166-entry register at `docs/reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md`.
+
 # Documentation Risk Register — Structural Risks
 
 **Date:** 2026-08-19

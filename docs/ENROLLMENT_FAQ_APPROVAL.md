@@ -2,9 +2,11 @@
 
 **Why this exists.** The Q&A app's canonical guest question — *"How do I enroll a student?"* —
 currently **refuses to answer**, and that is correct fail-closed behavior: the only document that
-covers enrollment is `public-enrollment-faq`, which is **synthetic draft content**
-(`status: draft`, [manifest](../knowledge-content/manifests/public.yaml):78) written by us for
-development. Nothing else covers enrollment, so until the org confirms the real facts and we flip
+covers enrollment is `public-enrollment-faq`, which is **synthetic draft content** written by us for
+development: the entry keyed `document_id: public-enrollment-faq` in the
+[manifest](../knowledge-content/manifests/public.yaml) carries `status: draft`. (Cited by **key**
+rather than by line number, because the line moves; verified still `draft` on 2026-08-20.)
+Nothing else covers enrollment, so until the org confirms the real facts and we flip
 the document to `approved`, the launch journey's canonical question stays unanswerable (D-146).
 
 **This is editorial, not engineering.** No code changes on approval — only the four facts below get
@@ -92,3 +94,13 @@ independent of the app's build schedule — it's a **pre-launch checklist item**
   urgency. Send it to whoever owns the enrollment/marketing copy.
 - After approval, the source of truth for the flip is the manifest; keep the fake `knowledge-content
   copy/` in sync only if it is still used by any test (check before editing it).
+
+  > **[Annotation 2026-08-20 — OBSOLETE instruction; do not follow the second half.]** The
+  > `knowledge-content copy/` directory was **deleted by D-253** and does not exist (confirmed
+  > absent on 2026-08-20). There is nothing to keep in sync, and no test uses it. The first half
+  > stands: the **manifest is the source of truth for the flip**.
+  >
+  > **The real flip procedure, in full, is the one already stated above:** correct the four facts in
+  > `content.md`, remove the DRAFT banner, set `public-enrollment-faq` from `status: draft` to
+  > `status: approved` in `knowledge-content/manifests/public.yaml`, then re-run
+  > `make knowledge-load`. Nothing else is copied anywhere.

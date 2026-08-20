@@ -1,9 +1,32 @@
+> ARCHIVED 2026-08-20. Historical record — do not treat as current state.
+> Current state: docs/PROJECT_STATE.md
+> Reason: **a status line is a measurement with an expiry date** — this file's own meta-lesson, and
+> the reason it is archived rather than maintained. All 14 items are answered or parked; what is left
+> is the *deliberation record*, which is history. Superseded by: docs/PROJECT_STATE.md §5/§9 (what is
+> actually open) and DECISIONS.md (the outcomes). This file moves to
+> **docs/archive/OPEN_DECISIONS.md**.
+>
+> What is uniquely owned here and worth keeping: the **option space** and the
+> recommendation-versus-outcome divergences. `DECISIONS.md` records what won; this file records what
+> else was on the table and why the recommendation lost in the three cases where it did. It is **not**
+> the ruling, and — despite its filename and its old `CLAUDE.md` description — it is **not** a list of
+> open work. Dated annotations below mark the lines that had expired by 2026-08-20; no original text
+> was deleted.
+
 # Open decisions — what needs a person, not more code
 
 **Every decision in this file was answered on 2026-08-14 (D-322).** The execution plan is
 ROADMAP.md's **Milestone 10 (Sessions U0–U7)**. This file is kept because the *reasoning* behind
 each option is worth having when the work starts, and because two of the answers went against the
 recommendation and that is worth being able to re-read.
+
+> **⚠️ Annotation 2026-08-20 (`RISK-GROUP-RESOLVED-LOOKS-OPEN`, W-28).** The sentence above is
+> **falsified by this file's own contents**: items **11, 12, 13 and 14** were raised *after*
+> 2026-08-14 and decided on **2026-08-17** and **2026-08-18** (D-384, D-390, D-399, D-405). So
+> "answered on 2026-08-14 (D-322)" is true of items 1–10 only. The correct summary is the one the
+> §8 banner below reaches: everything is answered, but not on one date and not by one decision — and
+> a banner asserting a single closing date is exactly the "status line with an expiry date" this file
+> later names as its own lesson.
 
 ## ✅ Nothing in this file is awaiting a decision (2026-08-18, D-417)
 
@@ -20,6 +43,15 @@ questions, and it lives in ROADMAP.md rather than here:
 | **A1** — integration stays **frozen** until the user reopens it | ⛔ not work; do not start |
 | **B5, C7, C9, D10, D11, E** — see D-417 | done or parked |
 
+> **⚠️ A3's "still to build" cell has expired — annotated 2026-08-20
+> (`DOC-DEPLOYED-STATE-CLAIMS`, W-04; `DRIFT-93-D401-D406-APPLIED`).** The row above reads
+> "**D-401 and D-406 stay unapplied until it exists**". **Both are applied**, and the proof is **AWS
+> resource existence** rather than any commit message or apply log — see **D-419**. The quoted
+> "stay unapplied" wording stays where it belongs, as a quotation of **D-417 §A3**; it must not be
+> restated as current state, and it must not be relocated onto D-406. The image floor itself was
+> built (ROADMAP W25). Related expiry on the same date: this file's "**staging numbers nobody has
+> read**" line, below — they were read on **2026-08-14** (W-04).
+
 **Two items in this file were wrong when re-read, and both mattered.** #6's *"4 videos"* was two days
 stale and would have justified a product decision that video intervention is absent at launch, when
 staging in fact holds 497 videos covering 102 of 112 skills. #7 recommended the **opposite** of what
@@ -33,6 +65,12 @@ hypothesis, and a status line is a measurement with an expiry date.**
    blocking: the catalog is healthy and a further seeding run is theirs to schedule (#6).
 2. **The consolidation criteria for U7** — unchanged; the direction is decided and the criteria are a
    design review against staging numbers nobody has read.
+   > **⚠️ Expired — annotated 2026-08-20 (`DOC-DEPLOYED-STATE-CLAIMS`, W-04).** The staging numbers
+   > **were read on 2026-08-14**. "Nobody has read them" is the classic self-expiring status line:
+   > true when written, silently false afterwards, and still directing a reader to go measure
+   > something already measured. Read the checkpoint sizing with its **environment label attached** —
+   > development ≈4.8 GB versus staging ≈285 MB are *not* a contradiction to be resolved by picking
+   > one (`U7_CHECKPOINT_CONSOLIDATION.md`, W-08/W-31).
 3. **Depth generation timing** — unchanged; decided in principle, parked in practice.
 
 Everything below is the record of how each was decided, marked with its outcome. Do not re-open one
@@ -233,6 +271,16 @@ stopping part-way is safe (D-193's per-candidate commit). The alternative is car
 
 ## 6. ⏸ PARKED 2026-08-18 (D-417) — and the figure this item was argued from was wrong by two orders of magnitude
 
+> **⚠️ Annotation 2026-08-20 (`BATCH-LOW-STALE-STATUS`, W-41; DRIFT-95).** "**Parked**" here is in
+> tension with `PROGRESS.md`, which carries the same item as **blocked on the YouTube key**. Both
+> readings come from the same facts and they are not interchangeable: *parked* means nobody is
+> waiting on anything, *blocked* means the item is waiting on the user. The reconciled reading is
+> **parked**, on the user's instruction (D-417): the catalog is healthy (497 videos, 363
+> active-and-approved, 102 of 112 skills servable as of 2026-08-18), no expansion is wanted now, and
+> a further seeding run is the user's to schedule — the missing key gates *that optional run*, not
+> the feature. The 10 skills with no video are a **content** question about what the pinned channel
+> publishes. Live tracking home: `VIDEO-COVERAGE-PARK` in `PROJECT_STATE.md`, not this file.
+
 > **Status: the catalog is healthy and the coverage question was answered three days before this item
 > was re-read.** Measured live on staging 2026-08-18 via a read-only `ops-task`: **497 videos, 363
 > active-and-approved, 102 of 112 skills servable**, last synced 2026-08-15 07:39 UTC.
@@ -306,6 +354,18 @@ stopping part-way is safe (D-193's per-candidate commit). The alternative is car
 
 ## 8. ⏸ UNCHANGED — not raised; D-310 stands until staging stops being synthetic
 
+> **⚠️ SUPERSEDED-OPERATIONALLY — annotated 2026-08-20 (`RISK-GROUP-RESOLVED-LOOKS-OPEN`, W-28; also
+> step 7d of the migration, which mandates this annotation on its own).** As written, this item tells
+> the next reader that the exposure is **live**. It is not: **the D-310 rotation was EXECUTED — the
+> apply completed 2026-08-20T03:20:57Z, after the 2026-08-18 CloudTrail access review** — see
+> `docs/reconciliation/REMEDIATION_D310_ROTATION.md` (archived at
+> `docs/archive/reconciliation-2026-08/REMEDIATION_D310_ROTATION.md`).
+>
+> Both halves are true at once, and the phrasing matters: **D-310's decline stands as the historical
+> record, and it is operationally superseded.** The reasoning below was sound for its date and is
+> preserved unedited; it simply no longer describes the state of the credential. Do not read "⏸
+> UNCHANGED" as "nothing was done", and do not re-derive the rotation decision from this item.
+
 **Status:** declined once, with a reason (D-310, 2026-08-13).
 
 The reasoning still holds: staging only, production is a separate frozen system, Postgres holds no
@@ -332,6 +392,28 @@ clear the backlog in one pass.
 ---
 
 ## 10. ✅ ALL DECIDED — narrative header: yes (new API field) · ladder pause: investigate · `formatDateLabel`: **CDT** · `push` trigger: unchanged, stays manual · repeated context sentence: not raised
+
+> **⚠️ Two annotations, 2026-08-20.**
+>
+> **(1) The heading conceals a question that was never asked (`RISK-GROUP-RESOLVED-LOOKS-OPEN`, W-28;
+> `BATCH-LOW-CONFIG-VS-PLAN`, W-44).** "**ALL DECIDED**" is contradicted by its own last sub-item,
+> which is marked "**not raised**" — the repeated-context-sentence item (15 of 92 items with a context
+> block repeat its opening sentence in the stem). A sub-item nobody put to the user is **not a closed
+> question**, and this heading must not be cited as evidence that it is. Recorded as a convention
+> point: **"ALL DECIDED" headings are a rot hazard** — the first sub-item to expire hides behind the
+> heading's own confidence. The `formatDateLabel` date-only shift below sits under the same heading
+> while still being **armed**.
+>
+> **(2) The symbol name is wrong (`BATCH-LOW-CONFIG-VS-PLAN`, W-44 / DRIFT-59).** **No symbol named
+> `formatDateLabel` exists in either frontend** — verified 2026-08-20 by grepping both `apps/*/src`
+> trees. The real formatter is **`buildDateLabelFormatter(timeZone)`**
+> (`apps/learning-web/src/screens/StudentDashboardScreen.tsx:79-82`), bound as **`formatOrgDate`** at
+> `:427`. Read every `formatDateLabel` in this item as `buildDateLabelFormatter`. The **zone policy is
+> implemented**, via D-324's design: the zone is server-supplied (`org_time_zone`, America/Chicago —
+> effectively the CDT this item recorded) with a fallback of `UTC` that is deliberately *not*
+> `America/Chicago`, so this item's wording simply predates the mechanism. **The residual is real:**
+> a date-only string is parsed as UTC midnight and rendered in the org zone, so it can still shift
+> back a day — unmitigated, and tracked live as `DRIFT-59-DATE-SHIFT` / `WORK-40-TZ`, not here.
 
 - **The narrative modal reuses "Why this is your next step" on a results context.** Fixing it needs
   a **new API field** — the snapshot carries the narrative *text*, not its stage. Small, but it is a
