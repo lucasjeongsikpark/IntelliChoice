@@ -1,3 +1,7 @@
+> **ARCHIVED 2026-08-20.** Point-in-time audit evidence (reconciliation, 2026-08-19/20) — **do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** Phase-2 claim ledger — the ~70 extracted claim rows with their sources, temporal notes and candidate statuses, as read on 2026-08-19. **Superseded by:** the 166-entry register at `docs/reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md`.
+
 # Claim Ledger — Phase 2 of the Documentation Reconciliation Migration
 
 **Date:** 2026-08-19
@@ -639,6 +643,30 @@ each block and in §8.
 - Contradicts/competes: SPEC §5.19.5's `access_required` row implies the reason is reliably produced; the measurement says it fires 1 time in 8. D-371 closed the item with the shipped rule still best.
 - Evidence still required: Phase 3: confirm `scripts/measure_access_hint_live.py` exists and whether recall has changed since D-371.
 - Confidence: HIGH — numbers are explicit and self-critical.
+- **Annotation 2026-08-20 (step 7d, W-10) — the rate above is SUPERSEDED and its denominator was
+  never 8. The rule-half of this row stands.** This row re-quotes D-351's 2026-08-15 figures
+  (`docs/DECISIONS.md:25129-25130`) verbatim; **D-371 replaced them on 2026-08-16**
+  (`docs/DECISIONS.md:25966-25972`): **recall 2/8, precision 5/5 (zero false hints)**. D-371's own
+  methodological correction is the part that must travel with the number — **the probe's
+  precondition is a no-source refusal, so an *answered* question never reaches it**: of the 8, 2
+  were answered, 4 refused without a hint, 2 hinted, so the probe **fired on 2 of the 6 it could
+  reach**. Any restatement must say *which denominator it means* — **2/8** (all questions) or
+  **2-of-6-reachable** (questions the probe could act on). Note also that this row states precision
+  as "0 of 5 false hints" while D-371 states "precision 5/5" — the same fact at opposite polarity,
+  so a reader comparing the two sees `0` against `5`. Cross-reference:
+  `LIVE_BEHAVIOR_FINDINGS.md` LB-02, and one cell (`access_hint = null` on a public question,
+  no false hint) re-confirmed live on 2026-08-20.
+- **Annotation 2026-08-20 (step 7d, W-10) — D-371's "shipped ceiling of 0.40" label matches no
+  constant that exists.** `docs/DECISIONS.md:25953` argues from "a shipped ceiling of **0.40**";
+  read from source, `packages/shared/src/intellichoice_shared/access_probe_policy.py:37-40` says
+  0.40 was D-165's value, **`ACCESS_PROBE_MAX_DISTANCE = 0.45` is the *fallback* ceiling since
+  D-166/D-168** (used only by the distance-only paths: lexical/`MockBedrockProvider` and the
+  degraded path when the reranker is unavailable), and **the live rule is three constants**:
+  `ACCESS_PROBE_CANDIDATE_MAX_DISTANCE = 0.60` (`:103`), `ACCESS_PROBE_RERANK_MIN_SCORE = 0.9`
+  (`:104`), `ACCESS_PROBE_TIER_MARGIN = 0.10` (`:105`). D-371's *argument* is unaffected (gated and
+  public cases interleave on the distance axis), but the *label* is what a future reader would act
+  on: "tuning the shipped ceiling" edits the fallback used by the degraded and mock paths and
+  changes production behaviour not at all. Cross-reference: `LIVE_BEHAVIOR_FINDINGS.md` LB-03.
 
 ### REQ-47 — §5.19.4 out-of-scope wording amended; the supported-topic list is unchanged
 - Domain: LLM behavior
@@ -2150,6 +2178,17 @@ each block and in §8.
 - Contradicts/competes: none found — the gap is stated openly.
 - Evidence still required: Phase 3 — whether the §6.1 track has started; whether any notice component exists.
 - Confidence: HIGH.
+- **Annotation 2026-08-20 (step 7d, W-43): the temporal note above ("§6.1 track not started at
+  writing") is SUPERSEDED.** The enumeration half of the §6.1 track shipped on **2026-08-15** as
+  `docs/FIRST_VISIT_NOTICE.md` — "SPEC §5.1.2's eleven disclosures, enumerated (T-02)", all eleven
+  written out as copy in a younger-reader and a standard form, each paired with the system fact it
+  must stay true to (commit `da2549f`, 2026-08-15). So the deliverable this row calls the gate on
+  S45 **exists**. Two things this does **not** change: the *build* half is still unbuilt (the file
+  states "S45 transcribes this; it does not draft it" — the capture UI, age-band derivation and
+  consent record are S45's), and **counsel review remains a launch gate** (§6.1). Read the row's
+  `DEFERRED` status as applying to the build, not the enumeration. `docs/TRACEABILITY.md`'s T-02
+  block carries the same stale assertion and is corrected separately (W-43, step 11 batch F); this
+  annotation is **not** progress on `DISCLOSURES-LEGAL`.
 
 ### TEST-11 — Traced-to-deleted-code: D-226 rewrote the §5.8.3–.5 rows
 - Domain: verification-method

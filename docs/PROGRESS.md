@@ -1,3 +1,24 @@
+> ARCHIVED 2026-08-20. Historical record — do not treat as current state.
+> Current state: docs/PROJECT_STATE.md
+> Reason: this is the history of record, and every live item in it was captured by the Phase-4
+> reconciliation register (166 entries) — which is what makes archiving safe rather than lossy.
+> Superseded by: docs/PROJECT_STATE.md for current state, with per-session narration henceforth in
+> docs/log/ (append-only, non-authoritative). This file moves to **docs/archive/PROGRESS.md**.
+>
+> **The "Current status" stack below is newest-first strata, not a status report.** The same metric
+> reads 4-of-112 at one depth and 102-of-112 at another; the "Next session" pointer that made this
+> file the project's sequencer is replaced by `PROJECT_STATE` §4.3 plus its update protocol in §10.
+> Nothing here is thinned — the per-session verification transcripts and carry-over ledgers back to
+> S0 are the corpus's memory. Where a statement was found false by the 2026-08-19/20 reconciliation,
+> a dated annotation sits beside it and the original text is left standing.
+>
+> **The carry-over ledger's own self-assessment is preserved verbatim** — it was "wrong six times
+> this milestone" — because that is the empirical case for the delete-on-resolve rule that replaces
+> it.
+>
+> **Three sessions were never logged as session entries here: S32, S37, S40.** That gap is recorded,
+> **not reconstructed** — no entry for them is written after the fact.
+
 # Progress Tracker
 
 Living state of the build. Every session updates this file before ending.
@@ -36,6 +57,20 @@ and every non-`document_qa` turn pays one wasted rerank. **Nothing about it need
 0 errors · pytest **1735 passed / 2 skipped** · Playwright **127 passed / 2 skipped** · chat-web **49**
 unit tests, learning-web **26** · both builds clean.
 
+> **⚠️ Exclusion attached 2026-08-20 (`SUITE-COUNT-CITATIONS`, W-13; LB-07/TEST-28/WORK-05).** The
+> pair reproduces exactly at HEAD (`1735 passed, 2 skipped, 1 xfailed in 500.43s`), and it is
+> **structurally silent about two things**. (1) Collection is `1738 items`; the one item neither
+> passed nor skipped is `test_identical_inputs_reproduce_identical_routing_and_scores`
+> (`apps/learning-api/tests/test_learning_flow.py:1247`, `@pytest.mark.xfail(strict=False)`,
+> D-206/D-238) — **deliberately nondeterministic**, so a run may legitimately print `1 xpassed`. Do
+> **not** "fix" this into a three-number sum without that caveat; the two-number pair is the more
+> stable citation. (2) **Both skips are paid opt-ins**, so this free suite is **silent about
+> real-Bedrock eval quality** — the same shape as the D-383 lesson. Whenever this total is cited *as
+> coverage*, it needs both clauses. Counterweight, stated because the halves are only honest
+> together: ~14 conditional non-vacuity guards across `e2e/tests/` did not fire, so the 127 is a
+> non-vacuous 127 and its 2 skips are the *predicted* two (`TARGET !== "staging"`). Discipline to
+> keep: "the suite is green" and "everything run passed" are different statements.
+
 ### Previous — Milestone 14 closed (W19–W21)
 
 **✅ MILESTONE 14 IS CLOSED — three sessions: the last audit item that was code, the last blocked
@@ -73,6 +108,27 @@ finalising the §3.1 auth option, and O1b stays a recommendation rather than a f
 ## ✅ EVERY OPEN DECISION IS ANSWERED (2026-08-18, D-417) — what remains is work
 
 Read D-417 before re-raising any of these. Four are built or parked; four are queued as work:
+
+> **⚠️ RETIRED AS STALE 2026-08-20 — the four `⏳` rows of the table below, as a block
+> (`DOC-PROGRESS-QUEUED-BLOCK`, W-19 / DRIFT-43 / WORK-11). Not one line of it: the whole block.**
+> Nothing is deleted — the rows stand as the record of what was queued on 2026-08-18 — but none of
+> the four states current work.
+>
+> - **C8 is done, and its file count is wrong.** ROADMAP records C8 **done** at W24 with **168 of
+>   437** Python files, and 437 is exactly reproducible: `5728b95` changed exactly 168 files (a pure
+>   `ruff format` commit), enforcement landed separately as `f0d2cfe`, and at that commit 473 tracked
+>   `.py` files minus ruff's 36 `extend-exclude` files = **437**. **No count in repository history
+>   plausibly yields 494.** At HEAD the ruff-visible denominator is **440** (477 tracked − 37), and
+>   `make lint` prints `440 files already formatted` — the 437 → 440 move is consistent growth with
+>   the mechanism unchanged, **not drift** (`RUFF-DENOMINATOR`).
+> - **A3, B4 and B6 are complete**, as ROADMAP's W25, W26 and W27 respectively.
+> - **A3's clause "D-401 and D-406 stay unapplied until this exists" is false as of 2026-08-20**
+>   (`DOC-DEPLOYED-STATE-CLAIMS`, W-04; `DRIFT-93-D401-D406-APPLIED`). **Both are applied**, proven
+>   by AWS resource existence rather than by a commit title — see D-419. The "stay unapplied" wording
+>   is the phantom tfvars-floor blocker propagating; it belongs to D-417 §A3 as a quotation and must
+>   not be restated as current state.
+>
+> Read `PROJECT_STATE.md` for what is actually queued.
 
 | | state |
 |---|---|
@@ -154,6 +210,15 @@ it, and it no longer demands a gitignored file exist. Live: **VERDICT OK, all th
 
 **D-401 (alarm split) and D-406 (NAT follows its consumers) are unblocked.** Both are still
 unapplied; applying them is a deploy-shaped action and yours to authorise.
+
+> **⚠️ Superseded 2026-08-20 (`DOC-DEPLOYED-STATE-CLAIMS`, W-04; `DRIFT-93-D401-D406-APPLIED`).**
+> **Both are applied.** The evidence is **AWS resource existence**, not a commit message: the split
+> alarm topic exists with its subscription, and the NAT gateway `nat-07ab02d5cd28b6f72` exists with
+> an active `0.0.0.0/0` route and `ManagedBy=terraform` — see **D-419**. This sentence is the second
+> of two "unapplied" statements in this file and both are quarantined behind the archive banner
+> rather than rewritten. The lesson worth carrying once: **a commit title claiming an apply is not an
+> apply — and, symmetrically, an unapplied note is not evidence a resource is absent.** Read the live
+> account, or `PROJECT_STATE.md`.
 
 **Loose end, not project code:** `.agents/skills/` and `skills-lock.json` are untracked and not
 ignored, so they appear in every `git status`. They are Claude Code tooling artefacts; committing or
@@ -333,6 +398,14 @@ NAT gateway **absent from the plan entirely**. Everything the plan *did* show is
 D-401's unapplied alarm split (2 SNS + 4 alarm updates) and three task-definition replacements,
 which is the CI-registers-then-terraform-re-registers drift D-137/D-141/D-356 document. 5 add / 4
 change / 3 destroy, and the arithmetic closes.
+
+> **⚠️ Wrong id, corrected 2026-08-20 (`DOC-DECISION-LOG-CORRECTIONS`, W-18, twelfth item; via
+> `D356-FAMILY` item (3)).** The citation above should read **D-137/D-141/D-357**. **D-356** is the
+> narrative-erasure defect (a background narrative publish erasing a student's video), not image
+> drift; **D-357** is the CI-registers-then-terraform-re-registers entry. The same wrong id appears
+> in `DECISIONS.md` inside **D-406** — one mis-reference in two documents, corrected in both on this
+> date. Also note, on the sentence above it: D-401's alarm split is described here as unapplied and
+> **it has since been applied** (D-419 — see the W-04 annotation earlier in this file).
 
 **A side finding, and D-401 is corrected for it:** `sessions_completed_floor` is **not deployed** —
 its `count` is gated on `daily_completed_sessions_floor > 0` and that variable is 0. So of the three
@@ -834,6 +907,16 @@ PR #292. All five changes this session went through PRs: #290, #291, #292, #293.
 **✅ D-356 IS FIXED, AND THE ACCESS PROBE TURNED OUT NOT TO BE THE PROBLEM
 (2026-08-16, D-358 → D-360).**
 
+> **⚠️ Scope annotation 2026-08-20 (`DOC-DECISION-LOG-CORRECTIONS`, W-18; `D356-FAMILY`).** This
+> heading is a **cross-document status conflict**, not merely a stale tag: `DECISIONS.md` still
+> carries D-356 as `Status: ⛔ open — characterised, not fixed`, while this line reads "IS FIXED".
+> D-358's `Fixes: D-356` is the tiebreaker, and it resolves **scoped exactly as D-358 scoped it** —
+> fixed **for the narrative scheduler only**. The same defect was later found untouched in the
+> *hint* personalizer (D-373) and at a further publisher (D-381), and **both of those call themselves
+> "the third place"**. No entry states how many publishers write the shared state and **no entry
+> claims completeness**, so read this as: fixed where measured, family completeness open. The
+> enumeration is tracked live in `PROJECT_STATE.md`, not here.
+
 **The video defect is fixed and verified live (D-358).** The missing signal was *which
 attempt an intervention belongs to* — `last_intervention` goes stale by design, so "there is
 an intervention" is true long after the student moved on. A new `last_intervention_attempt_id`
@@ -890,6 +973,16 @@ because each attempt surfaced one more independent race and stopped:
 | 4 | 2 clean | D-361 — the hint spec was measuring the chooser, not the hint |
 | 5 | 1 clean | D-363 (the click never landed) and **D-364, a real 502** |
 | 6 | 0 clean | **D-365 — the drift, named at last** |
+
+> **⚠️ Phantom-id annotation 2026-08-20 (`DOC-DECISION-LOG-CORRECTIONS`, W-18).** The **D-363**
+> citation in row 5 has **no entry to read**: `DECISIONS.md` has no heading for D-363 at any level,
+> and only four citations exist corpus-wide (`DECISIONS.md:25728`, `:25894`; this file here and
+> below). What D-363 decided is recoverable **only** from `DECISIONS.md:25728` — a *harness* defect,
+> "the click never landed", which stopped accumulation attempt 5 — because `:25894` collapses D-361
+> and D-363 into one row with two descriptions. Treat the parenthetical above as the only surviving
+> description, not as a pointer. Nothing here is invented: the absence is recorded, and the entry is
+> **not** reconstructed. Sibling ids from the same sweep: D-359/D-360/D-361 do have real headings; only
+> **D-362 and D-364** remain genuinely unconfirmed.
 
 **D-365 is the answer to the question the clause has been asking since D-321.** D-355's
 instrumentation fired on its first real staging walk and printed the cause: `409 item ... has
@@ -2212,6 +2305,14 @@ the third produced the answer it had been missing since D-321.**
 **Built:** `last_intervention_attempt_id` and a widened narrative guard (D-358, fixes D-356);
 uvicorn `--timeout-keep-alive 125` on both apps (D-364); four harness fixes (D-360, D-361,
 D-363, D-365); a repaired live instrument (D-359).
+
+> **⚠️ Annotation 2026-08-20 (`DOC-DECISION-LOG-CORRECTIONS`, W-18).** Two ids in this list cannot be
+> opened. **D-363 has no entry** anywhere in `DECISIONS.md` (see the fuller note beside the attempt-5
+> table earlier in this file); **D-364** is one of the two ids from the D-359–D-364 sweep whose
+> heading is still unconfirmed (the other is D-362). The work described is real and verified in this
+> session's own transcript — it is the *citations* that dead-end. Also scope-correcting the first
+> clause: `D-358, fixes D-356` holds **for the narrative scheduler only** (D-373 and D-381 later found
+> the same defect at two further publishers, with no completeness claim anywhere).
 
 **Verification:** ruff clean · pyright 0 errors · pytest **1653 passed** / 2 skipped / 1 xfailed
 · staging: video **4/4**, hint **4/4**, position **3/3**, study walk **3/3** at `refused=0`.
@@ -11297,6 +11398,15 @@ duplicate protection with a new table, the modal field) · B6's measured latency
 0 errors · pytest **1735 passed / 2 skipped / 1 xfailed** · Playwright **127 passed / 2 skipped** ·
 chat-web **49** unit tests, learning-web **26** · both builds clean, both `oxlint` exit 0.
 
+> **⚠️ Exclusion attached 2026-08-20 (`SUITE-COUNT-CITATIONS`, W-13).** Same caveat as the copy at the
+> top of this file, and this is the three-number rendering of it. The `1 xfailed` item is
+> `test_identical_inputs_reproduce_identical_routing_and_scores`
+> (`apps/learning-api/tests/test_learning_flow.py:1247`, `@pytest.mark.xfail(strict=False)`,
+> D-206/D-238) and it is **nondeterministic by design** — the same tree has produced `1 xpassed`, so a
+> summed three-number line is intermittently wrong. **Both skips are paid opt-ins**, which means this
+> total is **structurally silent about real-Bedrock eval quality**; cite it as a pass count, never as
+> eval coverage.
+
 > **The finding that matters most: two of my own recorded claims were measured false, and each had
 > already changed a decision the user made.**
 >
@@ -11664,6 +11774,15 @@ re-asserted here.
 **Carry-over:** per-student spend attribution and the single-inbox alarm target are the last two
 observability items from the 08-16 audit. **OPEN_DECISIONS #14** is new: neither frontend has any
 unit-test setup, which W7 discovered by needing one and routing around it.
+
+> **⚠️ Resolved, annotated 2026-08-20 (`SPEND-ATTRIBUTION-DOC`, W-02 / DRIFT-23 / COST-11).**
+> **Per-student and per-session spend attribution was built** — D-400 rejected "never per student or
+> per session" as too strong: `bedrock_call` carries no session id, but the formatter stamps
+> **`trace_id`** on every line and the access line carries `learning_session_id` in the same log
+> group, so the attribution is a **Logs Insights `stats` join**. Coverage measured at **2209/2212**
+> narrative and 297/299 personalization calls. ROADMAP records this closed as **W8, ✅ 2026-08-17
+> (D-400)**. The generalisable defect this line illustrates: **finding text that is not dated in
+> place reads as current forever** — the same shape as DRIFT-93/94/95/97.
 
 > ### ⚠️ Reported by the user 2026-08-17, logged not chased: **the LangSmith quota is exhausted**
 >

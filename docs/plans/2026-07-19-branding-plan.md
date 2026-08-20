@@ -1,9 +1,34 @@
+> **ARCHIVED 2026-08-20 — EXECUTED PLAN.** This plan was **executed as Session 22.5** on
+> 2026-07-19, the same day it was written. Its five plan-local decisions were logged as
+> **BD1 → D-065, BD2 → D-066, BD3 → D-067, BD4 → D-068, BD5 → D-069**.
+> **Current state: `docs/PROJECT_STATE.md`**; the as-built brand truth is
+> `packages/ui-brand/tokens.css` and the brand table + BD3's standing do-not-revert rule were
+> promoted to `docs/ARCHITECTURE.md`. Kept intact for the brand audit's provenance (it is derived
+> from the live WordPress theme CSS) and for the phase/risk rationale.
+>
+> **⛔ DO NOT FOLLOW THE D-NUMBER INSTRUCTION IN THE "Decisions" HEADING BELOW.** It says to log at
+> "next free D-numbers — D-064 was the last used"; that was true only on 2026-07-19. `DECISIONS.md`
+> is **past D-423**, so following that line **mints duplicate decision IDs**. These decisions are
+> already logged — see the BD→D map above.
+>
+> Two further dated statements, annotated in place below: the "planned, not started" status line, and
+> the "Codebase recon (done 2026-07-19 — trust this, no need to re-derive)" section, which now
+> describes **deleted** files. One superseded value: BD3's interactive pink `#d13a80` was replaced by
+> **`#c22f73`** before ship (D-067). The plan's tables are **not rewritten** — the corrections are
+> annotations.
+
 # Branding plan — IntelliChoice visual identity for learning-web and chat-web (2026-07-19)
 
 Status: **planned, not started** (user approved the plan 2026-07-19, then deferred
 execution to a dedicated session — run via `/start-session S22.5`). Registered in
 ROADMAP.md as Session 22.5, inserted before S23 so the new exam UI is built on brand
 tokens once, not styled twice.
+
+> **Annotation 2026-08-20:** the status line above is **stale as written** — S22.5 ran and
+> completed on **2026-07-19**, the same day the plan was approved and "deferred". Evidence:
+> `DECISIONS.md` D-065–D-069 all dated 2026-07-19 and labelled "S22.5"; the as-built
+> `packages/ui-brand/` exists. Read "planned, not started" as a 2026-07-19T-approval-time
+> statement only.
 
 Source of truth for branding: the live `www.intellichoice.org` site (Impreza WordPress
 theme options CSS, extracted 2026-07-19 — see the audit table below; no need to
@@ -44,6 +69,15 @@ green entirely) — **not** brand truth; we design our own dark variants.
 ## Decisions (log into DECISIONS.md at session start, next free D-numbers — D-064 was
 ## the last used as of 2026-07-19)
 
+> **⛔ STOP — DO NOT FOLLOW THIS INSTRUCTION. Annotation 2026-08-20.** "D-064 was the last used"
+> was true only on 2026-07-19. **`DECISIONS.md` is past D-423**, so allocating "the next free
+> D-numbers" from D-065 **mints duplicate decision IDs** on top of decisions that already exist.
+> **These five decisions were already logged**, on 2026-07-19, as:
+> **BD1 = D-065**, **BD2 = D-066**, **BD3 = D-067**, **BD4 = D-068**, **BD5 = D-069**
+> (`docs/DECISIONS.md:1428, 1457, 1470, 1498, 1512`, each headed "S22.5"). Nothing here is
+> pending. If a future session needs a new decision id, read the end of `DECISIONS.md` — never
+> this line.
+
 - **BD1 — tokens live in one shared source** `packages/ui-brand/` (tokens.css, base.css,
   logo assets, README, contrast checker). Both apps import via relative path from
   `main.tsx`; each `vite.config.ts` gets `server.fs.allow: ["../.."]` (repo root) — the
@@ -64,6 +98,15 @@ green entirely) — **not** brand truth; we design our own dark variants.
   large uses; darkened interactive tones — green `#387e40` (4.97:1), pink `#d13a80`
   (4.54:1) — for links, button backgrounds, text-sized color. Purple `#7049ba`
   (6.27:1) passes as-is.
+  > **Annotation 2026-08-20 — one value superseded, the rule stands.** BD3's *rule* (two tiers, do
+  > not "fix" the interactive tier back to raw brand hex) shipped and is standing — see D-067 and
+  > `docs/ARCHITECTURE.md`. But the interactive **pink `#d13a80` above was superseded by
+  > `#c22f73`** before ship: the plan's 4.54:1 was checked only against `--panel-bg` (white), and
+  > against the page background token `--bg: #f5f5f5` the same hex drops to **4.16:1 — a real
+  > WCAG AA fail**. Shipped values (`packages/ui-brand/tokens.css:37`): pink `#c22f73` (4.88:1 on
+  > `--bg`, 5.32:1 on `--panel-bg`); green `#387e40` unchanged; `--error` darkened `#dc2626` →
+  > `#d32020` for the identical reason (`docs/DECISIONS.md:1470–1495`). The table above is left
+  > unedited as the plan's own draft; `tokens.css` is the value of record.
 - **BD4 — dark mode kept**, brand-adapted variants designed here (lightened green for
   dark surfaces + an `--accent-contrast` token, because white-on-light-green fails —
   dark-mode solid buttons need dark text on the lightened green).
@@ -71,6 +114,16 @@ green entirely) — **not** brand truth; we design our own dark variants.
   ~680-line token-driven CSS surface is small and working.
 
 ## Codebase recon (done 2026-07-19 — trust this, no need to re-derive)
+
+> **Annotation 2026-08-20 — do NOT trust this section; the plan changed the code it describes.**
+> "no need to re-derive" was written before Phase 1 ran. The two files this recon is built on,
+> `apps/learning-web/src/index.css` and `apps/chat-web/src/index.css`, **no longer exist** (verified
+> absent 2026-08-20); their content moved to `packages/ui-brand/tokens.css` + `base.css`, exactly as
+> Phase 1 below planned ("shrink each `index.css` to app-local remainder (or delete)"). The generic
+> purple `#7c3aed` token value is also gone. The screen inventory is likewise a 2026-07-19 count —
+> learning-web has since gained `StageTransitionScreen`, `StudentDashboardScreen` and
+> `BookmarkedResultsScreen`, among other post-S22.5 additions. Re-derive from the code before
+> relying on any file path, token name or screen list below.
 
 - Two independent Vite+React apps, deps = react/react-dom only, plain CSS, no
   framework. `apps/learning-web/src/index.css` and `apps/chat-web/src/index.css` are

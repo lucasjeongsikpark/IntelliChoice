@@ -1,3 +1,35 @@
+> **ARCHIVED 2026-08-20.** Historical record — a 2026-07-21 projection, not the as-built
+> architecture. **Do not treat as current state.**
+> Current state: `docs/PROJECT_STATE.md` · as-built: `docs/ARCHITECTURE.md`
+> **Reason:** a self-declared projection whose status claims are almost all false; its two live
+> extractions are complete. **Superseded by:** `docs/ARCHITECTURE.md`.
+>
+> **Both extractions are complete. They are named here with their destinations so a future reader
+> can verify that nothing else was lost:**
+>
+> 1. **The end-to-end deployed-topology diagram** (the `mermaid` block under "S32 — Deployment
+>    architecture decision") → `docs/ARCHITECTURE.md`, section **"Deployed topology"**, refreshed
+>    2026-08-20 against the measured staging build. It was the only such diagram in the repository.
+> 2. **Open question 5 — SPEC §5.33.3's six-schema logical split** → `docs/ARCHITECTURE.md`'s
+>    **"Open architecture questions (undecided — do not treat as designed)"** block, **plus**
+>    `docs/PROJECT_STATE.md` §6.3, row **`ARCH-21-SCHEMA-SPLIT`** (DEFERRED). This file was the
+>    only record that the decision is *unmade* — SPEC §5.33.3 still *prescribes* the split, and no
+>    D-number owns it. The extraction creates no new decision.
+> 3. **The one-line as-built fact** that today's system is one `intellichoice` Postgres database →
+>    `docs/ARCHITECTURE.md`'s storage section. `ARCHITECTURE.md` is now the **single owner** of the
+>    storage-split table; the row this file appends to it is archived in place below.
+>
+> **Corrections that apply to the text below. The text itself is left as written, as the record.**
+>
+> - **The claim that "D-004 is still 'proposed,' not 'accepted'" is false.** D-004 was **accepted**
+>   at S32 on **2026-07-22** — six days before this file's last content edit (2026-07-28).
+> - **Questions 1–4 of "Open questions S32 needs to resolve" are all decided.** Only question 5 was
+>   still live, and it is now extracted (see 2 above). The five-question set is kept **verbatim**
+>   because the set is the evidence that question 5 was never closed in this file — but do not read
+>   questions 1–4 as open.
+> - This file's own self-retirement instruction (its last paragraph) had its trigger fire on
+>   **2026-07-22** and was never executed. That non-execution is why its status claims went stale.
+
 # Final Architecture (projected)
 
 **This is a projection, not an as-built record.** It describes what the system is expected
@@ -109,6 +141,11 @@ environment, secrets wiring, domains/TLS, CI deploy to staging. `docs/DECISIONS.
 should get a follow-up decision entry once the ECS-vs-EKS call is actually made — D-004 is
 still "proposed," not "accepted."
 
+> **[Annotation 2026-08-20 — false when written.]** D-004 was **accepted** at S32 on **2026-07-22**,
+> six days before this file's last content edit (2026-07-28). The follow-up entry this paragraph
+> asks for exists: see D-004 in `docs/DECISIONS.md`, and D-082/D-083 for the MySQL correction it
+> carries. Sentence retained as written; only this annotation is added.
+
 **Known gap this session does not obviously close:** the SSE session-event bus
 (`services/session_events.py`, `SessionEventBus`) is a single-process in-memory
 `dict[str, list[asyncio.Queue]]` (D-032). It assumes exactly one Uvicorn worker. Nothing
@@ -167,6 +204,32 @@ system is one `intellichoice` Postgres database. Whether S32 adopts the schema s
 part of the open S32 decision, not settled by this document.
 
 ## Open questions S32 needs to resolve (not answered by this document)
+
+> **[Annotation 2026-08-20 — read this before reading the list.]** **Questions 1–4 are decided.**
+> Only **question 5** was still live, and it has been extracted to
+> `docs/ARCHITECTURE.md`'s "Open architecture questions (undecided — do not treat as designed)"
+> block and to `docs/PROJECT_STATE.md` §6.3, row `ARCH-21-SCHEMA-SPLIT` (DEFERRED).
+>
+> The five questions below are **kept verbatim, as a set, and nothing is deleted** — because the
+> file presents all five identically, and the set is the evidence that question 5 was never closed
+> here. From inside the file the one live item was indistinguishable from the four dead ones; that
+> indistinguishability is the exhibit.
+>
+> Per-question status, as of 2026-08-20:
+>
+> - **1 — decided:** ECS Fargate, per D-004 (accepted 2026-07-22), and deployed.
+> - **2 — decided as a plan, then deliberately frozen:** the adapter seam is settled (D-082/D-083);
+>   choosing and measuring the real integration shape is **frozen by D-152** and is not an open
+>   architecture question to be worked. See `docs/S42_DISCOVERY.md`.
+> - **3 — decided, and it went the *other* way from this file's prediction.** Both apps run
+>   **multiple tasks** (`terraform/environments/staging/main.tf`: `desired_count = 2`, with
+>   Application Auto Scaling owning it thereafter), and the single-process in-memory
+>   `SessionEventBus` this file flags as an unscheduled gap **was** replaced — by a Postgres
+>   `LISTEN`/`NOTIFY` relay behind the same interface (`services/session_events.py`). Read the
+>   "Known gap" paragraph above as a resolved prediction, not as live work.
+> - **4 — decided:** RDS PostgreSQL, single writer, not Aurora
+>   (`terraform/modules/rds-postgres/main.tf` uses `aws_db_instance`, not `aws_rds_cluster`).
+> - **5 — UNDECIDED.** Extracted; tracked as `ARCH-21-SCHEMA-SPLIT`.
 
 1. **ECS Fargate vs. EKS** — D-004's recommendation vs. SPEC's literal prescription.
 2. **`go.intellichoice.org` integration shape** — direct MySQL connection vs. an HTTP API

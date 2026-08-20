@@ -1,3 +1,7 @@
+> **ARCHIVED 2026-08-20.** Point-in-time audit evidence (reconciliation, 2026-08-19/20) — **do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** Phase 3B-2 live-probe evidence — every probe command and its verbatim output from the 2026-08-20T03:30Z–05:00Z window against staging. **Superseded by:** the 166-entry register at `docs/reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md`.
+
 # LIVE_BEHAVIOR_EVIDENCE.md — Phase 3B-2 live behavioral verification
 
 **Probe window:** 2026-08-20T03:30Z – 05:00Z.

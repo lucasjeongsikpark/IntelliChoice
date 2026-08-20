@@ -1,3 +1,7 @@
+> **ARCHIVED 2026-08-20.** Point-in-time audit evidence (reconciliation, 2026-08-19/20) — **do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** Phase-2 decision supersession map — the 29 re-verified supersession chains through `docs/DECISIONS.md`. **Superseded by:** the 166-entry register at `docs/reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md`.
+
 # Decision Supersession Map — Phase 2 of the Documentation Reconciliation Migration
 
 **Date:** 2026-08-19

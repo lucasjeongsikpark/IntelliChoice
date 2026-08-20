@@ -1,3 +1,7 @@
+> **ARCHIVED 2026-08-20.** Point-in-time audit evidence (reconciliation, 2026-08-19/20) — **do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** Phase 3B-1 deployed-infrastructure drift register — the 12 runtime drift rows (RD-01 … RD-12) from the 2026-08-19/20 read-only AWS observation window. **Superseded by:** the 166-entry register at `docs/reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md`.
+
 # DEPLOYED_INFRA_DRIFT_REGISTER.md — Phase 3B-1 runtime drift register
 
 **Date:** 2026-08-19. **Observation window:** 2026-08-19T22:00Z – 2026-08-20T00:30Z (the three
@@ -148,6 +152,8 @@ Entries are ordered HIGH → MEDIUM → LOW.
 - **Phase 3B-2 behavioral verification still needed?**: no — the metadata settles rotation; the separate live-unreachability probe of `/dev/token` belongs to 3B-2 but does not bear on this entry.
 - **RESOLVED 2026-08-20 (user-approved remediation)**: D-310's decline was revisited and both secrets were rotated via targeted `terraform apply` at 2026-08-20T03:20:57Z, both services restarted and verified (new secret 200; wrong/no header 404; all tasks post-rotation; full-plan drift check clean). The exposed values were destroyed, not staged. Full record: `REMEDIATION_D310_ROTATION.md`. This entry's deployed-state snapshot above is preserved as the pre-remediation record.
 - **Genuine decision required?**: **YES** — whether to revisit D-310's recorded decline, or to schedule rotation at S44's planned deletion of these secrets. Consistent with a recorded decline, this is a **confirmed accepted risk rather than silent drift** — but the exposure is live and `AWSCURRENT`. `docs/INCIDENT_RESPONSE.md` is the relevant runbook. Not decided here.
+  - **Annotation 2026-08-20 (step 7d): this field is superseded — NO decision is required, and "the exposure is live and `AWSCURRENT`" is no longer true.** It reads as pre-remediation because it sits *below* the resolution addendum at `:153` and was never updated with it. The decision it names was taken (revisit, not defer to S44) and executed: rotation applied 2026-08-20T03:20:57Z, both secrets on a single new `AWSCURRENT` terraform version, the exposed values destroyed rather than staged. Evidence: `:153` above and `REMEDIATION_D310_ROTATION.md:66-67`. Original text kept verbatim as the pre-remediation record.
+- **STATUS AS OF 2026-08-20 — RESOLVED (last line of this entry, by design): D-310 is history, not exposure.** Rotation executed 2026-08-20T03:20:57Z; no field above this line, whatever its tense, reopens it. Residuals are tracked as `D310-RESIDUALS` in `docs/PROJECT_STATE.md` §4.1 — including the `make load-staging-learning` docker environment pass-through, which is **unmeasured for `ps` visibility, not cleared**. Record: `REMEDIATION_D310_ROTATION.md`; register entry `D310-ROTATION`.
 
 ---
 
@@ -356,9 +362,16 @@ Three of the twelve need a judgement rather than an edit or a mechanical fix. Al
 belong to the **user** — this is a solo-maintained project and each is a money, security-posture or
 launch-posture call, not an engineering detail a session can settle on its own.
 
+> **Annotation 2026-08-20 (step 7d): this section is a 2026-08-19 count — it is now two decisions,
+> not three. RD-02 is CLOSED and must not be re-queued.** The RD-02 row below still reads
+> "with the exposed values live and `AWSCURRENT`"; the resolution addendum inside the RD-02 entry
+> (`:153`, plus the status stamp that closes that entry) **wins over this table**. The decision was
+> taken — revisit, not defer to S44 — and **D-310's rotation is executed** (2026-08-20T03:20:57Z,
+> `REMEDIATION_D310_ROTATION.md:66-67`). RD-03 and RD-09 are unaffected and still open.
+
 | Entry | The decision, named | Plausible owner |
 |---|---|---|
-| **RD-02** | Secret rotation: revisit D-310's recorded decline, or schedule rotation at S44's planned deletion — with the exposed values live and `AWSCURRENT` six days on | user |
+| **RD-02** | ~~Secret rotation: revisit D-310's recorded decline, or schedule rotation at S44's planned deletion — with the exposed values live and `AWSCURRENT` six days on~~ **— RESOLVED 2026-08-20, executed; not a live decision. See `:153` and the entry's closing status stamp.** | ~~user~~ none |
 | **RD-03** | Budget: raise, accept, or re-scope the $20 monthly limit, and decide whether a gross (credit-excluding) control is wanted before ~$230 of credits are exhausted | user |
 | **RD-09** | RDS launch posture: what backup retention, deletion protection and AZ posture the §2.6 gate criteria are allowed to have been measured on, and what production requires | user |
 

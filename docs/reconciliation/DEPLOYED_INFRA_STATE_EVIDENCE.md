@@ -1,3 +1,7 @@
+> **ARCHIVED 2026-08-20.** Point-in-time audit evidence (reconciliation, 2026-08-19/20) — **do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** Phase 3B-1 deployed-infrastructure evidence — the verbatim read-only AWS reads behind the drift register. **Superseded by:** the 166-entry register at `docs/reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md`.
+
 # DEPLOYED_INFRA_STATE_EVIDENCE.md — Phase 3B-1 deployed-infrastructure verification
 
 **Observation window:** 2026-08-19T22:00Z – 2026-08-20T00:30Z.

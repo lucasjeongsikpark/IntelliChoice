@@ -405,10 +405,13 @@ detail is single-homed there, not here). The three live residuals are `D310-RESI
   §8 that are **reversed, not deleted**.
 - **§7 is closed by reading.** Three of the five unknowns resolve with a targeted document read; if
   a session performs one, delete the row and append the finding to DECISIONS the same session.
-- **No chronology, ever.** No session log, no diary, no newest-first stack, no strata of
-  point-in-time numbers at different depths. Narration belongs in commit messages. *(Provisional
-  pending the §2.F.2 narration decision — if the user wants a journal, it is `docs/log/`,
-  append-only and non-authoritative; the `/end-session` skill must be reconciled either way.)*
+- **No chronology in this file, ever.** No session log, no diary, no newest-first stack, no strata
+  of point-in-time numbers at different depths. Per-session narration goes to git commit messages
+  and to `docs/log/` — **decided by the user 2026-08-20 (DQ-1)**: `docs/log/` is append-only
+  (one dated file per session) and **non-authoritative** — historical narration only, never a
+  source of current truth, never overriding this file, DECISIONS, SPEC, or primary evidence;
+  agents do not read the full log by default; stale entries stay historical rather than being
+  rewritten. Rules: `docs/log/README.md`. The `/end-session` skill was reconciled the same day.
 - **Dated claims only.** Any number about the deployed system is written with its build SHA and
   its as-of date, per the LB-05 rule in §1.
 - **Fixed status vocabulary.** Use the register's dispositions and register keys — the full

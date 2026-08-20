@@ -1,3 +1,18 @@
+> **REFERENCE — not an archive. Added 2026-08-20 (migration step 7d).**
+> **This file moves to `docs/reference/reconciliation-2026-08/`.** It is point-in-time but
+> load-bearing until its items close, so it carries *no* do-not-treat-as-current banner.
+> **It is the provenance backbone for `docs/PROJECT_STATE.md`:** PROJECT_STATE holds **one line
+> per open item** and links here for the evidence, the options and the reopen conditions —
+> it does not restate them (single-home rule). An item **deleted from PROJECT_STATE on
+> resolution remains readable here**, which is what makes deletion-on-resolve safe.
+> **As-of date: 2026-08-20.** When PROJECT_STATE's snapshot date advances, an entry here is
+> evidence for **what was true on 2026-08-20**, not a current-state claim; do not restate a
+> count from this file without that date. This register is **evidence, never authority for
+> intent** — `docs/DECISIONS.md` owns intent.
+> Scope: UD-1 … UD-12, the `USER_DECISION_REQUIRED` subset. Each entry's "why evidence
+> cannot decide it" and "default safe action" fields are preserved verbatim — they are what
+> stops a future agent from inferring an answer.
+
 # USER_DECISION_QUEUE.md — the decisions only the user can make
 
 **Date:** 2026-08-20. **Phase:** 4 (documentation-reconciliation audit), writer Q1.

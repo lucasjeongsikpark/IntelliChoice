@@ -1,3 +1,17 @@
+> **REFERENCE — not an archive. Added 2026-08-20 (migration step 7d).**
+> **This file moves to `docs/reference/reconciliation-2026-08/`.** It is point-in-time but
+> load-bearing until its items close, so it carries *no* do-not-treat-as-current banner.
+> **It is the provenance backbone for `docs/PROJECT_STATE.md`:** PROJECT_STATE holds **one line
+> per open item** and links here for the evidence, the options and the reopen conditions —
+> it does not restate them (single-home rule). An item **deleted from PROJECT_STATE on
+> resolution remains readable here**, which is what makes deletion-on-resolve safe.
+> **As-of date: 2026-08-20.** When PROJECT_STATE's snapshot date advances, an entry here is
+> evidence for **what was true on 2026-08-20**, not a current-state claim; do not restate a
+> count from this file without that date. This register is **evidence, never authority for
+> intent** — `docs/DECISIONS.md` owns intent.
+> Scope: 166 entries. The 41 RESOLVED / SUPERSEDED / OBSERVATION_ONLY entries stay here as
+> the historical tail — the record of what was checked and found closed.
+
 # FINAL_OPEN_WORK_REGISTER.md — Phase 4 consolidated open-work register
 
 **Date:** 2026-08-20. **Phase:** 4 (reconciliation merge). **Inputs:** the seven Phase-4 extraction
