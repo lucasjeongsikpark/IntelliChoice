@@ -1,6 +1,7 @@
 # Hint & solution quality review — design (D-251 → D-256)
 
-**Status: the reviewer and the panel exist and are measured; the loop around them is not built.**
+**Status: the reviewer and the panel exist and are measured; the loop around them is built but
+uncalled.**
 The instrument survived two falsification runs — single-reviewer (D-254) and the two-reviewer
 union (D-256) — and D-257/D-258 measured its precision (6/6 blocks real) and its recall (~43% on
 the one class checkable for free). `review_panel.py` implements §4's panel step: unanimity,
@@ -9,8 +10,22 @@ fail-closed on a missing verdict, hallucinated locations filtered.
 `review_panel.py` implements the panel; `hint_solution_repair.py` and `review_loop.py` implement
 the targeted repair and the bounded loop (D-259/D-260).
 
+*(Corrected 2026-08-20: this status line previously read "the loop around them is not built",
+six lines above this document's own reference to `review_loop.py` — which implements §4's bounded
+loop in full: `MAX_REPAIR_ROUNDS = 5`, the per-item cent cap checked before every call, the
+recurring-defect early stop, and the discard record. **Built but uncalled** is the accurate
+state, and it is the state every piece of this design has been kept in since D-251.)*
+
 **Still not built: any pipeline caller.** Nothing in the generation pipeline runs §4, by choice.
 Read this before adding any hint- or solution-quality scoring anywhere.
+
+> **⚠️ Code disagrees with this document, on purpose, until one split-out item runs.** Three
+> in-code docstrings — `review_loop.py`, `review_panel.py` and `hint_solution_repair.py` — still
+> carry the stale "not built" / "never measured" claims this revision removed here (e.g.
+> `review_loop.py`'s *"the last unbuilt piece of §4"*, `review_panel.py`'s *"the round history
+> and the discard path are not built"*). Correcting a docstring is a source edit, so it was
+> **split out of the documents-only migration as an ENGINEERING item (W-07 split)**. Until that
+> item runs, prefer this document over those docstrings. Noted 2026-08-20.
 
 The goal is to **replace routine human review** of generated hint ladders and canonical
 solutions with LLM review that emits automatable decisions — while keeping content diverse
@@ -24,7 +39,7 @@ The gap is **not a missing judge**. Two already exist and neither works as inten
 
 | | where | state |
 |---|---|---|
-| `hint_quality_score` (1–5) | inside the §5.8.5 judge (`ai_pipeline.py`) | D-249: the `<= 3` rule fired on **46% of hand-authored, human-approved bank items** against 45% of generated candidates, so it measured the judge rather than the item. Removed from review-priority. The `< 2` **rejection** (`_HINT_QUALITY_REJECT_BELOW`) is still live and **has never been measured** |
+| `hint_quality_score` (1–5) | inside the §5.8.5 judge (`ai_pipeline.py`) | D-249: the `<= 3` rule fired on **46% of hand-authored, human-approved bank items** against 45% of generated candidates, so it measured the judge rather than the item. Removed from review-priority. The `< 2` **rejection** (`_HINT_QUALITY_REJECT_BELOW`) is still live and, since D-252 (2026-08-10), **measured: 126 readings, minimum observed 2, never fired** — built, live, and never yet triggered |
 | `run_llm_judge` + `LEARNING_JUDGE_DIMENSIONS` | `packages/evals` | Already names `hints_avoid_revealing_the_answer` and `solution_accuracy_and_clarity`. **No production caller** — reserved and unused since S8 (D-022) |
 
 Building a third scorer without a way to tell whether it works would repeat D-249 at a larger
@@ -375,7 +390,7 @@ Three signals the two-reviewer architecture produces for free, all monitored and
 | A — generator | `mistral.mistral-large-3-675b-instruct` | the pipeline's generator (D-205). **Not the repairer** — see D-261. |
 | A′ — repairer | `qwen.qwen3-32b-v1:0` | measured, and a fourth provider, which is what keeps B and C independent of the text they review. |
 | B — reviewer 1 | `us.anthropic.claude-haiku-4-5` | the only reviewer configuration with a falsification result (D-254). |
-| C — reviewer 2 | `openai.gpt-oss-120b-1:0` | **measured** — see below. |
+| C — reviewer 2 | `openai.gpt-oss-120b-1:0` | **measured** — see below, and falsified as part of the union in D-256. |
 
 **Four providers: Mistral, Anthropic, OpenAI, Alibaba.** Genuine cross-family diversity, not the
 partial version.
@@ -432,24 +447,37 @@ right; check 3 exists because that question stays open permanently.
 This is the rule D-245 followed when its own rubric clause failed measurement and was not
 shipped.
 
-**Status after D-254, and what it does *not* cover.** Reviewer B (Haiku 4.5) survived all four
-pre-registered thresholds as a **single** reviewer: M1 1/8, M2 10%, M2r 2%, M3 0. That result
-does not transfer to the architecture in §4. **The two-reviewer union is a different instrument
-and is unmeasured** — its blocking rate is higher by construction, its stability is lower by
-construction, and reviewer C does not yet exist. Nothing is wired until the union has its own
-run, with its predictions registered before it, exactly as D-254's were.
+**Status after D-254, and what it did *not* cover — written 2026-08-10, superseded by D-256.**
+Reviewer B (Haiku 4.5) survived all four pre-registered thresholds as a **single** reviewer:
+M1 1/8, M2 10%, M2r 2%, M3 0. That result did not transfer to the architecture in §4:
+
+> ~~**The two-reviewer union is a different instrument and is unmeasured** — its blocking rate is
+> higher by construction, its stability is lower by construction, and reviewer C does not yet
+> exist.~~ **Superseded (D-256).**
+
+**Corrected 2026-08-20 — reviewer C exists and the union has had its own run.** C is
+`openai.gpt-oss-120b-1:0`, chosen on a measurement (§5.6) and falsified as part of the union in
+D-256: M1 1/8, M2 22.4%, M2r 2%, M3 0 over 49 items, all four disqualifiers survived, with the
+predictions registered beforehand exactly as D-254's were. Two of the "by construction"
+predictions were also measured false: union stability was **equal to or better than** either
+reviewer alone (§5 check 1), and while the blocking rate did rise, D-257/D-258 showed it rises
+from the *conservative* side (§5 check 2). This paragraph's "does not yet exist" was the
+2026-08-10 state and had contradicted §5.6's "**measured**" row 62 lines above it.
+
+**What still holds:** nothing is wired. Surviving is not evidence of correctness, and check 3
+exists because that question stays open permanently.
 
 ---
 
 ## 6. `hint_quality_score` disposition
 
-**Do not delete the field.** It is not unused — it has two independent thresholds and only one
-is measured:
+**Do not delete the field.** It is not unused — it has two independent thresholds, and as of
+D-252 both are measured:
 
 | | where | nature | measured? |
 |---|---|---|---|
 | `_HINT_QUALITY_FLOOR = 3` | `scripts/audit_authored_bank.py` | flag only, no dependents | **yes — D-249** |
-| `_HINT_QUALITY_REJECT_BELOW = 2` | `ai_pipeline.py:1769` | **live rejection** | **no** |
+| `_HINT_QUALITY_REJECT_BELOW = 2` | `_HINT_QUALITY_REJECT_BELOW` in `curriculum/ai_pipeline.py`; its only gate is the `judge.hint_quality_score < _HINT_QUALITY_REJECT_BELOW` branch in the same module's judge stage | **live rejection**, never yet fired | **yes — D-252** (126 readings, minimum observed 2) |
 
 It is also read from stored evidence dicts by `review_cli.py:111`, and appears in the judge
 prompt, `QuestionJudgeResponse`, the mock provider, and the smoke CLI.
@@ -460,9 +488,18 @@ prompt, `QuestionJudgeResponse`, the mock provider, and the smoke CLI.
   value — observation is not decision-making.
 - **Do not add a paid LLM call to the audit script** in its place. If it wants a quality signal
   later, it consumes a verdict the pipeline already produced and stored.
-- `_HINT_QUALITY_REJECT_BELOW` **stays until measured.** D-249 measured `<= 3`; it never
-  measured `< 2`.
+- `_HINT_QUALITY_REJECT_BELOW` ~~**stays until measured.** D-249 measured `<= 3`; it never
+  measured `< 2`.~~ **Measured, and it stays anyway (D-252, 2026-08-10).** D-249 measured `<= 3`;
+  D-252 measured `< 2` from stored evidence — 126 readings, minimum observed 2, zero below it.
+  It is kept as a cheap regression guard on the same reasoning D-240 used for the never-firing
+  difficulty re-tier gate. Two cautions from that run: the eight off-scale 8s and 9s are excluded
+  from the 126, and `MockBedrockProvider`'s constant `5` was checked for and matched zero rows.
 - Deleting the field is a later question that only arises if both thresholds go.
+
+*(Citation corrected 2026-08-20: this section cited the constant as `ai_pipeline.py:1769`, which
+is no longer the constant's line. Replaced with a symbol citation rather than a fresh line number
+— a line number in a moving 2,000-line module is a citation with an expiry date, and this one had
+already expired.)*
 
 ### ⚠️ Caution for any re-analysis of stored scores
 
@@ -524,10 +561,18 @@ maintain.**
 3. ✅ Build the instrument as its own `BedrockTask` — `HINT_SOLUTION_REVIEW`,
    `curriculum/hint_solution_review.py`, with a mock-provider branch and contract tests.
    **Wired to nothing**: no pipeline caller exists until step 4 passes.
-4. Validation run: checks 1 and 2, hard-capped. **First paid step.**
+4. ✅ Validation run: checks 1 and 2, hard-capped. **First paid step.** Completed 2026-08-10
+   (D-254): **29.1¢**, 82 calls, reviewer B (Haiku 4.5) against the shipped authored bank. All
+   four pre-registered disqualifiers survived — M1 1/8, M2 10%, M2r 2%, M3 0 — and the run found
+   real defects in live content. The union run followed in D-256. *(Ticked 2026-08-20; the step
+   had been left unticked here for ten days after it ran.)*
 5. If it survives → wire the decision flow, with check 3 sampling on from day one.
 6. Wire check 4's routing; add check 5's monitoring line.
-7. Measure `_HINT_QUALITY_REJECT_BELOW` (`< 2`) — the unmeasured live rejection.
+7. ✅ Measure `_HINT_QUALITY_REJECT_BELOW` (`< 2`). Completed 2026-08-10 (D-252) — and for
+   free: the readings were already on disk in `question_validation_runs`, so no paid run was
+   needed. **126 in-scale readings, minimum observed 2, zero below it**; the floor has never
+   fired and is kept as a regression guard (following D-240). Zero events in 126 readings is a
+   ~2% upper bound by the rule of three, not a proof of impossibility. *(Ticked 2026-08-20.)*
 
 ---
 

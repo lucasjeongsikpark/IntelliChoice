@@ -2051,6 +2051,12 @@ flowchart LR
 
 ## Storage split
 
+**Every PostgreSQL row below lives in one `intellichoice` database.** There is no logical
+schema split — one default schema, one connection target per app (measured 2026-08-20:
+`intellichoice-staging-postgres`, `DBName: intellichoice`; the MySQL stand-in's database is
+also named `intellichoice`). SPEC §5.33.3 prescribes a six-schema split and whether to adopt
+it is **undecided** — see [Open architecture questions](#open-architecture-questions-undecided--do-not-treat-as-designed).
+
 | Concern | Store | Notes |
 |---|---|---|
 | Names, emails, roles, parent–child links, attendance, branch-manager email, branch address/coordinates | **MySQL 8.4** | Read-only via `MySQLProfileAdapter`; PII source of truth (S2); branch `address`/`latitude`/`longitude` added S15 (public org facts, not PII). Originally built Mongo-shaped on a wrong assumption about `go.intellichoice.org`'s real database engine; corrected and the dev-fake rewritten MySQL-shaped in D-082/D-083 |
@@ -2071,6 +2077,100 @@ flowchart LR
 | In-flight chat turn cancellations | **PostgreSQL 16** | `chat_turn_cancellations` (D-402) - composite PK `(chat_session_id, client_turn_id)`, plus `requested_at` used only for pruning. Both columns are opaque ids the client mints; no PII. **A table rather than a signal, and the reason is the failure mode**: the cancel arrives as a *separate* request that may land on a different ECS task than the running turn, so an in-process flag is wrong - and `ChatSessionEventRelay`'s `LISTEN`/`NOTIFY` is deliberately fire-and-forget, where a dropped live update costs one repaint but a dropped *cancellation* costs the whole feature (the per-session advisory lock stays held for up to the 50s turn deadline). Self-pruning: the turn that acts on a row deletes it (so a retry of the same turn id is not cancelled the instant it starts), and `request()` sweeps **every** row older than 15 minutes for cancellations that raced their own turn's completion - global rather than per-session since D-416, because `POST /chat/sessions` persists nothing (a session id is a bare uuid4 until a message spends against it), so a per-session sweep could never reach a row written for an id that never returns |
 | Escalation emails already sent | **PostgreSQL 16** | `chat_escalation_sends` (D-421) - composite PK `(chat_session_id, question_fingerprint)`, plus `sent_at` for pruning. The fingerprint is a **SHA-256 of the normalised question, never the text**: equality is all this table decides, so storing the question would put visitor free text in a new table for no gain. Written as a *claim* (`ON CONFLICT DO NOTHING ... RETURNING`) rather than a check-then-write, so of two replicas resuming approvals in the same moment exactly one is told to send; **released when the send fails**, or SPEC §5.29's "try again" would be refused as a duplicate of an email nobody received. Swept globally on every claim |
 | Generated progress reports | **PostgreSQL 16** | `student_reports` (S28) - one row per report generation (`student_external_id`, `audience`, `verified_facts` JSON = the exact payload sent to Bedrock, `interpretation_text`, `recommendations_text`, `generated` bool, `cost_cents`, `idempotency_key`); **unique on `(student_external_id, audience, idempotency_key)` since D-159/AUD-X-04** - a replay is absorbed (no second row, no second paid call) while a new key still writes history, so `list_for_student` remains newest-first history rather than a cache. Scoped to the key, never to a time window; the migration backfilled pre-existing rows as `legacy-<student_report_id>`, unique by construction. `audience` always server-resolved from the caller's role, never a request field (D-077 #1). No PII - `verified_facts` is entirely already-resolved names/numbers/counts, and the key our frontend sends is `<student external id>:<range preset>:<per-mount UUID>`, i.e. an external id and two opaque tokens |
+
+## Deployed topology (staging, measured 2026-08-20 on build `gha-44a12dfc9549`)
+
+Every diagram above describes the *code*. This one describes the substrate the code actually runs
+on, and it is the only end-to-end view of it in this repository. There is exactly one environment:
+staging. No `production`-prefixed resource exists in the account, and the account is not a member of
+an AWS Organization — so SPEC §5.33's three-account, EKS, Aurora shape is not what is deployed
+(**D-004**).
+
+```mermaid
+flowchart TB
+    subgraph NET["Internet"]
+        USERS["Students · parents · tutors · anonymous visitors"]
+    end
+
+    subgraph ACCT["One AWS account, us-east-1, environment=staging only<br/>no AWS Organizations · no production-prefixed resource"]
+        EDGE["CloudFront, one distribution per app<br/>SPA from S3 by default; only api_path_patterns<br/>reach the ALB (see the edge-allowlist invariant)<br/>NO WAF attached - D-087 deferral, and<br/>list-web-acls is empty on both scopes"]
+        S3W[("S3 static-site buckets<br/>learning-web / chat-web Vite builds<br/>content-hashed assets")]
+        ALB["ALB intellichoice-staging-alb<br/>two per-AZ ENIs, one EIP each<br/>target-group health check is /readyz, not /healthz"]
+
+        subgraph PUBSUB["Public subnets - us-east-1a / 1b"]
+            NAT["ONE NAT gateway<br/>intellichoice-staging-nat<br/>the account's only general-internet egress"]
+        end
+
+        subgraph PRIVSUB["Private subnets - us-east-1a / 1b<br/>default posture: no internet route at all"]
+            subgraph CLUSTER["ECS Fargate, one cluster: intellichoice-staging"]
+                LTASK["learning-api task def :150<br/>desired 2 / running 2<br/>one task in 1a, one in 1b<br/>512 CPU / 1024 MiB per task"]
+                CTASK["chat-api task def :148<br/>desired 1 / running 1<br/>256 CPU / 512 MiB"]
+                OPS["ops-task :144 - 0 running<br/>EventBridge-invoked scheduled jobs<br/>runs the learning-api image, command true"]
+                SIDE["otel-collector sidecar<br/>one per task, 128 CPU / 256 MiB<br/>counted INSIDE the task totals above"]
+            end
+            PG[("RDS PostgreSQL 16 + pgvector<br/>intellichoice-staging-postgres<br/>DBName intellichoice - ONE database,<br/>no schema split, not Aurora, no reader")]
+            MY[("RDS MySQL 8.4<br/>intellichoice-staging-mysql<br/>DBName intellichoice<br/>stands in for the org's PII store;<br/>the real one is NOT connected - D-152")]
+        end
+
+        PLINK["Seven VPC endpoints, all available<br/>interface: ecr.api · ecr.dkr · logs ·<br/>secretsmanager · bedrock-runtime · xray<br/>gateway: s3<br/>so Bedrock, Secrets Manager, CloudWatch,<br/>X-Ray and ECR never leave AWS"]
+    end
+
+    subgraph OFFAWS["Outside AWS"]
+        LSAAS["LangSmith SaaS<br/>the only egress that leaves AWS,<br/>and the only reason the NAT exists"]
+        ORG["go.intellichoice.org - real auth + MySQL PII store<br/>NOT wired: IcProfileAdapter unbuilt,<br/>integration frozen by D-152"]
+    end
+
+    USERS --> EDGE
+    EDGE --> S3W
+    EDGE -->|"prefix allowlist only"| ALB
+    ALB --> LTASK
+    ALB --> CTASK
+    LTASK --> PG
+    CTASK --> PG
+    OPS --> PG
+    LTASK --> MY
+    CTASK --> MY
+    LTASK --> SIDE
+    CTASK --> SIDE
+    LTASK --> PLINK
+    CTASK --> PLINK
+    OPS --> PLINK
+    SIDE --> PLINK
+    LTASK -.->|"LangSmith flush only"| NAT
+    CTASK -.-> NAT
+    NAT --> LSAAS
+    LTASK -.->|"deferred, not built"| ORG
+    CTASK -.-> ORG
+
+    classDef ext fill:#fde,stroke:#b47
+    classDef store fill:#efe,stroke:#4a4
+    class LSAAS,ORG ext
+    class PG,MY,S3W store
+```
+
+*Extracted from the 2026-07-21 projection (now
+[docs/archive/2026-07-21-final-architecture-projection.md](archive/2026-07-21-final-architecture-projection.md)),
+refreshed against the deployed state measured 2026-08-20. None of that file's surrounding prose is
+carried: it was written before S32 shipped and nearly every status claim in it is now false.*
+
+**What the refresh changed, and why the distinction is worth keeping.** The projection drew this as
+a single task per app with a WAF in front, and the two differences are the ones that matter
+operationally: `learning-api` runs **two** tasks (min capacity 2, max 3), which is what makes the
+per-request work of pinning an SSE stream to a replica real rather than theoretical, and the WAF is
+**not** deployed at all (D-087). The projection's "known gap" about the single-instance SSE bus was
+answered, but not the way it predicted: `SessionEventBus` is still an in-process dict, and what
+closed the gap is the Postgres `LISTEN`/`NOTIFY` relay (D-334/D-335, D-349) rather than a pub/sub
+service or a bigger single task.
+
+**Numbers here are measured; two labels are repository-configured.** Task-definition revisions,
+desired/running counts, task sizes, AZ placement, RDS instances and database names, NAT and VPC
+endpoint counts, and the absent WAF are all from the 2026-08-20 measurement. The CloudFront
+per-app distribution shape and the edge prefix allowlist are read from
+`terraform/environments/staging/main.tf`. One caveat on the revisions: each family's **latest**
+revision is one ahead of the one serving (`:151` and `:149`, registered within 3 ms of each other by
+a later `terraform apply`), un-adopted because the services carry
+`ignore_changes = [task_definition]`. Both un-adopted revisions are functionally identical to what
+is serving — same image, sizes, env and secrets — so `:150`/`:148` is the state, not a lag to fix.
 
 ## Network egress and observability sinks (D-084, S39, D-213, D-214)
 
@@ -2178,3 +2278,87 @@ application already writes. This is the layer that makes the deployed system leg
 incident so far (a consolidation call burning 61.5 s with a 100% failure rate for fourteen days; an
 authoring batch reporting `circuit_open` fourteen times and $0.00 spent) was invisible in CPU and
 ALB latency and fully visible in these lines.
+
+## Brand tokens and the standing contrast rule (S22.5, D-065–D-069)
+
+`packages/ui-brand/` is the one source both frontends import — `tokens.css`, `base.css`, logo and
+favicon assets, `check_contrast.py` — CSS and static assets only, never TSX (**D-065**). The values
+below were extracted from the live `www.intellichoice.org` Impreza theme CSS on 2026-07-19 and are
+the as-built token set; they live here rather than in the branding plan because a standing rule
+cannot be enforced from a document labelled "planned".
+
+| Element | Value |
+|---|---|
+| Heading font | Poppins 600, letter-spacing −0.02em on h1–h3; app type scale capped ~1.75–2rem rather than the marketing site's 3.5rem |
+| Body font | Open Sans 400/700, self-hosted via `@fontsource` and never the Google Fonts CDN (**D-066** — the primary users are minors, and a CDN font request ships every student's IP to Google) |
+| Text | body `#333333`, headings `#1a1a1a` |
+| Surfaces, light | page `#f5f5f5`, panel `#ffffff`, border `#e8e8e8`, code `#f5f5f5`, footer `#222222` (text `#999999`, link `#cccccc`) |
+| Raw brand tier — identity, decoration, large surfaces only | green `#5eb761`, pink `#e95095`, purple `#7049ba` |
+| Gradient | `linear-gradient(135deg, #e95095, #7049ba)`, reserved as a sparse highlight device mirroring the site's alt-section role |
+| Interactive tier — anything text-sized | green `#387e40`, hover `#2f6b36`, on-tint `#2f6b36`, pink `#c22f73`, tint `rgba(94,183,97,0.15)`, on-accent text `#ffffff`, error `#d32020` |
+| Geometry | shadow `0 5px 15px rgba(0,0,0,0.08)`; radii panel 12px / control 8px / button 6px; spacing 4·8·16·24·32px; buttons uppercase 600 |
+| Dark tier — this project's own design, **not** the site's (D-068) | bg `#131513`, panel `#1c1f1d`, border `#2e332f`, accent `#7cc880`, hover `#93d696`, on-accent text `#0c1f10`, pink `#ef6ba6`, purple `#9d7fd6` |
+
+**Standing rule: do not "fix" the interactive tier back to the raw brand hexes (D-067).** The two
+tiers exist because the brand's own colors fail WCAG AA's 4.5:1 text threshold, as the live site
+itself does: raw green `#5eb761` on white is **2.49:1** and raw pink `#e95095` is **3.47:1**. So the
+raw tier is identity/decorative/large-surface only, and anywhere color carries text-sized meaning —
+links, button backgrounds, focus rings — takes the interactive tier: green `#387e40` (**4.97:1** on
+white) and pink `#c22f73` (**5.32:1** on `--panel-bg`, **4.88:1** on `--bg`). Purple `#7049ba`
+(**6.27:1**) already passes and is unadjusted. A future session tempted to swap an interactive tone
+back to the exact site hex should run `check_contrast.py` first and expect it to fail.
+
+**The shipped pink is deliberately darker than the branding plan's own draft value.** `#d13a80`
+(**4.54:1**) was checked only against `--panel-bg`; against the page background `--bg: #f5f5f5` the
+same hex measures **4.16:1** — a real fail once both surfaces the token is actually used against
+were checked, so it was superseded by `#c22f73` (D-067). `--error` was darkened one step for the
+identical reason (`#dc2626` → `#d32020`). **D-381 found the same class of miss one surface further
+in**: `#387e40` over the `--accent-bg` tint is **4.38:1** over the panel and **4.06:1** over the
+page, so `--accent-on-tint: #2f6b36` (**5.65:1** over the panel, **5.23:1** over the page) exists as
+its own token rather than as fourteen edits. The transferable rule is the one both misses violated:
+a contrast ratio is only meaningful against the surfaces the token is *actually used against*.
+
+`check_contrast.py` asserts every real text/background pair meets 4.5:1 in **both** schemes and
+deliberately does not check the raw tier, since those tokens are only ever used non-textually. Any
+new brand color introduced later needs the same raw/interactive split before it is used for text.
+Two supporting rulings stay load-bearing: the live site's own `prefers-color-scheme: dark` block is
+untouched Impreza theme defaults in an unrelated green and is **not brand truth** (D-068), and the
+token file stays plain CSS custom properties with no Tailwind or CSS-in-JS (D-069).
+
+Promoting this same data into `packages/ui-brand`'s own source-of-truth documentation is engineering
+work, split out as **W-32**, and is not done here.
+
+## Open architecture questions (undecided — do not treat as designed)
+
+This block holds architecture questions that are **genuinely unmade** — not deferred work with an
+owner, and not a decision recorded somewhere else in shorter form. Nothing in it has a D-number, and
+reading an entry as settled in either direction is a misreading. An entry leaves this block only by
+being decided.
+
+### `ARCH-21-SCHEMA-SPLIT` — whether to adopt SPEC §5.33.3's six-schema logical split
+
+**The question.** SPEC §5.33.3 prescribes splitting PostgreSQL into six logical databases or
+schemas — `learning`, `rag`, `memory`, `checkpoint_learning`, `checkpoint_chat`, `evaluation` — and
+**still carries it as a requirement**. Whether to adopt it, and when, has never been decided.
+
+**Its status is the part worth stating explicitly.** No document settles it and **no D-number owns
+it**, in either direction: it is not decided for, not decided against, and not scheduled. That is
+different from every other open item in this project, which is why it is recorded here rather than
+left as an absence.
+
+**What the repository and the deployment actually do.** No split is implemented.
+`packages/db/alembic/env.py` configures neither `include_schemas` nor `schema_translate_map`, so
+autogenerate and every migration operate on the default schema only — verified by reading that file.
+The deployed Postgres runs without a split (measured 2026-08-20: `intellichoice-staging-postgres`,
+`DBName: intellichoice`, a single RDS instance rather than an Aurora cluster, with no reader).
+§5.33.3's Aurora and Multi-AZ recommendations sit under the same undecided heading and are likewise
+not deployed.
+
+**Reopen condition: production schema design.** The cost of deferring is asymmetric and that is the
+only reason this is written down now — before production data exists the split is a choice, and
+after it exists the split is a data migration on live student records. Recording the question is not
+answering it, and this block must not be read as either an adoption plan or a refusal.
+
+**Where else this is tracked, so nothing implies coverage:** `PROJECT_STATE.md` §6.3 carries the
+`ARCH-21-SCHEMA-SPLIT` register row, and `TRACEABILITY.md`'s §5.33 sub-row marks §5.33.3 **deferred
+— not traced**.

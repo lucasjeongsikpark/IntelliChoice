@@ -610,6 +610,18 @@ Six sections use it, and each one names its enforcing mechanism below.
 | **§5.29** Graceful failure handling | `graph/nodes.py:332,413` cites SPEC's failure rows verbatim — "MySQL attendance failure → block learning start", "Gmail MCP failure → preserve draft" | `test_learning_graph_routes.py:383,557` — **tests that quote the same SPEC rows back** |
 | **§5.32** Observability | `packages/observability/` | one test per subsection, each citing its clause: `test_langsmith_config.py:39` (§5.32.1 PII masking "not optional"), `test_tracing.py:18` (§5.32.2 one trace_id per request), `test_logging_config.py:64` (§5.32.3's literal "do not log" list). **D-393/D-394 added the half that was missing**: §5.32.3's list was enforced only against `extra=` *keys*, so the two free-text fields (`exc_info`, and `event` when interpolated) travelled unexamined — now redacted at the formatter and tested in both directions, with a control asserting an ordinary log line's shape is unchanged. §5.32.3's access line and §5.32.4's `http_requests_total` were also never written for an unhandled 500 at all: `test_request_logging.py` and `test_metrics.py` now drive a real one |
 | **§5.33** AWS environments | `terraform/environments/staging/` | `terraform validate`, plus the deploy workflow's own runs |
+| ↳ **§5.33.3** — the six-schema logical split (`learning`, `rag`, `memory`, `checkpoint_learning`, `checkpoint_chat`, `evaluation`), and its Aurora / Multi-AZ siblings | **not implemented** — `packages/db/alembic/env.py` sets neither `include_schemas` nor `schema_translate_map`; the deployed Postgres is one `intellichoice` database on a single RDS instance (measured 2026-08-20) | **deferred — not traced** (`ARCH-21-SCHEMA-SPLIT`) |
+
+**On that sub-row's verdict, since it is not one of the four.** The §5.33 row above is
+section-granular, and left alone it would imply coverage of a subsection nothing covers. The
+sub-row cannot be *traced* (nothing is implemented, so no test could fail) and it cannot be
+*dispositioned* either, because that verdict requires a DECISIONS.md entry saying so on purpose and
+**no D-number owns this question in either direction** — which is the finding, not an oversight in
+this file. It is recorded as **deferred — not traced** against the register key rather than promoted
+to a fifth general verdict: the fence in the method section still stands, and the honest reading is
+that this is a *gap* whose disposition is owed at production schema design. `ARCHITECTURE.md`'s
+"Open architecture questions (undecided — do not treat as designed)" block holds the question and
+`PROJECT_STATE.md` §6.3 holds the register row.
 
 §5.29 and §5.32 deserve a note: **their tests quote the SPEC clause they enforce**. That is the
 cheapest traceability mechanism this codebase has, it was free to verify, and it is the reason the
