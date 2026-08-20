@@ -63,8 +63,11 @@ zap-reports/
 crash.log
 crash.*.log
 
-# Outbound communication drafts - kept local, never committed (S36)
-docs/S42_ORG_ASKS.md
+# Outbound communication drafts - kept local, never committed (S36).
+# Renamed + archived 2026-08-20 by the documentation migration; whether it is
+# ever committed is UD-12(f), not decided by the rename.
+docs/2026-07-24-org-asks-drafts.md
+docs/archive/2026-07-24-org-asks-drafts.md
 
 # S39: Playwright browser-audit output (console/network capture, traces, reports) -
 # local evidence, regenerated every run.
