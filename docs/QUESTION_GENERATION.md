@@ -1,3 +1,5 @@
+> Last reviewed: 2026-08-20 (documentation reconciliation migration).
+
 # AI question generation — the as-built design
 
 Status: **implemented** as described. Decisions: D-026, D-186, D-188 … D-194.

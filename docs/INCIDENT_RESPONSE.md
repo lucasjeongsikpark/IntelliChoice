@@ -1,3 +1,5 @@
+> Last reviewed: 2026-08-20 (documentation reconciliation migration).
+
 # Incident Response Runbook
 
 S33 Security Hardening (SPEC §6.22 "incident-response drills"). This is the practical

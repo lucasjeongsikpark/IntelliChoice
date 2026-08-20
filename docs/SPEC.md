@@ -1,3 +1,5 @@
+> Last reviewed: 2026-08-20 (documentation reconciliation migration).
+
 # 5. Very Detailed Version
 
 ## 5.0 Document Purpose and Confirmed Design Principles
