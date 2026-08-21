@@ -29443,3 +29443,30 @@ reconnect behaves. The two-stage UX is mostly a render-state change rather than 
 
 The overlap is a graph restructuring on the answer path and is left specified rather than half-built.
 The next session implements steps 1–3 above; nothing about it needs re-deriving.
+
+## D-424 — "zero internet egress" is a target baseline with one deliberate exception, not a currently-true invariant (accepted, 2026-08-20)
+
+User decision at the W-15 sign-off gate of the documentation reconciliation migration (W-44,
+`BATCH-LOW-CONFIG-VS-PLAN`/DRIFT-78 family). A framing decision about documentation, not a network
+change: nothing about the deployed VPC is altered.
+
+**What was wrong.** `ARCHITECTURE.md` stated "The VPC's default posture is **no internet egress at
+all** … The private subnets carried no `0.0.0.0/0` route and the account ran **zero NAT
+gateways**", nine lines above the sink table's row recording that LangSmith leaves AWS via a NAT.
+Measured state: an active `0.0.0.0/0 → nat-07ab02d5cd28b6f72` route exists (NAT created
+2026-08-07), deliberately (D-214), at roughly $33/month. The invariant as stated was false, by an
+earlier deliberate decision that the framing never absorbed.
+
+**The ruling (user, 2026-08-20).** Reframe as **baseline-with-exception**, carrying all three
+facts: the invariant is currently false; by deliberate decision; at ~$33/month. And one refinement
+the user added over the migration's proposed wording: the documentation must **not** state or
+imply that the NAT path is technically restricted to LangSmith. Distinguish **intended application
+use** (the NAT was introduced to support LangSmith tracing) from **enforced network policy** (the
+`0.0.0.0/0 → NAT` route is not destination-restricted at the network layer). "Zero internet
+egress" is a **target baseline**, not a currently-true invariant. The evidence-backed description
+of what Terraform removes when `langsmith_tracing_enabled=false` (env vars, secret grant, gateway,
+route — one apply) stands, without overstating network enforcement.
+
+**Applied to** `ARCHITECTURE.md`'s egress section the same day, after this entry was written
+(W-44's ordering rule). Reintroducing a destination-restricted egress control, if ever wanted, is
+new engineering work under a new decision — not implied by this reframing.

@@ -1,5 +1,9 @@
 # IntelliChoice — Project Instructions
 
+> Last reviewed: 2026-08-20 (documentation reconciliation migration). This file has drifted
+> silently before (rule 1 said "MongoDB" until D-082/D-111) — if this date is old, distrust the
+> descriptions below and verify against `docs/PROJECT_STATE.md`.
+
 AI education platform for K–12 students (minors are the primary users). Two independently
 deployed apps sharing auth from the existing `go.intellichoice.org` system:
 
@@ -8,39 +12,82 @@ deployed apps sharing auth from the existing `go.intellichoice.org` system:
 - **Organization Q&A** (`chat.intellichoice.org`) — role-aware RAG over org documents,
   branch locator, calendar, admin escalation.
 
-## Documents — read these instead of holding the spec in your head
+Those product hostnames do not exist live yet: deployed staging is reached through the two
+CloudFront domains (`RD-12-INGRESS`), the ALB admits traffic only from CloudFront's prefix list,
+and a direct-to-ALB timeout is by design, not an outage.
 
-- [docs/SPEC.md](docs/SPEC.md) — the complete detailed spec (~2,600 lines). **Do not read it
-  whole**; read only the sections the current session lists in ROADMAP.md.
-- [docs/ROADMAP.md](docs/ROADMAP.md) — session-by-session implementation plan and "done"
-  criteria. The source of truth for what to build next.
-- [docs/PROGRESS.md](docs/PROGRESS.md) — current status, session log, carry-over items.
-- [docs/DECISIONS.md](docs/DECISIONS.md) — decision log; check before re-deciding anything.
-- [docs/TRACEABILITY.md](docs/TRACEABILITY.md) — the §2.6 criterion-1 evidence: which launch-scope
-  SPEC requirements are traced to implementation *and* test, which are dispositioned, which are
-  gaps. Read its method section before adding rows — "unverified" counts as not traced.
-- [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md) — the practical runbook for a real
-  incident (leaked credential, auth bypass, cost anomaly, etc.), grounded in this project's own
-  real incidents (S32/D-084, S33/D-085).
-- [docs/QUESTION_GENERATION.md](docs/QUESTION_GENERATION.md) — the as-built design of the offline
-  AI question-generation pipeline: authored-first only, how difficulty is proposed and independently
-  reviewed, how to run a batch, and what preflight refuses. Read before changing anything in
-  `packages/curriculum`'s pipeline.
-- [docs/HINT_SOLUTION_REVIEW.md](docs/HINT_SOLUTION_REVIEW.md) — the **planned** design (D-251) for
-  LLM review of hint ladders and canonical solutions: the `PASS`/`REPAIR`/`REJECT` instrument, what
-  stays deterministic, and the five falsification checks that gate it. Read before adding any
-  hint- or solution-quality scoring — two such scorers already exist and §1 explains why neither
-  worked.
-- [docs/AUDIT_LIVE_2026_08_17.md](docs/AUDIT_LIVE_2026_08_17.md) — what four live browser walks over
-  the *deployed* build found (D-381), what was fixed, and the three coverage blind spots that
-  matter more than the remaining items. Read the coverage section before adding tests: the
-  Playwright suite was green on the same build that carried both P1s.
-- [docs/OPEN_DECISIONS.md](docs/OPEN_DECISIONS.md) — everything still open that needs a **judgement** rather
-  than more code: ten decisions with options, a recommendation, and what deferring each one costs.
-  Read before asking "what should I work on next" — the answer is often "ask the user".
-- [docs/S42_DISCOVERY.md](docs/S42_DISCOVERY.md) — what the **existing** `go.intellichoice.org`
-  system actually does, read from its own source (D-151). Read this before assuming anything about
-  production's schema, roles, attendance, or login contract.
+## Documents — the index (complete by rule)
+
+**Read `docs/PROJECT_STATE.md` first.** It is the entry point: current state, the deploy gap,
+active work, open user decisions, the freeze, and the map of everything below. Precedence when
+documents disagree: [docs/reference/AUTHORITY_MODEL.md](docs/reference/AUTHORITY_MODEL.md).
+
+**Rule for this index: every non-archive document is listed here, or explicitly listed as
+deliberately unlisted with the reason.** An unlisted document is invisible at session start —
+that failure mode is what this rule exists to prevent.
+
+The five active documents:
+
+- [docs/PROJECT_STATE.md](docs/PROJECT_STATE.md) — THE entry point (above).
+- [docs/SPEC.md](docs/SPEC.md) — the complete normative spec (~4,400 lines; its H1 says "5. Very
+  Detailed Version" but it is the whole product spec). **Do not read it whole**; read the
+  sections your task touches. Amended in place with dated markers — see its "SPEC amendments"
+  index at the top.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — **the single as-built authority** and sole owner
+  of the storage-split table, deployed topology, scheduler state, and the explicitly-marked open
+  architecture questions. The file every session that ships architecture-level change must update.
+- [docs/DECISIONS.md](docs/DECISIONS.md) — append-only decision log, the system of record for
+  judgements (D-001…D-424). Read its "How to read this log" section before keying anything on
+  headings; five-plus phantom IDs are cited but never written.
+- [docs/TRACEABILITY.md](docs/TRACEABILITY.md) — the living §2.6 criterion-1 evidence instrument.
+  Read its method section before adding rows — "unverified counts as not traced".
+
+Reference (durable, read on demand — not per-session):
+
+- [docs/reference/AUTHORITY_MODEL.md](docs/reference/AUTHORITY_MODEL.md) — which document wins,
+  the two precedence ladders, conflict protocols.
+- [docs/reference/INCIDENT_RESPONSE.md](docs/reference/INCIDENT_RESPONSE.md) — the incident
+  runbook (leaked credential, auth bypass, cost anomaly), grounded in this project's real
+  incidents (S32/D-084, S33/D-085, D-310, D-400).
+- [docs/reference/QUESTION_GENERATION.md](docs/reference/QUESTION_GENERATION.md) — the as-built
+  offline question-generation pipeline. Read before changing `packages/curriculum`'s pipeline.
+  D-342 parks all coverage-driven generation runs — a standing user instruction.
+- [docs/reference/HINT_SOLUTION_REVIEW.md](docs/reference/HINT_SOLUTION_REVIEW.md) — the
+  **as-built** hint/solution review instrument (reconciled 2026-08-20; formerly described here as
+  "the planned design"). Read before adding any hint- or solution-quality scoring — two earlier
+  scorers failed and §1 explains why.
+- [docs/reference/U7_CHECKPOINT_CONSOLIDATION.md](docs/reference/U7_CHECKPOINT_CONSOLIDATION.md) —
+  the only staging checkpoint sizing that exists; its questions are answered (D-333). D-333's
+  precondition binds any retention change: consolidate memory before deleting any checkpoint.
+- [docs/reference/CONTENT_COVERAGE.md](docs/reference/CONTENT_COVERAGE.md) — taxonomy
+  denominators (as-of 2026-08-11; status columns are dated, trust the annotations).
+- [docs/reference/FIRST_VISIT_NOTICE.md](docs/reference/FIRST_VISIT_NOTICE.md) — the only written
+  copy of all eleven disclosures; input to the frozen consent session S45 (UD-10 open).
+- [docs/reference/integration/](docs/reference/integration/) — **the D-152-frozen world**, banner
+  gated: `INTEGRATION_PLAN.md` (the plan the freeze binds), `S42_DISCOVERY.md` (production facts
+  read from source), `S42_OPEN_QUESTIONS.md` (the org-facing register, Korean),
+  `ROADMAP_FROZEN_SESSIONS.md` (S42–S51 scope). Nothing in there is startable work.
+- [docs/reference/org-drafts/](docs/reference/org-drafts/) — the two live outbound drafts:
+  `S42_SECURITY_REPORT.md` (send permitted under the freeze, INT-28; no send recorded as of
+  2026-08-20) and `ENROLLMENT_FAQ_APPROVAL.md` (the sole launch gate on the guest journey's
+  canonical question — awaiting the org's approval). Whether committed drafts are allowed at all
+  is UD-12(f), open.
+- [docs/reference/audits/](docs/reference/audits/) — the three audit registers behind
+  `README.md`'s namespace map. **Never cite a bare audit ID** — always `<document>:<id>`; four ID
+  schemes collide across the three files.
+- [docs/reference/reconciliation-2026-08/](docs/reference/reconciliation-2026-08/) — the
+  166-entry `FINAL_OPEN_WORK_REGISTER.md` and `USER_DECISION_QUEUE.md`: the provenance backbone
+  `PROJECT_STATE` links into. Evidence, not authority.
+
+Deliberately unlisted:
+
+- `docs/archive/` — historical only, indexed by [docs/archive/README.md](docs/archive/README.md);
+  every file carries an ARCHIVED banner. Unlisted here because nothing in it is current, and
+  listing archives beside live documents is the misleading-active pattern this index was rebuilt
+  to end. (`ROADMAP.md`, `PROGRESS.md`, `OPEN_DECISIONS.md` live there now — all their open items
+  were carried into `PROJECT_STATE` or the register before archival.)
+- `docs/log/` — append-only per-session narration, **non-authoritative** (user ruling DQ-1).
+  Agents do not read the full log by default; rules in `docs/log/README.md`.
 
 ## The existing production system
 
@@ -49,21 +96,26 @@ Its source is checked out at `../IntelliChoice-web` (`icrest/` Express+Sequelize
 than guessing or waiting on the org. Two hard rules: **never read `icrest/app/config/db.config.js`
 or `intellichoice-sendmail-*.json`** (committed credentials), and never quote the source-visible
 JWT secret or password-HMAC key values anywhere. Production is **frozen** — findings about it get
-reported to the user, never fixed here.
+reported to the user, never fixed here. (`docs/codebase-analysis/` references resolve to
+`../IntelliChoice-web/docs/codebase-analysis/` — out of this repository.)
 
 ### ⛔ Integration is deliberately deferred (D-152) — do not "unblock" it
 
 The user's sequencing decision: **finish and test this codebase against the dev fakes first, then
-integrate.** So in any session, unless the user explicitly says integration is starting:
+integrate.** Reconfirmed 2026-08-18 (D-417 §A1): *"D-152 is unchanged and is not 'nearly met' — it
+is closed until reopened."* The two documents the freeze binds:
+[docs/reference/integration/INTEGRATION_PLAN.md](docs/reference/integration/INTEGRATION_PLAN.md)
+and [docs/reference/integration/S42_DISCOVERY.md](docs/reference/integration/S42_DISCOVERY.md) —
+both carry line-1 freeze banners. So in any session, unless the user explicitly says integration
+is starting:
 
 - **Do not** measure AWS→icrest reachability, request the production API URL or a test account, or
-  finalize the §3.1 auth option. Those results go stale before they are used; O1b stays a
-  *recommendation* until measured, right before S44.
-- **Do not** treat S44+ items or [S42_OPEN_QUESTIONS.md](docs/S42_OPEN_QUESTIONS.md) groups A/B/C/D
-  as blockers. They are frozen by choice, not stuck.
-- **Do not** rewrite the MySQL dev fake to match production's schema. Its shape is wrong on purpose
-  and that is safe: the `ProfileAdapter` Protocol (`StudentProfile`/`BranchInfo`/`AttendanceStatus`)
-  is SPEC-derived, not fake-derived, so the mismatches stay behind the adapter seam until S43.
+  finalize the §3.1 auth option. O1b stays a *recommendation* until measured, right before S44.
+- **Do not** treat S43–S51 items or the S42 open-questions groups as blockers. They are frozen by
+  choice, not stuck. No measurement or green suite can meet the reopen condition — it is a user
+  decision, and soliciting one is forbidden.
+- **Do not** rewrite the MySQL dev fake to match production's schema. Its shape is wrong on
+  purpose: the `ProfileAdapter` Protocol is SPEC-derived, not fake-derived.
 - **Do** keep the seam honest. Anything that would make an app-level decision depend on the fake's
   *schema* rather than on the Protocol is a real defect — say so.
 
@@ -73,9 +125,10 @@ production, not a rare one (D-152 §2).
 
 ## Session workflow
 
-Start every working session with `/start-session [S<n>]` and end with `/end-session`.
-Stay within the active session's roadmap scope; new discoveries become carry-over items,
-not detours.
+Start every working session with `/start-session [item]` and end with `/end-session`. Current and
+open state lives in `docs/PROJECT_STATE.md` (delete-on-resolve); per-session narration goes to git
+commit messages and `docs/log/`. Stay within the chosen item's scope; new discoveries become new
+`PROJECT_STATE` rows, not detours.
 
 ## Stack
 
@@ -83,18 +136,22 @@ Python 3.12, FastAPI (async), LangGraph, LlamaIndex, SQLAlchemy + Alembic,
 Pydantic v2 everywhere, PostgreSQL 16 + pgvector, MySQL 8.4 (read-only adapter; D-082/D-083),
 AWS Bedrock behind a gateway, pytest. Frontends: React + Vite. Local dev: Docker Compose.
 
-## Non-negotiable rules (condensed from SPEC.md — the spec wins on detail)
+## Non-negotiable rules (condensed from SPEC.md — the spec carries the detail; when documents conflict, use AUTHORITY_MODEL §3, not this list)
 
-1. **No PII in Postgres, logs, traces, or LLM payloads.** Postgres stores only
-   `*_external_id` references; the org's MySQL database remains the source of truth for
-   names, emails, roles, relationships, attendance (SPEC §5.4, §5.30).
+1. **No student, parent or guardian PII in Postgres — absolute.** Two tables (org staff/branch
+   contact) carry the org's own already-public fields under an enumerated exemption (D-050,
+   `ALLOWED_PII_SHAPED_COLUMNS`); `test_schema_purity.py` still fails loudly if any student-facing
+   table grows one of those column names. Postgres otherwise stores only `*_external_id`
+   references; the org's MySQL database remains the source of truth for names, emails, roles,
+   relationships, attendance (SPEC §5.4, §5.30). No PII in logs, traces, or LLM payloads — no
+   exemption there.
 2. **Deterministic core.** Grading, attendance gating, authorization, score/gain calculation,
    and SQL execution are never done by an LLM (SPEC §5.0, §5.26). No runtime NL2SQL.
 3. **Authorization in the backend/query layer, never in prompts.** Parent-child links are
    verified server-side; role/branch filters are applied *before* RAG retrieval (SPEC §5.21.3,
    §5.30.2).
 4. **Every external action needs human approval** via LangGraph `interrupt()`: emails,
-   calendar events, location use, image analysis (SPEC §5.1.4).
+   calendar events, location use, image analysis (SPEC §5.1.4, as amended 2026-08-20).
 5. **Fail closed.** Unknown attendance ≠ present; no RAG answer without an approved,
    effective, citation-supported source (SPEC §5.4.4, §5.21.8, §5.29).
 6. **Structured LLM output only:** JSON-schema output → Pydantic validation → limited repair
@@ -102,7 +159,9 @@ AWS Bedrock behind a gateway, pytest. Frontends: React + Vite. Local dev: Docker
 7. **All model/paid-API calls go through the gateway** with timeouts, bounded retries,
    max-token limits, and cost accounting (SPEC §5.25.1).
 8. **Solution images are deleted immediately** after analysis, success or failure, and never
-   enter backups, traces, or logs (SPEC §5.17).
+   enter backups, traces, or logs (SPEC §5.17). Requirement unchanged; no code path implements
+   §5.17 today — the requirement binds any future implementation from line one
+   (`IMAGE-WORK-PARK`).
 9. **External deps behind interfaces with dev fakes** (auth, MySQL, Bedrock, Gmail/Maps/
    Calendar, blob storage). Real clients are env-selected (DECISIONS.md D-002).
 10. Student-facing language is growth-oriented and age-appropriate; internal skill IDs stay
@@ -113,6 +172,8 @@ AWS Bedrock behind a gateway, pytest. Frontends: React + Vite. Local dev: Docker
 - Thin route handlers; separate config / provider clients / services / routes.
 - Explicit Pydantic models at every boundary (API, graph state, tool args, LLM output).
 - Alembic migration for every schema change; migrations must replay from empty.
-- Tests accompany the session's "Done when" criteria; run `make lint typecheck test`
+- Tests accompany the work item's verification plan; run `make lint typecheck test`
   before declaring work done.
 - Never read or write `.env` or any credentials; use `.env.example` for shape.
+- Any number about the deployed system carries its build SHA and as-of date (LB-05);
+  "implemented locally" is never reported as "deployed".
