@@ -66,10 +66,11 @@ Each subsection states the **layer**, what the document is **authority for**, wh
   values at three depths, while being the project's actual sequencer.
 - **No chronology.** No session log, no diary, no per-session narration. If it reads as history, it
   belongs in git commit messages or the archive.
-- **Staleness rule (fail-closed).** If the snapshot date is **more than 14 days old**, or the repo
-  HEAD in the snapshot header **no longer matches HEAD**, **or the deployed staging image tag no
-  longer matches the snapshot header** (a manual deploy moves neither HEAD nor the date), the
-  current-state and known-drift sections
+- **Staleness rule (fail-closed).** If the snapshot date is **more than 14 days old**, or a
+  **product-code commit has landed after the snapshot header's recorded last-product-code commit**
+  (docs-only commits do not by themselves invalidate the snapshot — HEAD merely moving is not the
+  trigger), **or the deployed staging image tag no longer matches the snapshot header** (a manual
+  deploy moves neither HEAD nor the date), the current-state and known-drift sections
   are **unverified** and must be re-verified against primary evidence before being acted on. Do not
   silently trust them; do not silently delete them either.
 
