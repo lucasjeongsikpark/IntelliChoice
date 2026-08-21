@@ -4,7 +4,7 @@
 currently **refuses to answer**, and that is correct fail-closed behavior: the only document that
 covers enrollment is `public-enrollment-faq`, which is **synthetic draft content** written by us for
 development: the entry keyed `document_id: public-enrollment-faq` in the
-[manifest](../knowledge-content/manifests/public.yaml) carries `status: draft`. (Cited by **key**
+[manifest](../../../knowledge-content/manifests/public.yaml) carries `status: draft`. (Cited by **key**
 rather than by line number, because the line moves; verified still `draft` on 2026-08-20.)
 Nothing else covers enrollment, so until the org confirms the real facts and we flip
 the document to `approved`, the launch journey's canonical question stays unanswerable (D-146).
@@ -15,7 +15,7 @@ feature until then; we are not "fixing" it, we are waiting on content we are not
 invent.
 
 **The current draft's four claims that need org sign-off** (from
-[content.md](../knowledge-content/documents/public/enrollment-faq/content.md)):
+[content.md](../../../knowledge-content/documents/public/enrollment-faq/content.md)):
 
 | # | Claim in the draft | Needs the org to confirm or correct |
 |---|---|---|

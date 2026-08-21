@@ -1,11 +1,10 @@
 # AUTHORITY_MODEL.md — which document wins, and how conflicts are resolved
 
-**Status:** PROPOSAL (Phase 5 of the 2026-08 documentation reconciliation). Nothing here is in force
-until the migration executes; at migration this file is promoted to
-`docs/reference/AUTHORITY_MODEL.md` and its precedence tables are summarised in PROJECT_STATE's
-documentation map.
-**As-of:** 2026-08-20. **Repo HEAD at authoring:** `344f016`. **Deployed staging build:**
-`gha-44a12dfc9549` (10 commits behind HEAD).
+**Status: IN FORCE since 2026-08-20** — the documentation reconciliation migration executed that
+day, promoted this file to `docs/reference/AUTHORITY_MODEL.md`, and summarised its precedence
+ladders in `docs/PROJECT_STATE.md` §11.
+**As-of:** 2026-08-20. **Last product-code commit at authoring:** `344f016`. **Deployed staging
+build:** `gha-44a12dfc9549` (10 product commits behind).
 **Creates no new architectural decisions and answers no open user decision.** Where a rule below
 would need a judgement the user has not made, the rule says "ask", not "assume".
 

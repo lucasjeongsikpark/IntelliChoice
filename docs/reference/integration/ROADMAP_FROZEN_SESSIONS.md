@@ -63,7 +63,7 @@ instead — carried here as-is:
 runtime-only and are deferred with the integration (D-152).
 
 The user made the production system's source available at `../IntelliChoice-web`, so discovery was
-answered from source rather than org recollection: **[S42_DISCOVERY.md](../../S42_DISCOVERY.md)**
+answered from source rather than org recollection: **[S42_DISCOVERY.md](S42_DISCOVERY.md)**
 (8 readers → synthesis → adversarial verify; 8/10 claims confirmed, 2 refuted-with-correction).
 **`GET /api/accounts/signups` carries per-child `attended`, so O1b is feasible and the DB path
 leaves the critical path** (I11 rung 1). Login and profile contracts, the full schema, the role

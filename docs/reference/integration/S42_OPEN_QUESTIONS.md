@@ -97,7 +97,7 @@
 상세는 [S42_DISCOVERY.md](S42_DISCOVERY.md) §6.
 
 > **[2026-08-20 주석 · W-28/W-29]** 아래 E1–E4는 조직에 보낼 **보고서 초안이 이미 존재합니다** —
-> [S42_SECURITY_REPORT.md](S42_SECURITY_REPORT.md)가 같은 네 건에 대한 **선언된 단일 보안 문서**입니다.
+> [S42_SECURITY_REPORT.md](../org-drafts/S42_SECURITY_REPORT.md)가 같은 네 건에 대한 **선언된 단일 보안 문서**입니다.
 > 지금까지 이 표는 S42_DISCOVERY §6을 요약만 하고 정작 작성된 보고서를 링크하지 않아, 읽는 사람이
 > 초안이 없다고 오해할 수 있었습니다. **경로 주의:** 이 문서와 같은 마이그레이션에서 해당 보고서는
 > `docs/reference/org-drafts/S42_SECURITY_REPORT.md`로 이동합니다. 위 링크는 이동 **전** 경로이므로,
@@ -123,7 +123,7 @@
      답했습니다. 그러므로 지금 발송할 DNS ask는 없습니다.
    - **E그룹 통지 = 여전히 유효.** 이 프로젝트 일정과 무관하게 **오늘 실사용자를 받는 시스템**의
      문제이므로 D-152 동결의 예외입니다(위 "아직 유효한 예외"와 동일). 보고서 초안은
-     [S42_SECURITY_REPORT.md](S42_SECURITY_REPORT.md) — 마이그레이션 후 경로는
+     [S42_SECURITY_REPORT.md](../org-drafts/S42_SECURITY_REPORT.md) — 마이그레이션 후 경로는
      `docs/reference/org-drafts/S42_SECURITY_REPORT.md`. 발송 자체는 사용자의 조치입니다.
 2. **나머지는 전부 동결.** 현재 코드베이스 완성·테스트에 집중
 3. **통합 착수를 결정하는 날**, 이 문서를 다시 열어 **A1·A2·A3 → B1·B2 측정 → A4(auth) 확정**
@@ -132,7 +132,7 @@
 ## 통합 착수 시점에 다시 읽을 것
 
 - [S42_DISCOVERY.md](S42_DISCOVERY.md) — 프로덕션 계약·스키마·역할·타임존 (소스 기준, 2026-08-01)
-- [DECISIONS.md](DECISIONS.md) D-151(발견), D-152(순서 결정)
+- [DECISIONS.md](../../DECISIONS.md) D-151(발견), D-152(순서 결정)
 - ⚠️ 재검증 필요: 이 문서들은 **2026-08-01 시점의 소스** 기준입니다. `sync({alter:true})`가
   매 부팅마다 라이브 스키마를 바꿀 수 있으므로, 통합 착수 시 **배포된 빌드가 그때의 checkout과
   같은지(B2)** 부터 확인해야 합니다.

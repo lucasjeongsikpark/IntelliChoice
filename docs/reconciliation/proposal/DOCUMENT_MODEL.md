@@ -1,3 +1,8 @@
+> **ARCHIVED 2026-08-20. Historical record — do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** describes a transition that has completed; the tree it proposed is now the real tree.
+> **Superseded by:** the executed tree; see `docs/archive/README.md`.
+
 # DOCUMENT_MODEL.md — the future role of every documentation file
 
 **Status:** PROPOSAL. Nothing in this document has been executed. No file outside
