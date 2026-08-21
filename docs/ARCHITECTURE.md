@@ -2379,10 +2379,14 @@ Bedrock gateway → MySQL/Postgres → MCP tools on the OTel side (SPEC §5.32.2
 execution has no off-the-shelf OTel instrumentation, so `traced_span()`/`traced_node()` are manual
 wrappers at those call sites, *in addition to* the LangSmith tree.
 
-The VPC's default posture is **no internet egress at all**, and this is a security property rather
-than an omission: every dependency an ECS task actually needs — ECR, CloudWatch Logs, Secrets
-Manager, Bedrock, X-Ray, and S3 for image layers — reaches it over a VPC endpoint (PrivateLink).
-The private subnets carried no `0.0.0.0/0` route and the account ran **zero NAT gateways**.
+The VPC's baseline posture is **no internet egress** (reframed 2026-08-20, D-424): every AWS
+dependency an ECS task actually needs — ECR, CloudWatch Logs, Secrets Manager, Bedrock, X-Ray, and
+S3 for image layers — reaches it over a VPC endpoint (PrivateLink). That baseline currently
+carries **one deliberate exception**: since 2026-08-07 the private subnets route `0.0.0.0/0`
+through a single NAT gateway introduced to support LangSmith tracing (D-214), at roughly
+$33/month. The NAT path itself is **not destination-restricted to LangSmith at the network
+layer**; LangSmith is its intended application use. "Zero internet egress" is therefore a
+**target baseline, not a currently-true invariant**.
 
 | sink | how it is reached | what it receives |
 |---|---|---|
@@ -2391,15 +2395,16 @@ The private subnets carried no `0.0.0.0/0` route and the account ran **zero NAT 
 | **X-Ray** (S39) | `otel-collector` sidecar per task, OTLP in on `localhost:4318` → `awsxray` exporter → VPC endpoint | request spans; the S38 PII floor applies |
 | **LangSmith** (D-214) | **the public internet**, via one NAT gateway | LangGraph node **structure and timings**. Inputs and outputs are **masked at source** - `configure_langsmith()` forces `LANGSMITH_HIDE_INPUTS`/`_OUTPUTS=true` for SPEC §5.32.1's "complete PII masking", and its test asserts that as not optional. D-242 corrected this row, which used to claim prompt and response payloads leave AWS |
 
-**LangSmith is the only egress that leaves AWS, and the only reason a NAT gateway exists.** It is
-third-party SaaS with no PrivateLink equivalent, so `api.smith.langchain.com` is reachable no other
-way. One NAT, in one AZ, deliberately not one per AZ: the traffic crossing it is telemetry, and if
-that AZ fails the other AZ's tasks lose *tracing*, not function.
+**LangSmith is the only application use of that egress, and the reason the NAT gateway was
+introduced** (intended use, not a network-layer restriction — D-424). It is third-party SaaS with
+no PrivateLink equivalent, so `api.smith.langchain.com` is reachable no other way. One NAT, in one
+AZ, deliberately not one per AZ: the traffic crossing it is telemetry, and if that AZ fails the
+other AZ's tasks lose *tracing*, not function.
 
 Both the NAT and the tracing are gated on the single `langsmith_tracing_enabled` flag, so the
-gateway cannot be left billing after the feature is switched off, and "no internet egress" remains
-the default that someone has to write down to give up. Setting it to `false` removes the env vars,
-the secret grant, the gateway, and the route in one apply.
+gateway cannot be left billing after the feature is switched off, and the no-internet-egress
+target baseline remains the default that someone has to write down to give up. Setting it to
+`false` removes the env vars, the secret grant, the gateway, and the route in one apply.
 
 The payloads LangSmith receives are PII-free by construction — Postgres holds only
 `*_external_id` references and the gateway is the only path to a model — but this is the first

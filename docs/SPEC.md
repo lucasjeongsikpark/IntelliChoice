@@ -25,9 +25,13 @@ its decision id(s) or register key; the reasoning stays in `DECISIONS.md`. Marke
 - **§5.33 / §5.33.4 / §5.36** — deployment substrate and scaling mechanisms are ECS/RDS, not EKS/Aurora/SQS (D-004, D-084).
 - **§6** — demoted to **historical in place**; ROADMAP's per-session criteria superseded it.
 
+Markers added **2026-08-20 by explicit user sign-off** (the two sections previously held pending):
+
+- **§5.1.4** — "sensitive information in an email" is subsumed by `email_approval`, not a distinct unbuilt gate (DRIFT-16, Reading A).
+- **§5.29** — the dead-letter queue and smaller-model fallback are removed as requirements (never built; reintroduction requires a new decision); coverage note: 4 of 19 rows sampled, 15 unverified (DRIFT-15/REQ-49, Option A).
+
 Earlier markers, left as they stand: **§5.19.4** (amended 2026-08-15, D-351) and **§5.35**'s staging
-MySQL note (D-092). Two sections are **deliberately left unmarked** pending explicit user sign-off
-and must not be annotated without it: **§5.1.4**'s interrupt list and **§5.29**'s failure matrix.
+MySQL note (D-092).
 
 # 5. Very Detailed Version
 
@@ -148,6 +152,14 @@ Processing rules:
 ---
 
 ### 5.1.4 Consent for External Actions
+
+> **Amended 2026-08-20 by user sign-off (DRIFT-16).** Of the six enumerated actions,
+> five are gated by existing interrupt classes; image analysis has no feature to
+> gate (deferred, D-078). "Potentially sensitive information in an email" is read
+> as subsumed by the `email_approval` interrupt — every outbound email requires human
+> approval with the full preview visible, and free text is redacted unconditionally
+> before the node — not as a distinct, never-built sensitivity gate. No second
+> sensitivity-specific approval gate is required.
 
 Explicit approval is required before:
 
@@ -2924,6 +2936,22 @@ Use SQS workers for:
 ---
 
 ## 5.29 Graceful Failure Handling
+
+> **Amended 2026-08-20 by user sign-off (DRIFT-15/REQ-49).** Two mechanisms in this
+> section's common-mechanism list were never built and are removed as requirements:
+> no dead-letter queue exists (zero DLQ/SQS hits across packages, apps, scripts and
+> terraform), and no smaller-model fallback exists — the Bedrock timeout path is
+> bounded retry against the same `model_id`, then circuit-open, so degradation is
+> deliberately binary. The built mechanisms (timeout, bounded retry, backoff,
+> circuit breaker, idempotency, static concept-hint fallback, user-safe error
+> messages) remain required. If future scale or operational needs justify a DLQ or
+> a model-downgrade path, they are introduced by a new explicit decision.
+>
+> Coverage note: of the nineteen rows, four were sampled in the 2026-08
+> reconciliation; the other fifteen are unverified — and unverified counts as not
+> traced (TRACEABILITY method rule). This does not imply the unsampled rows are
+> defective, only that their traceability status has not been established. The VLM
+> row is deferred with the image feature (D-078), not parked and not weakened.
 
 | Failure | Response |
 |---|---|
