@@ -35,9 +35,9 @@ the "fail-closed invariants have no pins" package — remain open in PROJECT_STA
 compose stack is up (first collision: 9090); the executor ran against the main stack's healthy
 dev databases and removed only the stray never-started worktree compose project (main stack
 verified intact). Recorded here only, as an orchestration-ergonomics observation — not fixed,
-not promoted to a decision. (3) The accepted test commit was `00f6886` in the Orca pilot worktree and was
-cherry-picked to `main` as `5cc2141`; PROJECT_STATE §1 uses `5cc2141` as the current
-repository product-code baseline.
+not promoted to a decision. (3) The accepted test commit was `00f6886` in the Orca pilot worktree, cherry-picked locally as
+`5cc2141`, then rebased by PR #359 into protected `main` as `a3f1511`; PROJECT_STATE §1
+uses `a3f1511` as the current repository product-code baseline.
 
-**Commit/SHA.** `00f6886` in the Orca pilot worktree; cherry-picked to `main` as
-`5cc2141`.
+**Commit/SHA.** `00f6886` in the Orca pilot worktree; cherry-picked locally as `5cc2141`,
+then rebased by PR #359 into protected `main` as `a3f1511`.
