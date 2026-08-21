@@ -6,7 +6,8 @@ Precedence: an archived document is never authority for current state — proven
 only ([../reference/AUTHORITY_MODEL.md](../reference/AUTHORITY_MODEL.md) §2.7, §3.2).
 
 Archived 2026-08-20 by the documentation reconciliation migration (manifest: this directory's
-`reconciliation-2026-08/MIGRATION_MANIFEST.md` after step 15).
+`reconciliation-2026-08/MIGRATION_MANIFEST.md`, executed and archived the same day; its §5 holds
+the ten recorded proof-point outcomes).
 
 | File | What it is | Why archived | Superseded by | As-of |
 |---|---|---|---|---|
@@ -17,7 +18,7 @@ Archived 2026-08-20 by the documentation reconciliation migration (manifest: thi
 | `2026-07-24-org-asks-drafts.md` *(untracked, gitignored — deliberate; UD-12(f) open)* | Four bilingual org-ask drafts (formerly `S42_ORG_ASKS.md`) | Asks answered/demoted/withdrawn per D-153; "Send now" markers stale; message text preserved verbatim | D-153 dispositions; `reference/integration/S42_OPEN_QUESTIONS.md` | 2026-07-31 |
 | `plans/2026-07-18-expansion-plan.md` | The S17–S28 expansion design (executed 2026-07-19/20) | Executed plan; kept intact for design rationale; predates the D-082/D-111 Mongo→MySQL correction | `ARCHITECTURE.md`; `DECISIONS.md` D-049 + S17–S28 entries | 2026-07-18 |
 | `plans/2026-07-19-branding-plan.md` | The branding audit and plan (executed as Session 22.5) | Executed; brand table + BD3 rule promoted to `ARCHITECTURE.md`; its D-number instruction mints duplicates | `ARCHITECTURE.md` brand section; D-065–D-069 | 2026-07-19 |
-| `reconciliation-2026-08/` (13 artifacts + the 2 instruments after step 15) | The 2026-08-19/20 reconciliation audit's raw evidence: claim ledger, drift registers, inventories, live/local findings and evidence, supersession map, risk register, the D-310 remediation record | Point-in-time evidence; everything actionable merged into the 166-entry register | `../reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md` | 2026-08-20 |
+| `reconciliation-2026-08/` (13 evidence artifacts + 4 migration instruments) | The 2026-08-19/20 reconciliation audit's raw evidence (claim ledger, drift registers, inventories, live/local findings and evidence, supersession map, risk register, the D-310 remediation record) plus the executed migration's instruments: `MIGRATION_MANIFEST.md` (with the ten proof-point outcomes in its §5), `DOCUMENT_MODEL.md`, `ADVERSARIAL_REVIEW.md`, `REVIEW_RESOLUTION.md` | Point-in-time evidence; everything actionable merged into the 166-entry register; the migration completed | `../reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md` | 2026-08-20 |
 
 Notes:
 

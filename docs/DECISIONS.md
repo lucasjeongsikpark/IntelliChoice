@@ -29470,3 +29470,45 @@ route — one apply) stands, without overstating network enforcement.
 **Applied to** `ARCHITECTURE.md`'s egress section the same day, after this entry was written
 (W-44's ordering rule). Reintroducing a destination-restricted egress control, if ever wanted, is
 new engineering work under a new decision — not implied by this reframing.
+
+## D-425 — the documentation reconciliation migration executed: five active documents, reference and archive tiers, PROJECT_STATE as the entry point (accepted, 2026-08-20)
+
+The migration proposed by Phase 5, adversarially reviewed in Phase 6 (64 findings), adjudicated
+and corrected in Phase 7 (MIGRATION_READY), and approved by the user 2026-08-20, executed the
+same day: steps 0a–15 of `docs/archive/reconciliation-2026-08/MIGRATION_MANIFEST.md`, whose §5
+records the ten proof-point outcomes inline (8 PASS first-run; 5.4 and 5.7 fixed and re-verified
+PASS). Authority: the two precedence ladders in `docs/reference/AUTHORITY_MODEL.md` §3 — SPEC as
+amended by accepted decisions for "what is required"; revision-qualified primary evidence over
+PROJECT_STATE's dated snapshot over archives for "what is true right now".
+
+**The shape.** Five active documents (`PROJECT_STATE`, `SPEC`, `ARCHITECTURE`, `DECISIONS`,
+`TRACEABILITY`) plus repo-root `CLAUDE.md` as the complete index; `docs/reference/` for durable
+read-on-demand material (including the D-152-frozen integration world, banner-gated); `docs/archive/`
+for history behind banners, indexed by its README; `docs/log/` for append-only, non-authoritative
+session narration (user ruling DQ-1, same day). `ROADMAP.md`, `PROGRESS.md` and `OPEN_DECISIONS.md`
+archived with their live content extracted first (HC-1 gate passed); `FINAL_ARCHITECTURE.md`
+renamed to its true nature (`2026-07-21-final-architecture-projection.md`) after its two
+extractions; the six-schema question (`ARCH-21-SCHEMA-SPLIT`) preserved as explicitly open.
+
+**User decisions taken at the W-15 sign-off gate (all six explicit, none inferred):** SPEC §5.29
+Option A (DLQ + smaller-model fallback removed as requirements) with the 4-of-19 coverage note;
+SPEC §5.1.4 Reading A (email sensitivity subsumed by `email_approval`); D-424 (zero-egress
+reframed, with the user's intent-vs-enforcement refinement); CLAUDE.md rules 1 and 8 in the
+approved wordings. Plus DQ-1 (`docs/log/`). No other user decision was answered: all 12 UD queue
+entries remain open, no UD became a D-number, the D-152 freeze is untouched, and no application
+code, terraform or test was modified (the migration's known engineering splits are recorded in
+the register, not silently done).
+
+**Corrections to the audit's own claims, found during execution and recorded rather than
+propagated:** DRIFT-77's missing-table list was 7/12 stale (real absences: fourteen, listed in
+ARCHITECTURE); the D-233 quote "The number was never the variable" exists in D-233 (the register's
+NOT-FOUND was a search-window artifact); D-362/D-364 have real headings; two additional phantom
+ids found (D-208 — cited from two code files — and D-209); the 5–7 volume target originates in
+D-273 §2 on D-223's measurement, not in D-223; the D-310 apply completed 2026-08-20T03:20:57Z
+(2026-08-18 was the CloudTrail access-review window); `formatDateLabel` is the phantom symbol —
+the real one is `buildDateLabelFormatter`.
+
+**Where the audit trail lives.** `docs/archive/reconciliation-2026-08/` holds the manifest,
+document model, adversarial review and resolution; the two live registers stay at
+`docs/reference/reconciliation-2026-08/`. Session narration for this migration: the migration
+commits themselves (step 0a's clean-tree commit through this entry's commit).
