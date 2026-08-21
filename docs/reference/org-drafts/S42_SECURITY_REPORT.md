@@ -1,6 +1,6 @@
 # Production security findings — report to the existing-system maintainer
 
-**Source:** [S42_DISCOVERY.md](S42_DISCOVERY.md) §6, dispositioned in DECISIONS.md D-153 §5/§7.
+**Source:** [S42_DISCOVERY.md](../integration/S42_DISCOVERY.md) §6, dispositioned in DECISIONS.md D-153 §5/§7.
 **Drafted:** 2026-08-02 (S43).
 
 **Send status: no send recorded as of 2026-08-20.** A corpus grep in English and Korean returns zero

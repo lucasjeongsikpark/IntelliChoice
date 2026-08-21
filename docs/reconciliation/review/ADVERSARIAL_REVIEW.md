@@ -1,3 +1,8 @@
+> **ARCHIVED 2026-08-20. Historical record — do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** Phase-6 adversarial review of the proposal, resolved by REVIEW_RESOLUTION.md; all 64 findings adjudicated and corrected pre-execution.
+> **Superseded by:** the executed tree; see `docs/archive/README.md`.
+
 # ADVERSARIAL_REVIEW.md — Phase 6 independent adversarial review of the Phase-5 canonical documentation proposal
 
 **Status:** REVIEW COMPLETE, 2026-08-20. Read-only — no proposal file, project document, or source file

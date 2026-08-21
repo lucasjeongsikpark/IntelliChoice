@@ -1,3 +1,8 @@
+> **ARCHIVED 2026-08-20. Historical record — do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** Phase-7 adjudication record (MIGRATION_READY); the migration it cleared executed 2026-08-20.
+> **Superseded by:** the executed tree; see `docs/archive/README.md`.
+
 # REVIEW_RESOLUTION.md — Phase 7 adjudication of the adversarial review
 
 **Status:** COMPLETE, 2026-08-20. Resolves all 64 findings of

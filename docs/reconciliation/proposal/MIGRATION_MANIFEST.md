@@ -1,3 +1,8 @@
+> **ARCHIVED 2026-08-20. Historical record — do not treat as current state.**
+> **Current state:** `docs/PROJECT_STATE.md`
+> **Reason:** this manifest EXECUTED 2026-08-20 (steps 0a-15; ten proof points recorded inline in §5, all PASS after two post-fix re-verifications). It is now the audit trail for what moved where, and owns no current state.
+> **Superseded by:** the executed tree; see `docs/archive/README.md`.
+
 # MIGRATION_MANIFEST.md — where every piece of current knowledge goes
 
 **Status: PROPOSAL. Nothing in this file has been executed.** Written 2026-08-20 as Phase 5 of the
@@ -1403,6 +1408,18 @@ entry keys with their disposition and destination. Distribution: 27 to `PROJECT_
 **Check.** Every key in Appendix A resolves to a section that exists in the new tree, and the seven mixed
 entries (M1–M7) named in §1 each have both their primary route and their residual route recorded.
 
+> **Outcome (2026-08-20, step-15 verifier, post-execution): PASS — Appendix A parses to exactly 166
+> numbered rows, 1…166, no duplicates and no gaps; the stated arithmetic 27+16+34+4+44+41=166 holds and
+> matches §1's disposition counts and §A.11. All 94 `PS §n` destination assertions were resolved
+> mechanically against `docs/PROJECT_STATE.md`'s real section boundaries: 86 resolve to the named
+> section with the key present, and all 8 residues are explicable rather than broken (#131's "not `PS
+> §4.1`" is a negative statement; #121/#128 are W-nn worklist rows whose destination names an effect,
+> both effects present; #38/#147 point at §1/§3 prose that carries the content without the key literal;
+> #99 carries `DRIFT-58` short-form inside §4.2's `WORK-13-FIXTURES` row; #103 `D152-FREEZE` sits in
+> §6.4 pointing at §6.1; #158's consequence sentence landed in §4's preamble, not §4.3's). §4's worklist
+> holds 44 distinct rows W-01…W-44. All seven mixed entries M1–M7 are recorded in §1 lines 105–113 with
+> both primary and residual route.**
+
 ### 5.2 All 12 user decisions remain discoverable
 
 **Achieved by** two homes that reference each other: `PROJECT_STATE` §5 carries a dedicated table —
@@ -1419,6 +1436,19 @@ of the B4 escalation series is possible without a deploy — and the table says 
 that all twelve block. The six answer-shaped defaults are tagged **[USER ONLY — hold:]** and none has
 been applied as an answer.
 
+> **Outcome (2026-08-20, step-15 verifier, post-execution): PASS — `PROJECT_STATE` §5 holds exactly 12
+> data rows, UD-1 … UD-12, each once, each with a populated register-key cell. The 16
+> `USER_DECISION_REQUIRED` keys reconcile: 10 named directly (UD-1…UD-10) + UD-12's six named in-row
+> (`DIFFICULTY-TIERS-CONFLICT`, `D141-TRIM`, `PROSE-QUALITY`, `DRIFT-66-NL2SQL`,
+> `REQ-39-ESTIMATED-LEVEL`, `COMMITTED-ORG-DRAFTS`) = 16, plus UD-11 from the BLOCKED
+> `LANGSMITH-RETENTION`. All 17 keys resolve to a `###` heading in
+> `reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md` and all twelve UD ids appear in
+> `USER_DECISION_QUEUE.md`. Only UD-1's Blocks? cell reads "Yes, partially"; the other eleven read "No".
+> Exactly six `[USER ONLY — hold:]` tags (UD-4, UD-5, UD-6, UD-8, UD-9, UD-12(a)) and none is applied:
+> the only decision minted on 2026-08-20 is D-424 (the W-44 zero-egress reframing at the W-15 sign-off
+> gate), which answers no UD. Noted, not a failure: UD-12's key cell is `(six — see below)` rather than
+> a key literal, and the six keys sit in the adjacent Question cell.**
+
 ### 5.3 All 27 active remediation and implementation items are visible
 
 **Achieved by** `PROJECT_STATE` §4: 16 `ACTIVE_REMEDIATION` in §4.1, 11 `ACTIVE_IMPLEMENTATION` in
@@ -1428,6 +1458,14 @@ act on from that file alone, so visibility does not depend on reading all 27.
 **Check.** Count §4.1 and §4.2. Each line's register key resolves in the reference register. No item
 appears only in an archived file — that is the specific failure this replaces, where the project's
 actual sequencer was roughly 1,800 lines into `PROGRESS.md`'s stratified "Current status" block.
+
+> **Outcome (2026-08-20, step-15 verifier, post-execution): PASS — `PROJECT_STATE` §4.1 has exactly 16
+> data rows and §4.2 exactly 11 (27 total), each keyed by register key with a one-line description, a
+> remaining action and an owner. **All 27 keys** — not a sample of 5 — resolve mechanically to a `###`
+> heading in `reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md`; zero misses. §4.3 lifts
+> five items (`RD-01`, `SEC-13-PURGE`, `COST-06-FLUSH`, `WORK-40-TZ`, `D310-RESIDUALS`) with
+> file-and-line-level fix instructions. No §4 item is reachable only from an archived file: the register
+> is in `docs/reference/`, not `docs/archive/`.**
 
 ### 5.4 DEFERRED and PARKED reopen conditions are preserved inline
 
@@ -1445,6 +1483,31 @@ launch-blocking then").
 **Check.** Every §6.3 and §6.4 row has a non-empty reopen-condition field, and each parked row names
 the decision that parked it.
 
+> **Outcome (2026-08-20, step-15 verifier, post-execution): FAIL — first clause passes, second does not,
+> and one routed residual is missing.** Counts and inline reopen conditions are correct: §6.3 has exactly
+> 15 rows and §6.4 exactly 13, every one with a non-empty reopen-condition cell, and **all seven named
+> load-bearing examples verify inline** — `R8-READ-SCOPE` ("Integration reopen, or first real traffic —
+> whichever comes first") *plus* its re-presentation duty ("MUST be re-presented to the user; it is
+> launch-blocking at that point. Parked ≠ closed"), the §6.4 accepted-risk expiries block at
+> `PROJECT_STATE:310-313` carrying §7-R8 and §7-R9's "any movement in
+> `learning_checkpoint_repairs_total` voids the acceptance", `F4-CRITERION6` ("live and **currently
+> undetectable** because `RD-01` silences the instrument"), `SEC-17-GUARDDUTY` ("by costed decision
+> D-125"), `D342-PARKING` ("standing user instruction"), `AUTH-OPTION-O1B` ("stays a recommendation, not
+> a decision, until measured right before S44"), and `ARCH-21-SCHEMA-SPLIT`'s extraction-before-archival
+> note. §7-R8/R9 are single-homed as intended on the ARCHITECTURE side — `ARCHITECTURE.md:571-573` and
+> `:693-695` are reduced to restatement-plus-pointer at `PROJECT_STATE` §6.4. **Two defects.** (a) The
+> second clause fails for **5 of 13** §6.4 rows, which name no parking decision or authority at all:
+> `INT-10-PEAK-CONCURRENCY`, `RD-12-INGRESS`, `WORK-23-RETENTION-JOB-GATING` (D-333 appears as a
+> *precondition*, not the parking decision), `IMAGE-WORK-PARK` (D-078 is in `SPEC.md:1820` but not in the
+> row), `DRIFT-70-CONSENT-GATE`. Three more name an authority rather than a D-number (`S43-SCOPE`,
+> `AUTH-OPTION-O1B`, `F4-CRITERION6`) and are covered indirectly by §6.1's attribution rule. (b) W-22's
+> two mandated additions to the accepted-residual-risk set are **absent from the whole active and
+> reference tree**: `WORK-42-INTERSTITIAL-BYPASS`'s accepted middle-click bypass (Appendix A #163, a
+> minors-primary product) appears only in `DECISIONS.md:27687-27690`, and `WORK-44` #2's single shared
+> anonymous rate-limit bucket (Appendix A #64, "same shape as `SEC-18-WAF`") appears nowhere outside the
+> register. Neither is in §6.4's accepted-risk block.**
+> **Re-verified (2026-08-20, main agent, post-fix): PASS — the five §6.4 rows now name their parking decision (D-153 §3/§6, D-152 ×2, D-333, D-078), and the two W-22 residuals (`WORK-42-INTERSTITIAL-BYPASS` middle-click bypass; `WORK-44` #2 shared anonymous rate-limit bucket) are recorded in the §6.4 accepted-risk block with expiries.**
+
 ### 5.5 UNKNOWN items are recoverable, and UNKNOWN stays UNKNOWN
 
 **Achieved by** `PROJECT_STATE` §7, which carries the four UNKNOWN entries plus `ARCH-34`'s named
@@ -1461,6 +1524,19 @@ half — five substances — each with its **named resolution step** and no gues
 **Check.** §7 has exactly these five substances, each with its step, and **none has been converted to a
 conclusion by the migration.** An UNKNOWN that quietly became a statement is a validation failure.
 
+> **Outcome (2026-08-20, step-15 verifier, post-execution): PASS — `PROJECT_STATE` §7 is headed "Known
+> unknowns (5 — four entry-level plus `ARCH-34`'s tfvars half)" and holds exactly five rows, one per
+> substance in the table above, each with its register key and its named resolution step. Nothing was
+> softened into a conclusion: `D192-PHANTOM` still reads "None exists — irreducible by design" with the
+> explicit "Do NOT adopt D-193's description as D-192's content"; `K5-HINT-INSTRUMENTS` still reads "Read
+> D-264"; `D288-D317-CLOSURE` still reads "Read both bodies" with the do-not-retire-the-three-other-live-
+> findings caution; `DRIFT-49-MODEL-ROSTER` still separates the ask-the-user half from the
+> no-decision-needed placeholder fix; `ARCH-34`'s tfvars half still reads "Method-bounded: unreadable by
+> policy" and adds the standing hazard sentence. Cross-checked in the register: all four entry-level
+> Final dispositions are still `UNKNOWN`, and `ARCH-34-REVISION-DRIFT` is still `OBSERVATION_ONLY` with
+> "the tfvars-staleness half is `UNKNOWN`". §10's update protocol reinforces it — "§7 is closed by
+> reading".**
+
 ### 5.6 D-310 is a resolved historical remediation, never an active exposure
 
 **Achieved by** three coordinated placements: (a) `PROJECT_STATE` §9 carries the standing framing
@@ -1473,6 +1549,20 @@ migration (step 7d) — as written today it tells the next reader the exposure i
 **Check.** No document in the new tree describes D-310 as an open credential exposure. The three
 residuals appear as `D310-RESIDUALS` in §4.1, and the `ps`-visibility item reads **unmeasured, not
 cleared**. D-310's decline stands as the historical record; "operationally superseded" is the phrasing.
+
+> **Outcome (2026-08-20, step-15 verifier, post-execution): PASS — a full sweep of the ACTIVE tier
+> (`docs/*.md`, `CLAUDE.md`) and the REFERENCE tier (`docs/reference/**`) for `D-310`/`D310` returns 27
+> hits and **not one** presents the exposure as open or live. `PROJECT_STATE` §9 quotes the standing
+> framing verbatim ("resolved historical remediation … a closed incident record, never an active
+> exposure. Any text implying a live credential exposure is stale and is corrected on sight"), single-homed
+> against `AUTHORITY_MODEL.md:442-444`. `D310-RESIDUALS` is a §4.1 row (`:97`) with the detail at §4.3
+> (`:177-185`), and the `ps`-visibility item reads "**unmeasured, not cleared**" in three places
+> (`:181-182`, §8 `:364-365`, `archive/README.md`). `archive/OPEN_DECISIONS.md` #8 carries a
+> "⚠️ SUPERSEDED-OPERATIONALLY — annotated 2026-08-20" block at `:357-367` naming both W-28 and step 7d,
+> stating both halves ("D-310's decline stands as the historical record, and it is operationally
+> superseded") and warning against reading "⏸ UNCHANGED" as "nothing was done". Minor: that annotation's
+> primary link at `:361` is the pre-migration path `docs/reconciliation/REMEDIATION_D310_ROTATION.md`,
+> with the live archive path given parenthetically.**
 
 ### 5.7 LB-05 survives — "implemented locally" is never confused with "deployed"
 
@@ -1489,6 +1579,33 @@ every live number, and never backport deployed behaviour into repository documen
 case to verify: LB-08's 10.55-second guest QA latency is recorded as a **pre-D-423** number on build
 `gha-44a12dfc9549`. Also verify that the two layers are stated as **both true** rather than reconciled
 into one — repository and deployed are different layers, not a contradiction.
+
+> **Outcome (2026-08-20, step-15 verifier, post-execution): FAIL — the mechanisms are all in place but
+> the header now misstates the repository layer it exists to pin.** What passes: the LB-08 case is clean
+> — `PROJECT_STATE:63-66` records "LB-08's measured 10.55 s guest-QA latency is a **pre-D-423** number.
+> Record it with `44a12dfc9549` beside it or do not quote it", and
+> `archive/reconciliation-2026-08/LIVE_BEHAVIOR_FINDINGS.md` carries both labels at both primary
+> occurrences (`:58` table row, `:438-439` finding) with "*(both labels added 2026-08-20, step 7d)*".
+> §3 is a dedicated repo-vs-deployed section naming the whole B4 series (D-420/D-421/D-422), C8 and
+> D-423's docs as undeployed, and stating that migration `8509c0486d8d` creating `chat_escalation_sends`
+> is "absent from staging by inference" so "D-421's duplicate-send guard is not protecting staging
+> today". Both layers are stated as both true, never reconciled — §3's opener ("Both layers are true in
+> their own right") and `AUTHORITY_MODEL` §4.3's "**both statements are true in their own layer** …
+> **Never backport**" with §3.2's revision-qualification. **What fails: the snapshot header at
+> `PROJECT_STATE:14-17` still reads "Repository HEAD `344f016`" and "Repo-vs-deployed gap **10
+> commits**", but HEAD is now `01c70a6` — nine migration commits on — so the true gap from staging is
+> 19, and the header understates the deploy gap while its own staleness rule at `:24-26` ("or if HEAD has
+> moved off `344f016` … re-verify §3, §4.3 and §8") is already tripped by the file itself.** Two related
+> pre-migration banners also survive into the shipped tree and must go: `PROJECT_STATE:3-5` still says
+> "**PROPOSAL DRAFT** … this is the proposed future `docs/PROJECT_STATE.md` … until the migration
+> executes, the underlying documents remain at their current locations", and
+> `reference/AUTHORITY_MODEL.md:3-6` still says "**Status: PROPOSAL** … Nothing here is in force until
+> the migration executes; at migration this file is promoted to `docs/reference/AUTHORITY_MODEL.md`" —
+> the precedence authority, at that exact path, declaring itself not in force. Weaker note: the four
+> reference-register quotations of 10.55 s (`USER_DECISION_QUEUE.md:124`,
+> `FINAL_OPEN_WORK_REGISTER.md:1837`, `:3384`, `:6245`) carry the pre-D-423 label and the
+> undeployed-commit rationale but not the SHA literal.**
+> **Re-verified (2026-08-20, main agent, post-fix): PASS — the snapshot header now pins the last product-code commit (`344f016`), states the 10-product-commit gap explicitly, marks the migration commits as docs-only, and the staleness rule keys on product-code movement; the stale PROPOSAL banners on PROJECT_STATE and AUTHORITY_MODEL were removed the same pass.**
 
 ### 5.8 The D-152 freeze survives with its reopen condition
 
@@ -1510,6 +1627,26 @@ user work, not parked.
 **Check.** No document in the new tree directs any of the five prohibited actions. The one engineering
 obligation during the freeze — keeping the `ProfileAdapter` seam honest — is stated. The
 `signups.attended = null` production fact is present in `CLAUDE.md`.
+
+> **Outcome (2026-08-20, step-15 verifier, post-execution): PASS — `PROJECT_STATE` §6.1 is headed "The
+> D-152 integration freeze — frozen by choice, not stuck" and carries the D-417 §A1 reconfirmation
+> **verbatim** (`:239-241`): *"D-152 is unchanged and is not 'nearly met' — it is closed until
+> reopened."*, with the "reconfirmed **after** being told the audit lists were empty and the suite green"
+> context. The reopen condition reads "an explicit user statement reopening integration. **Not met, and
+> no evidence can meet it.** Soliciting it is forbidden." All five live prohibitions are enumerated at
+> `:245-246`. Freeze banners are at **line 1** of both
+> `reference/integration/INTEGRATION_PLAN.md` and `reference/integration/S42_DISCOVERY.md` (⛔ … FROZEN by
+> D-152, W-20, both noting D-152 previously appeared zero times); D-152 now appears 5 and 8 times in
+> them respectively, and 13 times in `ROADMAP_FROZEN_SESSIONS.md` (which also opens with a ⛔ frozen
+> banner) and 4 times in `S42_OPEN_QUESTIONS.md` (freeze visible at `:9`). No document in the active or
+> reference tier directs any prohibited action un-bannered — the whole frozen world is inside
+> `docs/reference/integration/`, and `CLAUDE.md:102-124` repeats the four Do-not/Do items and names both
+> banner-carrying files. The seam-honesty obligation is stated in §6.1 (`:254`), in `CLAUDE.md:119-120`,
+> and as a live defect row `DRIFT-91-ORGTIME-IMPORT` in §4.1. The attribution rule names the nine
+> parked/deferred entries as blocked *by the decision*, and `ORG-COMMS` (UD-8) is marked PERMITTED under
+> the freeze (INT-28). `signups.attended = null` is present in `CLAUDE.md:122-124` with
+> `AttendanceStatus.UNKNOWN` → blocked as a **routine** production path (D-152 §2), and repeated in
+> `PROJECT_STATE:255-256` and `INTEGRATION_PLAN.md:34`.**
 
 ### 5.9 No security, privacy or HITL invariant disappears
 
@@ -1546,6 +1683,26 @@ reads wider than the implementation, the **narrow implementation is correct and 
 narrows the *wording*, never the invariant, and must not imply a PII violation where the four columns
 are allowlisted.
 
+> **Outcome (2026-08-20, step-15 verifier, post-execution): PASS — every bearing document in the table
+> above resolves to the active or reference tier and **none** resolves to `docs/archive/`: `CLAUDE.md`
+> (repo root), `SPEC.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TRACEABILITY.md` active;
+> `reference/INCIDENT_RESPONSE.md`, `reference/FIRST_VISIT_NOTICE.md`,
+> `reference/U7_CHECKPOINT_CONSOLIDATION.md`, `reference/org-drafts/S42_SECURITY_REPORT.md`,
+> `reference/integration/INTEGRATION_PLAN.md` reference. All ten `CLAUDE.md` non-negotiables survive
+> renumbered 1–10. Rule 1 carries W-42's exact approved wording verbatim (`CLAUDE.md:141-147`): "No
+> student, parent or guardian PII in Postgres — absolute. Two tables (org staff/branch contact) carry the
+> org's own already-public fields under an enumerated exemption (D-050, `ALLOWED_PII_SHAPED_COLUMNS`);
+> `test_schema_purity.py` still fails loudly if any student-facing table grows one of those column
+> names." — with "No PII in logs, traces, or LLM payloads — no exemption there" appended, so the
+> narrowing is scoped to Postgres and implies no violation. Rule 8 carries W-30's approved clarifying
+> line (`:161-164`): "Requirement unchanged; no code path implements §5.17 today — the requirement binds
+> any future implementation from line one (`IMAGE-WORK-PARK`)." `SPEC.md:1820` marks §5.17 "**Deferred**
+> … the requirement is unchanged, not weakened", and `SPEC.md:2954` marks the §5.29 VLM row "deferred
+> with the image feature (D-078), **not parked and not weakened**" — the not-parked instruction is
+> honoured explicitly. §5.15.2 (`:1654`) carries no parked marker and is flagged as SPEC-drift in the
+> amendments index. Every §5 subsection the table names exists at its cited number (§5.1.2, §5.1.3,
+> §5.1.5, §5.10.3, §5.15.2, §5.17, §5.29).**
+
 ### 5.10 Every archival-bound document had its still-live knowledge extracted first
 
 **Achieved by** HC-1 and the step-6 gate. Cross-reference:
@@ -1565,6 +1722,35 @@ are allowlisted.
 the source is archived. `HINT_SOLUTION_REVIEW.md` is the mirror-image case and belongs on the same
 checklist: it is **not** archive-bound, and its front page is reconciled at step 5 **before** it moves
 to reference, so that seven source files and two scripts do not end up citing a blessed wrong page.
+
+> **Outcome (2026-08-20, step-15 verifier, post-execution): PASS — all eight rows verified destination-
+> first, plus the mirror-image case. `ARCHITECTURE.md` carries the topology diagram at `:2214` ("Deployed
+> topology (staging, measured 2026-08-20 on build `gha-44a12dfc9549`)", a full mermaid graph including the
+> "ONE database, no schema split, not Aurora, no reader" fact) and the "Open architecture questions
+> (undecided — do not treat as designed)" block at `:2469` whose sole entry is `ARCH-21-SCHEMA-SPLIT`,
+> naming all six schemas, stating "no D-number owns it", and cross-pointing to `PROJECT_STATE` §6.3 (row
+> present) and `TRACEABILITY.md`. `reference/integration/ROADMAP_FROZEN_SESSIONS.md` carries the "Where
+> the five embedded constraints live" table at `:31` with all five (D-153 §5 role, D-151's six mismatches,
+> D-152 §3's two-source `BranchInfo`, D-153 §4's 00:00–01:00/Sunday assertion, D-167's `/dev/token`
+> cascade) plus the S42–S51 scope bullets and the section mapping recorded as "`ROADMAP.md` carries **no**
+> SPEC-section-to-session mapping table for this range". `ARCHITECTURE.md:2420` carries the brand token
+> table and D-067's do-not-revert standing rule with the measured contrast ratios, closing with the
+> `packages/ui-brand` promotion split out as W-32. `archive/2026-07-24-org-asks-drafts.md` exists,
+> renamed, untracked and gitignored (`.gitignore:70`) per UD-12(f). `PROGRESS.md`'s carry-over is in
+> `PROJECT_STATE` §4/§5/§6 via the register, and its banner records the three never-logged sessions as a
+> gap "**not reconstructed**". `archive/OPEN_DECISIONS.md` #8 and #10 both carry dated annotations; #10's
+> two annotations name the ALL-DECIDED rot hazard and the `formatDateLabel`-is-not-a-symbol correction,
+> which is exactly what `PROJECT_STATE` §4.2's `WORK-40` and `DRIFT-59-DATE-SHIFT` rows say.
+> `archive/plans/2026-07-18-expansion-plan.md` is intact with an EXECUTED-PLAN banner, and
+> `archive/ROADMAP.md`'s two `plans/` pointers are the repathed step-9a exceptions (`:18`, `:343`). All
+> 20 files under `docs/archive/` (including all 13 reconciliation artifacts) carry an ARCHIVED banner at
+> line 1 with as-of date, reason and superseded-by, indexed by `archive/README.md`'s table. **The
+> HINT_SOLUTION_REVIEW order is confirmed from git, not assumed:** `git log --follow` shows `f5a8f98`
+> ("Phase 1 (steps 1-6): extractions complete", +61/−16, rewriting the front-page status from "the loop
+> around them is not built" to "built but uncalled" and splitting the three stale docstrings out as a
+> W-07 engineering item) landing **before** `95a38a1` ("step 9: execute the moves"), whose only change to
+> the file is `R100 docs/HINT_SOLUTION_REVIEW.md → docs/reference/HINT_SOLUTION_REVIEW.md`. Reconciled
+> first, moved second.**
 
 ---
 

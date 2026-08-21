@@ -1,8 +1,8 @@
 # PROJECT_STATE.md
 
-> **PROPOSAL DRAFT (Phase 5, 2026-08-20)** — this is the proposed future `docs/PROJECT_STATE.md`.
-> File paths below refer to the POST-MIGRATION tree proposed in `DOCUMENT_MODEL.md`; until the
-> migration executes, the underlying documents remain at their current locations.
+This is the entry point: current state, open work, and navigation. In force since 2026-08-20,
+when the documentation reconciliation migration executed. Precedence:
+[reference/AUTHORITY_MODEL.md](reference/AUTHORITY_MODEL.md) — primary evidence beats this file.
 
 ---
 
@@ -10,21 +10,22 @@
 
 | Field | Value |
 |---|---|
-| Reconciliation date | **2026-08-20** (Phase 4 documentation-reconciliation audit) |
-| Repository HEAD | **`344f016`** |
+| Snapshot date | **2026-08-20** (Phase 4 reconciliation audit + same-day migration) |
+| Last product-code commit | **`344f016`** (2026-08-18) — every commit after it is the 2026-08-20 documentation migration, docs/skills only, zero product-code changes |
 | Deployed staging image (both ECS services) | **`gha-44a12dfc9549`** = commit `44a12dfc9549`, 2026-08-18 (D-415) |
 | Deployed task definitions | learning `:150` (2/2 running), chat `:148` (1/1 running) — one behind each family's latest (`:151`/`:149`), which are byte-identical no-ops; compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **10 commits**; HEAD is ahead of staging |
+| Repo-vs-deployed gap | **10 product commits** (`44a12dfc9549` → `344f016`); HEAD is further ahead only by the docs-only migration commits |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
 must be stated with the build SHA it was measured on.** Any claim about current behaviour that
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
-**Staleness rule.** If this snapshot is more than **14 days** old, or if HEAD has moved off
-`344f016`, or if the deployed staging image tag no longer matches this header's snapshot,
-**re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go stale; an undated
-claim lies. Primary evidence (code, tests, config, live AWS reads) always beats this file.
+**Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
+commit lands after `344f016`, or if the deployed staging image tag no longer matches this
+header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
+stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
+beats this file.
 
 ---
 
@@ -297,20 +298,29 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | `S43-SCOPE` | S43's scope is known; rewriting the MySQL dev fake is forbidden. The **seam-honesty check** is a standing obligation, not parked | S43 opens |
 | `AUTH-OPTION-O1B` | O1b stays a recommendation, not a decision, until measured right before S44 | Integration start |
 | `R8-READ-SCOPE` | Tutor and branch_manager reads are unscoped; writes fail closed. Accepted as §7-R8 with an expiry that a running system cannot trip | Integration reopen, or first real traffic — whichever comes first. **At integration start this MUST be re-presented to the user; it is launch-blocking at that point. Parked ≠ closed.** |
-| `INT-10-PEAK-CONCURRENCY` | The capacity purchase was **withdrawn** (not deferred); the 150-concurrent org ask is parked behind an unsent message | Integration start; measure peak concurrency then |
-| `RD-12-INGRESS` | Documented product hostnames are absent live; staging is reached through two `*.cloudfront.net` domains. **Procedural:** probe those, and a direct-ALB timeout is by design, not an outage | Integration, when the org adds DNS records |
-| `WORK-23-RETENTION-JOB-GATING` | The checkpoint-retention job is genuinely unscheduled — and **`RD-01` silently blocks its stated prerequisite** (a record of firing) — and D-333's consolidate-before-delete precondition (§5 UD-7) must be verified implemented first | The consolidate job has a verified record of firing, plus UD-7 |
+| `INT-10-PEAK-CONCURRENCY` | Parked by **D-153 §3/§6** (purchase withdrawn — not deferred — and the ask held for integration); the 150-concurrent org ask sits behind an unsent message | Integration start; measure peak concurrency then |
+| `RD-12-INGRESS` | Parked by **D-152** (DNS records are added at integration time, D-153 §6); documented product hostnames are absent live; staging is reached through two `*.cloudfront.net` domains. **Procedural:** probe those, and a direct-ALB timeout is by design, not an outage | Integration, when the org adds DNS records |
+| `WORK-23-RETENTION-JOB-GATING` | Parked by **D-333** (its consolidate-before-delete precondition is the parking condition, not yet verified); the checkpoint-retention job is genuinely unscheduled — and **`RD-01` silently blocks its stated prerequisite** (a record of firing) — and D-333's consolidate-before-delete precondition (§5 UD-7) must be verified implemented first | The consolidate job has a verified record of firing, plus UD-7 |
 | `F4-CRITERION6` | Criterion 6 was closed on an explicit user bypass; its reopen condition is live and **currently undetectable** because `RD-01` silences the instrument | A failure in any waived scheduled firing |
 | `SEC-17-GUARDDUTY` | GuardDuty is absent as an account fact, by costed decision D-125 | Production posture review, or staging ceasing to be synthetic |
-| `IMAGE-WORK-PARK` | SPEC §5.17's solution-image requirements have no subject in the codebase | The user reopens §5.17 — **both** preconditions (incidental-capture privacy with counsel; real-credential footing for scanning and encryption at rest) must be answered first |
+| `IMAGE-WORK-PARK` | Parked by **D-078** (feature deferred); SPEC §5.17's requirements have no subject in the codebase | The user reopens §5.17 — **both** preconditions (incidental-capture privacy with counsel; real-credential footing for scanning and encryption at rest) must be answered first |
 | `D342-PARKING` | All question-bank **quantity** coverage work is parked by standing user instruction. Non-quantity defects (wrong answer key, unservable path) remain defects | The user explicitly asks for new problems to be generated |
 | `VIDEO-COVERAGE-PARK` | Video coverage parked (D-417 §B5). The figure the park was argued from was 100× stale; live staging shows 102 of 112 skills servable | The user schedules a seeding run and provisions the API key |
-| `DRIFT-70-CONSENT-GATE` | Consent **verification** is enforced and fails closed (empty age-band frozenset); the **notice** half is unbuilt. Carve-out **not parked**: the frozenset has no pin — §4.2 `REQ-27-FROZENSET` | Notice half at S45; issuer half at S44 |
+| `DRIFT-70-CONSENT-GATE` | Parked by **D-152** (the notice half belongs to frozen session S45, the issuer half to S44); consent **verification** is enforced and fails closed (empty age-band frozenset); the **notice** half is unbuilt. Carve-out **not parked**: the frozenset has no pin — §4.2 `REQ-27-FROZENSET` | Notice half at S45; issuer half at S44 |
 
 **Accepted-risk expiries (single-homed here per W-22).** §7-R8: carried in the `R8-READ-SCOPE` row
 above. **§7-R9 (checkpoint-repair acceptance, `ARCH-17-COMMIT-SEAM`):** the repair counter is
 charted and **alarmed nowhere**; **any movement in `learning_checkpoint_repairs_total` voids the
 acceptance**. Whether to alarm it or accept the dashboard cadence is UD-5's sub-question.
+
+Two further accepted residuals belong in this launch-readiness set (W-22; minors-primary product,
+same insufficient-stopgap shape as `SEC-18-WAF`):
+- **`WORK-42-INTERSTITIAL-BYPASS`** — the external-link interstitial's middle-click/ctrl-click
+  bypass is **accepted** (decision recorded in DECISIONS.md; register #163). Expiry: revisit if
+  the interstitial is ever presented as a safety control rather than a courtesy.
+- **`WORK-44` #2** — anonymous chat rate limiting is a **single shared bucket**, so one hot
+  anonymous user can exhaust it for all. Accepted for the pilot; expires at first real traffic
+  alongside R8 (register #64).
 
 ---
 
