@@ -231,7 +231,10 @@ Current Context; Required Behavior; Scope; Non-Goals; Constraints; Acceptance Cr
 Verification. The Frozen Spec must give the executor enough task-scoped context that it never
 needs to reconstruct project-wide truth independently. Files under `tasks/` are task-scoped
 working artifacts, not project documentation — they sit outside the docs index above and are
-never a source of current project truth after their task closes.
+never a source of current project truth after their task closes. After coordinator acceptance
+and canonical-document reconciliation, delete the completed Frozen Spec unless it is still
+needed for an active correction or an explicitly retained follow-up; durable outcomes belong
+in canonical docs, `docs/log/`, and git history.
 
 ### Executor completion evidence
 
