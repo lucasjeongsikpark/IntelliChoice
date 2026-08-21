@@ -502,9 +502,17 @@ cross-referenced into the relevant domain section.
   pinning `account_refusal_reason` against a non-empty set. Pair with `SEC-13-PURGE` and
   `COST-06-FLUSH` as a single "fail-closed invariants have no pins" package — three tests, one
   afternoon, no credentials, no spend.
+- **⚠️ RESOLVED 2026-08-21 — implementation evidence supersedes this entry's disposition.**
+  Both tests exist: `packages/shared/tests/test_auth_consent_gate.py` pins the frozenset empty
+  and pins the exemption semantics against a non-empty set; the mutation check confirmed the
+  emptiness pin is the only thing that catches a frozenset addition. No new judgment was made,
+  so no D-number exists for this — the executable test and git history are the record
+  (session narrative: `docs/log/2026-08-21-req-27-frozenset-orca-pilot.md`). The
+  `SEC-13-PURGE` / `COST-06-FLUSH` members of the three-test package remain open — this
+  resolution covers the REQ-27 half only.
 - **Owner type:** engineering
 - **Reopen condition:** n/a
-- **PROJECT_STATE?** yes
+- **PROJECT_STATE?** no — resolved and deleted from PROJECT_STATE 2026-08-21 (was: yes)
 - **Historical/archive only?** no
 
 ### `REQ-27-TOKEN-CONTRACT` — the ten-claim token contract depends on frozen production

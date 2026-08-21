@@ -11,10 +11,10 @@ when the documentation reconciliation migration executed. Precedence:
 | Field | Value |
 |---|---|
 | Snapshot date | **2026-08-20** (Phase 4 reconciliation audit + same-day migration) |
-| Last product-code commit | **`344f016`** (2026-08-18) — every commit after it is the 2026-08-20 documentation migration, docs/skills only, zero product-code changes |
+| Last product-code commit | **`5cc2141`** (2026-08-21) — the accepted REQ-27-FROZENSET test commit (`test: pin fail-closed consent gate invariants`, tests only); every commit between `344f016` (2026-08-18) and it is docs/skills only |
 | Deployed staging image (both ECS services) | **`gha-44a12dfc9549`** = commit `44a12dfc9549`, 2026-08-18 (D-415) |
 | Deployed task definitions | learning `:150` (2/2 running), chat `:148` (1/1 running) — one behind each family's latest (`:151`/`:149`), which are byte-identical no-ops; compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **10 product commits** (`44a12dfc9549` → `344f016`); HEAD is further ahead only by the docs-only migration commits |
+| Repo-vs-deployed gap | **11 product commits** (`44a12dfc9549` → `5cc2141`); any HEAD advance beyond `5cc2141` is docs-only reconciliation |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `344f016`, or if the deployed staging image tag no longer matches this
+commit lands after `5cc2141`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -79,11 +79,11 @@ conditional on staging still running `gha-44a12dfc9549`.
 
 ## 4. Active engineering work
 
-27 open engineering entries. Full evidence per entry:
+26 open engineering entries. Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
-lowercased key to the link above). `SEC-13-PURGE`, `COST-06-FLUSH` and `REQ-27-FROZENSET` are
+lowercased key to the link above). `SEC-13-PURGE` and `COST-06-FLUSH` are
 established **by code reading**; no executed test reproduces the defective paths
 (`NO-NEW-TEST-CODE`).
 
@@ -108,11 +108,10 @@ established **by code reading**; no executed test reproduces the defective paths
 | `DRIFT-91-ORGTIME-IMPORT` | An app module imports `current_week_key` from the MySQL adapter instead of shared `org_time` | Move the import to shared `org_time`. Seam substance is intact — this is hygiene, not the seam defect CLAUDE.md defines; optionally add an adapter factory (both apps construct `MySQLProfileAdapter` directly in `main.py`) | engineering |
 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Three built controls nothing invokes — the PII log scanner (**one historical clean run, no continuous assurance**), `make image-check`, retention CLI job reporting. Batch of six; four members routed elsewhere | Wire `scan-logs` into CI or a schedule; wire `make image-check` into CI/deploy and document it; add `report_job_complete` to `checkpoint_retention_cli` | engineering |
 
-### 4.2 ACTIVE_IMPLEMENTATION (11) — decided or specified, not built
+### 4.2 ACTIVE_IMPLEMENTATION (10) — decided or specified, not built
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
-| `REQ-27-FROZENSET` | Nothing pins the fail-closed COPPA age-band frozenset empty; a future addition opens the gate with a green suite | One test pinning the frozenset empty, one pinning `account_refusal_reason`. Pair with `SEC-13-PURGE` and `COST-06-FLUSH` as one "fail-closed invariants have no pins" package — three tests, no spend | engineering |
 | `WORK-01-SCOPE-GUARD` | `scope_guard`/retrieval overlap is specified and measured (~22% median win) and not built | Build D-423 steps 1–3 as specified; verify the wasted-rerank trade-off is still acceptable first; and tell the user (acknowledgement, not a decision): the earlier approval rested on a ~2.5 s embedding estimate that D-423 measured at 124 ms | engineering |
 | `COST-10-INPUT-BOUND` | No input-token ceiling in the gateway; cost reserve hard-codes 2000 input tokens | In order: read whether settlement uses actual input tokens; add the input ceiling at the gateway/shared payload layer; stop pricing input at the flat constant | engineering |
 | `WORK-35-LEDGER` | U7 consolidation sizing gated on a free staging measurement nobody took | Take the free staging measurement, then hold the design review and size N against the existing 90/90/365 windows. D-420 added redacted visitor free text no retention job covers | engineering |
@@ -306,7 +305,7 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | `IMAGE-WORK-PARK` | Parked by **D-078** (feature deferred); SPEC §5.17's requirements have no subject in the codebase | The user reopens §5.17 — **both** preconditions (incidental-capture privacy with counsel; real-credential footing for scanning and encryption at rest) must be answered first |
 | `D342-PARKING` | All question-bank **quantity** coverage work is parked by standing user instruction. Non-quantity defects (wrong answer key, unservable path) remain defects | The user explicitly asks for new problems to be generated |
 | `VIDEO-COVERAGE-PARK` | Video coverage parked (D-417 §B5). The figure the park was argued from was 100× stale; live staging shows 102 of 112 skills servable | The user schedules a seeding run and provisions the API key |
-| `DRIFT-70-CONSENT-GATE` | Parked by **D-152** (the notice half belongs to frozen session S45, the issuer half to S44); consent **verification** is enforced and fails closed (empty age-band frozenset); the **notice** half is unbuilt. Carve-out **not parked**: the frozenset has no pin — §4.2 `REQ-27-FROZENSET` | Notice half at S45; issuer half at S44 |
+| `DRIFT-70-CONSENT-GATE` | Parked by **D-152** (the notice half belongs to frozen session S45, the issuer half to S44); consent **verification** is enforced and fails closed (empty age-band frozenset); the **notice** half is unbuilt. The former carve-out (the frozenset had no pin) resolved 2026-08-21: `packages/shared/tests/test_auth_consent_gate.py` pins the frozenset empty and pins the exemption semantics (mutation-checked) | Notice half at S45; issuer half at S44 |
 
 **Accepted-risk expiries (single-homed here per W-22).** §7-R8: carried in the `R8-READ-SCOPE` row
 above. **§7-R9 (checkpoint-repair acceptance, `ARCH-17-COMMIT-SEAM`):** the repair counter is
