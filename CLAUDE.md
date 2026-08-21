@@ -1,8 +1,9 @@
 # IntelliChoice — Project Instructions
 
-> Last reviewed: 2026-08-20 (documentation reconciliation migration). This file has drifted
-> silently before (rule 1 said "MongoDB" until D-082/D-111) — if this date is old, distrust the
-> descriptions below and verify against `docs/PROJECT_STATE.md`.
+> Last reviewed: 2026-08-21 (execution-mode adapter added; content baseline: the 2026-08-20
+> documentation reconciliation migration). This file has drifted silently before (rule 1 said
+> "MongoDB" until D-082/D-111) — if this date is old, distrust the descriptions below and verify
+> against `docs/PROJECT_STATE.md`.
 
 AI education platform for K–12 students (minors are the primary users). Two independently
 deployed apps sharing auth from the existing `go.intellichoice.org` system:
@@ -16,11 +17,32 @@ Those product hostnames do not exist live yet: deployed staging is reached throu
 CloudFront domains (`RD-12-INGRESS`), the ALB admits traffic only from CloudFront's prefix list,
 and a direct-to-ALB timeout is by design, not an outage.
 
+## Execution modes — who reads what at startup
+
+This file is a thin runtime adapter for three execution modes. The canonical project-memory
+model (the documents indexed below) is identical in all three; only startup reading and write
+ownership differ. Full role rules: `docs/reference/AUTHORITY_MODEL.md` §6.
+
+- **Standalone Claude Code** — this file is auto-loaded. Read `docs/PROJECT_STATE.md` first,
+  then only the task-relevant active/reference material (AUTHORITY_MODEL §6.1).
+- **Orca coordinator** — this file is auto-loaded. Read `docs/PROJECT_STATE.md` first. The
+  coordinator owns project-context interpretation and the AUTHORITY_MODEL §4 conflict protocols;
+  it reads task-relevant SPEC / ARCHITECTURE / DECISIONS / TRACEABILITY / reference material as
+  needed, and verifies material current-state assumptions against primary evidence before
+  freezing a non-trivial task.
+- **Orca executor** — read the coordinator-created Frozen Spec first (contract below). Do NOT
+  independently reconstruct project-wide state from `PROJECT_STATE`. Read only the task-scoped
+  authoritative references the Frozen Spec names, plus implementation-relevant primary evidence
+  (code, tests, config). Never read `docs/archive/` as current context — the archive is never
+  handed to an executor (AUTHORITY_MODEL §6.2).
+
 ## Documents — the index (complete by rule)
 
-**Read `docs/PROJECT_STATE.md` first.** It is the entry point: current state, the deploy gap,
-active work, open user decisions, the freeze, and the map of everything below. Precedence when
-documents disagree: [docs/reference/AUTHORITY_MODEL.md](docs/reference/AUTHORITY_MODEL.md).
+**Read `docs/PROJECT_STATE.md` first** (standalone and coordinator modes; an Orca executor
+starts from its Frozen Spec instead — see "Execution modes" above). It is the entry point:
+current state, the deploy gap, active work, open user decisions, the freeze, and the map of
+everything below. Precedence when documents disagree:
+[docs/reference/AUTHORITY_MODEL.md](docs/reference/AUTHORITY_MODEL.md).
 
 **Rule for this index: every non-archive document is listed here, or explicitly listed as
 deliberately unlisted with the reason.** An unlisted document is invisible at session start —
@@ -36,9 +58,11 @@ The five active documents:
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — **the single as-built authority** and sole owner
   of the storage-split table, deployed topology, scheduler state, and the explicitly-marked open
   architecture questions. The file every session that ships architecture-level change must update.
-- [docs/DECISIONS.md](docs/DECISIONS.md) — append-only decision log, the system of record for
-  judgements (D-001…D-424). Read its "How to read this log" section before keying anything on
-  headings; five-plus phantom IDs are cited but never written.
+- [docs/DECISIONS.md](docs/DECISIONS.md) — the append-only judgment/rationale record, the system
+  of record for judgements. Navigate by its own decision-ID index; read its "How to read this
+  log" section before keying anything on headings. ID sequences contain phantom/missing entries
+  (cited but never written), and the highest decision ID implies nothing about current state —
+  never infer current state from it.
 - [docs/TRACEABILITY.md](docs/TRACEABILITY.md) — the living §2.6 criterion-1 evidence instrument.
   Read its method section before adding rows — "unverified counts as not traced".
 
@@ -88,6 +112,9 @@ Deliberately unlisted:
   were carried into `PROJECT_STATE` or the register before archival.)
 - `docs/log/` — append-only per-session narration, **non-authoritative** (user ruling DQ-1).
   Agents do not read the full log by default; rules in `docs/log/README.md`.
+- `tasks/` — **deliberately outside this index.** Frozen Specs are temporary task-scoped working
+  contracts (see "Orca coordinator / executor workflow"), not canonical project documentation,
+  and never a source of current project truth after their task closes.
 
 ## The existing production system
 
@@ -123,12 +150,103 @@ The one production fact that must inform product work **now**: `signups.attended
 hasn't marked it yet") is common, so `AttendanceStatus.UNKNOWN` → blocked is a **routine** path in
 production, not a rare one (D-152 §2).
 
-## Session workflow
+## Session workflow (role-aware)
 
-Start every working session with `/start-session [item]` and end with `/end-session`. Current and
-open state lives in `docs/PROJECT_STATE.md` (delete-on-resolve); per-session narration goes to git
-commit messages and `docs/log/`. Stay within the chosen item's scope; new discoveries become new
-`PROJECT_STATE` rows, not detours.
+Current and open state lives in `docs/PROJECT_STATE.md` (delete-on-resolve) in every mode. All
+modes stay within the chosen item's / Frozen Spec's scope; new discoveries become new
+`PROJECT_STATE` rows (written by the role that owns them), not detours.
+
+- **Standalone Claude Code** — start every working session with `/start-session [item]` and end
+  with `/end-session`; update current/open state per `PROJECT_STATE`'s update protocol and
+  AUTHORITY_MODEL. Per-session narration goes to git commit messages and `docs/log/`.
+- **Orca coordinator** — owns the task/session lifecycle; owns canonical documentation
+  reconciliation after accepted work; owns `PROJECT_STATE` updates (the only Orca role that
+  edits it); session narration goes to `docs/log/` under its authority rules
+  (`docs/log/README.md` — append-only, non-authoritative).
+- **Orca executor** — does NOT run `/start-session` or `/end-session`; does NOT independently
+  update `PROJECT_STATE`; does NOT independently amend SPEC, ARCHITECTURE, DECISIONS, or
+  TRACEABILITY. It reports documentation impact and conflicts to the coordinator.
+
+## Orca coordinator / executor workflow
+
+A workflow adapter only. Project memory stays in the documents indexed above — nothing in this
+section restates project state, and it must never grow a second copy of it.
+
+**Coordinator responsibilities:** understand the user goal; investigate project context; make
+implementation/technical-design choices only where existing project authority (SPEC as amended,
+accepted decisions, ARCHITECTURE) legitimately determines them; create the Frozen Spec; delegate
+non-trivial implementation through Orca; answer executor technical questions; independently
+review the actual diff and verification evidence; accept or reject the implementation; reconcile
+canonical docs only after acceptance. The coordinator must NOT independently create or resolve a
+new product, business, policy, safety, or USER decision — if existing authority cannot determine
+such a question, escalate to the user (AUTHORITY_MODEL §4.6).
+
+**Executor responsibilities:** implementation; tests; debugging; lint/typecheck/build and other
+relevant verification; self-review; concrete evidence. An executor must not reinterpret
+project-level decisions, answer USER decisions, reconcile canonical documentation, or silently
+choose between conflicting documentation and primary evidence — a conflict is returned to the
+coordinator as a finding (AUTHORITY_MODEL §6.2).
+
+### Role selection and handoff
+
+- Execution mode is **explicit, never inferred** from the filesystem or worktree path.
+- A top-level user-facing Claude session asked to run an Orca coordinator/executor workflow acts
+  as the Orca coordinator.
+- When the coordinator dispatches implementation, the worker prompt must explicitly identify
+  that worker as the Orca executor and name the Frozen Spec path it must follow.
+- An executor must not infer its role merely from being inside an Orca-created worktree.
+- If an Orca role is genuinely ambiguous, do not mutate project state until the role is
+  established.
+
+### Orca orchestration mechanics
+
+Before creating or mutating Orca orchestration state, the coordinator must:
+
+1. load the installed, version-matched orchestration instructions:
+   `orca skills get orchestration --full`;
+2. confirm Orca is reachable: `orca status --json`;
+3. use the lifecycle and commands from the installed skill, never memorized Orca CLI syntax.
+
+For the current sequential workflow: exactly **one implementation executor per task**; target
+**Claude Opus 5 with high effort** when that model is available in the installed Orca runtime;
+verify the effective executor/model from Orca's launch receipt when available, and never
+silently substitute another executor model if the requested one was not actually selected;
+preserve the **same persistent executor** across ordinary correction rounds whenever Orca
+supports it; do not launch a separate evaluator by default — the coordinator remains the
+independent final reviewer.
+
+The normal flow: user goal → coordinator context investigation → Frozen Spec → Orca persistent
+executor → executor implementation/self-verification → coordinator independent review →
+same-executor correction loop if needed → coordinator acceptance → coordinator-owned
+canonical-doc reconciliation. The user is never required to manually create Orca tasks, launch
+the executor, relay messages between coordinator and executor, or mediate routine correction
+rounds.
+
+### Frozen Spec contract
+
+For every non-trivial Orca task the coordinator creates `tasks/<descriptive-task-name>.md` with
+these sections: Objective; Authoritative References; Current Relevant State; Intended Behavior;
+Repository Evidence; Deployed-State Relevance; Decision Boundaries; Known Drift / Uncertainty;
+Current Context; Required Behavior; Scope; Non-Goals; Constraints; Acceptance Criteria;
+Verification. The Frozen Spec must give the executor enough task-scoped context that it never
+needs to reconstruct project-wide truth independently. Files under `tasks/` are task-scoped
+working artifacts, not project documentation — they sit outside the docs index above and are
+never a source of current project truth after their task closes.
+
+### Executor completion evidence
+
+The executor reports: Files Changed; Verification Performed; Verification Results; Observed
+Drift; Documentation Impact; New Decision Required; Remaining Uncertainty. When no new decision
+is needed, write `New Decision Required: none` explicitly.
+
+### Coordinator acceptance
+
+After executor completion, the coordinator independently compares the Frozen Spec vs. the actual
+diff vs. the verification evidence. If implementation corrections are needed, send them back to
+the same persistent executor where the Orca runtime supports that. Only after accepting the
+implementation may the coordinator reconcile canonical project docs. A `PROJECT_STATE` item is
+deleted only when its actual completion condition is satisfied; partial progress restates the
+row rather than falsely resolving it. Session chronology never goes in `PROJECT_STATE`.
 
 ## Stack
 
