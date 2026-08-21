@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-20** (Phase 4 reconciliation audit + same-day migration) |
-| Last product-code commit | **`5cc2141`** (2026-08-21) — the accepted REQ-27-FROZENSET test commit (`test: pin fail-closed consent gate invariants`, tests only); every commit between `344f016` (2026-08-18) and it is docs/skills only |
+| Snapshot date | **2026-08-21** (post-migration reconciliation + first Orca pilot) |
+| Last product-code commit | **`a3f1511`** (2026-08-21) — the accepted REQ-27-FROZENSET test commit (`test: pin fail-closed consent gate invariants`, tests only); every commit between `344f016` (2026-08-18) and it is docs/skills only |
 | Deployed staging image (both ECS services) | **`gha-44a12dfc9549`** = commit `44a12dfc9549`, 2026-08-18 (D-415) |
 | Deployed task definitions | learning `:150` (2/2 running), chat `:148` (1/1 running) — one behind each family's latest (`:151`/`:149`), which are byte-identical no-ops; compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **11 product commits** (`44a12dfc9549` → `5cc2141`); any HEAD advance beyond `5cc2141` is docs-only reconciliation |
+| Repo-vs-deployed gap | **11 product commits** (`44a12dfc9549` → `a3f1511`); any HEAD advance beyond `a3f1511` is docs-only reconciliation |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `5cc2141`, or if the deployed staging image tag no longer matches this
+commit lands after `a3f1511`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
