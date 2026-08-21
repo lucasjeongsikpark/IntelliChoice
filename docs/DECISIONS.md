@@ -5,6 +5,151 @@ otherwise re-litigate. Status: proposed | accepted | superseded.
 
 ---
 
+## How to read this log — added 2026-08-20 by the documentation migration
+
+Five facts about this file's own mechanics. Each one is verified, and each one has already misled a
+reader. Register keys, in
+`docs/reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md`: `STATUS-TAG-CONVENTION` (W-16),
+`RISK-GROUP-DECISIONS-HYGIENE` (W-25), `DOC-DECISION-LOG-CORRECTIONS` (W-18).
+
+### H1. A status tag is not evidence that an entry is current
+
+The `superseded` value declared above **has never once been used**: a grep for `superseded` in any
+`## D-` or `### D-` heading returns nothing file-wide. Supersession here is written **forward, inside
+the superseding entry**, so this log is traversable newest→oldest only — anyone who lands on an older
+entry by grep gets its original claim with no warning. Across ~120 entries read in 29 supersession
+chains, **at least eleven** stale `accepted`/`implemented` entries read as active. Observed status
+strings also range outside the declared enum ("accepted as launch-blocking carry-over"; "measured,
+not acted on"; "⏸ partial"), and verification and addendum sub-entries sometimes carry no status
+field at all.
+
+**The convention going forward, adopted from D-153 §5.** A decision that supersedes or corrects an
+older one adds a **backward pointer at the superseded site** — in place, marked, with the original
+text kept. D-153 §5's own form is the model: *"⚠️ CORRECTED the same day — see §7, which supersedes
+that reading."* Correcting loudly and keeping the trail is the strongest documentation habit in this
+repository; the backward pointer only makes the correction findable from the older end too. Nothing
+in this file is ever tidied away to satisfy the convention.
+
+**What was and was not swept on 2026-08-20.** The eight verified-misleading entries were annotated —
+**D-072, D-085, D-135, D-300, D-322 §7, D-344, D-356, D-366** — plus **D-151**, whose plain
+`accepted` survives two withdrawn or demoted recommendations. A full status sweep of all ~120 chained
+entries was **deliberately not done**. So these nine are the worst known cases, not the whole set:
+treat any un-annotated status tag as *unverified*, not as clean.
+
+### H2. The log is not append-only in practice, so a heading is not a dating key
+
+Three verified in-place edits: **D-176 §4** records a post-hoc paragraph rewrite (*"this paragraph
+originally ended 'inferred, not yet verified', reconciled in the docs follow-up"*); **D-110 §2**
+embeds a `> **D-207 update.**` blockquote that revises its own cost numbers; **D-401**, whose heading
+is dated 2026-08-17, carries a **2026-08-18** correction inside it. An entry's text therefore cannot
+be dated from its heading — and **any tooling keyed on `## D-nnn` is unsafe**, including the merge
+keys of the audit that produced these notes.
+
+### H3. The heading format changes mid-file at D-274
+
+- **D-001 … D-273** — `## D-nnn — title (status, YYYY-MM-DD)`. The date is *in the heading*.
+  Sub-sections, addenda and postscripts are `###`.
+- **D-274 … D-383** — `### D-nnn — title`, with **no status or date in the heading**; both live on a
+  `**Date:** … · **Status:** …` metadata line immediately below. There is no enclosing `##` for this
+  stretch, so heading levels here do not nest. Sub-sections are `####`.
+- **D-384 … D-423** — back to the `## D-nnn — title (status, date)` form.
+
+Entries are also **not strictly in numeric order** — D-212 precedes D-210, D-351 follows D-353,
+D-364 follows D-362 with no D-363 between them — so "the next heading" is not "the next id". One
+heading covers three ids at once (`## D-190, D-191, D-192`), and several ids exist only as informal
+sub-entries (`D-195 §5`, `D-206 addendum`, `D-210 disposition`, `D-212 addendum` inside D-211), which
+is why an id-grep is unreliable. D-223 itself demonstrates the failure: its author mis-grepped this
+log.
+
+### H4. Ids that are cited but were never written — annotated, never reconstructed
+
+| id | what actually exists | cited from |
+|---|---|---|
+| **D-190** | no entry of its own; described in the `## D-190, D-191, D-192` meta-note | that note, plus code |
+| **D-191** | same meta-note | ~14 sites in this file, plus code |
+| **D-192** | same meta-note, which records that **nobody knows what it decided** | ~9 sites here, 4 code files |
+| **D-208** | **no heading at any level.** Found 2026-08-20 during this pass; **not in the audit's phantom inventory** | 3 sites here, plus `docs/ARCHITECTURE.md`, `apps/learning-api/tests/test_consolidation_scheduler.py`, `apps/learning-api/tests/test_turn_deadline.py` |
+| **D-329** | only `####` sub-headings — one inside D-330, one inside D-377 | 9 sites here |
+| **D-363** | **no heading of any level** | 2 sites here (D-366's attempt table, D-380's row) |
+
+Two adjacent irregularities. **D-209** is cited nowhere and simply does not exist: the log jumps
+D-207 → D-210. **D-210**'s only heading is `## D-210 disposition`, which records what was decided
+*about* D-210's residue — not what D-210 decided; its substance is reachable only through citations
+in D-224, D-226, D-269 and **D-271**, the last of which is load-bearing.
+
+**No body was reconstructed for any of these, and none should be.** Writing a retrospective entry
+from inference produces exactly the confident-looking, unverified prose this project keeps finding
+bugs inside — the `## D-190, D-191, D-192` note argues this at length and is the model to copy. In
+particular: **do not adopt D-193's description as D-192's content.** D-193 claims to "reverse the
+direction of D-192" and is asserted against an entry that does not exist.
+
+Before citing an id: `grep -cE "^#{2,4} D-nnn" docs/DECISIONS.md`.
+
+### H5. ID index
+
+Ranges, not an enumeration — 443 entry headings across 423 ids. **No line numbers, deliberately:**
+line citations in this corpus drift (register `DOC-LINE-CITATION-DRIFT`), and H2 is why a heading is
+not a stable key either. The *status* for any range is read where H3 says it lives, and is
+**unverified unless the entry carries a 2026-08-20 annotation** (H1).
+
+| ids | n | heading form | dates (2026) | what this stretch is about |
+|---|---|---|---|---|
+| D-001 … D-021 | 21 | `##`, dated | 07-13 → 07-15 | S0–S9 setup: spec split, dev fakes behind interfaces, `packages/db`, `packages/curriculum`, first LangGraph gotchas |
+| D-022 … D-050 | 29 | `##`, dated | 07-16 → 07-18 | S9–S16 learning core: study ladder, SSE, MCP tool registry, chat graph, branch locator |
+| D-051 … D-075 | 24 | `##`, dated | 07-18 → 07-20 | S17–S24 chat + web content: org website/calendar ingest, exams, dark mode, the §5.30.1 wire allowlist |
+| D-076 … D-097 | 22 | `##`, dated | 07-20 → 07-24 | S27–S35 platform: video bank, eval platform, **the first live staging deploy (D-084)** and the two real incidents (D-084 leak, D-085 auth bypass) |
+| D-098 … D-100 | 3 | `##`, dated | 07-24 → 07-25 | S36 close-out and the first read of the production system's own source (D-099) |
+| D-101 … D-125 | 25 | `##`, dated | 07-25 → 07-30 | S37–S41 audit era: `AUD-C`/`AUD-F` findings, the launch-gate criteria, traceability tranches |
+| D-126 … D-150 | 25 | `##`, dated | 07-30 → 08-01 | gate criteria 6/7/8, latency and capacity measurement, the terraform-drift and image-floor family |
+| D-151 … D-175 | 25 | `##`, dated | 08-01 → 08-04 | S42 production discovery (D-151), the D-152 integration freeze, parent reports, the access-probe chain |
+| D-176 … D-201 | 24 | `##`, dated | 08-04 → 08-08 | access-probe close-out (D-176 … D-180), then the AI authoring pipeline's first real runs. **D-191/D-192 absent** |
+| D-202 … D-227 | 24 | `##`, dated | 08-06 → 08-08 | authoring pipeline hardening, UI walks, the shape-apparatus deletion (D-226). **D-208/D-209 absent**; D-210 exists only as a "disposition" |
+| D-228 … D-252 | 25 | `##`, dated | 08-08 → 08-10 | the difficulty judge, calibration, review panels, repair loop |
+| D-253 … D-273 | 21 | `##`, dated | 08-10 → 08-11 | two-reviewer union, repair applied, the last 15 authored by hand, full-taxonomy seeding plan |
+| D-274 … D-288 | 15 | **`###`, undated heading** | 08-11 → 08-12 | C1 generation pipeline: family contract, design gate, figures, first hand audit |
+| D-289 … D-303 | 15 | `###` | 08-12 → 08-13 | auto-approval go/no-go, the difficulty-label skew, D-300 → D-301 → D-302 |
+| D-304 … D-322 | 19 | `###` | 08-13 → 08-14 | UI/UX audit, **D-310's secret exposure**, the video dead end, `OPEN_DECISIONS` answered (D-322) |
+| D-323 … D-345 | 22 | `###` | 08-14 → 08-15 | U1–U7: dependency batches, `learning_sessions`, checkpoint consolidation/retention, the SSE relay |
+| D-346 … D-358 | 13 | `###` | 08-15 → 08-16 | chat turn lifecycle, accessibility, the Stop button, the video-panel race (D-356) |
+| D-359 … D-383 | 24 | `###` | 08-16 → 08-17 | C1 Phase 6 accumulation, the 502/keep-alive chain, the probe re-sweep (D-371), audit P1/P2 sweeps. **D-363 absent** |
+| D-384 … D-400 | 17 | `##`, dated | 08-17 → 08-17 | Milestones 12–14 / W1–W7: base image, PII, unobserved 500s, cross-replica fan-out |
+| D-401 … D-414 | 14 | `##`, dated | 08-17 → 08-18 | W9–W20: alarm split, chat-stream liveness, frontend unit tests, the AUD-L re-walk |
+| D-415 … D-423 | 9 | `##`, dated | 08-18 → 08-18 | W21 onward: the Milestone-11 deploy, twelve items decided in one pass (D-417), B4/B6 |
+
+### H6. Documents this log cites, and where they now live
+
+Migrated 2026-08-20. Prose throughout this log refers to these by bare filename; that filename is
+still correct, the directory is not. Resolve any bare mention below through this table.
+
+| cited as | now at |
+|---|---|
+| `ROADMAP.md` | `docs/archive/ROADMAP.md` |
+| `PROGRESS.md` | `docs/archive/PROGRESS.md` |
+| `OPEN_DECISIONS.md` | `docs/archive/OPEN_DECISIONS.md` |
+| `FINAL_ARCHITECTURE.md` | `docs/archive/2026-07-21-final-architecture-projection.md` |
+| `S42_ORG_ASKS.md` | `docs/archive/2026-07-24-org-asks-drafts.md` |
+| `docs/plans/*` (historical, executed) | `docs/archive/plans/*` |
+| `INCIDENT_RESPONSE.md` | `docs/reference/INCIDENT_RESPONSE.md` |
+| `QUESTION_GENERATION.md` | `docs/reference/QUESTION_GENERATION.md` |
+| `HINT_SOLUTION_REVIEW.md` | `docs/reference/HINT_SOLUTION_REVIEW.md` |
+| `U7_CHECKPOINT_CONSOLIDATION.md` | `docs/reference/U7_CHECKPOINT_CONSOLIDATION.md` |
+| `CONTENT_COVERAGE.md` | `docs/reference/CONTENT_COVERAGE.md` |
+| `FIRST_VISIT_NOTICE.md` | `docs/reference/FIRST_VISIT_NOTICE.md` |
+| `INTEGRATION_PLAN.md` | `docs/reference/integration/INTEGRATION_PLAN.md` |
+| `S42_DISCOVERY.md` | `docs/reference/integration/S42_DISCOVERY.md` |
+| `S42_OPEN_QUESTIONS.md` | `docs/reference/integration/S42_OPEN_QUESTIONS.md` |
+| `S42_SECURITY_REPORT.md` | `docs/reference/org-drafts/S42_SECURITY_REPORT.md` |
+| `ENROLLMENT_FAQ_APPROVAL.md` | `docs/reference/org-drafts/ENROLLMENT_FAQ_APPROVAL.md` |
+| `AUDIT_FINDINGS.md`, `AUDIT_2026_08_16.md`, `AUDIT_LIVE_2026_08_17.md` | `docs/reference/audits/` |
+| the reconciliation registers (`FINAL_OPEN_WORK_REGISTER.md`, `USER_DECISION_QUEUE.md`) | `docs/reference/reconciliation-2026-08/` |
+| the reconciliation evidence artifacts (13, incl. `DECISION_SUPERSESSION_MAP.md`, `CLAIM_LEDGER.md`, `REMEDIATION_D310_ROTATION.md`) | `docs/archive/reconciliation-2026-08/` |
+
+`docs/SPEC.md`, `docs/ARCHITECTURE.md`, `docs/TRACEABILITY.md`, `docs/PROJECT_STATE.md` and this file
+stay at `docs/`. One reference in this log — `docs/codebase-analysis/` in D-099 — is **not** a path
+in this repository at all; see the annotation there.
+
+---
+
 ## D-001 — Slim CLAUDE.md, full spec in docs/SPEC.md (accepted, 2026-07-13)
 The original 81KB CLAUDE.md was loaded into every Claude session (~20K tokens of context
 before any work starts). CLAUDE.md now holds only working rules and pointers; the complete
@@ -875,6 +1020,13 @@ city" message as "approved with no location"; `maps.compute_routes` failure for 
 branch -> a straight-line `haversine_km` estimate computed independently of the failed
 Maps call, flagged `is_estimate=True` in the rendered answer.
 
+> **Backward pointer added 2026-08-20 (W-18, register `G2-LOCATOR-PURGE`).** This entry had no
+> forward pointer to either of the two later decisions that moved it. **(1)** D-101 §4 **upgraded
+> the "residual caveat, not fully eliminable" above into a finding (`AUDIT_FINDINGS.md:AUD-C-03`)
+> and withdrew the "not eliminable" claim.** **(2)** D-113 §1 **supersedes two claims in D-045.**
+> Read both before quoting anything above as the current locator-privacy posture. The text is left
+> as written — it is the record of what was decided on 2026-07-18.
+
 ## D-046 — `packages/youtube`: real LLM video classification (not a deterministic mapping), re-validated against the curriculum registry before storage (accepted, 2026-07-18)
 SPEC §5.18's sync worker needs to assign each fetched video's `topic_ids`/`skill_ids`/
 `grade_band`/`difficulty_min`/`difficulty_max` from its title/description - free prose,
@@ -957,8 +1109,9 @@ exactly.
 The 2026-07-18 feature request (LLM question bank, exam UX, hint ladder, tutoring chat,
 memory, stage narratives, video hardening, dashboards/reports, and the chat app's real
 content/coverage/access work) was planned in
-[plans/2026-07-18-expansion-plan.md](plans/2026-07-18-expansion-plan.md) and merged into
-ROADMAP.md as twelve new sessions rather than kept as a side document, so the existing
+[plans/2026-07-18-expansion-plan.md](archive/plans/2026-07-18-expansion-plan.md) and merged into
+ROADMAP.md (now `docs/archive/ROADMAP.md`) as twelve new sessions rather than kept as a side
+document, so the existing
 `/start-session`/`/end-session` workflow drives it unchanged.
 
 **Renumbering map (old → new):**
@@ -1623,6 +1776,16 @@ is sent as inert payload data, never re-interpreted as instructions by any downs
 `redact_free_text` (or a stricter successor) before the wire and before storage, and its
 payload must appear in `test_bedrock_payload_pii_floor.py`'s allowlist set - this is now
 the established pattern for extending §5.30.1 to a new task, not a one-off.
+
+> **⚠️ Status annotation, 2026-08-20 (W-16). The `accepted` in the heading is still correct; one of
+> the mitigations it rests on is not.** The mitigation bullet *"90-day retention
+> (`TutorChatMessageRepository.purge_older_than`, `make chat-purge`)"* is the premise that broke.
+> **D-114** and **D-126** both record it: *"The acceptance did not change; **its mitigating
+> assumption silently stopped holding**."* Nothing in this entry pointed forward to either, so a
+> reader landing here by grep read a residual-risk acceptance whose mitigation had lapsed.
+> **Read D-114 and D-126 before quoting this acceptance.** Retention itself is now governed by
+> **three unreconciled policy families** — see the annotation at D-333, and register
+> `RETENTION-CLUSTER` (user decision UD-7, undecided).
 
 ## D-073 — S24: chat is a plain service call (`nodes.run_chat_turn`), never `graph.ainvoke`/`graph.aupdate_state` - both silently discard a pending `intervention_choice` interrupt (accepted, 2026-07-20)
 
@@ -2321,7 +2484,8 @@ not just a rename); `packages/adapters/pyproject.toml` (`motor` -> `sqlalchemy[a
 has no MySQL equivalent).
 
 **Not done here (unchanged from D-082):** SPEC.md (41 mentions), ARCHITECTURE.md (10, including
-the `MONGO[(...)]` mermaid node and the PII-boundary table row), FINAL_ARCHITECTURE.md (4),
+the `MONGO[(...)]` mermaid node and the PII-boundary table row), FINAL_ARCHITECTURE.md (4; now
+`docs/archive/2026-07-21-final-architecture-projection.md`),
 ROADMAP.md (12), and CLAUDE.md (3, found during this session's inspection, not previously
 counted) still say "MongoDB" and need a wording sweep in a later docs-focused session.
 PROGRESS.md's historical session log (30 mentions) should stay as-is - it accurately reflects
@@ -2793,6 +2957,16 @@ CloudFront routing, matching the manual deploys done all session) → `aws s3 sy
 invalidation → smoke test against the public CloudFront URLs.
 
 ## D-085 — S33 RBAC audit: `/dev/token` closed on a second, independent gate; JWT signing secret made settings-driven (accepted, 2026-07-23)
+
+> **⚠️ Status annotation, 2026-08-20 (W-16). This entry reads as closed. It was not closed when it
+> said so.** The `Reverted app_environment to "staging"` below describes an edit that lived *"in
+> `terraform.tfvars`, which is gitignored, in one machine's working tree, with the apply withheld …
+> **the decision log said 'closed' for two days while the hole was open**"* — **D-096**, restated by
+> **D-167**. Nothing in this entry pointed forward to either. The remediation *is* real and *is*
+> live now; what was wrong was the tense. Read D-096 before citing this as the closure date, and
+> note the generalisable rule this cost the project: **a claim about deployed state, made from
+> source, is not a claim about deployed state** (the same class D-344 and D-335 later repeated).
+
 Two real findings against the live staging deployment, surfaced while auditing auth for S33
 (Security Hardening, SPEC §6.22).
 
@@ -3089,6 +3263,13 @@ repeated runs (the one interleaved failure,
 unseeded-`random.Random()` flake, not caused by this session - passed clean on immediate rerun).
 
 ## D-092 — S33: real RDS auto-rotation via native `manage_master_user_password` - no custom Lambda, real DSN-construction changes across both apps and every standalone CLI (accepted, 2026-07-23)
+
+> **Backward pointer added 2026-08-20 (W-18, item F1).** This entry **never names D-084**, although
+> it is what retired D-084's remediation command. The supersession text lives only downstream, in
+> **D-093**: the old `terraform apply -replace=module.rds_mysql.random_password.master` that S32
+> actually used stopped applying here, because RDS-managed passwords replaced that resource. Read
+> D-093's rotation paragraph for the current command.
+
 User-confirmed design (asked explicitly, given the real tradeoffs): AWS's native
 `manage_master_user_password = true` on both `aws_db_instance` resources (rds-postgres,
 rds-mysql), not a custom rotation Lambda via AWS's SAR template. Confirmed via a web search
@@ -3158,7 +3339,7 @@ test_engine_component_dsn.py` (3), `apps/learning-api/tests/test_config_componen
 ## D-093 — S33: incident-response runbook written, grounded in this project's own two real incidents (accepted, 2026-07-23)
 SPEC §6.22 "incident-response drills." A real live tabletop drill is a human-process activity
 for the user to run when convenient, not something buildable in a coding session - this session's
-deliverable is the runbook itself: new `docs/INCIDENT_RESPONSE.md`, linked from `CLAUDE.md`'s
+deliverable is the runbook itself: new `docs/reference/INCIDENT_RESPONSE.md`, linked from `CLAUDE.md`'s
 existing "Documents" index (matching that section's own established convention).
 
 Deliberately grounded in this project's own real history rather than generic incident-response
@@ -3186,6 +3367,23 @@ a future incident doesn't get remediated with a command that no longer works.
 Explicitly scopes out service-outage/DB-failover response as S34's job (Load Testing and
 Production Readiness, SPEC §6.23's own failure-drills scope) rather than duplicating that
 session's future work here.
+
+> **⚠️ Annotation, 2026-08-20 (W-18, item F1) — do not read D-137 as the next link in this chain.**
+> Two *different* remediation commands have been conflated by readers following the F1 relation
+> chain, and conflating them is how an operator ends up running the wrong one under time pressure:
+>
+> - **This entry (D-093)** fixed the **RDS master password** rotation step: the stale
+>   `terraform apply -replace=module.rds_mysql.random_password.master` → `aws secretsmanager
+>   rotate-secret`, because D-092 (same session) removed that `random_password` resource entirely.
+> - **D-137 §6** fixed a *different* command in the same playbook: the bare
+>   `terraform apply -replace=random_password.jwt_signing_secret_learning` — the **JWT signing
+>   secret** — replacing it with the `-target` form plus the instruction to check the `terraform.tfvars`
+>   image floor against the running image first. That is the image-floor trap, not a rotation fix.
+>
+> **Verified 2026-08-20 (migration step 0b):** `docs/reference/INCIDENT_RESPONSE.md` contains **no
+> D-093 → D-137 misrouting**. Its single `D-137` citation is the correct one — the tfvars/image-floor
+> trap on a staging plan. So this is a decision-log citation defect, **not** a live operational
+> hazard in the runbook.
 
 ## D-094 — S33: OWASP ZAP baseline scan tooling prepared, not run - no live AWS session this entire session (accepted as carry-over, 2026-07-23)
 SPEC §6.22 "penetration testing" - a real professional pentest needs a paid third-party
@@ -3642,7 +3840,7 @@ ran out before the rest; the decision was right, the estimate was wrong.
 
 ### AUD-L-02 (P0) — `POST /students/{id}/report` had no cost ceiling at all
 
-Full detail in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md); recorded here because §2.4 makes a P0 a
+Full detail in [AUDIT_FINDINGS.md](reference/audits/AUDIT_FINDINGS.md); recorded here because §2.4 makes a P0 a
 line-stopping event and because the bug class matters more than the instance.
 
 The gateway is stateless about spend: it enforces the per-session budget against a
@@ -3780,7 +3978,7 @@ should happen before the gate is attempted.
 reason. These four were the ones whose answer was genuinely the user's rather than the code's; all
 four were decided at S36's close-out. **None is implemented here** — Phase 0B owns the fixes, which
 is the audit's own rule. Full reproduction and evidence for each finding stays in
-[AUDIT_FINDINGS.md](AUDIT_FINDINGS.md); this entry records the decisions and what was rejected.
+[AUDIT_FINDINGS.md](reference/audits/AUDIT_FINDINGS.md); this entry records the decisions and what was rejected.
 
 **AUD-L-04 (P1) — a child's typed name can reach never-purged `semantic_memory.fact_text`, and
 those facts reach parent-visible reports. Decided: add a retention job, plus a line in the §6.1
@@ -3840,7 +4038,8 @@ conditionally.
 ## D-099 — Pre-discovery findings from reading the production repos: four S42 asks answered, I11 rung 1 confirmed viable, two new integration traps (accepted, 2026-07-25)
 
 The user pointed at `IntelliChoice-web/` (`icrest`, `icweb`, plus an existing
-`docs/codebase-analysis/` set) and asked whether the S42 org asks could be answered there. Most
+`../IntelliChoice-web/docs/codebase-analysis/` set — **out of repository**, see the note below) and
+asked whether the S42 org asks could be answered there. Most
 could. This entry records what the code establishes, so S42's discovery starts from a much smaller
 unknown set — and records two things that change what S43 must build.
 
@@ -3849,6 +4048,17 @@ unknown set — and records two things that change what S43 must build.
 analysis docs, a plaintext DB credential file and a Google service-account private key. Nothing
 below depends on their contents. `icrest/data.sql` was also left unread (a dump that may carry real
 student PII).
+
+> **⚠️ Pointer correction, 2026-08-20 (W-34, register `RISK-R7.3-DANGLING-REFS`).** This entry
+> originally cited the analysis set as `docs/codebase-analysis/`, which reads as a path in **this**
+> repository. **It is not, and no such directory has ever existed here.** The referent is
+> `../IntelliChoice-web/docs/codebase-analysis/` — inside the **production system's own checkout**,
+> a sibling directory of this repository (`S42_DISCOVERY.md:8` resolves it the same way). It is
+> deliberately **outside** this repository's inspection scope, and it is **not to be "fixed" into a
+> local path**: a local path there would never resolve, and creating one would import production
+> source into a repository that is required not to hold it. Two files inside that checkout must
+> never be opened at all — `icrest/app/config/db.config.js` and `intellichoice-sendmail-*.json`
+> (committed credentials), which is the rule the Method note above was already following.
 
 ### Answered: the four role strings
 
@@ -3968,7 +4178,7 @@ formally owns the scripted-journey walk and §2.6 criterion 1 is better served b
 traceability. The user also folded in the flake fix, which is normally Phase 0B's.
 
 **The four areas are now covered and AUD-L is no longer partial for them.** Findings AUD-L-10
-through AUD-L-17 are in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) with reproduction and evidence, plus
+through AUD-L-17 are in [AUDIT_FINDINGS.md](reference/audits/AUDIT_FINDINGS.md) with reproduction and evidence, plus
 a long negative-results section. **The stretch goal was not reached:** the browser-driven
 adversarial runs and the live-staging half of §2.3 remain uncovered, and that is stated rather than
 softened. AWS was re-authenticated mid-session and is available, so the live half is unblocked for
@@ -4107,7 +4317,7 @@ local-only and disposable. `question_variants` is now **43,375** (S36 recorded 4
 with a bounded live pass against deployed staging at the end.
 
 **Sixteen findings (AUD-C-01..16), three of them P1.** Full reproductions in
-[AUDIT_FINDINGS.md](AUDIT_FINDINGS.md); the decisions worth recording here are the ones that shape
+[AUDIT_FINDINGS.md](reference/audits/AUDIT_FINDINGS.md); the decisions worth recording here are the ones that shape
 what the next sessions do.
 
 **1. Severity call on AUD-C-01: P1, not P0 — recorded because it is close.** An anonymous
@@ -4183,7 +4393,7 @@ pass should settle.
 two passes. The first covered AUD-C-16, authn/authz boundaries, idempotency and the live-staging PII
 floor, and deliberately deferred crash-consistency and cost ceilings under concurrency. This pass
 closed both deferred areas and fixed the one thing blocking the test baseline. Full reproductions are
-in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md); recorded here are the decisions that shape later sessions.
+in [AUDIT_FINDINGS.md](reference/audits/AUDIT_FINDINGS.md); recorded here are the decisions that shape later sessions.
 
 **1. AUD-C-16 upgraded P3 → P1: staging's semantic retrieval has never worked.** Staging's corpus is
 **159/159 `MockBedrockProvider` hash vectors** while both deployed services query with real Titan v2,
@@ -4300,7 +4510,7 @@ sequential one, and both passed.
 from earlier sessions on top of its own line: the browser-driven half of §2.3 for *both* apps
 (S36 and S37 each left it), the induced-alarm delivery proof S35 left open, and enabling
 `OTEL_ENABLED` on the two staging services (S38's one unevidenced sub-item). Full reproductions
-are in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md); recorded here are the decisions that shape later
+are in [AUDIT_FINDINGS.md](reference/audits/AUDIT_FINDINGS.md); recorded here are the decisions that shape later
 sessions.
 
 **1. Browser automation now exists, and it is Playwright in a root `e2e/`.** The gap that kept
@@ -4312,6 +4522,21 @@ worker, **zero retries** (an audit wants the first result, and a retry that pass
 flake criterion 4 exists to eliminate). §2.6 criterion 3's three properties are enforced at
 teardown across the whole run, not per assertion, so a journey cannot pass by never looking; a
 test that drives an error path narrows the check with an explicit `audit.allow({...})`.
+
+> **⚠️ Standing qualification on "enforced at teardown", added 2026-08-20 (W-14).** The word
+> **enforced** is stronger than the mechanism. **`assertClean()` runs only when the test's status is
+> `"passed"`.** So for a test that **fails for any other reason**, criterion 3's three properties are
+> **reported in the artifact summary but never asserted** — the blank/stuck-state, console-error and
+> 5xx evidence is collected and then not checked, precisely in the runs where something already went
+> wrong. The consequence to hold onto: **a red suite is silent about criterion 3, and a green suite is
+> the only condition under which criterion 3 is actually gated.** That is not the same claim as
+> "criterion 3 is enforced across the whole run", and the two have been read as equivalent.
+>
+> This is a **standing** property of the harness, not a one-off: it applies to every §2.6 criterion-3
+> citation anywhere in this log or in `docs/TRACEABILITY.md`. A second, independent limit sits beside
+> it: `Allowances.statuses` / `clientErrors` are **reported and never asserted** either — see the
+> annotation *"Recorded, not changed: `Allowances.statuses` is reported, never asserted"* in D-355.
+> Together they are why *"the suite is green"* is **not** *"everything run was checked"*.
 
 **2. The single most productive finding came from a defect class no API-level audit could see.**
 AUD-F-01: `App.tsx` passes `onFetchOverview` and `onRecordTime` as inline arrows, both live in
@@ -4403,7 +4628,7 @@ regression tests land with the Phase 0B fixes.
 
 **Context.** S39 shipped ⏸ partial because its four operations items all mutate live staging and
 the session had no standing authorization for them. This continuation carried that authorization.
-Full reproductions are in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md); recorded here are the decisions
+Full reproductions are in [AUDIT_FINDINGS.md](reference/audits/AUDIT_FINDINGS.md); recorded here are the decisions
 that outlive the session.
 
 **1. Every AWS API a NAT-less task calls needs its own endpoint, and only runtime reveals which.**
@@ -5171,8 +5396,13 @@ SPEC.md (~40 edits including four section headings — numbers preserved, §5.4/
 valid — and `MONGODB_READONLY_URI`, a config var that never existed in code), FINAL_ARCHITECTURE.md
 (its dev-fake description named `mongo:7`/`MongoProfileAdapter`, neither of which exists), and
 ROADMAP.md's live dev-environment section. Historical records (PROGRESS.md, DECISIONS.md,
-docs/plans/) deliberately untouched: they accurately describe sessions in which Mongo was what
-existed. `intellichoice_shared/maps.py`'s "docs still say MongoDB" comment updated to match.
+docs/archive/plans/) deliberately untouched: they accurately describe sessions in which Mongo was what
+existed.
+*(Repathed 2026-08-20: `FINAL_ARCHITECTURE.md` is now
+`docs/archive/2026-07-21-final-architecture-projection.md`, `ROADMAP.md` is
+`docs/archive/ROADMAP.md`, `PROGRESS.md` is `docs/archive/PROGRESS.md`, and the plans directory is
+`docs/archive/plans/` — see H6. `docs/plans/` was repathed above; the "deliberately untouched"
+judgement is unchanged.)* `intellichoice_shared/maps.py`'s "docs still say MongoDB" comment updated to match.
 
 ### 5. Stale-status corrections made in passing
 
@@ -6600,7 +6830,7 @@ requirement with no decision.
 
 **The disposition is owed and is deliberately not made here.** The two probably deserve different
 answers. CloudTrail is cheap and is what an incident response wants —
-[INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) is grounded in two real credential incidents
+[INCIDENT_RESPONSE.md](reference/INCIDENT_RESPONSE.md) is grounded in two real credential incidents
 (S32/D-084, S33/D-085) and has no account-level audit log to point at. GuardDuty is an always-on
 paid service against a staging account with no users, which is the same argument that deferred WAF.
 Deciding them as one item is how the cheap one gets lost behind the expensive one.
@@ -6638,7 +6868,7 @@ noncurrent versions and aborted multipart uploads — an audit bucket nobody pru
 feature becomes a bill.
 
 The need was already written down and had simply never been connected to the requirement:
-[INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) is grounded in two **real** credential incidents
+[INCIDENT_RESPONSE.md](reference/INCIDENT_RESPONSE.md) is grounded in two **real** credential incidents
 (S32/D-084, S33/D-085), and "who used that key, and when" is the first question of any credential
 incident. Until today nothing in this account could answer it. A runbook whose first question has
 no data source is a runbook that has not been finished.
@@ -7607,6 +7837,26 @@ the functional form. Both were only legible because they were recorded before th
 
 ## D-135 — Criterion 6 closes on 2026-08-02 for all three jobs, on a stated reading; and it cannot close earlier for a reason no reading can fix (accepted, 2026-07-31)
 
+> **⛔ THE HEADING OF THIS ENTRY IS FALSE. Annotated 2026-08-20 (W-16, W-18 item 2) — the
+> highest-risk stale heading in this log.**
+>
+> **D-138, the very next day, falsified this entry's premise**, not merely its date: *"the 07-26
+> firing D-135 recorded is not a mis-read metric — **it is an event with no possible cause**."*
+> Criterion 6 did **not** close on 2026-08-02, because `memory-consolidate` had never fired at all.
+> So **§5 below ("So 2026-08-02 is a read-and-tick") is wrong**, and the heading's *"closes on
+> 2026-08-02 for all three jobs"* is wrong.
+>
+> **The correct relation to record is "premise falsified", not "superseded"** — the reasoning in §1
+> (a weekly job cannot evidence a week of unattended operation until its second firing) and the §4
+> limitation (*"Quote the reading, not the tick"*) both still hold and are still worth reading; what
+> collapsed is the observation the reasoning was applied to. This entry stood **unannotated for
+> nearly three weeks** with the wrong claim in its own heading, which is the concrete cost of the
+> forward-only supersession habit described at H1.
+>
+> **Read D-138 first.** For criterion 6's actual state, see register `C6-UNATTENDED` — it was still
+> not satisfiable as of 2026-08-20, and for a *third* reason (the schedule was re-created 2026-08-16,
+> so the earliest arithmetic satisfaction is 2026-08-23).
+
 **Context.** Asked to move the gate's remaining dates up. The answer splits cleanly into one date that
 cannot move and one that can, and the distinction is worth recording because it is not about rigour.
 
@@ -7677,6 +7927,12 @@ anything to do. **Quote the reading, not the tick** — the same instruction alr
 Confirm `memory-consolidate`'s second firing landed (that is the whole of what is still unobserved),
 re-read the three jobs' firing counts and error metrics per job, and criterion 6 — and with it the
 gate — closes. Nothing else is owed.
+
+> **⛔ FALSE — annotated 2026-08-20 (W-18 item 2). See the block at the top of this entry.** There
+> was no second firing to confirm and no first one either: **D-138** established that
+> `memory-consolidate` had **never fired**. This section is kept verbatim because it is the record of
+> what was believed on 2026-07-31, and because it is the clearest example in the log of a stale
+> section that reads as an instruction.
 
 ## D-136 — The last named latency lead dies at 0.9 ms, and the capacity question turns out to be cheap at the target that actually exists (accepted, 2026-07-31)
 
@@ -8865,9 +9121,28 @@ counting *log lines* tomorrow should expect three manual ones today, not two.
 `../IntelliChoice-web` (`icrest` Express/Sequelize backend, `icweb` CRA frontend, plus a
 pre-existing 15-part analysis) and designated it **the source of truth for the existing system**.
 S42 discovery had been blocked for thirteen sessions on an unsent Message A; source access
-collapses most of it. Full findings with evidence: **[S42_DISCOVERY.md](S42_DISCOVERY.md)**.
+collapses most of it. Full findings with evidence:
+**[S42_DISCOVERY.md](reference/integration/S42_DISCOVERY.md)**.
 No new-stack code changed in this decision — this is discovery, and the auth decision it
 recommends is still the user's.
+
+> **⚠️ Status annotation, 2026-08-20 (W-16) — a status-tag correction, not a re-decision.** The
+> heading still reads a plain `accepted`, and **two of this entry's load-bearing recommendations have
+> since been withdrawn or demoted**, so a reader landing here alone gets a stale posture:
+>
+> 1. **"Fix the dev fake" urgency — withdrawn.** **D-152** is the user's sequencing decision: finish
+>    and test this codebase against the dev fakes *first*, then integrate. The fake's shape is wrong
+>    **on purpose** and that is safe, because the `ProfileAdapter` Protocol is SPEC-derived rather
+>    than fake-derived. Do **not** rewrite the fake to match production's schema.
+> 2. **"O1b as the pre-S44 decision" — demoted to a recommendation.** It stays a *recommendation*
+>    until AWS→`icrest` reachability is actually measured, and D-152 forbids measuring it now. So O1b
+>    is not settled and must not be quoted as settled.
+>
+> **What in this entry does not expire**, and is the reason it must stay discoverable: it is the only
+> record of the production-source findings — the six schema mismatches, KC2/KC3, and the O1b
+> feasibility *evidence*. All of that is still cited by later entries. **D-152 §2**'s one product-
+> relevant fact also still stands: `signups.attended = null` is common, so `AttendanceStatus.UNKNOWN`
+> → blocked is a **routine** production path.
 
 ### 1. Method, because the conclusions are load-bearing
 
@@ -8960,7 +9235,7 @@ the dev fakes, finish and test this codebase, and only then join the two. This s
 
 The `ProfileAdapter` Protocol is doing real work. The app consumes `StudentProfile`, `BranchInfo`
 and `AttendanceStatus` — **types derived from the SPEC, not from the fake** — so the six schema
-mismatches catalogued in [S42_DISCOVERY.md](S42_DISCOVERY.md) §9 stay behind the adapter seam and
+mismatches catalogued in [S42_DISCOVERY.md](reference/integration/S42_DISCOVERY.md) §9 stay behind the adapter seam and
 do **not** contaminate app code or tests written now. Verified case by case:
 
 - **grade** (production INTEGER 0=K vs Protocol `str`): flows only into LLM prompt payloads;
@@ -8999,7 +9274,7 @@ sources; it is not a single-source read.** Recorded now so S43 plans for it, not
 
 ### 4. What stays live despite the deferral
 
-- **The production security findings** ([S42_DISCOVERY.md](S42_DISCOVERY.md) §6) are independent of
+- **The production security findings** ([S42_DISCOVERY.md](reference/integration/S42_DISCOVERY.md) §6) are independent of
   this project's schedule — they affect a system serving real users today. Reporting them to the
   owner remains the disposition; §6.1 (one unauthenticated request can terminate the API process)
   is the one worth mentioning first.
@@ -9013,7 +9288,7 @@ sources; it is not a single-source read.** Recorded now so S43 plans for it, not
 
 Recorded in [CLAUDE.md](../CLAUDE.md): no session measures reachability, requests the production API
 URL or a test account, finalizes the auth option, or rewrites the dev fake **unless the user says
-integration is starting**. [S42_OPEN_QUESTIONS.md](S42_OPEN_QUESTIONS.md) groups A–D are frozen by
+integration is starting**. [S42_OPEN_QUESTIONS.md](reference/integration/S42_OPEN_QUESTIONS.md) groups A–D are frozen by
 choice, not stuck — the distinction matters, because a future session finding them open should not
 read them as blockers to clear.
 
@@ -9151,7 +9426,7 @@ Read directly from source rather than inferred:
 `account.controller.js:56` — when a registration hits `ER_DUP_ENTRY` and the existing account has
 `verifiedAt === null`, the handler **overwrites that account's `password`, `role` and `code`**. So
 an unverified account's role can be rewritten by anyone who knows its email address, without ever
-proving control of it. Filed as an addition to [S42_DISCOVERY.md](S42_DISCOVERY.md) §6.2.
+proving control of it. Filed as an addition to [S42_DISCOVERY.md](reference/integration/S42_DISCOVERY.md) §6.2.
 
 **Disposition change:** §6.2 moves from *accepted* to *to be fixed by the org*, joining §6.1,
 §6.3 and §6.4 on the list the user will send. The fix is small and entirely inside the existing
@@ -9213,7 +9488,7 @@ clean, `pyright` 0 errors, **666 passed / 2 skipped**, the attendance e2e spec 2
 
 **Context.** With the §2.6 gate closed and integration deferred by D-152 ("finish and test this
 codebase against the dev fakes first"), the remaining engineering is the Phase 0B backlog:
-24 findings in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) still marked *Open — Phase 0B*, none of them
+24 findings in [AUDIT_FINDINGS.md](reference/audits/AUDIT_FINDINGS.md) still marked *Open — Phase 0B*, none of them
 integration-blocked. S40–S41 took "all P1s + cheap P2s" and the rest were never dispositioned.
 This session took the first coherent cluster: **AUD-C-07, AUD-C-08 and AUD-C-10.**
 
@@ -11924,6 +12199,30 @@ branch — D-174 measured the two corpora identical, but no live probe of `probe
 taken, and the empty-pool path is embedding-dependent so a live check would be the honest
 confirmation. Cheap (~1.25¢) and worth doing when AUD-C-26 is decided.
 
+### 5. ⚠️ Residual risk for the whole D-172 … D-179 chain: `AUDIT_FINDINGS.md:AUD-C-23` is measured below 26%, **not certified** — added 2026-08-20 (W-09, register `H2-AUDC23`)
+
+The access-hint flip finding was never closed and was never formally accepted, so it has sat
+between the two for sixteen days. Recorded here in the §7 residual-risk style D-072 and D-123
+established, because the chain ends without one:
+
+- **What shipped and holds.** D-177 §2's remedy — rerank floor **0.9** plus a **pre-floor** margin —
+  is live and unchanged since 2026-08-04, and **D-178 verified it live at 0/10** against the deployed
+  chat edge, with a **control that fired 3/3** so the zero is not a dead instrument.
+- **What is *not* claimed.** D-178 declines to certify, in its own words: *"Nothing here licenses
+  writing 'never'."* **D-179 §2 marks every non-`SHIPPED` row in the rule table `0+`, a lower bound**,
+  because every other row is a restatement that models no lexical arm — and D-179's own first run
+  found a false hint that the restatement had scored as a correct refusal.
+- **So the disposition, stated as measured: the residual false-hint flip rate is bounded below
+  26% — measured, not certified.** It is not zero and no evidence in this chain makes it zero.
+- **Do not "improve" this number by dropping the negative controls** (D-221: score both directions,
+  and treat the negative controls as a first-class number). The `FP public` and `FP unans` columns
+  are what make the recall figure mean anything; a recall-only report of this chain is a regression
+  in the reporting, not an improvement.
+- **Expiry condition.** Re-measurement is a paid item (register `SPEND-AUTHORIZATION`), and moving
+  recall at all requires the separate measured offline rule sweep bounded by AUD-C-20 — **not** this
+  probe. D-371 later closed the *item* by measurement (recall 2/8, precision 5/5); it did not
+  certify the rate, and its own denominator correction is why: see D-371 and the annotation there.
+
 ## D-180 — AUD-C-26 fixed by extending AUD-C-22's silence rule to the unscored keyword arm, after measurement refuted one of the four candidates (accepted, 2026-08-04)
 
 Scope: PROGRESS.md's post-D-179 pointer, item 1 — AUD-C-26, the finding D-179's own fix produced.
@@ -12947,7 +13246,7 @@ the fixtures were never changed in the landed state.
 
 ## D-193 — the reviewer panel is asked for its verdict before it is allowed to think, and equation-first authoring is retired (accepted, 2026-08-05)
 
-**Context.** D-192 built an inverted authoring mode: generate the equation from a registered shape
+**Context.** D-192 [never written as an entry — see H4 at the top of this file] built an inverted authoring mode: generate the equation from a registered shape
 first, then ask the model only to dress it in a story. The claim was that this makes the answer
 correct by construction. Twenty candidates from three runs sat at `pending`, unreviewed, so before
 building anything further every one of them was read and re-solved by hand.
@@ -12987,9 +13286,9 @@ brew, two filling water tanks.
 
 So the positivity filter, the story-friendly seed search, the substituted distractors and the 14
 structurally unreachable templates all go with it. They were patches over this defect. The counters,
-`RejectionStage` and `--seed-offset` that D-192 also brought are mode-independent and stay.
+`RejectionStage` and `--seed-offset` that D-192 [never written — H4] also brought are mode-independent and stay.
 
-**This reverses the direction of D-192, not its findings.** Its commit is kept in history.
+**This reverses the direction of D-192 [never written — H4], not its findings.** Its commit is kept in history.
 
 ### 3. What replaced it
 
@@ -13343,7 +13642,7 @@ inferred.
 `topic_resolver.resolve_misconception_tag` maps the student's wrong option to
 `template.common_error_tags` by ordinal rank. The test's `topic_resolver_expected_tag` helper
 mirrored that mapping but hard-coded `["sign_error", "off_by_one", "magnitude_error"]` — the list
-**every hand-authored shape template shares**. True when written; false since D-189/D-191 made
+**every hand-authored shape template shares**. True when written; false since D-189/D-191 [never written as an entry — see H4 at the top of this file] made
 approved *authored* templates servable, because those carry their own `misconception_tags`. The
 study pool is now mixed:
 
@@ -13579,7 +13878,7 @@ This session measures only; neither was touched.
 with `equation: Eq(3*18 - 25, extra_straws)`. It has exactly one unknown and solves cleanly, so
 `derive_answer` accepts it — but the unknown is alone on one side, so "solving" it just evaluates
 the arithmetic the model already did. Measured: `Eq(3*18 - 20, extra_straws)` "verifies" 34 just as
-happily. D-191 closed the zero-unknown form (`answer_expression: '7'`); this is the same hole in a
+happily. D-191 [never written as an entry — see H4 at the top of this file] closed the zero-unknown form (`answer_expression: '7'`); this is the same hole in a
 new shape, and it means one of the three pending items has **no independent verification at all**.
 
 **2. The D-195 meta-commentary check missed a real instance.** `707400`'s student-visible context
@@ -13722,7 +14021,7 @@ independent *and* calibrated rather than independent and constant.
 
 The anchors describe the **structure of the equation**, not the wrapping. A first draft anchored
 tier 3 on "the student must build the equation from the situation", and the judge promptly rated a
-one-step item 3 - correctly, by that wording, because D-191 made every item a word problem, so that
+one-step item 3 - correctly, by that wording, because D-191 [never written as an entry — see H4 at the top of this file] made every item a word problem, so that
 property is a constant and a constant cannot discriminate. The anchors now mirror the skill ladder
 in `TOPIC_DIFFICULTY_SKILLS`, which is where the tiers came from.
 
@@ -13753,7 +14052,7 @@ The economics are the argument: the same check was already rejecting ~half of al
 only after a ~2500-token authoring call had been paid for. Three design retries cost less than one
 wasted authoring call.
 
-**This is not D-192 returning.** That design generated an equation and had a story written to dress
+**This is not D-192 [never written as an entry — see H4 at the top of this file] returning.** That design generated an equation and had a story written to dress
 it, and *nothing verified that the story encoded the equation*. Two things differ: the sketch and
 the equation are produced together so they are coupled from the start, and the D-193 solver panel -
 which did not exist then - is what verifies story→equation afterwards. It caught exactly this class
@@ -13833,7 +14132,7 @@ Same 11 slots as D-197, 42.56¢ (D-197: 42.88¢ - the design stage paid for itse
 - **The defects moved later, not away.** Solver and judge rejections rose as validation fell -
   with the arithmetic guaranteed, what remains is whether the *story* encodes the equation, which
   is precisely what the solver panel exists to check. This is the predicted cost of designing the
-  equation first, and it is contained rather than unnoticed (the D-192 failure mode was that
+  equation first, and it is contained rather than unnoticed (the D-192 [never written as an entry — see H4 at the top of this file] failure mode was that
   nothing checked it at all).
 - **Still 3 of 11 accepted, all tier 1-2.** The headline did not move. What moved is *why* items
   fail, from "the mathematics is wrong" to "the writing does not match the mathematics" and "our
@@ -13905,7 +14204,7 @@ and the breaker did its job" - the opposite diagnosis, and it cost real time to 
 paid check of whether D-198's prompt change had broken the generator. It had not.
 
 **Decision.** `circuit_open` is its own `RejectionStage`, and `RunSummary` counts it as a *skip*
-beside `budget` rather than a rejection. Same reasoning D-192 applied to budget skips: a candidate
+beside `budget` rather than a rejection. Same reasoning D-192 [never written as an entry — see H4 at the top of this file] applied to budget skips: a candidate
 that never reached a model is not part of the denominator for whether the mode produces good
 questions.
 
@@ -14531,6 +14830,20 @@ backstop and not the normal path; 5/5 green on the whole file (16 tests each); f
 **1035 passed, 2 skipped, 1 xfailed**; `ruff` clean; `pyright` 0 errors.
 
 ## D-210 disposition — the thin-skill ladder degrades to repetition, not failure (accepted, 2026-08-06)
+
+> **⚠️ Annotation, 2026-08-20 (W-18/W-25) — `recorded`, not `accepted`: this heading is the only
+> `D-210` heading in the log, and it is not D-210.** It records what was decided *about* D-210's
+> residue — that a shape-template fallback is **not built**. **It does not record what D-210 itself
+> decided**, and no other entry does either.
+>
+> **What is known about D-210, entirely from the entries that cite it:** it added the
+> `_servable()` / `authoring_mode == "authored"` rule and the export `active_status` filter.
+> Reachable only through D-224, D-226, D-269 and **D-271** — and **D-271 is load-bearing**, because
+> *"D-210 added exactly that filter"* is what falsifies D-269's precaution claim.
+>
+> **What is not known and cannot be inferred:** D-210's text, its date, its status tag, and the
+> alternatives it weighed. **Nothing is reconstructed here.** Unlike D-190/D-191/D-192, no meta-note
+> covers D-210, which is what this annotation now supplies. See H4 at the top of the file.
 
 D-210 was committed "WIP" because removing shape templates left three thin cells —
 `linear_distribute` 2 items (both tier 5), `linear_both_sides` d4 2, `linear_neg_frac_coeff` d2 2 —
@@ -15479,7 +15792,7 @@ a hint in **2,280 ms**, a pre-exam answer in **194 ms**. The study answer was do
 skill) idempotency key that never warm-hits on forward progress. The narrative is a between-questions
 overlay that also travels over SSE - the answer response never needed to wait for it.
 
-It now defers under a real provider, mirroring D-208's consolidation scheduler: the node leaves an
+It now defers under a real provider, mirroring D-208 [never written as an entry — see H4 at the top of this file]'s consolidation scheduler: the node leaves an
 **ids-only marker** (`LearningState.pending_study_narrative` - no grade, no names, so the SPEC §5.30
 PII rule holds), the answer returns immediately with the next question, and
 `BackgroundStudyNarrativeScheduler` generates the narrative against its own session and publishes a
@@ -15965,7 +16278,7 @@ the same pair at that tier in both the pre- *and* post-exam.
 What these items do **not** have is the paid pipeline's two independent solvers and its blind
 judge (D-211 blocks that path). That difference is recorded in the provenance fields
 (`generator_model: hand-authored-v1`, empty `review_model_versions`) and in
-[QUESTION_GENERATION.md](QUESTION_GENERATION.md) §9a rather than glossed: the panel's unique catch
+[QUESTION_GENERATION.md](reference/QUESTION_GENERATION.md) §9a rather than glossed: the panel's unique catch
 is an under-specified stem, so every item states every quantity it asks the student to use.
 
 ### 3. The defect that would have taken staging down with it
@@ -16011,7 +16324,7 @@ two halves of the §5.8.5 gate, they carry near-duplicate text checks, and *ever
 authored half has received was made on the authored copy alone. Both live bugs found this session
 are the same two bugs the authored half already fixed — the boundary bug in `answer_text_leaked`
 (D-079, then D-195's mirror image) and the word-boundary fix to the disallowed-wording list
-(D-191). Neither was ever carried across, because from inside either file there is nothing to see.
+(D-191 [never written as an entry — see H4 at the top of this file]). Neither was ever carried across, because from inside either file there is nothing to see.
 
 ### 0. A correction, because it changed how the work was scoped
 
@@ -16055,7 +16368,7 @@ written it from the code — the 0.18% is what produced it.
 turns", and the shape half caught it — for the wrong reason, by substring-matching "die". The
 authored list has `died`/`dying` but not the present tense, so fixing the substring bug would have
 silently *opened* a hole in the paid pipeline's gate had `dies` not been added in the same change.
-Distinct from the `die` D-191 deliberately left off: that one is also the singular of dice.
+Distinct from the `die` D-191 [never written — H4] deliberately left off: that one is also the singular of dice.
 
 The wording list is now shared through `authored_validation.disallowed_wording_found` rather than
 duplicated. Sharing is the fix that holds; one list matched two ways drifts again on the next
@@ -16089,6 +16402,13 @@ teach anything. It is safe because nothing requires a `(skill, difficulty)` pair
 the pre-exam reads per *difficulty* across the topic (5/6/7/6/6, all above the floor of 2), and the
 study selector reads `get_active_questions_for_skill` unfiltered and then picks
 `_closest_to_recommended`, so an absent tier degrades to the nearest present one.
+
+> **⚠️ Do not read a volume *target* out of the line above — annotated 2026-08-20.** `5/6/7/6/6` is a
+> **measured distribution** of this one topic's bank, not a decision. **D-273 §2 cites it as "D-223's
+> measured 5–7 per occupied tier" and calls it the project's volume target; this entry sets no such
+> target.** The target D-223 does own is **5 per occupied (topic, tier) cell** — the figure D-342
+> later parks as *"84 of 153 cells, 189 items short."* The misattribution is annotated at D-273 §2 as
+> well, at both ends, so it stops propagating from either.
 
 ### Remaining risks
 
@@ -16128,6 +16448,24 @@ citations now resolve to this note, which says what is known and what is not.
 **Worth a habit, not a fix:** the two sessions before this one both shipped a decision entry, so the
 gap is not a standing process failure — it is three ids burned in a stretch of work that moved fast.
 `grep -c "^## D-$n" docs/DECISIONS.md` before citing an id costs nothing.
+
+> **Addendum, 2026-08-20 (W-25). This note is not the whole inventory: there are six such ids, not
+> three, and the other three were found *after* this note was written.**
+>
+> | id | state | why this note missed it |
+> |---|---|---|
+> | **D-208** | **no heading at any level.** Cited 3× here, plus `docs/ARCHITECTURE.md`, `test_consolidation_scheduler.py` and `test_turn_deadline.py` — **two code files**, exactly the failure mode this note describes | it was minted two days *after* this note (2026-08-06/07), so this note could not have covered it. **Found 2026-08-20 during the migration hygiene pass and absent from the audit's own phantom inventory** |
+> | **D-209** | does not exist and is cited nowhere; the log jumps D-207 → D-210 | an unused id, harmless, recorded so it is not mistaken for a loss |
+> | **D-329** | only `####` sub-headings, one inside D-330 and one inside D-377. Cited 9× here | minted 2026-08-14 |
+> | **D-363** | no heading of any level. Cited 2× here | minted 2026-08-16 |
+> | **D-210** | has a heading, but it is `## D-210 disposition` — what was decided *about* D-210's residue, not what D-210 decided. See the annotation there | minted 2026-08-06, same gap window |
+>
+> **The habit this note recommends did not take**, and that is the finding: three more ids were
+> burned in the twelve days after it. The check it names (`grep -cE "^#{2,4} D-nnn"`) is now stated
+> at H4 at the top of the file, where a reader sees it before citing rather than after.
+>
+> **What must not happen:** none of these six gets a reconstructed body. The argument in
+> *"Not reconstructed into full entries here"* above is the standing rule for all of them.
 
 ## D-224 — the paid pipeline's default mode produced content that could never be served (accepted, 2026-08-08)
 
@@ -16219,7 +16557,7 @@ have put a comparison item in front of a student who has not been shown what a p
 
 ### Every question models a real relation, which for this topic took work
 
-`derive_answer` requires a solvable relation with exactly one unknown — the rule D-191 added after
+`derive_answer` requires a solvable relation with exactly one unknown — the rule D-191 [never written as an entry — see H4 at the top of this file] added after
 a generator wrote the *answer* into `answer_expression` and the gate confirmed the answer against
 itself. Place value invites exactly that failure: "what is the 4 in 47 worth?" has the natural
 encoding `Eq(x, 40)`, which parses, solves, and checks nothing.
@@ -16360,6 +16698,22 @@ them, and nothing renders from `solution_function` any more — so retiring them
 cost of either a one-off migration or permanent cleanup code running on every deploy forever. For a
 solo-maintained system that is the wrong trade. Stated here so the rows are a documented leftover
 rather than a puzzle: `authoring_mode='shape'`, 50 of them, safe to delete whenever someone wants to.
+
+> **⚠️ Annotation, 2026-08-20 (W-18, item K1) — this paragraph is the shape chain's only live-data
+> residue, and it is the chain's only reliable link.** Two things a reader needs alongside it:
+>
+> **1. The 50 rows are a known residue, in every database.** Re-recorded here as a greppable fact
+> rather than a paragraph inside a "deliberately not done" section: **`authoring_mode='shape'`, 50
+> rows, inert** (`_servable()` filters them and nothing renders from `solution_function` any more),
+> **safe to delete whenever someone wants to, and never yet deleted.** This is the *only* place the
+> shape-retirement chain touches live data. Register: `DOC-DECISION-LOG-CORRECTIONS`.
+>
+> **2. The chain around this decision is weaker than it looks, so do not present it as one chain.**
+> The apparatus deletion here (~2,000 lines) is solid and authored-only is the sole path. But:
+> **D-003**'s membership in this chain is **inference only** — nothing states it; **D-210** has no
+> entry (see the annotation there); and **D-193** claims to *"reverse the direction of D-192"*, which
+> is **asserted against an entry that does not exist** (H4). Do not repair that by adopting D-193's
+> description as D-192's content.
 
 **D-224's `--mode shape` refusal is gone too**, along with its test. It was a cost guard on a route
 that no longer exists; keeping a refusal for an argument the parser no longer accepts would be
@@ -16793,6 +17147,14 @@ next experiment is a middle bound (~250 words) rather than either extreme.
 D-231 raised 1200 → 3000 and called it fixed. D-233 raised it again and it was still not fixed. The
 number was never the variable — an unbounded output field was. Three sessions of ceiling arithmetic
 would have been one measurement of *why the response was long*.
+
+> **Provenance note, 2026-08-20 (W-18).** The reconciliation audit recorded the quote *"The number
+> was never the variable"* as **NOT FOUND** in D-233 and instructed that it must not be attributed
+> (`DECISION_SUPERSESSION_MAP.md:216`, `:1756`, `:1817`). **That NOT-FOUND is a search-window
+> artefact, not an absence:** the audit read D-233's opening ten lines, and the sentence is here, in
+> D-233's own closing section, two lines above. **The quote is D-233's and may be attributed to it.**
+> Recorded rather than silently corrected, because a "not found" travels forward exactly as easily as
+> a wrong quote does — which is this entry's own lesson one level up.
 
 ## D-234 — the whole bank judged, and 24 of 25 disagreements run one way (accepted, 2026-08-09)
 
@@ -17301,7 +17663,7 @@ D-194's behaviour until a run opts in by owning a histogram.
 ### RunSummary
 
 `retiered` is its own counter, and `filled = pending + retiered` is the honest yield numerator.
-D-192's lesson applied to a new bucket: "the run produced this many usable questions" and "the
+D-192 [never written as an entry — see H4 at the top of this file]'s lesson applied to a new bucket: "the run produced this many usable questions" and "the
 run moved this many off the tier it aimed at" are different claims, and a plan that keeps
 missing its own tiers is worth seeing. It appears in the headline rather than only on its own
 line, because a re-tier rate that is easy to skim past is one nobody reads.
@@ -18251,7 +18613,7 @@ for the rule's *behaviour* rather than its name — the two implementations shar
 
 ## D-251 — hint & solution quality review: a plan whose first commitment is falsification (accepted, 2026-08-10)
 
-Full design in [HINT_SOLUTION_REVIEW.md](HINT_SOLUTION_REVIEW.md). This entry records the
+Full design in [HINT_SOLUTION_REVIEW.md](reference/HINT_SOLUTION_REVIEW.md). This entry records the
 decisions and the reasoning behind them; the doc records the design.
 
 ### The starting position was wrong twice, and both corrections came from the user
@@ -19619,7 +19981,7 @@ is **kept, not replaced**. Four things do not generalize, and each gets a target
 The serving model — exams per topic, anchors per topic, five skill-lines per study session — is
 built on that shape; 246 one-skill topics would mean 246 rubrics and 246 topic cards. "Every row
 covered" therefore means "every row is a stocked skill", and rows that cannot be covered get an
-explicit disposition in `docs/CONTENT_COVERAGE.md` (Phase 0) rather than silence — the
+explicit disposition in `docs/reference/CONTENT_COVERAGE.md` (Phase 0) rather than silence — the
 TRACEABILITY.md posture applied to content.
 
 **Row triage estimate, to be finalized (not asserted) in Phase 0:** ~65% family A
@@ -19651,7 +20013,7 @@ were wrong or imprecise; the fourth turned into the session's reordering.
 
 **a. The gate does not silently skip — it is strictly fail-closed.** `derive_answer` rejects on
 all six paths: missing equation, not a single relation, a tautology (`Eq(4,4)` → `BooleanTrue`),
-≠1 unknown, unsolvable by SymPy, ≠1 solution. D-191 had already closed the missing-equation hole.
+≠1 unknown, unsolvable by SymPy, ≠1 solution. D-191 [never written as an entry — see H4 at the top of this file] had already closed the missing-equation hole.
 **The docstring's "when it parses" describes `_sympify` on the *option* texts, not the equation.**
 Reading the code settled in one look what reading the docstring got backwards — the same lesson
 D-265, D-268 and D-271 each recorded.
@@ -19686,8 +20048,8 @@ instead of reasoning about it.
 The accurate mechanism is worse in a more interesting way. For a skill whose answer is not
 derived — compare, identify, classify, name — the gate leaves an author exactly two moves:
 
-- **Write `Eq(x, <the answer>)`.** It passes and verifies *nothing*: it is D-191's defect wearing
-  a relation costume. D-191 closed the bare-string form (`answer_expression: '7'`) and left the
+- **Write `Eq(x, <the answer>)`.** It passes and verifies *nothing*: it is D-191 [never written — H4]'s defect wearing
+  a relation costume. D-191 [never written — H4] closed the bare-string form (`answer_expression: '7'`) and left the
   relation-shaped form open, because the check it added tests the *shape* of the model, not
   whether the model does any work.
 - **Reshape the question until something is derivable.** This is what happened: 15 of 15
@@ -19723,9 +20085,20 @@ unknowns"), symbolic equivalence, and selection/ordering.
    5–7/tier as the depth at which exams stop repeating themselves. Recorded here so the
    divergence is a decision rather than a drift.
 
+   > **⚠️ Attribution correction, 2026-08-20 (found by the SPEC reconciliation pass).** *"D-223's
+   > measured 5–7 per occupied tier"* is a **misattribution**: **D-223 never states a 5–7 target.**
+   > What D-223 actually records is a **measured distribution** — 5/6/7/6/6 items across the occupied
+   > tiers — and its own target is stated elsewhere as **5 per occupied (topic, tier) cell** (the
+   > figure D-342 parks: *"84 of 153 cells, 189 items short"*). So "5–7" is this entry reading a
+   > *range off an observation* and then citing it as a decided target. **The divergence from SPEC
+   > §5.8.1's 100/topic is still a real, deliberate decision — that half stands.** What must stop
+   > propagating is the claim that D-223 set 5–7; anyone needing the authoritative volume target
+   > should read D-223 and D-342 directly, and note that **all** question-bank volume work is parked
+   > by D-342's standing instruction.
+
 ### Phase 0 outcome, 2026-08-11 — and a fourth thing measured rather than assumed
 
-The matrix is built (`docs/CONTENT_COVERAGE.md`, `curriculum/coverage/csv_row_dispositions.csv`,
+The matrix is built (`docs/reference/CONTENT_COVERAGE.md`, `curriculum/coverage/csv_row_dispositions.csv`,
 `scripts/build_content_coverage.py`, 7 tests). **245 unique rows → 34 topics → 245 skills**;
 **A 173 (70.6%) / B 37 (15.1%) / C 34 (13.9%) / D 1**. Close to the estimate above, with A higher
 and C lower than guessed. The user approved the book→topic mapping as built.
@@ -20240,7 +20613,7 @@ opposite verdicts, which is the reason to read them rather than re-run.
 **A real gate defect.** Options go through `_sympify` (plain `sympy.sympify`, no implicit
 multiplication); equations go through `_parse_side`, which carries `_PARSE_TRANSFORMS` and does.
 So `2x(x + 1)(x + 3)` — the natural way anyone writes a factored answer, and a form the
-*equation* side has accepted since D-191 on the stated grounds that "a model writing mathematics
+*equation* side has accepted since D-191 [never written as an entry — see H4 at the top of this file] on the stated grounds that "a model writing mathematics
 naturally omits the star" — failed to parse as an option, and **correct items were rejected as
 wrong**. Fixed in the symbolic arm only: turning transforms on inside `_sympify` would change
 what a *value* option means, since `'12 minutes'` currently fails the direct parse and reaches
@@ -20419,7 +20792,7 @@ the prompt asked for algebraic options; the gate simply refused the alternative,
 harder failure to notice than a rule that says so out loud.
 
 The reading is reached only when the symbolic one found nothing, so no option that parses
-today changes meaning — the ordering rule D-280 and D-191 both follow.
+today changes meaning — the ordering rule D-280 and D-191 [never written as an entry — see H4 at the top of this file] both follow.
 
 **Two strictnesses, pinned by tests rather than by the arrangement of the table:**
 
@@ -21476,6 +21849,13 @@ suite.
 
 **Date:** 2026-08-13 · **Session:** C1 · **Status:** measured, 10.24¢; the remedy is a decision, not yet taken
 
+> **⚠️ Status annotation, 2026-08-20 (W-16, W-18 item K4). "The remedy is a decision, not yet taken"
+> is stale: the remedy was taken twice, the same day, in the two entries immediately below.** D-301
+> took a compromise (keep the labels, publish the skew, fix the metric), and **D-302 then reversed
+> D-301's central clause on the user's instruction — follow the judge's rating, accept uneven and
+> biased tiers, optimise for item count. D-302 is the active rule.** The *measurement* in this entry
+> stands and is still the evidence base; only the status line is wrong.
+
 Set out to re-anchor the difficulty rubric, which D-296 had established as the item gating
 openability. **The baseline measurement says the rubric is not the problem, and D-292's central
 premise is false.**
@@ -21556,6 +21936,15 @@ written down about those same 16 items.
 ### D-301 — The compromise: keep the labels, publish the skew, fix the metric
 
 **Date:** 2026-08-13 · **Session:** C1 · **Status:** decided (user: "적당히 타협해도 좋아"), 19.94¢ total
+
+> **⛔ Status annotation, 2026-08-20 (W-16, W-18 item K4). This is not the active rule — D-302 is.**
+> Same day, same session, **D-302 reversed this entry's central clause**: §1 below keeps
+> `difficulty_label` meaning *"the tier the plan asked for"* and rewrites no stored tier, and D-302
+> decided the opposite on the user's instruction (*"judge의 판단을 따르자… 문제 수만 채우자"*) — follow
+> the judge's rating, accept an uneven and biased distribution, and optimise for item count. This
+> entry carried **no annotation for a week**, so *"a reader landing on D-301 first gets the wrong
+> active rule"*. §2's published skew number (27% / 59% / 14% over the whole bank) is unaffected and
+> still the measurement of record.
 
 D-300 left three opposed remedies. The user's instruction was to take a reasonable middle path,
 so: **change no stored tier, quantify the skew, and fix the metric that caused the confusion.**
@@ -21829,7 +22218,7 @@ clause on a rule that is behaving correctly.
 
 **And one guard confirmed rather than assumed.** The model sometimes now writes
 `Eq(diff(...), 12*x**2 - 10*x + 6)` — the answer restated on the right. That would verify nothing
-(D-191's vacuous-`Eq` class), and the gate refuses it with exactly that reading: *"is not a
+(D-191 [never written as an entry — see H4 at the top of this file]'s vacuous-`Eq` class), and the gate refuses it with exactly that reading: *"is not a
 solvable equation - it restates the answer instead of deriving it"*. Checked in both directions:
 the bare `diff(...)` form routes to `symbolic`, matches `12x² - 10x + 6` and rejects
 `12x² - 10x + 99`. The prompt change opened no new hole.
@@ -21840,7 +22229,8 @@ the bare `diff(...)` form routes to `symbolic`, matches `12x² - 10x + 6` and re
 
 Sizing Phase 4 (the video catalog, the one entirely unstarted phase) turned up something more
 urgent than the phase itself. The catalog holds **4 videos covering 4 of 112 skills and 1 of 33
-topics** — so closing Phase 4 needs a real `YOUTUBE_API_KEY` and quota budgeting, which is a
+topics** [**stale figure — true on 2026-08-13 only; now 497 videos / 363 active / 102 of 112 skills
+servable, see D-417 §B5**] — so closing Phase 4 needs a real `YOUTUBE_API_KEY` and quota budgeting, which is a
 credential I do not have and did not go looking for. What is actionable now is what a student in
 the other 32 topics hits, because **D-302 just opened all 33**.
 
@@ -22111,7 +22501,7 @@ natural forms and the validator refuses all three:
                                              says '8*exp(-3*t)'"
 
 The second **is** the intended answer, wrapped; the validator is right to refuse it, because
-`Eq(y, <the answer>)` is D-191's vacuous form. But its refusal then says *"model the question as
+`Eq(y, <the answer>)` is D-191 [never written as an entry — see H4 at the top of this file]'s vacuous form. But its refusal then says *"model the question as
 one relation with one unknown, e.g. `Eq(3 + 7*m, 4 + 4*m)`"* — a **value** example, the one answer
 model a differential equation cannot use. **The message teaches the form that cannot work.**
 D-274 and D-304 are this project installing a rule scoped to one answer model as universal; this
@@ -22227,6 +22617,27 @@ with a stated reason.
 rotation still needs the tasks restarted before the new value takes effect. Re-running
 `deploy-staging.yml` does that.
 
+> **⚠️ Forward pointer added 2026-08-20 (migration §2.G.3). The decline recorded above stands as the
+> historical record and is *operationally superseded*: both secrets were rotated on 2026-08-18.**
+> The full record — the step-0 CloudTrail access review, the six safeguards, the probe matrix, the
+> before-and-after secret metadata, and the plan-exit evidence — is at
+> **`docs/archive/reconciliation-2026-08/REMEDIATION_D310_ROTATION.md`**, with register entry
+> `D310-ROTATION`. That file is what proves D-310 is **history, not a live exposure**; do not
+> re-present it as one.
+>
+> Three residuals survive the rotation and are tracked as `D310-RESIDUALS` in
+> `docs/PROJECT_STATE.md` §4.1 — **(1)** a dead `localStorage` credential that now fails as an
+> unexplained 404 and cannot be enumerated or cleared from AWS or this repository; **(2)** the
+> `make load-staging-learning` docker environment pass-through, **never re-measured for `ps`
+> visibility** — *unmeasured, not cleared*, and it must be neither upgraded to "clear" nor downgraded
+> to "resolved" because the rotation succeeded; **(3)** `e2e/README.md`, which still documents the
+> pre-D-310 export shape. A fourth, self-neutralising one is listed so the three are not mistaken for
+> exhaustive: the transcript that captured the old values still exists wherever transcripts are
+> retained — **the values are dead post-rotation, and that fact is recorded here while the values are
+> not, ever.** An accepted residual: **no standing rotation mechanism was added** — no `keepers`, no
+> rotation trigger, no rotation resource — accepted because the S44 plan deletes these secrets when
+> real authentication lands.
+
 ### D-311 — A test that asserted the retry ladder engaged depended on an accident of option order
 
 **Date:** 2026-08-13 · **Session:** C1 · **Status:** fixed; one adjacent failure left open
@@ -22325,6 +22736,14 @@ wave tables had each reported as met — "every skill stocked ≥1" — is now t
 
 **Date:** 2026-08-13 · **Session:** C1 · **Status:** measured; criterion restated, no code change
 
+> **⚠️ Status annotation, 2026-08-20 (W-16/W-18 item K4). This entry's recommendation was overridden
+> and carried no pointer saying so.** The measurements below stand. What does not stand is the
+> recommendation this entry offered on the "multi-tier where the skill spans" clause: **D-341**
+> records the user deciding the opposite — the multi-tier gap is **content backlog, not a taxonomy
+> error, and audits are to stop re-flagging it** — and **D-342** then parked *all* question-bank
+> coverage work as a standing instruction, naming D-313 in its supersession list. Do not reopen the
+> clause from this entry.
+
 Sizing what remains of C1 turned up a number nobody had looked at: **106 items across 39 skills
 carry a stored `difficulty_label` that is not in their skill's declared `difficulty_tiers`.**
 
@@ -22375,6 +22794,17 @@ defect.
 **Why it is common.** D-302 opened all 33 topics; the catalog holds 4 videos across 4 of 112
 skills. So 108 skills answer with `FALLBACK_MESSAGE`. Locally the 4 stocked skills are all
 `linear_*`, which is why every fraction-topic walk takes the fallback.
+
+> **⚠️ Stale figure, annotated 2026-08-20 (W-18).** The present-tense *"the catalog holds 4 videos
+> across 4 of 112 skills"* was true on **2026-08-13 and is now wrong by two orders of magnitude**.
+> **D-417 §B5** measured it live: **497 videos, 363 active-and-approved, 102 of 112 skills servable**
+> (last synced 2026-08-15; re-probed 2026-08-18, unchanged). D-417 corrected `OPEN_DECISIONS` and
+> **did not annotate this entry**, so the stale number stayed quotable here for five days — and it
+> had already been the basis for a product recommendation ("accept that the video intervention is
+> effectively absent at launch"). The **defect this entry fixes is real and unaffected**: the
+> no-video fallback path was a UX trap and a metrics defect regardless of how many videos exist. Two
+> further copies of the stale figure are annotated at D-305 and D-322 §6; D-339's mention is
+> past-tense and historically accurate.
 
 **The trap.** The fallback message ends "You may choose a hint or step-by-step solution instead",
 and the pause closed on the same turn — so the message named two options the UI had just taken
@@ -22915,7 +23345,7 @@ a chat log gets re-litigated.
 | 4 | **Consolidate checkpoints into long-term durable memory, then prune** | **against my recommendation, and better than it.** See below |
 | 5 | **Depth generation deferred** to the near future | the ~$13–16 stays parked |
 | 6 | **YouTube as soon as possible** | **against my recommendation** — see below |
-| 7 | **Edit `difficulty_tiers` to match the judge** | as recommended |
+| 7 | **Edit `difficulty_tiers` to match the judge** | as recommended. **⚠️ SUPERSEDED — see the §7 annotation below** |
 | 8 | **Batch-merge the dependency PRs** | as recommended |
 | 9 | **Narrative header gets its stage** (new API field) | as recommended |
 | 10 | **Investigate the ladder pause race** | as recommended |
@@ -22943,9 +23373,28 @@ So the whole of Phase 6 is a credential, a quota budget, `make youtube-sync`, an
 roughly an hour once `YOUTUBE_YOUTUBE_API_KEY` exists in Secrets Manager. **It is blocked on a
 secret only the user can provide, and nothing else.**
 
+> **⚠️ §6's figure is stale, annotated 2026-08-20 (W-18).** *"4 videos across 112 skills"* was true
+> on 2026-08-14. The key arrived, the sync ran, and **D-417 §B5** measured **497 videos / 363 active
+> / 102 of 112 skills servable**. §6's *sequencing risk* — that the product recommends third-party
+> video to minors before §5.1.2's first-visit notice ships — **is unchanged and is now realised**,
+> because the catalog is stocked and the notice is not built (register `FIRST-VISIT-*`). That is the
+> half of §6 to carry forward, not the count.
+
 **Correction carried in from the same conversation:** I reported "7 dependency PRs". There are
 **26, all dependabot** — 10 npm, 10 uv, 4 GitHub Actions, 2 Docker. The 7 came from a jq filter that
 excluded `build(deps): bump…` titles, so it counted the ones it was meant to exclude.
+
+> **⚠️ Status annotation on §7, 2026-08-20 (W-16). Decision #7 above was reversed and this entry said
+> nothing about it.** §7 records the user choosing *"Edit `difficulty_tiers` to match the judge"*.
+> **D-341 records the user deciding the opposite** — the multi-tier gap is **content backlog, not a
+> taxonomy/declaration error**, `difficulty_tiers` is an *authoring target* and stays as declared, and
+> audits are to stop re-flagging it. **D-342** then parked all question-bank coverage work as a
+> standing instruction.
+>
+> **The trap is in D-342's own supersession line:** it names *"D-322 §5"* and **not §7**, so the only
+> heading-level supersession marker anywhere in this log is itself incomplete on exactly this entry.
+> This annotation is the backward pointer §7 never got. §5 (depth generation deferred) is separately
+> parked by D-342 and both are now covered; nothing else in the eleven is known stale.
 
 ### D-323 — Three batches, not 24 merges, and three green ticks that had examined nothing
 
@@ -23581,8 +24030,12 @@ A deliberate sweep of both apps' staging logs and behaviour, rather than of thei
 
 #### Learning: personalized hints had never worked (D-329, fixed)
 
+> **Annotation, 2026-08-20 (W-25).** This sub-heading is the *only* place `D-329` is defined. There
+> is no `## D-329` or `### D-329` entry anywhere in this log, and nine sites cite the id — see H4.
+> Nothing has been reconstructed; this heading is the referent.
+
 `background_hint_personalization_failed` × **117 in 48 hours**, and the *only* ERROR the learning
-API was emitting. See D-329. The property worth carrying forward is why it was invisible: a
+API was emitting. See D-329 [see H4]. The property worth carrying forward is why it was invisible: a
 background task swallows exceptions by design, and a failed personalization is *deliberately*
 indistinguishable from the canonical hint. **A feature whose failure mode is "the good version
 silently never happens" cannot be caught by a test that only checks the output is reasonable.**
@@ -23638,7 +24091,7 @@ from a parsed field alone.
 ### D-331 — U7 measured: the enumeration found five orphan fields, and the scoped job addresses 1.7% of the bytes
 
 **Date:** 2026-08-14 · **Status:** design review complete (§8 steps 1–2), **no deletion code written**
-· **Document:** [U7_CHECKPOINT_CONSOLIDATION.md](U7_CHECKPOINT_CONSOLIDATION.md)
+· **Document:** [U7_CHECKPOINT_CONSOLIDATION.md](reference/U7_CHECKPOINT_CONSOLIDATION.md)
 
 ROADMAP U7 required a design review and a *staging* measurement before any code. Both are done. The
 measurement changed the recommendation, so this entry records what moved and why.
@@ -23838,6 +24291,33 @@ unreadable. Recorded as a carry-over.
 
 **Date:** 2026-08-15 · **Status:** implemented, **dry-run by default** · **Follows:** D-331, D-332
 
+> **⚠️ Annotation, 2026-08-20 (W-18, item F6). Retention in this system is governed by THREE
+> unreconciled policy families, and no document reconciles them. Do NOT present them as one chain.**
+>
+> | family | window(s) | where decided |
+> |---|---|---|
+> | derived-text tables | **90 / 90 / 365** days | **D-114 §1** |
+> | `learning_events` | **365** days | **D-153 §2** |
+> | LangGraph checkpoints | **30 / 90 / 180** days (completed / abandoned / chat) | **this entry (D-333)** |
+>
+> **This entry cites none of D-072, D-114 or D-126**, so reading it as the next link in their chain
+> conflates two different families — the supersession map's confidence on that link is explicitly
+> **LOW**. Choosing any single floor in isolation would add a *fourth* family.
+>
+> **Three consequences to carry with the windows, not separately.** (1) The status above is
+> `dry-run by default`, so **the checkpoint windows delete nothing today** and **no entry states the
+> condition or date on which dry-run is lifted** — the dry-run default is good engineering, not the
+> defect; the missing lift condition is. (2) The job is **absent from terraform entirely**, on this
+> entry's own reasoning that scheduling it ahead of the `learning_sessions` reconciler *"would be
+> actively unsafe"* — so chat checkpoints are **unbounded in practice**. (3) **D-114 §4's
+> privacy-notice obligation is undischarged** and now spans at least five windows across three
+> entries with no single reconciled statement; that is what blocks the §5.1.2 first-visit notice,
+> which blocks S45.
+>
+> Register `RETENTION-CLUSTER` → **user decision UD-7, still open**. Nothing here is decided by this
+> annotation. **Preserved verbatim as the standing precondition:** *"Before deleting any eligible
+> checkpoint, run long-term memory consolidation first."*
+
 The user's decisions, taken after D-331's measurement, and the rule in their own words:
 
 > Keep both chat and abandoned/pending checkpoints on a 90-day inactivity retention window. Before
@@ -23938,9 +24418,13 @@ and not yet exercised live. The no-op branch is sound regardless — consolidati
 
 ### D-334 — A student does see the personalized hint, about half the time, and the reason is architectural
 
-**Date:** 2026-08-15 · **Status:** measured; **the defect is reported, not fixed** · **Follows:** D-329
+**Date:** 2026-08-15 · **Status:** measured; **the defect is reported, not fixed** · **Follows:** D-329 [no entry of its own, only sub-headings — see H4]
 
-The carry-over from D-329 was *"still unproven: that a student sees the personalized hint"*. It is
+> **⚠️ Status annotation, 2026-08-20 (W-16/W-18 item M1). "The defect is reported, not fixed" is
+> stale: D-335 fixed it the same day.** This entry carried no forward pointer for five days. See the
+> annotation at **D-396** for the current SSE architecture of record, which no single entry states.
+
+The carry-over from D-329 [see H4] was *"still unproven: that a student sees the personalized hint"*. It is
 now proven, and proving it surfaced a defect that had nothing to do with hints.
 
 ### 1. The answer: yes — 2 of 4 times
@@ -23999,7 +24483,7 @@ neither can pass by doing nothing:
   published" would also pass if the scheduler had crashed on its first line).
 
 Writing it caught a real wiring error: the narrative snapshot builder took different arguments, and
-the scheduler *swallowed the resulting `TypeError`* — the same silence D-329 was about.
+the scheduler *swallowed the resulting `TypeError`* — the same silence D-329 [see H4] was about.
 
 ### 5. A correction to D-329, recorded rather than quietly edited
 
@@ -24670,6 +25154,20 @@ Two facts from the code that shaped every fix below, both of which contradicted 
 
 **Date:** 2026-08-15 · **Status:** stopgap, **removed by D-349** · **File:** `terraform/environments/staging/main.tf`
 
+> **⚠️ THE STATUS LINE DIRECTLY ABOVE CONTRADICTS THIS ENTRY'S OWN CORRECTION SECTION. Annotated
+> 2026-08-20 (W-16, W-18 item M1) — the clearest heading-versus-body contradiction in this log.**
+>
+> `**Status:** stopgap, **removed by D-349**` is false in both halves. The correction section below
+> establishes it: *"the stopgap existed for the length of a code review and **never once bounded the
+> service**"* and *"**D-349 therefore removes nothing**; that clause in its heading is inherited from
+> this mistake and is corrected here rather than quietly dropped."* Nothing in **D-349** acknowledges
+> this, so the contradiction survives in whichever of the two a reader lands on.
+>
+> **The status line is left as written, deliberately.** Editing it away would delete the exhibit —
+> the correction below *is* the valuable part of this entry, and the self-contradiction is what makes
+> it legible. This annotation is the pointer the pair never had. **Accurate status: the pin was
+> never applied; the terraform edit was reverted; the relay landed the same session.**
+
 chat-api's `ChatSessionEventBus` is a per-process `dict[str, list[asyncio.Queue]]`. Its two
 publishers are both on the request path (`routers/sessions.py`), which is why the carry-over called
 the relay gap "low value": the client that made the POST already has the answer in the response body.
@@ -24697,7 +25195,7 @@ stopgap existed for the length of a code review and never once bounded the servi
 
 Nothing was harmed: the relay landed in the same session, and at staging's traffic the latency
 policy never fired. But the entry above asserted a live protection on the strength of a file edit,
-which is the same class of error as D-329's "never worked in production" and D-335's green-but-dead
+which is the same class of error as D-329 [no entry of its own, only sub-headings — see H4]'s "never worked in production" and D-335's green-but-dead
 relay - **a claim about deployed state, made from source**. The check that caught it is the one that
 keeps catching them: read the deployed thing before saying anything about it.
 
@@ -24994,7 +25492,7 @@ every press (these dialogs change shape while open - "Share location" enables on
 typed), plus `inert` on the page behind for the pointer half a key handler cannot reach.
 
 **A docstring claiming a property the code lacks is worse than no docstring**, because it is
-the reason nobody re-checks. That is the second time this session (the other: D-329's
+the reason nobody re-checks. That is the second time this session (the other: D-329 [no entry of its own, only sub-headings — see H4]'s
 "never worked in production", corrected in the prior one).
 
 The rest, each a one-liner with a real consequence: `.message-list` had no `role="log"` or
@@ -25128,6 +25626,32 @@ staging - `scripts/measure_access_hint_live.py`, now a standing instrument:
 |---|---|
 | **Recall** | **1 of 8** questions a role-gated document answers produced a hint |
 | **Precision** | **0 of 5** public questions produced a false one |
+
+> **⚠️ SUPERSEDED FIGURES — annotated 2026-08-20 (W-10, register `ACCESS-HINT-FIGURES`; this is the
+> restatement `REQ-46` needs, and without the denominator named the defect reproduces).**
+>
+> | | this entry (2026-08-15) | **current, D-371 (2026-08-16)** |
+> |---|---|---|
+> | recall | 1 of 8 gated questions hinted | **2 of 8 asked — and 2 of the 6 *reachable*** |
+> | precision | "0 of 5 public questions produced a false one" | **5 of 5 correct — zero false hints** |
+>
+> Three things this table is fixing, all of them wording rather than substance:
+>
+> 1. **The denominator was never 8.** The probe's precondition is a **no-source refusal**, so a
+>    question that gets *answered* never reaches the probe at all. On D-371's live run: 2 answered,
+>    4 refused-without-hint, 2 hinted — so the probe fired on **2 of the 6 it could reach**. Quote
+>    **"2/8 asked, 2-of-6-reachable"**; a bare "2/8" is the same defect this note exists to stop.
+> 2. **Precision is stated here at the opposite polarity to everywhere else.** "0 of 5 false" and
+>    "5/5 correct" are the *same fact counted in opposite directions*, and a reader comparing the two
+>    documents sees `0` against `5` and concludes something changed. Nothing changed. **Normalised
+>    polarity, used from here on: precision is reported as correct-of-total (`5/5`), with
+>    "zero false hints" as the gloss** — never as a false count alone.
+> 3. **The 1→2 recall move is not a rule change.** No constant moved; D-359 repaired a `KeyError` in
+>    the instrument. The rule has been unchanged since 2026-08-04.
+>
+> **Do not read the improvement as a licence to drop the negative controls** (D-221): `FP public` and
+> `FP unans` are what make the recall number mean anything. And the residual flip rate is **measured
+> below 26%, not certified** — see D-179 §5.
 
 So the probe is heavily biased toward silence. That is the safe direction (D-221) and it also
 means the feature mostly is not doing the job SPEC gives it. **The threshold was not tuned**:
@@ -25298,6 +25822,14 @@ console-error allowance is where the gate actually lives. Enforcing 4xx suite-wi
 change with real blast radius; doing it in the same session that needs consecutive clean runs
 would confound the two. Written down instead.
 
+> **⚠️ Second, larger limit on the same gate — added 2026-08-20 (W-14).** Beyond
+> `Allowances.statuses`, **`assertClean` itself runs only when a test's status is `"passed"`.** A test
+> that fails for any other reason has its criterion-3 evidence **reported but not enforced**. So the
+> gate is narrower than "enforced at teardown across the whole run" (the phrasing used at D-113) in
+> two independent ways: it does not read 4xx, and it does not run at all on a failing test. The
+> "enforced at teardown across the whole run" phrasing this qualifies is **D-103**'s; cross-annotated
+> there.
+
 #### `study_progress` was NOT adopted as a second exit signal, having been planned as one
 
 `_study_progress` returns `None` outside the study phase — and also when the study-session id
@@ -25322,6 +25854,16 @@ an assertion that holds while checking nothing.
 ### D-356 — A student clicks "Watch a video" and a background narrative erases it ~1.5s later
 
 **Date:** 2026-08-16 · **Status:** ⛔ **open — characterised, not fixed** · **Found by:** chasing what looked like a flaky e2e spec · **Files (diagnosis):** `apps/learning-api/src/learning_api/routers/sessions.py`, `services/stage_narrative_scheduler.py`, `apps/learning-web/src/App.tsx`
+
+> **⚠️ Status annotation, 2026-08-20 (W-16). The `⛔ open — characterised, not fixed` above is stale,
+> and this is a cross-document conflict rather than merely a stale tag.** **D-358 carries
+> `**Fixes:** D-356`**, and `PROGRESS.md` (now `docs/archive/PROGRESS.md`) states **"✅ D-356 IS
+> FIXED"** — so this log and that one **disagree about the same decision**. The ambiguity is
+> preserved rather than resolved by fiat: what is verified is that a fix exists and is attributed
+> (D-358 replaced the pause-based signal, which is *"the wrong signal"*, with one that knows about
+> videos as well as hints). **Treat D-358 as the current state and this status line as not updated.**
+> D-366's attempt table also lists D-356 as what stopped accumulation attempt 1, and D-370 later
+> closed the clause — see the annotations there.
 
 #### The measurement, which is what makes this a defect rather than a flake
 
@@ -25412,6 +25954,16 @@ family's latest revision. The ops-task half is the dangerous one, for the same r
 every schedule resolves that family un-pinned, so the next nightly firing would have run the
 stale image. Fifth instance of this shape, and the first caught by the check instead of by a
 near-miss.
+
+> **⚠️ The instance counter is not reliable — annotated 2026-08-20 (W-18).** This entry calls itself
+> the **fifth** instance of the stale-image-floor shape and **D-401** calls itself the **sixth**.
+> **D-418** then showed that `make tfvars-floor-check` was *"failing on a value nothing reads"* — the
+> floor already derived itself — which **partially invalidates the count without renumbering it**.
+> Separately, whether **D-137**, **D-141** and **D-244** were themselves instances of this shape was
+> never settled. So the count is **neither wholly right nor wholly wrong**, and neither "fifth" nor
+> "sixth" should be quoted forward as a tally. What is solid and worth carrying: the *shape* is real
+> and recurred, and the executable check is what turned near-misses into refusals — which is D-418's
+> point too, not a contradiction of it.
 
 After bumping the floor the three replacements were still planned — `container_definitions`
 forces replacement — so they were **diffed as sets rather than assumed cosmetic**: identical
@@ -25716,6 +26268,22 @@ staging budget.
 
 **Date:** 2026-08-16 · **Status:** the clause stays ⏸, with a tally rather than a claim
 
+> **⚠️ Status annotation, 2026-08-20 (W-16). The ⏸ is stale: D-370 closed the same clause `✅`, about
+> 140 lines below, with no cross-link back to here.** Read D-370 for the clause's state. The
+> *reasoning* in this entry does not expire and is the reason it stays: it establishes that the
+> "4–5 consecutive clean runs" clause is a **stability** criterion, that the six attempts drained a
+> queue of **independent, real** faults (two of them product or infrastructure defects, not harness
+> noise), and that a single green run would have hidden them.
+>
+> **The D-359 … D-364 heading sweep, resolved 2026-08-20 (W-18).** Every id in the attempt table
+> below now has a verified entry heading **except one**:
+> `grep -nE "^#{2,4} D-(359|360|361|362|364)"` returns real `###` headings for **all five** —
+> including **D-362 and D-364**, which the audit had left as "genuinely unconfirmed". **Only D-363
+> has no heading at any level** (H4). Its description-to-id mapping is recoverable **only** from this
+> table — D-370's row collapses D-361 and D-363 into one cell with two descriptions — so this row is
+> the sole record that D-363 means *"the click never landed"*, a **harness** defect that stopped
+> accumulation attempt 5. That is why the row is annotated rather than tidied.
+
 Six accumulation attempts against the deployed build. **Seven clean full staging runs in total
 and never four in a row**, because each attempt surfaced one more independent cause and stopped:
 
@@ -25725,7 +26293,7 @@ and never four in a row**, because each attempt surfaced one more independent ca
 | 2 | 2 | D-360 — position-restore polled the DOM where the server was authoritative |
 | 3 | 2 | **discarded, not counted (D-362)** — 47.5 min against a 6.1 min norm, zero server-side errors |
 | 4 | 2 | D-361 — the hint spec was measuring the chooser |
-| 5 | 1 | D-363 (the click never landed) and **D-364, a real 502 the app never logged** |
+| 5 | 1 | D-363 [never written as an entry — see H4] (the click never landed) and **D-364, a real 502 the app never logged** |
 | 6 | 0 | D-365 — the study walk double-submitting, then the shared-fixture cause behind it |
 
 **Every one of those was real**, and two were product or infrastructure defects rather than
@@ -25891,7 +26459,7 @@ a queue of independent faults, and a single lucky green run would have hidden al
 | D-356/D-358 — a deferred narrative erasing a video the student asked for | **product** |
 | D-360 — the position spec polling the DOM where the server was authoritative | harness |
 | D-362 — a 47.5-minute run discarded as non-evidence | neither |
-| D-361, D-363 — the hint spec measuring the chooser; a click that never landed | harness |
+| D-361, D-363 [never written as an entry — see H4] — the hint spec measuring the chooser; a click that never landed | harness |
 | D-364 — a 502 the application never logged | **infrastructure** |
 | D-365 — the walk re-answering an item it had already answered | harness |
 | D-367 — the walk sharing a student with seventeen specs on a persistent environment | fixture |
@@ -25953,6 +26521,29 @@ The seven live **gated** questions sit at these distances from their nearest gat
 against corpus-derived gated cases at mean **0.432** and a shipped ceiling of **0.40**. Only one
 of seven is inside it — which *is* the low live recall, measured rather than inferred.
 
+> **⚠️ Label correction, 2026-08-20 (W-10, register `ACCESS-HINT-FIGURES` item (c)). "A shipped
+> ceiling of 0.40" matches no constant in the code, and the label — not the argument — is the
+> actionable part.**
+>
+> Verified read-only in `packages/shared/src/intellichoice_shared/access_probe_policy.py`:
+>
+> - **0.40 is not a live constant anywhere.** It was **D-165**'s value and was replaced by D-166.
+> - **`ACCESS_PROBE_MAX_DISTANCE = 0.45`** is the ceiling that exists — and **since D-168 it is the
+>   *fallback*, not the live rule.** The file says so in place: it is what a *distance-only* probe
+>   uses — the lexical / `MockBedrockProvider` path, and the degraded path when the reranker is
+>   unavailable.
+> - **The live rule is three constants, and none of them means anything alone** (D-168, retuned by
+>   AUD-C-23): `ACCESS_PROBE_CANDIDATE_MAX_DISTANCE = 0.60`, `ACCESS_PROBE_RERANK_MIN_SCORE = 0.9`,
+>   `ACCESS_PROBE_TIER_MARGIN = 0.10`.
+>
+> **Why the label matters more than the number:** someone told to "tune the shipped ceiling of 0.40"
+> goes looking for it, finds 0.45, edits **the fallback**, and sees **no production change** — while
+> quietly changing the lexical, mock and degraded paths. The distance figures and the
+> interleaving argument in this section are **unaffected**: the seven live gated distances
+> (0.341 … 0.642, mean 0.487) against a corpus mean of 0.432 still say the signal does not carry the
+> distinction, whichever ceiling label is used. **Read this paragraph as "the fallback ceiling,
+> 0.45"; for the live rule read the three constants.**
+
 **And the live `public` case sits at 0.448**, closer than four of the seven gated ones. So the
 gated and public cases are **interleaved on the distance axis**. Widening the ceiling to 0.50 to
 catch four more gated questions also fires on a question the corpus already answers. The rerank
@@ -25978,7 +26569,7 @@ came back `REFUSED+ESCALATE`. That is a public-corpus coverage gap, not an autho
 
 ### D-372 — The crash sink for the anonymous app, and the record correction that came with it
 
-**Date:** 2026-08-16 · **Status:** built, falsified, tested · **Files:** `apps/chat-api/src/chat_api/routers/client_errors.py`, `apps/chat-api/tests/test_client_errors.py`, `apps/chat-web/src/lib/reportClientError.ts`, `ErrorBoundary.tsx`, `main.tsx`, `docs/OPEN_DECISIONS.md`
+**Date:** 2026-08-16 · **Status:** built, falsified, tested · **Files:** `apps/chat-api/src/chat_api/routers/client_errors.py`, `apps/chat-api/tests/test_client_errors.py`, `apps/chat-web/src/lib/reportClientError.ts`, `ErrorBoundary.tsx`, `main.tsx`, `docs/archive/OPEN_DECISIONS.md`
 
 #### First: OPEN_DECISIONS #1 was stale, and building it would have been a regression
 
@@ -26048,7 +26639,7 @@ the code beneath it.
 
 **Date:** 2026-08-16 · **Status:** fixed, falsified · **Files:** `apps/learning-api/src/learning_api/services/hint_personalization_scheduler.py`, `apps/learning-api/tests/test_hint_personalization_scheduler.py`
 
-The 2026-08-16 audit ([AUDIT_2026_08_16.md](AUDIT_2026_08_16.md)) had four independent sweeps
+The 2026-08-16 audit ([AUDIT_2026_08_16.md](reference/audits/AUDIT_2026_08_16.md)) had four independent sweeps
 report the same structure: **the two apps have been fixed in alternating directions and nobody
 tracked the symmetry.** D-347 recorded one direction and named the cause. Seven fixes have now
 gone one way only, and the seventh is this one.
@@ -26121,8 +26712,8 @@ There was **no `asyncio.timeout`, no `wait_for`, no deadline anywhere** in learn
 the SSE keep-alive. The gateway ladder is 3 attempts × 20 s plus 0.5 s and 1.0 s of backoff =
 **61.5 s**, against CloudFront's 60 s origin read timeout.
 
-**Not hypothetical — D-208 measured it** on `POST /exam/finalize`: 65–81 s with `61502.69ms` of
-Bedrock, *"identical to the millisecond, the signature of a ceiling being hit"*. D-208 moved
+**Not hypothetical — D-208 [never written as an entry — see H4 at the top of this file] measured it** on `POST /exam/finalize`: 65–81 s with `61502.69ms` of
+Bedrock, *"identical to the millisecond, the signature of a ceiling being hit"*. D-208 [never written — H4] moved
 consolidation off the path and left the inline `post_outro` narrative on it. On `GET /stream` it
 is worse: a non-2xx is terminal for `EventSource`, so that tab receives no live push for the rest
 of its life.
@@ -26274,6 +26865,9 @@ no counter — **the reporting half shipped and the noticing half did not**, so 
 that white-screens one browser family sat until a human complained.
 
 #### D-329's detection gap, unchanged since the incident
+
+> **Annotation, 2026-08-20 (W-25).** `D-329` has no entry of its own — see H4. Its referent is the
+> `#### Learning: personalized hints had never worked (D-329, fixed)` sub-heading inside D-330.
 
 117 `background_hint_personalization_failed` in 48 hours, invisible because a detached task
 swallows exceptions by design. The bug is fixed; `grep -rin "background_" terraform/` still
@@ -27348,6 +27942,32 @@ The gauge decrements **inside** the `if queue in subs` branch. Beside it, a doub
 the gauge negative, which on a dashboard reads as a bug in the stream rather than in the counter —
 so the test drives the second unsubscribe explicitly.
 
+> **The current SSE cross-replica architecture of record, stated once — added 2026-08-20 (W-18, item
+> M1). No single entry stated the whole, which is why this is here rather than in a new decision.**
+>
+> **The architecture is D-335 as amended by D-395, plus D-396 (this entry) for telemetry.** The trail,
+> in order, so a reader landing on any one link knows where they are:
+>
+> | entry | what it contributes | status to read |
+> |---|---|---|
+> | **D-329** | the original silence: personalized hints had never worked in production | no entry of its own (H4) |
+> | **D-334** | measured it — a student sees the hint ~half the time; **its status line "the defect is reported, not fixed" is stale** | annotated; D-335 fixed it same day |
+> | **D-335** | the fix: `session_event_relay.py` — and it **shipped green on zero of two replicas** because a `_dsn()` string replacement broke on a URL-significant password | the base architecture |
+> | **D-344** | chat-api's replica pin — **never applied, reverted; its own status line contradicts its body** | annotated; nothing live came of it |
+> | **D-349** | chat-api's relay ported; the capacity cap returned to 3 with a measurement behind it. **It removes nothing from D-344** | live |
+> | **D-395** | the amendment that matters: the relay was **losing four events in five** to `another operation is in progress` on one shared asyncpg connection | **live, and this is the current behaviour** |
+> | **D-396** (here) | the three metrics that would have made D-395 visible | live |
+>
+> The recurring lesson across the whole chain, worth more than the topology: **D-335, D-344 and
+> D-329 are all one failure mode — a claim about deployed state made from source** — and D-395 is
+> that mode returning *inside the mechanism built to fix it*. `sse_relay_failures_total{reason}` is
+> the instrument that closes it, because *"a log nobody queries is not telemetry"*.
+>
+> Not settled by this note, and not settled anywhere: whether a **40 s stale timer against a 15 s
+> keepalive** is the right ratio is **argued, not measured live** (D-405, extended by D-413), and
+> learning-web parity is asserted only structurally (D-414/D-415). Register `H5-LIVENESS-TIMER` —
+> disposition `OBSERVATION_ONLY`, nothing owed.
+
 ## D-397 — OPEN_DECISIONS #13: the second engine was added, and it did not buy what it was bought for (accepted, 2026-08-17)
 
 **The user chose option A** — a WebKit project scoped to the specs where browser behaviour is the
@@ -27536,9 +28156,18 @@ description says users are unaffected, or if it reports a business floor rather 
 > absent from state entirely — which is why the plan shows four alarm updates (two apps × two
 > alarms) rather than five. The routing test asserts the configuration and is right to; the
 > deployed count and the configured count are simply not the same number, and "26 alarms" is the
-> configured one. Everything else stays
-on the page channel, and **the default for anything new is the page channel**, because an alarm
-nobody is woken by is easier to add by accident than to notice.
+> configured one.
+
+> **Rendering fixed 2026-08-20 (W-18) — the correction block above ended mid-sentence.** The `>`
+> quote used to stop after the words "Everything else stays", so the *original* entry's next
+> sentence rendered as a continuation of the 08-18 correction. **No wording was changed and nothing
+> was moved between the two voices**; the block boundary was closed at "configured one." and the
+> original sentence below restored to its own paragraph. This is the only *rendering* defect found in
+> the corpus, and it was worth fixing because **a fused correction reads as the original claim** —
+> the exact failure this log's correct-in-place habit exists to prevent.
+
+Everything else stays on the page channel, and **the default for anything new is the page channel**,
+because an alarm nobody is woken by is easier to add by accident than to notice.
 
 **The risk this fix introduces is worse than the bug it fixes, so it is tested.**
 `test_alarm_severity_routing.py` asserts every alarm notifies exactly one channel (unrouted fails),
@@ -27557,6 +28186,25 @@ the SSE relay fix as a side effect of adding an SNS topic. Bumped, with the reas
 file's own history. `terraform.tfvars` is gitignored, so that bump does not ship: it is local state
 that has to be redone on a fresh checkout, which is precisely why the executable check exists
 (AUD-X-16).
+
+> **⚠️ Two annotations, 2026-08-20 (W-18).**
+>
+> **1. "The sixth instance of one shape" is not a reliable tally.** D-357 called itself the fifth and
+> this entry the sixth, and then **D-418** showed `make tfvars-floor-check` was *"failing on a value
+> nothing reads"* — the floor already derived itself — which **partially invalidates the count
+> without renumbering it**. Whether **D-137**, **D-141** and **D-244** were themselves instances was
+> never settled. **Do not quote "sixth" forward as a count.** The shape is real; the tally is not.
+>
+> **2. This entry's own status splits across three entries, and no single one states current alarm
+> routing.** The split, so a reader does not take one of the three for the whole: **configured**
+> here (D-401, `not applied` — the SNS topic and the routing change exist in terraform only);
+> **corrected** here on 2026-08-18 by D-406's plan run (three alarms qualify in configuration, only
+> **two** are deployed, because `sessions_completed_floor` is `count`-gated on a variable that is 0);
+> **applied** in **D-419**, which also found a transient refresh that nearly replaced a healthy audit
+> bucket. Register `SNS-CONFIRMATION` carries the residual that four informational alarms route to a
+> topic whose subscriber is `PendingConfirmation` — **D-419 records that live unresolved action with
+> no `⛔`/`⏸` marker of any kind**, which is a stale-tag hazard of the H1 class in the newest entry in
+> this log.
 
 ## D-402 — W10: Stop stops the server, turn by turn (accepted, 2026-08-18)
 
@@ -27787,9 +28435,19 @@ is in state and untouched.
 
 **What the plan *did* show, all of it accounted for:** the two SNS resources and four alarm updates
 from D-401's unapplied alarm split, and three task-definition replacements, which is the standard
-CI-registers-then-terraform-wants-to-re-register drift D-137/D-141/D-356 document. **5 to add, 4 to
+CI-registers-then-terraform-wants-to-re-register drift D-137/D-141/D-356 [**wrong id — read D-357;
+annotated 2026-08-20 (W-18, register `D356-FAMILY` item 3)**] document. **5 to add, 4 to
 change, 3 to destroy** — 2 SNS + 3 replacements is the 5, the 3 replacements are the 3 destroys, and
 the arithmetic closes. Nothing unexplained, and nothing applied.
+
+> **⚠️ Citation correction, 2026-08-20 (W-18, twelfth item; register `D356-FAMILY` item 3).** The
+> third id above is wrong. **D-356 is the video-panel race** — *"a student clicks 'Watch a video' and
+> a background narrative erases it ~1.5s later"* — and has nothing to do with task-definition drift.
+> **The entry that documents this shape is D-357**, "the floor check caught a five-revision-stale
+> apply first". So the correct citation is **D-137 / D-141 / D-357**. The original text is left in
+> place with the correction beside it, per this log's own habit. The same wrong id also appears in
+> `docs/archive/PROGRESS.md:334`; that copy is corrected behind its archive banner, not here. And
+> before quoting D-357's "fifth instance" from it — see the tally annotation at D-357 and D-401.
 
 **A side finding the plan produced**, corrected above in D-401: `sessions_completed_floor` is not
 deployed (`count` gated on a variable that is 0), so of the three alarms routed to the quiet channel

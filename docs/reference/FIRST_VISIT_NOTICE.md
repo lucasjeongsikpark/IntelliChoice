@@ -7,6 +7,18 @@ point of the file. D-127 §3 filed T-02 because the notice's *content* depended 
 legal track while its *implementation* was assumed by a session that never listed it, which is
 how a requirement arrives at launch owned by nobody.
 
+> **Which "S45" — disambiguated 2026-08-20 (W-35 `RISK-R6.4-SESSION-LABELS`).** Every "S45" in this
+> file means **ROADMAP's consent session S45 (I9/I10: consent ledger, capture UI, age-band
+> derivation, no-consent→no-token), which is unstarted and frozen-adjacent** — its acceptance
+> criteria now live in
+> [docs/reference/integration/ROADMAP_FROZEN_SESSIONS.md](integration/ROADMAP_FROZEN_SESSIONS.md),
+> and the block it sits in is frozen by D-152. It is **not** the *completed* unnumbered "S45" in the
+> archived session log (`docs/archive/PROGRESS.md`), which is a self-applied Phase-0B label that
+> happens to collide with it. The collision matters because it touches two live items — the
+> `DISCLOSURES-LEGAL` product decision and `FIRST-VISIT-REVERIFY` — so an unqualified "Owner: S45"
+> could be read as *already done*. Per the project's session-label convention (`docs/PROJECT_STATE.md`),
+> bare session labels are qualified at first use.
+
 **What this is not.** Not the Privacy Notice, and not a substitute for counsel review, which
 stays a launch gate (§6.1). Not the capture UI, the age-band derivation, or the consent record —
 those are S45's build. And **not parental consent**: §5.1.2 is explicit that a student-facing
@@ -15,7 +27,7 @@ notice may not stand in for it. For an under-13 student the app verifies
 then shows this notice.
 
 **Two registers.** The token carries `student_age_band`
-([auth.py](../packages/shared/src/intellichoice_shared/auth.py)), so the copy below comes in a
+([auth.py](../../packages/shared/src/intellichoice_shared/auth.py)), so the copy below comes in a
 younger-reader form and a standard form. The younger form is the one to use when in doubt: no
 disclosure below is materially harder to state simply, and the product's primary users are minors.
 
@@ -33,6 +45,21 @@ disclosure below is materially harder to state simply, and the product's primary
 A disclosure whose "True because" row says **NOT BUILT** must not ship as written. §5 collects
 those three.
 
+> **⏳ Re-verification stamp — added 2026-08-20 (`FIRST-VISIT-REVERIFY`, `PROJECT_STATE` §6.3).**
+> Every **"True because"** row below is a **dated code measurement, not a standing guarantee**. The
+> measurements were taken when this file was written (2026-08-15) and have not been re-taken since.
+> **Re-verify all eleven rows against HEAD at the start of ROADMAP's consent session S45** — against
+> the code at that time, never against these rows. The **"Goes false if"** rows are the instrument
+> for doing it: each one names the change that would silently turn its disclosure into a false
+> statement.
+>
+> The row most likely to have moved is §2.9's **102 of 112 skills have a servable video** — exactly
+> the class of figure this project has watched go 100× stale. Treat any number in a "True because"
+> row as provenance until re-measured.
+>
+> Re-verification is scheduled work attached to an unstarted session, **not** outstanding drift.
+> Owner: engineering at S45 (see the disambiguation above).
+
 ---
 
 ## 2. The eleven disclosures
@@ -43,7 +70,7 @@ those three.
 - **Copy (standard):** "An AI system reviews your answers and your past sessions to choose what you practise next."
 - **True because:** the study plan is selected from the student's own mastery estimates and
   attempt history; `semantic_memory` holds consolidated facts about the learner
-  ([packages/memory](../packages/memory)). Grading itself is **not** the AI — see 2.3.
+  ([packages/memory](../../packages/memory)). Grading itself is **not** the AI — see 2.3.
 - **Goes false if:** selection stops being personalized (then it over-claims), or the AI starts
   reading something beyond answers and learning history.
 
@@ -76,7 +103,7 @@ those three.
   estimate for you, which changes the difficulty of what you get next."
 - **True because:** the pre/post pair drives the mastery estimate and the learning-gain
   calculation; `learning_gain` rows are written at post-exam completion
-  ([flow.py](../apps/learning-api/src/learning_api/services/flow.py)).
+  ([flow.py](../../apps/learning-api/src/learning_api/services/flow.py)).
 - **Goes false if:** the estimated level stops feeding item selection.
 
 ### 2.5 Scores and skills to strengthen may be shared in limited form with tutors and branch managers
@@ -85,7 +112,7 @@ those three.
 - **Copy (standard):** "Your tutor and branch manager may see a limited summary — your scores and
   the skills to work on — not your individual answers or chat messages."
 - **True because:** ⚠️ **NOT BUILT in this codebase.** `tutor` and `branch_manager` are defined
-  roles ([auth.py](../packages/shared/src/intellichoice_shared/auth.py)) and gate document
+  roles ([auth.py](../../packages/shared/src/intellichoice_shared/auth.py)) and gate document
   retrieval in the Q&A app, but learning-api exposes **no tutor- or manager-facing view of a
   student's record**; the read half is deferred to S43/integration (D-086). See §5.
 - **Goes false if:** it ships wider than "scores and skills" — the word *limited* is doing real
@@ -109,7 +136,7 @@ those three.
   memory that personalizes future sessions. It is kept for 90 days after it was last confirmed."
 - **True because:** `semantic_memory` holds consolidated facts, refreshed by the weekly
   consolidation job and purged 90 days after `last_confirmed_at`
-  ([retention_purge_cli.py](../apps/learning-api/src/learning_api/services/retention_purge_cli.py),
+  ([retention_purge_cli.py](../../apps/learning-api/src/learning_api/services/retention_purge_cli.py),
   D-114).
 - **Goes false if:** the 90-day window moves, or memory starts being derived from a source the
   sentence does not name.
@@ -155,7 +182,7 @@ those three.
 - **Copy (standard):** "You can report a question that seems wrong or unfair."
 - **True because:** the **reporting** half is built — `POST /questions/{id}/reports`, reporter
   always taken from the authenticated token
-  ([questions.py](../apps/learning-api/src/learning_api/routers/questions.py), SPEC §5.8.7).
+  ([questions.py](../../apps/learning-api/src/learning_api/routers/questions.py), SPEC §5.8.7).
   ⚠️ The **challenging-a-result** half is **NOT BUILT and nowhere specified** — the phrase occurs
   exactly once in the entire SPEC, in this list. See §5.
 - **Goes false if:** shipped as written today. The copy above deliberately promises only the half
@@ -169,7 +196,7 @@ A standing obligation, carried since 2026-07-30 and reproduced here so it surviv
 
 | what | window | on |
 |---|---|---|
-| tutor-chat messages | **90 days** | `created_at` ([tutor_chat_purge_cli.py](../apps/learning-api/src/learning_api/services/tutor_chat_purge_cli.py)) |
+| tutor-chat messages | **90 days** | `created_at` ([tutor_chat_purge_cli.py](../../apps/learning-api/src/learning_api/services/tutor_chat_purge_cli.py)) |
 | derived facts (learning memory) | **90 days** | `last_confirmed_at` — a fact that keeps being reconfirmed stays |
 | parent-visible reports | **365 days** | `created_at` — the deliberate exception, because a parent expects to re-open a report |
 
@@ -232,6 +259,14 @@ real names and emails by design.
 
 ## 6. Owner and next step
 
-**Owner: S45**, per D-127 §3's recommendation, with this file as the input it transcribes.
-Counsel review of the resulting text remains a §6.1 launch gate. The three gaps in §5 need a
-product decision before S45 starts, because they change how many disclosures there are.
+**Owner: ROADMAP's consent session S45 — unstarted, and inside the D-152 integration freeze**
+(disambiguated 2026-08-20, W-35 `RISK-R6.4-SESSION-LABELS`; its "done when" criteria are in
+[docs/reference/integration/ROADMAP_FROZEN_SESSIONS.md](integration/ROADMAP_FROZEN_SESSIONS.md)).
+**Not** the completed unnumbered "S45" in `docs/archive/PROGRESS.md` — a bare "Owner: S45" was
+ambiguous between the two, and the wrong reading makes this work look finished.
+
+Per D-127 §3's recommendation, with this file as the input it transcribes. Counsel review of the
+resulting text remains a §6.1 launch gate. The three gaps in §5 need a product decision before S45
+starts, because they change how many disclosures there are — that decision is **open** (`UD-10`,
+carried by `DISCLOSURES-LEGAL`), and nothing here decides it in either direction. Re-verify the
+"True because" rows at S45 start (`FIRST-VISIT-REVERIFY`; see the stamp in §1).

@@ -281,7 +281,11 @@ instead of one being inferred from the other.
 instrument can be stably wrong.
 
 **Result, single reviewer (D-254, Haiku 4.5):** M1 = **1 of 8**, against a pre-registered
-disqualifier of 3. Not falsified. The union number is unmeasured.
+disqualifier of 3. Not falsified. ~~The union number is unmeasured.~~
+**Superseded 2026-08-10 by D-256, annotated 2026-08-20 (W-33 `RISK-GROUP-OPS-DOC-STRATA`): the
+union number *is* measured — M1 = 1 of 8 on the union** (B split on 1 of 8, C on 2 of 8), which is
+the same result the strikethrough at the top of this check already records. This line contradicted
+its own section and read as an open measurement worth buying; it is not.
 
 ### Check 2 — Approved-bank sanity: broader sample × single reading
 
@@ -342,12 +346,26 @@ everything else.
 
 **Already computed — build no detector.** Two things to get right, both verified in code:
 
-- **Fatal conflicts never reach this instrument.** `solver_objections()` is a reject gate
-  (`ai_pipeline.py:1709-1711`). The usable residue is the *survivable* disagreement:
-  `_DIFFICULTY_FLAG_AT`'s 1-off `flagged`, where the item is kept (`:301-302`, `:1884`).
+*Citation convention (W-39, applied 2026-08-20): the four bare line numbers this section carried had
+drifted, so they are replaced by **symbol citations with an as-of stamp**. Symbols survive refactors;
+line numbers did not. All four verified read-only against
+`packages/curriculum/src/intellichoice_curriculum/ai_pipeline.py` on **2026-08-20**, and the
+behaviour each one describes is unchanged — only the anchors moved.*
+
+- **Fatal conflicts never reach this instrument.** `solver_objections()` is a reject gate — its
+  call site returns `_reject(objections, …, "solver")` immediately
+  (`ai_pipeline.solver_objections`, defined near the top of the module and called from the
+  candidate pipeline; ~`:346` and ~`:1944` as of 2026-08-20, was cited as `:1709-1711`). The usable
+  residue is the *survivable* disagreement: `_DIFFICULTY_FLAG_AT`'s 1-off `flagged`, where the item
+  is kept (`ai_pipeline._DIFFICULTY_FLAG_AT`, and the `flagged` branch of
+  `ai_pipeline.judge_difficulty`; ~`:169` and ~`:316` as of 2026-08-20, was cited as `:301-302` /
+  `:1884`).
 - **Do not wire any trigger to `retiered`.** It requires `slot_gap >= _DIFFICULTY_RETIER_AT`
-  **and** `may_retier`; without the second it becomes `rejected` (`:289-292`). A double
-  condition — a trigger on it would look correct in review and fire near-zero times.
+  **and** `may_retier`; without the second it becomes `rejected` (the `retiered` branch of
+  `ai_pipeline.judge_difficulty`, with `may_retier` supplied at the call site from
+  `dispersion.permits_retier()`; ~`:305-315` and ~`:2025` as of 2026-08-20, was cited as
+  `:289-292`). A double condition — a trigger on it would look correct in review and fire
+  near-zero times.
 
 **`flagged` must not become a generic quality trigger.** A difficulty disagreement means *the
 tier may be filed wrong*, not *the hints may be bad*. D-238 settled this: **"the tier is a

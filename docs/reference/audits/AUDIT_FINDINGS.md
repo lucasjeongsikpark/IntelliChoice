@@ -1,8 +1,30 @@
 # Audit Findings — Phase 0A (S36–S39)
 
 The findings register for the four audit sessions defined in
-[INTEGRATION_PLAN.md §2.3](INTEGRATION_PLAN.md). One row per finding, with reproduction and
-evidence, so §2.6's criteria 1 and 2 can be evidenced rather than asserted.
+[INTEGRATION_PLAN.md §2.3](../integration/INTEGRATION_PLAN.md). One row per finding, with
+reproduction and evidence, so §2.6's criteria 1 and 2 can be evidenced rather than asserted.
+
+> **⚠️ Scope, and how to cite from this file — added 2026-08-20 (`AUDIT-ID-NAMESPACE` /
+> `RISK-GROUP-AUDIT-REGISTERS`, W-17 / W-26).**
+>
+> **This register is frozen at 2026-08-05 (D-183).** It covers audit sessions **S36–S39 only**. It is
+> the historical baseline the two later audits were written against, not a live worklist — and it was
+> written before either of them existed, so it mentions neither.
+>
+> **Cite every id from this file source-qualified: `AUDIT_FINDINGS.md:AUD-L-19`, never a bare
+> `AUD-L-19`.** A bare audit id does not uniquely identify a finding. `AUD-L-01…AUD-L-19` exists in
+> **two** registers with unrelated meanings, and the rule plus the full namespace map live in
+> [`docs/reference/audits/README.md`](README.md). No mechanical re-map exists — the one renumber that
+> happened (`AUD-L-17` → `AUD-L-19`, D-174) was applied per reference with ranges deliberately left
+> ambiguous — so **do not renumber anything**; resolve ids by reading the cited document.
+>
+> **The two successor audits, and what each adds:**
+> [`AUDIT_2026_08_16.md`](AUDIT_2026_08_16.md) — four post-C1 source-read sweeps, **46 findings**, in
+> its own `P1-1…P1-10`-plus-unnumbered-prose namespace; and
+> [`AUDIT_LIVE_2026_08_17.md`](AUDIT_LIVE_2026_08_17.md) — four browser walks over the **deployed**
+> build, **48 findings / 42 unique**, reusing this file's whole `AUD-L` range with different
+> meanings. Any project-wide statement about findings has to range over all three; this file alone
+> cannot make one.
 
 **Severity (§2.4).** P0 authorization bypass / PII leak / data corruption / child-safety
 failure / uncontrolled spend — stops the line, fixed immediately with a regression test.
@@ -20,6 +42,25 @@ ones.
 ---
 
 ## Index
+
+> **⚠️ The Status column is NOT authoritative — disclaimer added 2026-08-20
+> (`RISK-GROUP-AUDIT-REGISTERS`, W-26). It is kept, not deleted, because it is the record of what
+> this register believed when.** This file documents its own status-rot **five times over**, which is
+> why the column gets a disclaimer instead of a promise:
+>
+> 1. The Index **stopped being maintained** after `AUD-F-20` / `AUD-C-16` / `AUD-X-08` — **27
+>    findings had a detail section and no row**, so every table-derived count under-counted (D-174).
+> 2. **Five headings still read "not fixed"** after their fixes had landed (`AUD-F-21`, `F-25`,
+>    `F-27`, `F-34`, `X-13`); all five corrected the same day.
+> 3. **`AUD-F-16` had a row and it said `Open`** for two weeks after D-116 fixed it.
+> 4. **`AUD-F-27`'s heading says both "✅ fixed" and "not fixed"** — still, today; see the annotation
+>    at that entry.
+> 5. **"Status: open, Phase 0B" bullets survive inside closed entries**, and known-wrong
+>    "Fix shape (Phase 0B)" blocks are retained verbatim inside findings that were fixed differently.
+>
+> **So: read the finding's own section and the decision that closed it, not this column.** Where a
+> body contradicts a status, D-174's rule is that **the status wins** — except where the status is
+> one of the five failure modes above, which is precisely why the section has to be read.
 
 | ID | Area | Severity | Status | Summary |
 |---|---|---|---|---|
@@ -108,6 +149,15 @@ the register's own stated invariant — "One row per finding" — was broken for
 the disposition rule ("Every finding needs a disposition here") along with it. Anything derived by
 reading the table therefore under-counted: 89 findings have a section, only 68 had a row.
 
+> **Scope label and current numbers, added 2026-08-20 (`AUDIT-COUNT-INSTRUMENT`, W-12).** "89 / 68"
+> is a **2026-08-04 snapshot of this register only** (S36–S39, frozen 2026-08-05). Re-derived at the
+> current path on 2026-08-20: **94 `### AUD-` headings → 93 unique section ids** (the extra heading is
+> the benign `AUD-C-16` double section) against **100 unique Index row ids**. The backfill worked in
+> the direction it was aimed — **every section now has a row, 0 exceptions** — and left the reverse
+> gap open: **7 row ids have no section** (`AUD-F-05`, `F-16`, `F-17`, `F-18`, `F-19`, `F-20`,
+> `F-38`), all closed, so no count moves. Neither number says anything about the 46 and 48 findings
+> the [08-16](AUDIT_2026_08_16.md) and [08-17](AUDIT_LIVE_2026_08_17.md) audits filed afterwards.
+
 **What that cost, concretely.** Two open findings were invisible to every backlog count taken this
 way — **AUD-F-22** (P2, a parent cannot reach the dashboard) and **AUD-F-33** (P2, scale-in stops
 working; deferred by user call, not closed) — while **five** findings whose fixes are recorded in
@@ -153,20 +203,52 @@ corrected and the correction is marked in it.
 | AUD-F-37 | Deploy pipeline | P2 | ✅ Fixed 2026-08-03 (D-158) | Nothing verified that the deployed code is the code that was built |
 | **AUD-C-27** | **Security control / abuse — escalation rate limit** | **P2** | ✅ **fixed 2026-08-04 (D-181), measured live before the fix shipped: 8 accepted against a configured 5** | **The SPEC §5.24.2 escalation cap counts in one process's memory, and a process is one ECS task, so the deployed cap is the configured number times the running task count.** Not inferred - probed anonymously against the deployed chat edge from one IP, with a fresh session per attempt: **8 escalation drafts accepted, then blocked**, against `email_rate_limit_max_per_window = 5`. The path is free to probe (`escalate: true` skips `scope_guard` and reaches a deterministic template, so no Bedrock call) and sends nothing (`FakeEmailTransport` is wired unconditionally), which is why the pre-fix number exists at all. Uvicorn runs one worker in both Dockerfiles, `autoscaling_min_capacity` is 2 for learning-api and 1 for chat-api with `max_capacity` 3, and no ALB target-group stickiness pins a caller to a task. **Same defect class as AUD-X-08** (a limit enforced from state other callers cannot see); the only difference is which state was invisible - there an uncommitted row, here another task's memory. The control this defeats is the *only* one on an anonymous caller's ability to mail the org's admin. **Two things the finding also caught:** `RATE_LIMITED_MESSAGE` said "from this session", which is wrong - the key is the caller, and every probe attempt used a fresh session - and `test_schema_purity`'s denylist had no IP-shaped column names, so nothing would have failed if the fix had stored raw client IPs. Fixed with a shared Postgres counter behind the existing seam (`rate_limit_events`, HMAC of the key, advisory-locked count), the global 6000/min per-IP middleware deliberately left per-task |
 | **AUD-C-26** | **Product correctness — access hint** | **P3** (filed P2; **re-argued down in D-180 after the live row came back vacuous**) | ✅ **fixed and deployed 2026-08-04 (D-180), as the user decided: silence on ambiguity** — one measured option was refuted on the way, and the severity claim did not survive the live check | **A question the public corpus answers is told to log in as a parent, on the probe branch no rule table ever modelled.** Found by AUD-C-25's fix on its first run, at zero cost. When *nothing* is within `ACCESS_PROBE_CANDIDATE_MAX_DISTANCE`, `probe_access` returns at its `if not candidates` branch — no reranker call, **no relevance floor and no tier margin** — and `_lexical_only` decides alone. With no score to rank by, `build_access_hint` falls back to tier **priority**, which is the exact rule AUD-C-22 was filed against; the D-165/D-168/D-177 constants are not implicated because none of them runs on this path. **Not a knife edge, and not rare:** the branch is reached on **18 of 58** cases in the human-phrasing arm (11 public, 4 unanswerable, 3 gated) and 17 of 58 in the corpus arm — "no candidate within 0.60" is the ordinary case for a question phrased unlike the corpus. The keyword arm is quiet across almost all of it (1 fire in 35 empty-pool cases over both arms), and the one fire is wrong: **`probe-public-025`**, *"How do I get or delete my kid's school records?"*, nearest non-public chunk at distance **0.7251** against the 0.60 ceiling, keyword arm returning `{parent: 1, student: 3}` → **`required_role: "parent"`** for an answer the **public** Privacy Notice carries. So a caller is told to authenticate for public information. **Severity P2, argued both ways:** milder than AUD-C-22's wrong tier on gated content (the user probably *is* a parent) but the same defect class — a user-visible instruction that cannot help, on a negative class the recorded table showed as clean. **Why it needs a decision rather than a patch:** the obvious fix (skip the lexical arm when the candidate pool is empty) collides with D-165's reason for keeping the arm at all — `MockBedrockProvider`'s embeddings are hash-seeded vectors with no semantic content, so this is the **only** arm the entire mock-backed suite can exercise, and removing it makes the probe structurally unobservable offline. Candidate fixes: (a) require ≥2 matched audiences to disagree before the priority fallback names one, (b) give the keyword arm a minimum-match bar (`probe-public-025` fires on a single chunk), (c) keep the arm for tests but gate the *hint* on a scored signal, (d) accept and record it. All four are measurable for free with `--shipped` |
-| **AUD-C-25** | **Audit integrity / measurement harness** | **P2** | ✅ **fixed 2026-08-04 (D-179) — and it found AUD-C-26 on its first run** | **`measure_access_probe_rules.py` does not measure the rule it is used to choose.** Every access-probe constant since D-165 was set from this script's tables, and the script **reimplements** the rule (`rerank_prefloor_margin_hint`) rather than calling `probe_access`. The reimplementation differs from production in two ways, and no test compares them. **(i) The branch order is reversed:** the harness checks the floor first (line 558) then the margin; `probe_access` checks the margin first ([retrieval.py:187](../packages/knowledge/src/intellichoice_knowledge/retrieval.py#L187)) then the floor. **(ii) The harness has no lexical arm at all** — neither `_lexical_only` nor `count_matching_by_audience` appears in it — so where production falls through to a keyword match that *can* return a hint, the harness returns `None` and scores it as silence. The two disagree exactly when `winner ≤ floor` **and** `winner − runner_up ≥ margin`, which is **AUD-C-23's own failing case** (winner 0.75–0.90 against the 0.9 floor, runner-up 0.2–0.3). So D-177's headline "0 wrong tiers, 0 false hints, 0/40 stability fires" is a true statement about the harness's rule that **does not cover** production's composed path on the decisive question. **Bounded, and the bound is why this is P2 not P1:** D-178's 10 live probes measured the composed path directly at **0/10 hints with a 3/3 control**, so no user-facing damage exists today, and the lexical arm was separately measured clean on both negative classes. The exposure is the *instrument*: the next rule decision will be made on tables that model a rule nobody ships. Same class as AUD-F-16 (a harness measuring something other than what it claimed) and as D-175's config-parity gap — whose `ast` guard checks the harness passes the same `Settings` **fields** as the route, while nothing checks the rule has the same **structure**. **Two candidate fixes, neither costing a paid re-measurement:** have the harness call `probe_access` with an injected score map, or add a parity test that runs both over the saved dumps and asserts identical hints per case. Also unresolved and cheap to settle from the same dumps: production's pre-floor margin now **gates** the lexical arm (two audiences at `0.0` → `matches={}`, `lexical_calls=0`, verified), which the "strictly additive, gets the last word" comment at [retrieval.py:196](../packages/knowledge/src/intellichoice_knowledge/retrieval.py#L196) no longer describes, and which plausibly accounts for part of the 29→27 drop D-177 attributed to the floor raise **✅ Fixed 2026-08-04 (D-179), arm (a) — the harness now calls `probe_access` instead of restating it.** `--shipped` replays the real function per case: rerank scores come from the dump (the paid, nondeterministic input, and `--load`'s whole purpose is comparing rules against identical model output), while the **lexical arm is real**, delegated to `RagRepository.count_matching_by_audience` against local Postgres — it takes no embedding, so it is faithful offline even with mock vectors stored, which is exactly why it could have been modelled for free at any point and never was. The table gains a `SHIPPED probe_access` row and a parity section against `pf_f09_m01`, its transcription. **It paid for itself immediately:** the first run reported **FP public 1** where D-177 recorded 0, and the parity section named the one disagreeing case out of 58 — now filed as **AUD-C-26**. **My own prediction on this row was wrong in two ways, which is why the fix and not the reasoning is what closed it:** the divergence that bites is the *empty candidate pool* branch, not the sub-floor one (reached on 18 of 58 cases, at distance 0.72 against a 0.60 cut — nowhere near a knife edge), and the unmodelled arm *adds* false hints as well as costing recall. 7 regression tests in `test_access_probe_harness_parity.py`, one per branch, including one that fails if the shipped column is ever re-transcribed and one asserting the replay errors rather than returning `{}` when it cannot reach the lexical arm — returning an empty match set there would be this finding, reintroduced by its own fix |
+| **AUD-C-25** | **Audit integrity / measurement harness** | **P2** | ✅ **fixed 2026-08-04 (D-179) — and it found AUD-C-26 on its first run** | **`measure_access_probe_rules.py` does not measure the rule it is used to choose.** Every access-probe constant since D-165 was set from this script's tables, and the script **reimplements** the rule (`rerank_prefloor_margin_hint`) rather than calling `probe_access`. The reimplementation differs from production in two ways, and no test compares them. **(i) The branch order is reversed:** the harness checks the floor first (line 558) then the margin; `probe_access` checks the margin first ([retrieval.py:187](../../../packages/knowledge/src/intellichoice_knowledge/retrieval.py#L187)) then the floor. **(ii) The harness has no lexical arm at all** — neither `_lexical_only` nor `count_matching_by_audience` appears in it — so where production falls through to a keyword match that *can* return a hint, the harness returns `None` and scores it as silence. The two disagree exactly when `winner ≤ floor` **and** `winner − runner_up ≥ margin`, which is **AUD-C-23's own failing case** (winner 0.75–0.90 against the 0.9 floor, runner-up 0.2–0.3). So D-177's headline "0 wrong tiers, 0 false hints, 0/40 stability fires" is a true statement about the harness's rule that **does not cover** production's composed path on the decisive question. **Bounded, and the bound is why this is P2 not P1:** D-178's 10 live probes measured the composed path directly at **0/10 hints with a 3/3 control**, so no user-facing damage exists today, and the lexical arm was separately measured clean on both negative classes. The exposure is the *instrument*: the next rule decision will be made on tables that model a rule nobody ships. Same class as AUD-F-16 (a harness measuring something other than what it claimed) and as D-175's config-parity gap — whose `ast` guard checks the harness passes the same `Settings` **fields** as the route, while nothing checks the rule has the same **structure**. **Two candidate fixes, neither costing a paid re-measurement:** have the harness call `probe_access` with an injected score map, or add a parity test that runs both over the saved dumps and asserts identical hints per case. Also unresolved and cheap to settle from the same dumps: production's pre-floor margin now **gates** the lexical arm (two audiences at `0.0` → `matches={}`, `lexical_calls=0`, verified), which the "strictly additive, gets the last word" comment at [retrieval.py:196](../../../packages/knowledge/src/intellichoice_knowledge/retrieval.py#L196) no longer describes, and which plausibly accounts for part of the 29→27 drop D-177 attributed to the floor raise **✅ Fixed 2026-08-04 (D-179), arm (a) — the harness now calls `probe_access` instead of restating it.** `--shipped` replays the real function per case: rerank scores come from the dump (the paid, nondeterministic input, and `--load`'s whole purpose is comparing rules against identical model output), while the **lexical arm is real**, delegated to `RagRepository.count_matching_by_audience` against local Postgres — it takes no embedding, so it is faithful offline even with mock vectors stored, which is exactly why it could have been modelled for free at any point and never was. The table gains a `SHIPPED probe_access` row and a parity section against `pf_f09_m01`, its transcription. **It paid for itself immediately:** the first run reported **FP public 1** where D-177 recorded 0, and the parity section named the one disagreeing case out of 58 — now filed as **AUD-C-26**. **My own prediction on this row was wrong in two ways, which is why the fix and not the reasoning is what closed it:** the divergence that bites is the *empty candidate pool* branch, not the sub-floor one (reached on 18 of 58 cases, at distance 0.72 against a 0.60 cut — nowhere near a knife edge), and the unmodelled arm *adds* false hints as well as costing recall. 7 regression tests in `test_access_probe_harness_parity.py`, one per branch, including one that fails if the shipped column is ever re-transcribed and one asserting the replay errors rather than returning `{}` when it cannot reach the lexical arm — returning an empty match set there would be this finding, reintroduced by its own fix |
 | **AUD-C-24** | **Minors / PII floor — chat free text** | **P2** | ✅ fixed 2026-08-04 (D-177) | **The chat app sends the user's typed question to Bedrock unredacted, and no decision ever covered that surface.** `redact_free_text` has **exactly one call site in the repository** — learning-api's chat router, at the request boundary (D-072) — while chat-api has none, so a question typed into `chat.intellichoice.org` reaches four payloads verbatim: `ScopeAndIntentPayload.standalone_query`, `RerankPayload.query`, `RagAnswerPayload.query`, `CalendarExtractionPayload.query`. D-072's own "How to apply" clause requires the pass for "any future free-text-accepting Bedrock task". **Bounded, and the bound is what holds it at P2**: chat queries are **not persisted** — there is no chat-message table (`chat_suggestions.prompt_text` is hand-authored seed content, checked), so this is the wire and traces, not storage or backups. **Not an accepted risk, an unexamined one**: D-018's prompt-injection scope call names chat-api's surface deliberately and defers PII to "S24/D-072 already judged that surface", which judged the *learning* surface. Needs a decision (redact at the chat request boundary as learning-api does, vs. accept and write the acceptance down), not just a patch — a minor typing "my mum's email is …, when is class?" is the realistic case **✅ Fixed 2026-08-04 (D-177), as the user decided: redact at the boundary.** `redact_free_text(body.query)` in chat-api's `post_message` — the one place free text enters the graph (`/respond`'s free text is location data that goes to geocoding and is purged per AUD-C-03; `/stream` takes no input) — so the four payloads, the checkpointed `QAState`, **and** the escalation email draft all carry the redacted text. Two HTTP tests: the raw email absent from the escalation draft and from serializer-decoded `checkpoint_writes` (the AUD-C-03 lesson), and an email-bearing in-scope question still classifies and answers. D-072's "How to apply" clause now holds on both apps |
 
 **Open findings, counted from both halves of the Index (2026-08-04, D-174; recounted D-175
-through D-183): 0.** Arithmetic, written out because this line has now been wrong three times:
+through D-183): 0 — *of this register, frozen 2026-08-05 by D-183; the 08-16 and 08-17 audits filed
+46 and 48 findings in separate namespaces.* ** Arithmetic, written out because this line has now
+been wrong three times:
 1 open after D-177, **plus** AUD-C-25 (filed in D-178 while landing D-177's work), **minus**
 AUD-C-25 (fixed in D-179), **plus** AUD-C-26 (filed in D-179, found *by* that fix on its first
 run), **minus** AUD-C-26 (fixed in D-180), **plus and minus** AUD-C-27 (filed *and* fixed in
 D-181, so it never sat open), **minus** AUD-F-33 (mechanism found D-182, fix applied the same
 session, closed 2026-08-05 when the owed acceptance row was read on both services — D-183)
 = **0**. Confirmed by running ROADMAP's anchored `awk`, not by counting this sentence. **The
-Phase 0B audit backlog is empty for the first time since the audit began.** The held-open
+Phase 0B audit backlog is empty for the first time since the audit began** — *this register's Phase
+0B backlog, S36–S39, frozen 2026-08-05.* The held-open
 discipline ran its full course on the last finding: diagnosis did not close it (D-182), the
 applied fix did not close it (same session), and only the decisive live row did (D-183).
+
+> **⚠️ "0 open findings" is a scoped statement, and it is the quantity most likely to be quoted out
+> of scope — label added 2026-08-20 (`AUDIT-COUNT-INSTRUMENT`, W-12).** It is true **of this
+> register**, frozen 2026-08-05, and **unknown as a project-wide statement**: the
+> [08-16](AUDIT_2026_08_16.md) and [08-17](AUDIT_LIVE_2026_08_17.md) audits filed **46** and **48**
+> findings afterwards in separate id namespaces, and this file mentions neither. **Any count carried
+> out of this file must carry that scope label with it.** See
+> [`README.md`](README.md) for the namespace map.
+>
+> **Re-derived, not re-typed (2026-08-20).** The register's own standing rule is that every count in
+> this corpus must be re-derived rather than quoted, so the `awk` was executed against this file at
+> its current path and the **actual output** recorded:
+>
+> ```
+> awk -F'|' '$2 ~ /^ *\*{0,2}AUD-[A-Z]-[0-9]+/ { st=$5; gsub(/^[ *]+/,"",st);
+>   if (st ~ /^Open/) { id=$2; gsub(/[ *]/,"",id); sub(/\(.*/,"",id); print id } }' \
+>   docs/reference/audits/AUDIT_FINDINGS.md | sort -u
+> ```
+>
+> **Output: empty** — zero ids printed, i.e. **0 open** in this register. Still 0 as of 2026-08-20,
+> and the number is the tool's, not this sentence's.
+>
+> **The three companion checks the count depends on, all executed 2026-08-20:**
+>
+> | check | result |
+> |---|---|
+> | every `### AUD-` section has an Index row | ✅ **holds, 0 exceptions.** 94 `### AUD-` headings → **93** unique ids (the benign `AUD-C-16` double section, D-178), and set-differencing section ids against row ids returns **nothing** |
+> | the reverse direction — every row has a section | ❌ **7 row ids have no detail section**: `AUD-F-05`, `F-16`, `F-17`, `F-18`, `F-19`, `F-20`, `F-38`. `AUD-F-05` is folded into a combined heading; the other six are rows only. **All seven are closed, so no count is affected today** — but "one row per finding" is unheld in the direction nobody was checking (`BATCH-LOW-CITATIONS` / DRIFT-64, W-40, whose title says six and whose body says seven; the body is right) |
+> | the four extra-pipe rows still keep status in field 5 | ✅ **all four confirmed.** `AUD-L-16`, `AUD-C-14`, `AUD-C-15`, `AUD-F-16` are the only rows with `NF=8` where the norm is 7, and `$5` on each still begins with its real status (`✅ **fixed in D-174 §6…`, `✅ **fixed in D-174 §5…`, `✅ **fixed in D-174 §4…`, `✅ **fixed and live-verified 2026-07-29 (D-116)…`). The stray pipe sits in the *description* cell, after `$5`, so the positional read is not shifted |
 
 **Worth noting about the last three entries, since the count moved in both directions:** D-178
 filed C-25 while landing D-177's work, D-179's fix for C-25 found C-26 on its first run, and
@@ -216,7 +298,7 @@ Ranges and P3 narrative passages were deliberately left alone.
 **What.** The gateway is stateless about spend: it enforces the per-session budget against a
 `session_spend_cents` value its *caller* supplies. Two callers supplied nothing, relying on a
 `= 0.0` default — and one of them,
-[routers/students.py](../apps/learning-api/src/learning_api/routers/students.py)'s
+[routers/students.py](../../../apps/learning-api/src/learning_api/routers/students.py)'s
 `POST /{student_id}/report`, is an on-demand endpoint with **no idempotency key**: one fresh
 `student_reports` row and one fresh Bedrock call per click. So on every single call the check
 evaluated `0.0 + worst_case > 50.0`, which is false, and the ceiling never applied. Not a
@@ -403,7 +485,7 @@ about the text inside them.
 
 - **Severity:** P3
 - **Area:** minors / tutoring guardrails
-- **Status:** open, Phase 0B
+- **Status:** open, Phase 0B · **⚠️ as-filed status, not current** — the Index carries *"**Decided** — delete in Phase 0B"* for this finding and the anchored `awk` counts **0 open** in this register (frozen 2026-08-05, D-183). Annotated, not rewritten, 2026-08-20 (`RISK-GROUP-AUDIT-REGISTERS`, W-26): the bullet is the record of what was believed when it was filed.
 
 **What.** `tutor.generate_hint` performs a real Bedrock `TUTOR` call and returns
 `result.value` directly — no `leak_phrase_present`, no `answer_text_leaked`, and it ignores
@@ -433,7 +515,7 @@ checks, which would preserve unreachable code and the false impression that it i
 
 - **Severity:** P2 — bounded, but it means the per-session ceiling is structurally wrong
 - **Area:** money / cost accounting
-- **Status:** open, Phase 0B
+- **Status:** open, Phase 0B · **⚠️ as-filed status, not current** — the Index carries *"**Decided** — Phase 0B"* and the anchored `awk` counts **0 open** in this register (frozen 2026-08-05, D-183). Annotated, not rewritten, 2026-08-20 (W-26).
 
 **What.** `routers/stream.py`'s `pre_intro` narrative fires on SSE connect, outside the graph.
 S26/D-075 deliberately records its cost on the `stage_transitions` row rather than in the
@@ -491,7 +573,7 @@ independently exploitable today — obtaining a tutor token requires the `/dev/t
 secret-gated as of this session — but that is a property of the current deployment, not of the
 authorization code.
 
-**Evidence.** [authorization.py:34-36](../apps/learning-api/src/learning_api/authorization.py#L34-L36)
+**Evidence.** [authorization.py:34-36](../../../apps/learning-api/src/learning_api/authorization.py#L34-L36)
 is the whole check for these two roles. All 17 learning routes were enumerated and traced: every
 route that names a student or a session does call `resolve_target_student`, so the gap is
 uniformly *this function's* gap, not a per-route omission — which is the good news, since one fix
@@ -517,7 +599,7 @@ first real traffic** — it is not a decision to ship this to production unfixed
 - **Severity:** P2 — degraded quality in parent-facing text, with a workaround (the facts-only
   template always shows the correct numbers)
 - **Area:** correctness / stage-narrative and report grounding
-- **Status:** open, Phase 0B
+- **Status:** open, Phase 0B · **⚠️ as-filed status, not current — this finding is FIXED**: *"✅ fixed in D-172 §1 (2026-08-04)"* per the Index, with the incompleteness deliberately recorded in `numeric_grounding`'s docstring. Annotated, not rewritten, 2026-08-20 (W-26).
 
 **What.** `numeric_grounding.is_grounded` returns False only if the narrative contains a number
 that appears nowhere in the evidence dict. It does not check what the number is *claimed to mean*.
@@ -664,7 +746,7 @@ applied.
 
 - **Severity:** P3 (information disclosure only — no token can be minted)
 - **Area:** auth surface / deploy-time security gate
-- **Found by:** reading [.github/workflows/deploy-staging.yml](../.github/workflows/deploy-staging.yml)'s
+- **Found by:** reading [.github/workflows/deploy-staging.yml](../../../.github/workflows/deploy-staging.yml)'s
   gate comment while extending it for S36/D-097, then probing the claim instead of trusting it
 - **Status:** ✅ fixed 2026-08-04 (D-175) — see the closing subsection
 
@@ -836,7 +918,7 @@ count rather than the attempt count. The second half also closes AUD-L-08's reac
 
 ### AUD-L-11 — `UnknownQuestionVariantError` is caught nowhere: unhandled 500 (P2)
 
-- **Severity:** P2 · **Area:** robustness / API contracts · **Status:** open, Phase 0B
+- **Severity:** P2 · **Area:** robustness / API contracts · **Status:** open, Phase 0B · **⚠️ as-filed status, not current — this finding is FIXED in D-159.** Annotated, not rewritten, 2026-08-20 (W-26).
 
 Raised at `flow.py` lines 295, 416, 422 and 697; `grep` finds no `except` for it in any router, in
 the graph, or in `main.py`. Live: `POST /answers` with `question_variant_id="does-not-exist"` →
@@ -1152,7 +1234,7 @@ and to decide deliberately whether mastery should include the post-exam.
 ### AUD-L-16 — Both policy snapshots are write-only (P3)
 
 - **Severity:** P3 (no behavioral defect today) · **Area:** design integrity (SPEC §5.9/§5.13)
-- **Status:** open, Phase 0B
+- **Status:** open, Phase 0B · **⚠️ as-filed status, not current — this finding is FIXED**: *"✅ fixed in D-174 §6 (2026-08-04) — wired, on D-169's precedent"* per the Index. Annotated, not rewritten, 2026-08-20 (W-26).
 
 `assessment_sessions.policy` and `study_sessions.intervention_policy` are written at creation and
 **never read back anywhere**. The only consumers of `exam_policy` in either app are the two
@@ -1975,6 +2057,31 @@ current rules were each chosen from a measured table (D-165/D-166/D-168). Tuning
 this finding has already made twice: acting on the evidence that happened to be cheap. It also carries
 a product judgment that is the user's — whether a hint that is sometimes wrong beats silence — so it is
 recorded with numbers and left for a decision.
+
+#### Residual risk, in the §7 style — recorded 2026-08-20 (`H2-AUDC23`, W-09)
+
+**The false access-hint flip rate is measured below 26%, not certified.** This finding ends with a
+shipped remedy (D-177 §2: rerank floor 0.9 plus a pre-floor per-audience margin) and a live check
+that came back clean — **0 of 10 anonymous probes returned an access hint, with the control firing
+3/3** (D-178) against D-175's **6 of 10**. What the chain never produced is a closure: **D-178
+explicitly refuses to certify** — *"Nothing here licenses writing 'never'"* — and **D-179** found the
+measurement harness had never matched production, marking every non-shipped row a **lower bound**.
+D-371 later closed the *item* by measurement; this line closes the *risk*, as a wording act.
+
+- **Statement of the residual.** Under the shipped constants, an anonymous asker of an ordinary
+  unanswerable question is told to authenticate at a rate bounded only at **< 26%** (one-sided 95%,
+  from 0/10). 0/10 refutes the 6/10 behaviour decisively — its probability under a 60% rate is
+  **0.01%** — but a 10% residual would still produce 0/10 about **35%** of the time. The sample size
+  adequate to *detect* a 60% rate is not adequate to *certify* a low one.
+- **Why it is accepted rather than closed.** Driving the bound lower needs a paid probe run sized for
+  certification, not detection, against a staging account with no real users. The damage is a
+  misleading instruction, not a disclosure or a spend event.
+- **Expiry condition.** Re-measure with a sample sized for the bound you want to claim **before real
+  traffic**, or on any change to `ACCESS_PROBE_RERANK_MIN_SCORE` / the pre-floor margin.
+- **Do not "improve" this by dropping the negative controls.** This is a precision-over-recall claim
+  (D-221): the negative controls — 0 false hints on both negative classes, and the 3/3 control that
+  proves the instrument was live — are the reason 0/10 means anything. A recall-only re-report would
+  read better and evidence less.
 
 ### AUD-C-24 — The chat app sends the user's typed question to Bedrock unredacted (P2, filed 2026-08-04, D-175; ✅ fixed 2026-08-04, D-177)
 
@@ -2956,16 +3063,16 @@ down-and-up against a dev database with 245 existing rows, not only from empty.
   | 2 | FastAPI dependency teardown, **after the route returns** | the **domain rows** | the SQLAlchemy engine |
 
   `get_db_session` yields the session and only then calls `await session.commit()`
-  ([learning-api dependencies.py:53-55](apps/learning-api/src/learning_api/dependencies.py#L53-L55));
+  ([learning-api dependencies.py:53-55](../../../apps/learning-api/src/learning_api/dependencies.py#L53-L55));
   `main.py` documents that the saver "opens its own psycopg connections, separate from the
   SQLAlchemy engine". So step 1 always precedes step 2, and **anything that fails in between keeps
   the checkpoint and discards the rows** — FastAPI throws the exception in at the `yield`, so
   `session.commit()` is skipped and the session closes with a rollback. `apps/chat-api`'s
-  dependency is **identical** ([dependencies.py:86-88](apps/chat-api/src/chat_api/dependencies.py#L86-L88)),
+  dependency is **identical** ([dependencies.py:86-88](../../../apps/chat-api/src/chat_api/dependencies.py#L86-L88)),
   so the seam exists in both apps.
 
 - **Reproduced twice, at the two seams §2.3 names.** The induced failure is a raise at
-  `_publish_snapshot` ([sessions.py:601](apps/learning-api/src/learning_api/routers/sessions.py#L601)) —
+  `_publish_snapshot` ([sessions.py:601](../../../apps/learning-api/src/learning_api/routers/sessions.py#L601)) —
   the real statement that sits in that window — against the real graph and real Postgres, with row
   counts read on a second connection.
 
@@ -3004,9 +3111,9 @@ down-and-up against a dev database with 245 existing rows, not only from empty.
 
 - **Why the 500s are unhandled: the checkpoint holds row ids and the code `assert`s the rows
   exist.** Both dead ends are bare asserts on a lookup the checkpoint promised —
-  [study.py:45](packages/db/src/intellichoice_db/repositories/study.py#L45) `assert attempt is not
+  [study.py:45](../../../packages/db/src/intellichoice_db/repositories/study.py#L45) `assert attempt is not
   None` (via `state.last_study_attempt_id`) and
-  [sessions.py:874](apps/learning-api/src/learning_api/routers/sessions.py#L874) `assert session_row
+  [sessions.py:874](../../../apps/learning-api/src/learning_api/routers/sessions.py#L874) `assert session_row
   is not None`. The pattern is **84 instances** of `assert … is not None` across `learning-api/src`
   and the `packages/db` repositories, **35 in `graph/nodes.py` alone**. They are load-bearing
   invariant checks on cross-store consistency, expressed as a statement Python removes entirely
@@ -3082,7 +3189,7 @@ down-and-up against a dev database with 245 existing rows, not only from empty.
     at teardown. Same read-then-act, same commit lag.
   - The per-session gateway budget (`_session_budget_cents`, default 50¢). The gateway is
     **stateless with respect to spend** — `session_spend_cents` is a caller-supplied argument
-    ([gateway.py:136](packages/adapters/src/intellichoice_adapters/bedrock/gateway.py#L136)), read
+    ([gateway.py:136](../../../packages/adapters/src/intellichoice_adapters/bedrock/gateway.py#L136)), read
     from `state.bedrock_spend_cents` at ~20 call sites — so concurrent turns on one thread each
     read the same checkpointed total and each receive a full budget. Related and already known:
     `run_chat_turn`'s docstring records that chat's own calls are **never persisted back** into
@@ -3240,7 +3347,7 @@ staging** and is recorded there.)_
 
 **Method.** The browser-driven half of §2.3, which S36 and S37 each left uncovered because no
 browser automation existed in this environment. A Playwright harness now lives in
-[e2e/](../e2e/) (`make e2e`), chromium-only, one worker, zero retries. Every run attaches a
+[e2e/](../../../e2e/) (`make e2e`), chromium-only, one worker, zero retries. Every run attaches a
 console/network capture to the page and enforces §2.6 criterion 3's three properties at
 teardown over the whole run rather than at any single assertion: zero console errors, zero
 5xx, zero blank/stuck states. A test that deliberately drives an error path narrows that check
@@ -4520,6 +4627,16 @@ until the third.
 
 ### AUD-F-27 — The client silently drops any mutation attempted while another is in flight, and tells the student it succeeded (P1, found in the S43 continuation, D-120; ✅ fixed 2026-07-29, D-120 — heading status corrected 2026-08-04, D-174; not fixed)
 
+> **⚠️ This heading says both "✅ fixed" and "not fixed" — annotated 2026-08-20
+> (`RISK-GROUP-AUDIT-REGISTERS`, W-26). The finding is FIXED (D-120, 2026-07-29).** The trailing
+> "not fixed" is the **pre-correction status left inside the corrected heading** when D-174 fixed the
+> five stale headings on 2026-08-04: the correction was prepended and the old word was never removed.
+> The Index row agrees it is fixed; DECISIONS D-120 records the fix; `AUD-L-16`'s and `AUD-F-38`'s
+> siblings in the same family are closed. **Annotated rather than rewritten**, because a heading that
+> contradicts itself *inside the very edit that was supposed to end status rot* is the sharpest
+> instance of the failure mode the Index disclaimer lists — and it is failure mode 4 in that list for
+> exactly this reason. Do not read the trailing clause as a status.
+
 **Criterion 3's last two failures are this, and it is silent data loss on the primary journey.**
 
 `useLearningSession`'s `run()` wrapper gates every mutation on a single flag:
@@ -4746,14 +4863,14 @@ were 13% of the corpus the criterion-9 scan then walked; on an idle window it is
 Two consequences, in increasing order of importance:
 
 1. **The cost assumption in the code is now false.**
-   [terraform/environments/staging/variables.tf:78-81](../terraform/environments/staging/variables.tf#L78-L81)
+   [terraform/environments/staging/variables.tf:78-81](../../../terraform/environments/staging/variables.tf#L78-L81)
    defaults `enable_otel_tracing` to true and justifies it with "X-Ray's free tier covers 100k
    traces/month". At the measured rate that is **~57k traces/day, ~1.7M/month — about 17× the free
    tier**, or ~$8/month at $5 per million recorded. July's bill is genuinely $0 (85,892 traces
    stored, under the tier) but only because tracing has been on for four days *and* the task count
    doubled on 2026-07-30 (learning-api `min_capacity` 1 → 2, chat-api sitting at 3). **The comment
    was true when written and is now an assumption that silently stopped holding** — the same shape as
-   D-072's retention assumption (see §5.15 in [TRACEABILITY.md](TRACEABILITY.md)), at a much lower
+   D-072's retention assumption (see §5.15 in [TRACEABILITY.md](../../TRACEABILITY.md)), at a much lower
    stake.
 2. **It dilutes the one criterion that depends on the trace corpus.** A scan reporting "2,747 traces
    CLEAN" sounds like broad coverage and is mostly the same three-span health check repeated. This is

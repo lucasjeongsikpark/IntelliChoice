@@ -1,5 +1,34 @@
 > Last reviewed: 2026-08-20 (documentation reconciliation migration).
 
+## SPEC amendments
+
+This document is normative and is **amended in place with a dated marker**, never by deleting
+requirement text: a requirement that has been overtaken is *dated*, not removed. Each marker names
+its decision id(s) or register key; the reasoning stays in `DECISIONS.md`. Markers added
+**2026-08-20** (`AMENDMENT-SWEEP`, `RISK-R1.4-SPEC-VINTAGE`):
+
+- **§5.2.2** — auth-option menu frozen, not chosen (D-152, `AUTH-OPTION-O1B`).
+- **§5.5.2** — Topic Resolver is deterministic; Tutor Summary Generator uses the LLM report path (D-024).
+- **§5.5.3** — `LearningState` shape: 36 listed fields versus 32 in code (`AMENDMENT-SWEEP`).
+- **§5.8.1** — volume target is 5–7 per occupied tier, not 100 templates per topic (D-273 §2, D-223; parked by D-342).
+- **§5.11.2** — priority rule 4 deliberately outranks rules 2–3, with the measurement (D-325).
+- **§5.13** — post-exam composition is 10 total (D-302); the authored-item repeat is a knowing departure (D-189).
+- **§5.15.2** — retention windows governed by D-333, including a chat clock this section has no row for.
+- **§5.17** — solution images: requirement unchanged, feature **deferred and unbuilt** (D-078, `IMAGE-WORK-PARK`).
+- **§5.19.3** — `QAState.ephemeral_location` does not exist; the code is right (`AMENDMENT-SWEEP`).
+- **§5.19.5** — nine listed reasons versus ten in code, and an untyped client contract (fact, `AMENDMENT-SWEEP`).
+- **§5.25.1** — Guardrails and gateway-level PII redaction are declared and never used (`REQ-32-SAFETY`, UD-9).
+- **§5.25.3** — two of the thirteen artifact types (Topic mapping, Email draft) are declared and never used; both dispositioned deterministic (DRIFT-55, D-024, D-020).
+- **§5.26.3** — internal NL2SQL is unbuilt and the decision is **open**, not superseded (`DRIFT-66-NL2SQL`, UD-12(d)).
+- **§5.30.1** — the denylist holds; the allowlist describes one of 23 payloads, plus two payload facts (`AMENDMENT-SWEEP`).
+- **§5.32.1** — the observability "choose one" fork is decided (D-214, D-242).
+- **§5.33 / §5.33.4 / §5.36** — deployment substrate and scaling mechanisms are ECS/RDS, not EKS/Aurora/SQS (D-004, D-084).
+- **§6** — demoted to **historical in place**; ROADMAP's per-session criteria superseded it.
+
+Earlier markers, left as they stand: **§5.19.4** (amended 2026-08-15, D-351) and **§5.35**'s staging
+MySQL note (D-092). Two sections are **deliberately left unmarked** pending explicit user sign-off
+and must not be annotated without it: **§5.1.4**'s interrupt list and **§5.29**'s failure matrix.
+
 # 5. Very Detailed Version
 
 ## 5.0 Document Purpose and Confirmed Design Principles
@@ -199,6 +228,16 @@ Shared components:
 ---
 
 ### 5.2.2 Shared Authentication
+
+**Frozen 2026-08-20 (D-152; `AUTH-OPTION-O1B`) — nothing below is finalized.** The option menu at the
+end of this section is **not yet chosen, and choosing it is deliberately deferred**. `S42_DISCOVERY.md`
+§8 recommends **O1b** (a server-side call to the existing login endpoint, a transient header-borne
+legacy token for the profile/attendance reads, then this stack minting its own §5.1.2 token) with
+**O2** (HMAC re-verification) as the documented fallback — and calls itself a recommendation, not a
+decision. It **stays a recommendation until measured, immediately before S44**. The evidence it needs
+— AWS→icrest reachability, and confirming the deployed build matches the checkout — is exactly what
+D-152 forbids measuring now. Every requirement below (application-specific audiences, short-lived
+codes, blast-radius containment) still binds whichever option is finally taken.
 
 The applications should share the login experience without exposing one broad session cookie to every subdomain.
 
@@ -494,6 +533,15 @@ END
 
 ### 5.5.2 Multi-Agent Components
 
+**Amended 2026-08-20 (D-024; `AMENDMENT-SWEEP`).** Two rows below no longer describe the build.
+**Topic Resolver** is a **deterministic node**, not "Structured LLM": `topic_resolver.py` is a plain
+database lookup (question variant → template → topic/skill/mastery) and never calls an LLM, because no
+endpoint accepts free text — an LLM free-text resolver gets added when a free-text endpoint first
+needs one (D-024). **Tutor Summary Generator** is not a "Structured service": it uses the same LLM
+report path as the Parent Report Agent. The rule under the table is unchanged and still binding —
+grading, attendance, authorization and score calculation remain deterministic, and this amendment
+moves one row *toward* determinism, not away from it.
+
 | Component | Type | Responsibility |
 |---|---|---|
 | Learning Orchestrator | LangGraph | Controls the overall learning workflow |
@@ -518,6 +566,14 @@ Do not turn every node into an agent. Grading, attendance, authorization, and sc
 ---
 
 ### 5.5.3 Learning State
+
+**Amended 2026-08-20 (`AMENDMENT-SWEEP`).** The list below names **36** fields; an AST parse of
+`apps/learning-api/src/learning_api/graph/state.py` counts **32** on `LearningState`, and the two
+sets share only **eight** names — several are renamed (`current_topic_id` → `topic_id`,
+`current_phase` → `phase`) and the code carries fields this list never had (the three
+`*_session_id`s, the `last_*` family, the `stage_narrative_*` family, `bedrock_spend_cents`). The
+code is the record of the shape. What still binds is the sentence after the list, which is a
+requirement and not a shape: **names and email addresses are never stored in graph state.**
 
 ```text
 LearningState
@@ -786,6 +842,16 @@ The student’s school grade narrows the initial topic candidates but does not d
 ## 5.8 Question Bank and AI Generation/Review Pipeline
 
 ### 5.8.1 Question Volume
+
+**Amended 2026-08-20 (D-273 §2, on D-223's measurement).** The **volume target of record is 5–7 items
+per occupied tier** (~25–35 per topic, ~1,000 items across 34 topics), a deliberate divergence from
+the 100 base templates per topic below (~3,400 items, roughly 3× the generation spend and review
+burden). Two reasons, recorded by D-273: §5.8.1's number has never been met by any topic, and nothing
+in the project has measured it as necessary, whereas 5–7 per tier was measured as the depth at which
+exams stop repeating themselves. Not every `(skill, tier)` cell needs filling. All question-bank
+coverage and depth work is currently **parked** by standing user instruction (D-342); 5–7 per tier is
+the target when it resumes. *Citation note:* the 5–7 figure is stated **as a target by D-273**; D-223
+measured it and does not state it as a target.
 
 Each topic contains 100 validated base templates:
 
@@ -1169,6 +1235,14 @@ Additional remediation questions are tracked separately.
 
 ### 5.11.2 Question Selection Priority
 
+**Amended 2026-08-20 (D-325).** **Rule 4 outranks rules 2 and 3 in the implementation**, deliberately
+and for a measured reason: on the dev database **57 of 201 study items (28%) repeated one of their own
+session's exam templates, 40 of them at the very first study item**. `study_plan.py` states it inline
+— one tier off is a worse *question*, but the same question is a worse *measurement*, so the
+difficulty preference yields to "not yet used in this session", which D-325 widened to include the
+session's exam. Rules 1, 5, 6 and 7 are unchanged, and rules 2 and 3 still apply within what rule 4
+leaves available.
+
 1. Lowest mastery skill
 2. Difficulty matching estimated level
 3. Difficulty within ±1
@@ -1331,6 +1405,18 @@ Source: [Amazon Bedrock Guardrails](https://docs.aws.amazon.com/bedrock/latest/u
 ---
 
 ## 5.13 Post-Exam and Learning Gain
+
+**Amended 2026-08-20 (D-302; D-189).** Two departures, both recorded rather than silent.
+**Composition (§5.13.2).** The per-tier block is superseded: `EXAM_QUESTION_COUNT` (= 2 × 5 = **10
+total**) replaced "two at every difficulty" as both the builder's precondition and
+`topic_availability`'s rule (D-302). Exam *length* is unchanged; the per-tier floor is gone, so tier
+distribution — and therefore exam difficulty — now varies **by topic** as well as by student, and 330
+existing items were re-tiered to the judge's reading in the same change. **Parallel form (§5.13.1,
+and §5.13.2's "do not reuse the exact same question variant").** The prohibition stands as the rule,
+and the post-exam **knowingly repeats an authored item** because authored templates are served from
+their canonical variant (D-189) — recorded in ROADMAP as an accepted departure rather than fixed.
+Everything else the parallel form must match (topic, skill, template family, reasoning steps, option
+construction) is unchanged.
 
 ### 5.13.1 Parallel Form
 
@@ -1555,6 +1641,16 @@ Procedural memory is not modified per student.
 
 ### 5.15.2 Episodic Memory
 
+**Amended 2026-08-20 (D-333).** The retention windows below are **governed by D-333**, which is the
+decision of record: completed learning checkpoints **30 days** (this section's own number),
+abandoned/pending learning checkpoints **90 days of inactivity**, and **chat checkpoints 180 days of
+inactivity** — a clock this section has **no row for**. Deletion is gated on long-term memory
+consolidation succeeding first, and a successful no-op counts as success; a checkpoint whose
+consolidation fails is retained and retried. Chat-api persists nothing else about a conversation, so
+its checkpoint is the only record of what a visitor was told, which is why the chat window is the
+longest of the three. The remaining rows and "final retention requires legal and policy approval"
+are unchanged.
+
 Episodic memory records actual learning events:
 
 - Question attempted
@@ -1708,6 +1804,18 @@ Source: [LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/
 ---
 
 ## 5.17 Multimodal Solution Images
+
+**Deferred 2026-08-20 (D-078; `IMAGE-WORK-PARK`) — the requirement is unchanged, not weakened.**
+This is a **deferral marker, not an amendment**: every requirement below stands exactly as written
+and **binds any future implementation from line one**. What is recorded is that **no code path
+implements it today**. The user declined S29 before implementation, so no `BlobStore`, no
+`MalwareScanner`, no `BedrockGateway.analyze_image`, no upload router, no executable math validator
+and no `"image"` intervention choice exists anywhere in the codebase. Two preconditions gate any
+future build, per D-078: (1) a minor's solution photo can incidentally capture a face, other
+homework or a home background — a privacy question §5.1.4's consent language and §5.17.2's storage
+policy assume away rather than resolve, including whether a parent-level opt-in is needed; and
+(2) every supporting dependency (a real malware scanner, real S3 encryption at rest) is still on
+D-002's no-real-credentials footing.
 
 ### 5.17.1 Processing Flow
 
@@ -1924,6 +2032,12 @@ END
 
 ### 5.19.3 Q&A State
 
+**Amended 2026-08-20 (`AMENDMENT-SWEEP`).** `ephemeral_location` in the list below **does not exist**
+on `QAState`, and the branch-locator fields are still absent — `apps/chat-api/src/chat_api/graph/
+state.py` says so in its own module docstring. The code is right; this list and a stale in-code
+comment are the drift. The location-consent *requirement* (§5.1.3) is unaffected — this marker is
+about the state shape, not the consent rule.
+
 ```text
 QAState
 - session_id
@@ -1980,6 +2094,14 @@ add them — but the sentence describes the *asker's question* using the classif
 The replacement keeps the actionable half and names a next step. The topic list is unchanged.
 
 ### 5.19.5 Turn reason codes
+
+**Recorded 2026-08-20 (`AMENDMENT-SWEEP`) — a fact, not a decision.** Two divergences, neither
+changing a requirement. The table below lists **nine** reasons; `TurnReason` in
+`apps/chat-api/src/chat_api/services/outcomes.py` defines **ten** — `cancelled` has no row here. And
+the reason is a **client-visible contract with an untyped client**: `apps/chat-web/src/types.ts:67`
+declares `reason?: string | null` rather than narrowing to the union, so a client cannot fail to
+compile on a reason it does not handle — the exact inference this section exists to prevent, moved
+one layer out. The two rules that close this section are unchanged and still binding.
 
 Every turn carries a machine-readable reason alongside its prose (D-351). The reason is the
 contract; the wording is not. A client must branch on the reason rather than infer the cause
@@ -2516,6 +2638,16 @@ Source: [Google OAuth Scopes](https://developers.google.com/identity/protocols/o
 
 ### 5.25.1 Bedrock Gateway
 
+**Amended 2026-08-20 (`REQ-32-SAFETY`, UD-9; `AMENDMENT-SWEEP`).** Two entries in the benefits list
+below are **declared and never used**: **Guardrails** — a repo-wide case-insensitive `guardrail`
+grep across `packages`, `apps` and `scripts`, including `.tf`, `.yaml` and `.json`, returns **zero
+hits** — and gateway-level **PII redaction**, which lives at callers rather than in the gateway. The
+remainder are present and quotable in
+`packages/adapters/src/intellichoice_adapters/bedrock/gateway.py`: `call_timeout_s=20.0`, the
+bounded retry loop, `_HARD_MAX_OUTPUT_TOKENS=4000`, a pre-call `session_budget_cents=50.0`, the
+circuit breaker and `worst_case_cost_cents`. Whether to adopt Bedrock Guardrails or amend this list
+is an **open user decision (UD-9)** and is not decided by this marker; the requirement stands.
+
 ```python
 class BedrockGateway:
     async def generate_structured(...)
@@ -2557,6 +2689,15 @@ Benefits:
 ---
 
 ### 5.25.3 Structured Responses
+
+> **Amended 2026-08-20 (`BATCH-LOW-UNMARKED-SPEC`/DRIFT-55, W-43).** Eleven of the thirteen
+> artifact types below have a Pydantic model and a non-mock production call site. Two are
+> **declared and never used** — both dispositioned deterministic, so the gap is document-side,
+> not a build gap: **Topic mapping** (`BedrockTask.TOPIC_MAPPING` exists with no payload model,
+> no response model and no caller — D-024's topic resolver is deterministic) and **Email draft**
+> (no LLM response model; both email-draft paths are server-composed and deterministic per
+> D-020/§5.6.4). The list is retained as written; the two entries bind only a future LLM-backed
+> implementation, if one is ever decided.
 
 Use JSON Schema for:
 
@@ -2641,6 +2782,14 @@ The LLM does not produce raw SQL.
 ---
 
 ### 5.26.3 Internal NL2SQL
+
+**Open — recorded 2026-08-20 (`DRIFT-66-NL2SQL`, UD-12(d)).** This is **not** an amendment: the
+internal-tool requirement below is **unbuilt and undecided in both directions**. Nothing in ROADMAP
+or DECISIONS says the internal dev/eval/analytics NL2SQL is planned, scoped, partially present or
+dropped, and one line either way closes it (UD-12(d)). The requirement therefore still stands as
+written and binds any future build, including all twelve controls. The **runtime** prohibition is
+separate and holds: no runtime NL2SQL exists — every query path is a parameterized `select()` — and
+§5.0 and §5.26.1 continue to forbid runtime NL2SQL regardless of what is decided here.
 
 Use only for development, evaluation, and internal analytics.
 
@@ -2812,6 +2961,19 @@ Common mechanisms:
 ## 5.30 PII Handling and Security
 
 ### 5.30.1 Minimum Necessary Data
+
+**Amended 2026-08-20 (`AMENDMENT-SWEEP`).** The two halves below hold differently, and both are
+stated because only one is drift. The **denylist holds completely**: none of the seven forbidden
+names appears in any of the 23 Bedrock payload models. The **allowlist does not describe the
+surface**: the seven-field list matches exactly one of those 23 payloads, and the others carry other
+fields. Two of those fields are recorded here as **facts, not decisions**, and are deliberately left
+unresolved. (1) `StageNarrativePayload.attendance_status`
+(`packages/shared/src/intellichoice_shared/bedrock.py`) crosses to the wire, which is in tension
+with the MySQL-only framing of §5.4.1 and §5.30 — attendance is read from MySQL and its *status*
+then travels in an LLM payload. (2) `RagAnswerPayload.user_role` survived D-219, which removed the
+same field from `ScopeAndIntentPayload` precisely so an access decision would stop being made inside
+a prompt — in tension with non-negotiable rule 3. Both are recorded per the register's
+`AMENDMENT-SWEEP` entry; neither is resolved here, and no requirement below is weakened.
 
 Send to Bedrock:
 
@@ -3007,6 +3169,13 @@ Block deployment if quality falls below the defined threshold.
 
 ### 5.32.1 LangSmith Selection
 
+**Amended 2026-08-20 (D-214, D-242).** The "choose one after contractual review" fork at the end of
+this section is **decided**: LangSmith **Cloud with complete PII masking**, not self-hosted
+LangSmith Enterprise. Masking is asserted as *not optional* in its own test (D-242), and reachability
+is provided by a single deliberately one-AZ NAT gateway driven by the tracing flag, so it cannot be
+left billing when tracing is off (D-214). The rest of this section — LangSmith over LangFuse, and the
+reasons — is unchanged.
+
 Use LangSmith and do not use LangFuse in the initial architecture.
 
 Reasons:
@@ -3117,6 +3286,18 @@ Infrastructure:
 
 ## 5.33 AWS Environments and Deployment
 
+**Amended 2026-08-20 (D-004; confirmed at S32 by D-084).** The **substrate** prescribed in §5.33.1
+–§5.33.3 was decided otherwise: no AWS Organizations three-account split, no EKS (and so no
+Karpenter, HPA, PDB, NetworkPolicy, IRSA, namespaces or Helm releases), no Aurora. The build runs on
+**ECS Fargate + RDS PostgreSQL with pgvector**, with a separately seeded RDS MySQL standing in for
+`go.intellichoice.org`'s shape. A grep across `terraform` for
+`aws_eks|kubernetes|aurora|karpenter|aws_organizations` returns **zero resources** — only comments
+recording the rejection. What §5.33 requires and D-004 explicitly kept still binds: environment
+separation (VPC/prefix-level before account-level), secrets in Secrets Manager, TLS, WAF,
+Terraform-managed infrastructure, no PII replication, and never using production data in
+development. Containers keep EKS available as a later migration, so the topology text below is a
+retained option, not a deleted one.
+
 ### 5.33.1 Environment Isolation
 
 ```text
@@ -3191,6 +3372,14 @@ evaluation
 ---
 
 ### 5.33.4 Scaling Targets
+
+**Amended 2026-08-20 (D-004; `AMENDMENT-SWEEP`).** The SLO and capacity targets below are
+unchanged and still bind. The *mechanisms* below them describe the EKS/SQS substrate D-004
+declined: the deployed footprint scales through Application Auto Scaling with **exactly one live
+signal per service** — an ALB `TargetResponseTime` p95 StepScaling pair, or CPU target-tracking,
+never both (`enable_latency_step_scaling` makes them mutually exclusive in
+`terraform/modules/ecs-service/main.tf`) — and carries **zero SQS resources**, so the five HPA
+signals and the queue-depth/oldest-message worker rules have no subject.
 
 Targets:
 
@@ -3412,6 +3601,12 @@ Do not store secrets in GitHub repositories or Docker images.
 
 ## 5.36 Final Technology Placement
 
+**Amended 2026-08-20 (D-004; confirmed at S32 by D-084).** Two cells in the table below name a
+runtime that was decided otherwise: `Kubernetes → EKS runtime`, and the `EKS` term inside
+`Enterprise-Level Product`. The runtime is ECS Fargate with RDS PostgreSQL + pgvector. Every other
+row stands, with three carrying their own markers at their own sections — `LangSmith` (§5.32.1),
+`Multimodal` (§5.17) and `Guardrails` (§5.25.1).
+
 | Technology | Placement |
 |---|---|
 | Enterprise-Level Product | Environment isolation, SLOs, RBAC, audit, CI/CD, EKS |
@@ -3465,6 +3660,13 @@ Do not store secrets in GitHub repositories or Docker images.
 ---
 
 # 6. Updated Recommended Implementation Sequence
+
+**Historical as of 2026-08-20 (`RISK-R1.4-SPEC-VINTAGE`, `AMENDMENT-SWEEP`).** The 24-phase
+sequence below is retained in place as the original planning record and is **no longer the plan of
+record**. ROADMAP's per-session "Done when" criteria superseded it, and ROADMAP is now at
+`docs/archive/ROADMAP.md`. Read §6 for design intent and for what a phase was meant to prove; do
+not read it as an open work list, a phase numbering anyone still uses, or a statement of what is
+built. Nothing in §5 is affected by this demotion — §5 stays normative.
 
 ## 6.1 Phase 0: Legal, Policy, and Data Contracts
 

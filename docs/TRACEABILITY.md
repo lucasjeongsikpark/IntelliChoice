@@ -33,6 +33,31 @@ away" step that had never once been run). Assertion is not evidence here either.
 A requirement dispositioned **in the code's own docstring** citing a decision ID counts as
 dispositioned; several already are, and finding that out is most of the work.
 
+### How this file cites code — adopted 2026-08-20 (`DOC-LINE-CITATION-DRIFT`, W-39)
+
+This file's evidence decays by construction: the code moves and the row does not. Two rules:
+
+1. **A line citation carries an as-of stamp** — `gateway.py:182 (as of 2026-08-20)`. A line number
+   with no stamp is *historical*, not current, and must be re-derived before it is relied on.
+2. **A load-bearing citation prefers a symbol or an anchor** — `attendance.check_attendance_gate`
+   rather than `attendance.py:71-80` — because a symbol survives the refactor that invalidates a
+   line, and a symbol that is *gone* fails a grep loudly instead of pointing at whatever now
+   occupies those lines.
+
+**Why this is method rather than tidiness.** This file was already burned once in exactly this way:
+the §5.8.5 row cited the *shape* generation route, so it was evidence for a requirement satisfied
+by code **no student could reach**, until D-226 deleted that route (tranche 2 records it). A drifted
+citation in the criterion-1 instrument degrades launch evidence, not just readability — a reviewer
+who cannot resolve the citation cannot check the verdict, and an unresolvable citation is
+*unverified*, which this file's own rule counts as **not traced**.
+
+**The 2026-08-20 pass is deliberately partial.** Rows re-derived that day carry the stamp and,
+where the register named them, a note saying what the old citation said (`BATCH-LOW-CITATIONS`,
+W-40). Every other row keeps its original line numbers unstamped, and **an unstamped row is not a
+claim that its lines still resolve.** Sweeping all of them at once would have produced a file whose
+stamps were uniformly dated and unevenly checked, which is the failure this convention exists to
+prevent.
+
 **On the fourth verdict, which this file originally said would not exist.** Tranches 1–5 ran with
 three verdicts and the explicit line "no fourth". Tranche 6 added **structural**, and the honest
 account is that the original three were written before anyone had looked at §5.27 or §5.34 — a
@@ -57,19 +82,42 @@ person to want a fifth verdict should have to argue against this paragraph.
 SPEC §5 has **37 top-level sections** (§5.0–§5.36) over ~197 subsections, plus §6's 23
 implementation phases. Launch scope is **§5 minus what a decision deliberately removed**:
 
-| excluded | why | decision |
-|---|---|---|
-| §5.17 Multimodal solution images (all of it) | S29 deferred, not built | **D-078** |
-| §5.30.3's "Pod Security Standards", "NetworkPolicy" | EKS-only concepts; the deployment is ECS/Fargate | **D-004** |
-| §5.30.3's "AWS WAF" | deferred with a written reason, tracked to S50 A7 | **D-087** |
-| §6.19 Phase 18 (Multimodal) | same as §5.17 | **D-078** |
+| excluded | why | decision | attribution re-derived 2026-08-20 |
+|---|---|---|---|
+| §5.17 Multimodal solution images (all of it) | S29 deferred, not built | **D-078** | **Quoted.** D-078: *"Nothing was built: no `BlobStore`, `MalwareScanner`, `BedrockGateway.analyze_image`, upload router, executable math validator, or `intervention_choice` "image" choice exists anywhere in this codebase."* |
+| §5.30.3's "Pod Security Standards", "NetworkPolicy" | EKS-only concepts; the deployment is ECS/Fargate | **D-088** (on D-004's platform choice) | **Re-attributed.** The words do **not** appear in D-004, which defers EKS generically. They appear verbatim in **D-088**: *"SPEC §6.22 lists 'NetworkPolicy' and 'Pod security' — both Kubernetes-specific concepts, N/A as literally specced since this deploys to ECS Fargate, not EKS (D-004/D-082-084)"*, and D-124 §3 restates it as *"moot. EKS concepts; D-004 chose ECS/Fargate."* D-004 supports the platform, D-088 supports the exclusion |
+| §5.30.3's "AWS WAF" | deferred with a written reason, tracked to S50 A7 | **D-087** (deferral) + **D-124 §3 / D-125** (the S50 A7 tracking) | **Split.** D-087 carries the deferral in its own words — *"this is a single-process in-memory stopgap until a real WAF exists, not a replacement for one; WAF itself was deferred this session"* — but **"S50" and "A7" appear nowhere in D-087.** The tracking destination comes from D-124 §3 (*"tracked to S50 A7"*) and D-125 (*"Tracked to the same place as WAF — S50's A7 close-out"*) |
+| §6.19 Phase 18 (Multimodal) | same as §5.17 | **D-078** + SPEC §6.19 | **Part inference, recorded as one.** D-078 supports the multimodal deferral. The *label* is this file's own mapping: neither `6.19` nor `Phase 18` appears anywhere in `DECISIONS.md`. The mapping itself is verified against SPEC — `docs/SPEC.md:3970` is literally `## 6.19 Phase 18: Multimodal` (as of 2026-08-20) — so the inference is sound and is marked as an inference rather than quoted |
 
 Everything else in §5 is in scope. §6's phases are *implementation plans* for §5's requirements
 rather than requirements themselves, so they are traced through their §5 sections, not separately.
 
+**The launch-scope denominator is 36, not 37 — corrected 2026-08-20 (`TRACEABILITY-ARITHMETIC`,
+W-11).** §5 has 37 top-level sections; §5.17 is excluded **in its entirety**, which leaves **36**
+launch-scope sections. The old "37 of 37 launch-scope sections" label reached 37 only by counting
+the excluded section's own disposition *inside* the launch-scope denominator. **Coverage is not
+what was wrong here:** every top-level section §5.0–§5.36 carries a verdict, including §5.17's
+disposition, and the per-section check confirms it. The arithmetic label was wrong; the sweep was
+complete. Read every count below as **36 launch-scope + §5.17 dispositioned = 37 sections with a
+verdict**.
+
+**On GuardDuty and this table (noted 2026-08-20, W-11 / DRIFT-02).** GuardDuty is equally deferred
+(D-125) and is **not** in the table above, because this table excludes *SPEC sections* from the
+denominator while GuardDuty is one control inside §5.30.3 — it is dispositioned through **T-01**
+below, not through the exclusion list, so no denominator is affected. That is the reason and not an
+oversight; recorded because the register flagged the enumeration as possibly incomplete. This file
+carries no S50 A7 *scope list* to add it to — the two scope lists that omit it are ROADMAP's and
+`docs/reference/integration/INTEGRATION_PLAN.md`'s, and that half of W-11 belongs to those files.
+
 ---
 
-## Status — 37 of 37 sections swept; **no open discrepancy** (T-02 dispositioned, D-129)
+## Status — 36 of 36 launch-scope sections swept (37 of 37 §5 sections carry a verdict); T-02 dispositioned, D-129
+
+> **Label corrected 2026-08-20 (`TRACEABILITY-ARITHMETIC`, W-11).** This heading read "37 of 37
+> sections swept" over a **36**-section launch-scope denominator, and also read "**no open
+> discrepancy**" beside a T-02 that is dispositioned-but-**not built**. Both labels are now stated
+> the long way. Nothing about the coverage claim weakened: every §5 section still carries a verdict.
+> Kept rather than silently rewritten, because this heading is the file's own case study — see below.
 
 > **This heading used to read "the criterion turns on one open discrepancy"** and was still saying so
 > after T-02 was dispositioned — while §"Discrepancies found" below said **Open: none**. That is the
@@ -96,11 +144,13 @@ introduces the **structural** verdict for requirements that name an artifact rat
 — defined narrowly, with a mandatory enforcing mechanism, so it cannot become a "looks fine" escape
 hatch.
 
-**Sections swept: 37 of 37.** Every launch-scope §5 section now carries a verdict.
+**Sections swept: 36 of 36 launch-scope sections** (plus §5.17, excluded and carrying its own
+disposition, for 37 of 37 §5 sections with a verdict). Every launch-scope §5 section carries a
+verdict. *(Denominator corrected 2026-08-20, W-11; the coverage claim is unchanged.)*
 
 **✅ The criterion is MET as of 2026-07-30 (D-129), on a reading that is written down here rather
-than left to be inferred.** Both clauses are now satisfied: 37 of 37 launch-scope sections map to
-implementation *and* a falsifying test (or carry an explicit *structural* / *descriptive* /
+than left to be inferred.** Both clauses are now satisfied: **36 of 36** launch-scope sections map
+to implementation *and* a falsifying test (or carry an explicit *structural* / *descriptive* /
 *dispositioned* verdict), and **the last open discrepancy, T-02, is dispositioned** — see below.
 
 **What the claim does and does not mean.** It means every launch-scope requirement has been read
@@ -118,6 +168,13 @@ owns *the notice that displays it*, following the pattern `LocationConsentModal.
 establishes for §5.1.3 in the chat app. **The disclosure list gates the build, not the reverse** — a
 notice shipped from an implementer's reading of §5.1.2 is how a compliance artifact ends up
 disagreeing with the policy it exists to summarize.
+
+**The disclosure half is discharged as of 2026-08-15 —
+[`docs/reference/FIRST_VISIT_NOTICE.md`](reference/FIRST_VISIT_NOTICE.md)** enumerates all eleven as
+copy in two reading registers, and ROADMAP lists them as a §6.1 deliverable. **The build half is
+not**: S45 is unstarted and inside the frozen block, so T-02 remains *dispositioned, not built*, and
+this is not progress on `DISCLOSURES-LEGAL` (counsel review still gates the pilot). Added 2026-08-20
+(W-43) — see the superseded-in-part note in the T-02 block below.
 
 ---
 
@@ -162,7 +219,8 @@ no model call in the path: `grading.py`, `exam_policy.py`, `learning_gain.py`,
 *determinism* rather than correctness.
 
 **No runtime NL2SQL exists to test for**, which is the correct state and is itself recorded
-(ROADMAP S30: "SQL parser validation" was not built because there is no NL2SQL feature to validate).
+([`docs/archive/ROADMAP.md`](archive/ROADMAP.md) S30: "SQL parser validation" was not built because
+there is no NL2SQL feature to validate).
 
 ### 3. Authorization in the backend/query layer, never in prompts (§5.21.3, §5.30.2)
 
@@ -187,14 +245,20 @@ is a **dispositioned gap, not a traced requirement** — §5.30.2's matrix is no
 ### 4. Every external action needs human approval via `interrupt()` (§5.1.4)
 
 **Traced.** Approval is a LangGraph `interrupt()` resumed through
-[sessions.py:1120](../apps/learning-api/src/learning_api/routers/sessions.py#L1120)
-(`respond_to_interrupt`), with the paused-task detection at `_pending_task_interrupt` (line 414).
-Tests: `apps/learning-api/tests/test_learning_graph_routes.py`,
+[`routers.sessions.respond_to_interrupt`](../apps/learning-api/src/learning_api/routers/sessions.py#L1819)
+(`sessions.py:1819` as of 2026-08-20), with the paused-task detection at
+[`_pending_task_interrupt`](../apps/learning-api/src/learning_api/routers/sessions.py#L797)
+(`:797` as of 2026-08-20). *(Anchors re-derived 2026-08-20, W-40/DRIFT-60: the row cited `:1120`
+and `line 414`, neither of which resolves any more. Behaviour unchanged — both symbols exist and
+the route still resumes the interrupt; only the line numbers had moved, which is exactly why this
+row now cites the symbols.)* Tests: `apps/learning-api/tests/test_learning_graph_routes.py`,
 `apps/chat-api/tests/test_calendar_action.py`, `apps/chat-api/tests/test_admin_escalation.py`.
 
 ### 5. Fail closed (§5.4.4, §5.21.8, §5.29)
 
-**Traced.** [attendance.py:71-80](../apps/learning-api/src/learning_api/services/attendance.py#L71-L80)
+**Traced.** [`attendance.check_attendance_gate`](../apps/learning-api/src/learning_api/services/attendance.py#L96-L127)
+(`attendance.py:96-127` as of 2026-08-20; the row cited `:71-80`, which no longer spans the
+function — W-40/DRIFT-60, the same staleness the register flags under TEST-02 row 5)
 — `check_attendance_gate` opens **only** on `AttendanceStatus.PRESENT`, so unknown and absent both
 fail closed by construction rather than by an `else` branch someone has to maintain. Test:
 `apps/learning-api/tests/test_auth_and_attendance.py`. RAG's no-citation refusal is covered by
@@ -216,14 +280,27 @@ distinguishes `schema_invalid` from `output_truncated`. Test:
 `packages/adapters/tests/test_bedrock_gateway.py`.
 
 **Open sub-item, not a gap:** the ~2–4% `rag_answer` `schema_invalid` rate is measured but the
-invalid text is not captured, pending a PII decision. Carried in PROGRESS.md.
+invalid text is not captured, pending a PII decision. Carried in
+[`docs/archive/PROGRESS.md`](archive/PROGRESS.md) (archived 2026-08-20; live carry-overs are in
+`PROJECT_STATE.md`).
 
 ### 7. All paid-API calls go through the gateway, with timeouts, retries, caps, cost accounting (§5.25.1)
 
 **Traced, and the interface's four "missing" methods are dispositioned in code.**
-[gateway.py:58-110](../packages/adapters/src/intellichoice_adapters/bedrock/gateway.py#L58-L110)
-implements bounded retry, max-token ceiling, per-session cost budget and a circuit breaker;
-`worst_case_cost_cents` (line 158) is the pre-flight reservation. SPEC §5.25.1 lists six methods
+[`ResilientBedrockGateway`](../packages/adapters/src/intellichoice_adapters/bedrock/gateway.py#L81)
+(`gateway.py:81` as of 2026-08-20) implements bounded retry, max-token ceiling, per-session cost
+budget and a circuit breaker — the last two readable at `_circuit_check` / `_record_failure`
+(`:110`, `:119`) and inside `generate_structured` (`:196`);
+[`worst_case_cost_cents`](../packages/adapters/src/intellichoice_adapters/bedrock/gateway.py#L182)
+(`:182-194` as of 2026-08-20) is the pre-flight reservation. *(Anchors re-derived 2026-08-20,
+W-40/DRIFT-60: the row cited `gateway.py:58-110` for the four cost mechanisms — a range that no
+longer spans them — and `worst_case_cost_cents` at `line 158`, which is wrong by 24 lines. The
+mechanisms are all still there; only the anchors moved.)* **A secondary point the register raises,
+recorded because it bears on what "traced" means here (COST-04):** the public
+`worst_case_cost_cents` reads like *the* pre-flight reservation, but `generate_structured`
+recomputes the expression inline and the public method's only callers are tests — so the row is
+traced to the *expression*, not to a single call site that the request path provably goes through.
+SPEC §5.25.1 lists six methods
 and only `generate_structured` / `create_embedding` exist —
 [bedrock.py:4-13](../packages/shared/src/intellichoice_shared/bedrock.py#L4-L13) disposes of the
 other four by name: `generate_stream`/`classify` have no caller (D-022), `analyze_image` is S29
@@ -311,8 +388,19 @@ proves it rejects — `test_disagreeing_solver_rejected_with_persisted_reasons`,
 `test_one_solver_flagging_ambiguity_is_enough_to_reject`,
 `test_two_level_difficulty_disagreement_rejects_with_both_rationales_persisted`,
 `test_near_duplicate_rejected_with_persisted_reasons`,
-`test_judge_flags_reject_and_borderline_score_sets_high_priority`,
+`test_judge_flags_reject_and_a_borderline_score_no_longer_sets_high_priority`,
 `test_review_cli_approve_reject_and_rerun`.
+
+**Test-name correction, 2026-08-20 (`BATCH-LOW-CITATIONS` / DRIFT-62, W-40), and the rename
+inverts the clause.** This list used to cite
+`test_judge_flags_reject_and_borderline_score_sets_high_priority`, **a name that does not exist**.
+The real test is `..._and_a_borderline_score_no_longer_sets_high_priority`
+(`packages/curriculum/tests/test_authored_pipeline.py:774` as of 2026-08-20), because **D-249
+removed the borderline→high-priority routing**. So the old citation did not merely drift — it
+asserted the opposite of what the suite pins. Six of the seven other named tests exist and the
+shape route is genuinely deleted (D-226), so the row's substance holds: every rejecting stage still
+has a test that proves it rejects. This is the citation class the method section's convention exists
+for — a test *name* is as load-bearing as a line number, and it moved for a reason.
 
 **Cost ceiling verified reachable, not merely present.** A `_spend` accumulator updates a running
 `spend`, and every downstream call site passes that running total rather than the initial
@@ -350,8 +438,10 @@ for rule 7), so it inherits the gateway's timeouts, bounded retry, circuit break
 accounting rather than reimplementing them. Tests: `packages/evals/tests/test_llm_judge.py`,
 `test_registry_coverage.py`.
 
-**Sections swept: 4 of 37** (§5.8 partial — .3/.4/.5; §5.18, §5.25, §5.30). Money as a risk class is
-covered end-to-end: generation, sync, evaluation, plus tranche 1's gateway and per-session
+**Sections swept: 4** — *as filed at the end of this tranche, against the then-stated 37-section
+denominator; never re-derived (W-11, 2026-08-20). The launch-scope denominator is 36 and the only
+count this file stands behind is the final one.* (§5.8 partial — .3/.4/.5; §5.18, §5.25, §5.30.)
+Money as a risk class is covered end-to-end: generation, sync, evaluation, plus tranche 1's gateway and per-session
 reservation.
 
 ---
@@ -416,7 +506,8 @@ assumption had silently stopped holding**, which is the most dangerous shape a d
 
 ### §5.14.3 — Parent dashboard
 
-**Traced.** [authorization.py:39-43](../apps/learning-api/src/learning_api/authorization.py#L39-L43)
+**Traced.** [`authorization.resolve_target_student`](../apps/learning-api/src/learning_api/authorization.py#L17)'s
+parent branch (`authorization.py:38-45` as of 2026-08-20; the row cited `:39-43` — W-40/DRIFT-60)
 verifies parents against a **live MySQL lookup** of linked children and 403s otherwise — not a claim
 in the token, which is the distinction that matters, since a token is a snapshot and a link can be
 revoked. Tests: `test_auth_and_attendance.py`, `test_dashboard_report_endpoints.py`,
@@ -428,7 +519,8 @@ enforcement, and a key reused across date ranges is a 409 rather than a 200 carr
 report. §5.14.3's requirement is *what a parent may see*, which was already traced; what this adds is
 that the same request twice cannot produce two documents or two paid calls.
 
-**Sections swept: 7 of 37.**
+**Sections swept: 7** — *as filed at the end of this tranche; a running total, never re-derived
+(W-11, 2026-08-20). Not a launch-scope fraction.*
 
 ---
 
@@ -525,6 +617,20 @@ computes §5.13.3's metrics from pre/post attempts plus study support levels.
 `(session, variant)` as a **database invariant**, after the check-only version let four concurrent
 answers all return 200.
 
+**Locus correction, 2026-08-20 (W-40, lifted out of the SPEC-amendment family as a citation defect
+in this register).** For §5.13's **parallel-form rule** this file and the claim ledger pointed
+readers at `exam_policy.py`, which is the wrong module: `exam_policy` holds only the deterministic
+`AssessmentPolicy` constants (`get_policy`, the §5.9.1/§5.13.2 time limit). The enforcement lives in
+[`assessment_builder.build_post_exam`](../apps/learning-api/src/learning_api/services/assessment_builder.py#L174)
+— *"SPEC §5.13.1-§5.13.2: one post-exam slot per pre-exam slot, same template family"*, with the
+"a rendering that isn't the pre-exam's" check at `:220` — and in
+[`variant_persistence`](../apps/learning-api/src/learning_api/services/variant_persistence.py#L127)
+(`:127-207`, which names §5.13.1's three axes and the `avoid_rendered_question` path). Verified by
+read-only grep on 2026-08-20; `flow.py:273` says the same thing from the other direction
+(*"§5.13.2's pre/post parallel-form rule is `assessment_builder`'s job, not this one's"*). **Nothing
+about the verdict changes** — the requirement is still traced, to code that exists — but a reader
+sent to `exam_policy.py` would have found policy constants and concluded the rule was unenforced.
+
 **§5.9.2's "one attempt per item" needed a second half nobody had asked for (D-159/AUD-L-19).** The
 constraint above makes an item unanswerable twice, but nothing checked that the answered variant is
 an item of *this* exam at all — so a real variant from another exam was graded and inserted here,
@@ -573,7 +679,13 @@ built ("there is no generated SQL to parse or validate"), and
 predefined method as a filter-first `ILIKE`. **A negative requirement with a test is the only kind
 that stays true** — otherwise the first person to add NL2SQL breaks a rule nothing was watching.
 
-**Sections swept: 21 of 37.** All four of §2.3's risk classes are now covered.
+**Sections swept: 21 — stale, and kept with its correction (W-11, 2026-08-20).** This running total
+was written at the end of tranche 5 and **never updated by tranche 6**, so it under-reports even at
+the moment it was true, and its "of 37" denominator was the wrong one (launch scope is 36). It is
+annotated rather than deleted because a corrected-in-place running total would erase the fact that
+the per-tranche totals were never re-derived — the same reason the summary-line near-misses below
+are kept. **All four of §2.3's risk classes are covered as of this tranche**, which is what this
+line was actually asserting; the authoritative count is the final one in tranche 6.
 
 ---
 
@@ -632,11 +744,30 @@ tail took minutes rather than the session it was budgeted.
 | section | artifact | what fails if it disappears |
 |---|---|---|
 | **§5.3** Enterprise architecture | `docs/ARCHITECTURE.md`, and the deployed topology itself | nothing mechanical — **descriptive**, and the honest verdict is that this section documents rather than requires |
-| **§5.27** Pydantic | **31** `extra="forbid"` models across `apps/` and `packages/` | `make typecheck` (pyright, 0 errors) in CI's `lint-typecheck-test`; the PII-floor tests additionally pin the strictness of every Bedrock payload model |
+| **§5.27** Pydantic | **41** `extra="forbid"` models across `apps/`, `packages/` and `scripts/` — **41 of 184** non-test `BaseModel`/`BaseSettings` classes, i.e. **22%**, concentrated in four files with **35 of bedrock.py's 64** model classes carrying it *(count re-derived 2026-08-20, W-14/F-08; the row said **31**)* | `make typecheck` (pyright, 0 errors) in CI's `lint-typecheck-test`; the PII-floor tests additionally pin the strictness of every Bedrock payload model. **⚠️ Clause (b) is weaker than this row used to imply — see the note below** |
 | **§5.34** Docker / Terraform / GHA | `apps/*/Dockerfile`, `terraform/`, `.github/workflows/{ci,deploy-staging,security-scan}.yml` | CI's four jobs and the deploy workflow — a missing Dockerfile or module fails the build, not a review |
 | **§5.35** External accounts and identifiers | `.env.example` | app startup config validation; a missing required variable fails the container, not a checklist |
 | **§5.36** Final technology placement | the stack as built | nothing mechanical — **descriptive** |
 | **§5.2.1** Deployment units | two independently deployed apps + two SPAs | the deploy workflow deploys exactly these |
+
+**On §5.27's count and its mechanism, corrected 2026-08-20 (`DOC-TEST-CLAIM-WORDING` / F-08, W-14;
+`BATCH-LOW-CITATIONS` / DRIFT-100, W-40).** Two corrections, and the second matters more than the
+first. **(1) The count was 31 and is 41**, re-derived by executing the grep rather than re-typing
+the number: `grep -rn 'ConfigDict(extra="forbid")' apps packages scripts --include='*.py'` → **41**,
+**zero in test files**, in four files (`bedrock.py` 35, `adjudications.py` 2, `authored_bank.py` 2,
+`smoke_cli.py` 2). The row must carry its **denominator** or it drifts again the next time a model
+is added: 41 of **184** non-test `BaseModel`/`BaseSettings` classes (**22%**), and 35 of the **64**
+model classes inside `bedrock.py` itself. So *"types every payload as an `extra="forbid"` model"* is
+true of the **Bedrock payload surface** and is **not a repo-wide invariant**.
+**(2) Clause (b) is not satisfied the way this row implied.** The named mechanism is `make typecheck`
+— but **pyright does not fail if an `extra="forbid"` is deleted.** Deleting one changes runtime
+strictness, not type-checkability. What actually fails is `test_bedrock_payload_pii_floor.py`, and
+only for the payload subset it pins. Under the fence's own wording, clause (b) therefore holds for
+the **Bedrock-payload subset** and not for the other models this row counts. The verdict stays
+*structural* on that subset and the overclaim is recorded rather than removed — the fence says "no
+mechanism, no structural verdict", and the honest reading is that the mechanism covers less than the
+count does. *(A `make typecheck` run reported `0 errors, 0 warnings, 0 informations`, so the cited
+job does run; that is a different claim from the job being able to notice this artifact's removal.)*
 
 **Two of the six — §5.3 and §5.36 — fail clause (b) and are recorded as descriptive rather than
 structural.** They describe the chosen architecture; there is nothing to falsify and nothing that
@@ -644,17 +775,38 @@ breaks if the description drifts. Saying so is more useful than a green checkmar
 a future reader those two sections need **re-reading by a human** when the architecture changes,
 rather than trusting a test to notice.
 
-**Sections swept: 37 of 37.**
+**Sections swept: 36 of 36 launch-scope sections** — every one of §5.0–§5.36 carries a verdict, and
+§5.17 carries its exclusion's disposition on top of that (37 sections with a verdict, 36 in the
+denominator; W-11, 2026-08-20). This is the authoritative count; the per-tranche running totals
+above are as-filed and were never re-derived.
 
 ---
 
 ## Discrepancies found
 
-Criterion 1 requires every discrepancy to be dispositioned in DECISIONS.md. **Open: none** — true as
-of D-129, and worth flagging that **this line was already saying "none" while the table below said
-T-02 was open** (both written in the same commit, `c44414f`). It is corrected by the disposition
-rather than by editing the summary, but the near-miss is the point: a summary line that agrees with
-the claim you want to make, sitting above a table that contradicts it, is how a rubric passes itself.
+Criterion 1 requires every discrepancy to be dispositioned in DECISIONS.md. **Open: none —
+*undispositioned*. T-02 is dispositioned and still not built** (corrected 2026-08-20, W-11).
+
+The old wording was the bare phrase "**Open: none**", which is true of what criterion 1 actually
+asks — *is every discrepancy dispositioned* — and false of the thing a reader takes from it, since
+**T-02 is an open work item sitting under it**: dispositioned 2026-07-30 (D-129), scheduled to S45,
+**not shipped**. The two senses of "open" are the whole hazard, so the line now names which one it
+means. Nothing about T-02's status changed here; only the summary label did.
+
+It is worth flagging that **this line was already saying "none" while the table below said T-02 was
+open.** It is corrected by the disposition rather than by editing the summary, but the near-miss is
+the point: a summary line that agrees with the claim you want to make, sitting above a table that
+contradicts it, is how a rubric passes itself.
+
+> **Provenance correction, 2026-08-20 (`BATCH-LOW-CITATIONS` / DRIFT-63, W-40).** This warning used
+> to say both lines were "written in the same commit, `c44414f`". **The co-existence is real; the
+> commit is wrong** — and the citation inside this file's own reliability warning is the one that
+> drifted, which is worth the irony out loud. Re-derived with `git log -S` on 2026-08-20: the
+> `Open: none` line came in with **`7430810`** ("T-01 dispositioned … traceability tranche 2",
+> 2026-07-30) and the T-02 table row with **`be6d22d`** ("Traceability tranche 3 … T-02 filed",
+> 2026-07-30). `c44414f` (tranche 6, same day) did touch this file and wrote **neither** line. The
+> two lines did co-exist, in one tree, on one day — the lesson stands unchanged and the attribution
+> does not.
 
 | id | discrepancy | disposition |
 |---|---|---|
@@ -677,7 +829,36 @@ the claim you want to make, sitting above a table that contradicts it, is how a 
 **Still not built**, and the disposition does not pretend otherwise. What changed is that it is now
 owned and ordered rather than assumed — which is all criterion 1 asks of a discrepancy.
 
-*(The finding as filed, kept because the reasoning is the record:)*
+> **⚠️ Superseded in part, 2026-08-20 (`BATCH-LOW-UNMARKED-SPEC` / DRIFT-99 + DRIFT-101, W-43) —
+> the prerequisite half is discharged and this block did not say so.** Two statements in the
+> as-filed finding below are **now false**:
+>
+> 1. *"the §6.1 legal & policy parallel track … has **not started**"* — it produced its first
+>    deliverable on **2026-08-15**.
+> 2. *"**None of the eleven is enumerated as a deliverable anywhere in ROADMAP.md.**"* — ROADMAP's
+>    §6.1 parallel-track block now enumerates all eleven inline, verbatim, as *"a written deliverable
+>    **S45 transcribes rather than drafts**"* (`docs/archive/ROADMAP.md`, the "Parallel track (any
+>    time, non-coding) — Phase 0 legal & policy docs (§6.1)" section; verified 2026-08-20).
+>
+> **The artifact this file never pointed at:** [`docs/reference/FIRST_VISIT_NOTICE.md`](reference/FIRST_VISIT_NOTICE.md)
+> — 237 lines, committed 2026-08-15 (`da2549f`), all eleven disclosures written out as copy in two
+> registers (younger-reader and standard), each paired with the system fact it must stay true to and
+> a "goes false if" condition, and titled for T-02. Until today **this document contained no
+> reference to it at all**, so the criterion-1 instrument did not cite the artifact that discharged
+> its own prerequisite. That gap is the reusable finding: the preservation convention below ("the
+> finding as filed, kept because the reasoning is the record") has **no companion convention for
+> adding a forward pointer** when the finding is later superseded. This note is that pointer.
+>
+> **What has *not* changed, stated so this is not misread as progress.** T-02's build is still
+> unbuilt: S45 is inside the frozen block, `apps/learning-web/src` still has no notice component and
+> no first-visit gate, and the ordering the disposition insists on (list first, then build) **held** —
+> the list landed before any build, which is what the disposition required. **Neither this note nor
+> the enumeration is progress on `DISCLOSURES-LEGAL`**, the separate open item; counsel review
+> remains a launch gate, and three of the eleven entries in FIRST_VISIT_NOTICE.md are marked
+> **NOT BUILT** and must not ship as written.
+
+*(The finding as filed, kept because the reasoning is the record. **Two of its statements are
+superseded — see the note directly above; they are preserved, not endorsed.**)*
 
 **This is a weaker finding than T-01 and is filed at that strength deliberately.** T-01 was a
 requirement with *nothing* anywhere. This one is a requirement whose home is guessable but never
@@ -690,16 +871,22 @@ not because anyone has done something wrong.
 adjust the estimated level, limited sharing with tutors/branch managers, parents see the complete
 record, learning memory is created from questions and events, images are deleted immediately,
 YouTube recommendations, minimized external data, and the right to challenge results or report
-questions. **None of the eleven is enumerated as a deliverable anywhere in ROADMAP.md.**
+questions. ~~**None of the eleven is enumerated as a deliverable anywhere in ROADMAP.md.**~~
+→ **false since 2026-08-15**: ROADMAP enumerates all eleven and
+[`docs/reference/FIRST_VISIT_NOTICE.md`](reference/FIRST_VISIT_NOTICE.md) writes them out as copy
+(W-43, 2026-08-20).
 
 **Why it is only implied.** Two plausible homes exist and neither names it:
 
 - **S45 — consent** (I9, I10) covers "parent-grants-for-child capture UI, age-band derivation,
   no-consent→no-token; legal text from the §6.1 track". A first-visit *product notice* is adjacent
   to consent capture but is not the same deliverable.
-- **The §6.1 legal & policy parallel track**, which "gates the pilot" and has **not started** —
-  and which already carries a standing obligation from D-114 §4 (the privacy text must state the
-  90/90/365 retention windows and must not imply chat deletion removes derived text).
+- **The §6.1 legal & policy parallel track**, which "gates the pilot" and ~~has **not started**~~
+  → **started, and delivered the enumeration on 2026-08-15**
+  ([`docs/reference/FIRST_VISIT_NOTICE.md`](reference/FIRST_VISIT_NOTICE.md); W-43, 2026-08-20).
+  Counsel review is still owed and still gates the pilot. The track already carries a standing
+  obligation from D-114 §4 (the privacy text must state the 90/90/365 retention windows and must
+  not imply chat deletion removes derived text) — and FIRST_VISIT_NOTICE.md is written against it.
 
 So the notice's *content* depends on an unstarted track, and its *implementation* is assumed by a
 session that does not list it. That is exactly how a requirement arrives at launch owned by nobody.
@@ -760,7 +947,7 @@ requirement with no decision, which is a traceability discrepancy, hence the T- 
 
 **A disposition is owed and it is not mine to make.** CloudTrail is cheap (a trail to S3, on by
 default in most accounts for management events) and is what a real incident response would want —
-[INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) is grounded in two real credential incidents
+[`docs/reference/INCIDENT_RESPONSE.md`](reference/INCIDENT_RESPONSE.md) is grounded in two real credential incidents
 (S32/D-084, S33/D-085) and currently has no account-level audit log to point at. GuardDuty is a
 paid, always-on service and a real monthly cost against a staging account with no users, which is
 the same argument that deferred WAF. **They probably deserve different answers**, which is the
@@ -770,14 +957,28 @@ argument for deciding them separately rather than as "the rest of §5.30.3".
 
 ## What remains — the honest size of criterion 1
 
-**Nothing remains to sweep.** Tranches 1–6 covered **37 of 37 sections**; all four of §2.3's risk
-classes are traced, and the tail carries either a test or a named enforcing mechanism. The remaining work, in §2.3's risk order:
+**Nothing remains to sweep.** Tranches 1–6 covered **36 of 36 launch-scope sections** (37 of 37 §5
+sections carry a verdict; §5.17 is excluded and dispositioned anyway); all four of §2.3's risk
+classes are traced, and the tail carries either a test or a named enforcing mechanism.
+
+> **⚠️ Everything from here to the end of this section is a snapshot from before tranche 6, dated
+> and kept rather than deleted (`TRACEABILITY-ARITHMETIC` / TEST-07, W-11, 2026-08-20).** The list
+> below was written when the tail was **outstanding work**, and it was left sitting in the present
+> tense underneath a "nothing remains" banner — item 5's "16 sections" and the closing "The
+> remaining 16 sections are the low-risk tail" both read as open work that has been **complete since
+> tranche 6 (2026-07-30)**. It is dated rather than removed because the estimate history immediately
+> below it is the method's own audit trail: this file records what each tranche cost and why the
+> estimate fell twice, and deleting the tail would delete the thing those numbers were estimating.
+> **Read items 1–5 as "how the work was sequenced and sized", not as a backlog.**
+
+The work as scoped at the time, in §2.3's risk order — **all five items are now done**:
 
 1. ~~**Money / cost**~~ — ✅ **done in tranche 2** (§5.8.3–.5, §5.18, §5.31).
 2. ~~**Minors / PII**~~ — ✅ **done in tranche 3** (§5.1, §5.15, §5.14.3).
 3. ~~**Authorization**~~ — ✅ **done in tranche 4** (§5.2.2, §5.6, §5.19–§5.24).
 4. ~~**Data integrity**~~ — ✅ **done in tranche 5** (§5.4, §5.5, §5.9, §5.13, §5.16, §5.26).
-5. **The rest, and it is genuinely the rest** — §5.0, §5.3, §5.7, §5.10–§5.12, §5.14.1/.2/.4,
+5. ~~**The rest, and it is genuinely the rest**~~ — ✅ **done in tranche 6** (2026-07-30). As
+   scoped then: §5.0, §5.3, §5.7, §5.10–§5.12, §5.14.1/.2/.4,
    §5.27–§5.29, §5.32–§5.36. **16 sections, none of them in a §2.3 risk class**: architecture
    description, curriculum taxonomy, mastery/study/tutor mechanics, the remaining UI transports,
    Pydantic/FastAPI/failure-handling conventions, observability, and the deployment/accounts/
@@ -791,9 +992,11 @@ codebase turned out to cite SPEC section numbers in its own docstrings far more 
 — `attendance.py` alone maps four subsections without any inference. That is the usual shape of this
 kind of work and is worth expecting rather than re-discovering.
 
-**The remaining 16 sections are the low-risk tail** and should take well under a session.
+~~**The remaining 16 sections are the low-risk tail** and should take well under a session.~~
+→ **They were, and they did: tranche 6 closed all 16 in one sitting** (2026-07-30). Struck rather
+than deleted, 2026-08-20 (W-11) — the prediction and its outcome are both part of the record.
 
-It is mechanical rather than hard. The expensive part is reading each requirement carefully enough
+It was mechanical rather than hard. The expensive part is reading each requirement carefully enough
 to know **what test would falsify it** — and, as tranche 2 showed, checking that a control is
 *reachable* rather than merely present.
 

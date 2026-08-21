@@ -4536,7 +4536,7 @@ accumulation of readiness reopens it.*
 
 ### `COMMITTED-ORG-DRAFTS` — three committed outbound drafts against a stated no-committed-drafts rule, with opposite credential policies
 
-- **Work/Issue ID (topic key):** `R7.2` (committed org drafts)
+- **Work/Issue ID (topic key):** `COMMITTED-ORG-DRAFTS` (from risk R7.2; normalized 2026-08-20 at migration step 9c — the entry key is the topic key, and `R7.2` is the documentation-risk id)
 - **Members:** E6-31
 - **Description:** `INTEGRATION_PLAN.md:619` states that outbound communication drafts are kept "outside
   this repo (gitignored … not committed)". **Three committed drafts exist**: `S42_ORG_ASKS.md`,

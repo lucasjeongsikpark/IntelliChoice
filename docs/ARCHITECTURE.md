@@ -9,8 +9,10 @@ and access-aware refusals, S20–S23's question bank / hint ladder / exam policy
 S24–S28's tutoring chat, memory, personalized transitions and reports, S30–S31's evaluation
 platform and observability, and S32–S35's live staging deployment and pipeline. This file is
 a map of *what exists now*, not the full target design — [SPEC.md](SPEC.md) is the spec,
-[ROADMAP.md](ROADMAP.md) tracks what's next, and [DECISIONS.md](DECISIONS.md) records why
-each non-obvious choice was made. Session provenance is tagged in each node (e.g. `(S6)`).
+[PROJECT_STATE.md](PROJECT_STATE.md) is what is live and what is next,
+[docs/archive/ROADMAP.md](archive/ROADMAP.md) **(archived)** holds the session-plan history, and
+[DECISIONS.md](DECISIONS.md) records why each non-obvious choice was made. Session provenance is
+tagged in each node (e.g. `(S6)`).
 
 **Not built, with reasons rather than "later":**
 
@@ -25,15 +27,47 @@ each non-obvious choice was made. Session provenance is tagged in each node (e.g
   schedule but ships **deliberately disabled**, because `youtube_provider` defaults to
   `fake` and an unattended run would write fabricated catalog rows on a schedule, which is
   worse than not running (D-105). `make webcontent-sync` remains manual for the same class
-  of reason. The four enabled schedules — `session-consolidate`, `chat-purge`,
-  `retention-purge`, `memory-consolidate` — do run unattended, in that nightly order
-  (18:00 / 18:10 / 18:50, with consolidation Sundays at 18:30). **The order is a
-  correctness constraint, not tidiness** (D-357): `session-consolidate` projects finished
-  learning threads into `learning_sessions`, and `checkpoint_retention_cli` both reads
-  eligibility from that table *and* classifies a thread as chat by the **absence** of a
-  row — so an unprojected learning thread is invisible to the learning windows and looks
-  like chat to the other branch. That retention job stays **unscheduled** until this one
-  has a record of firing.
+  of reason. Scheduler state generally is stated once, immediately below.
+
+### Scheduled jobs — the single statement of scheduler state
+
+*(Single-homed 2026-08-20 per `DOC-SCHEDULER-SECTIONS` and `RISK-GROUP-OPS-DOC-STRATA`. This file
+previously listed four enabled schedules here and, hundreds of lines later, still described
+`memory-consolidate` and `chat-purge` as manual — three places for one fact, two of them wrong.
+Every other mention in this file now points here instead of restating.)*
+
+**Verified 2026-08-20 by reading `terraform/modules/scheduled-jobs/main.tf` (`locals.jobs`,
+`aws_scheduler_schedule.job`): five jobs are defined and four are enabled.**
+`session-consolidate`, `chat-purge`, `retention-purge` and `memory-consolidate` each carry
+`enabled = true`; `youtube-sync` is defined with `enabled = var.youtube_sync_enabled`, whose
+default is `false` in both the module and the staging environment, so it plans as `DISABLED`.
+The schedule resource is gated on `var.enabled && each.value.enabled`, so the module-level kill
+switch (default `true`) and the per-job flag must both be on. The four enabled jobs run
+unattended in a fixed nightly order — 18:00 `session-consolidate`, 18:10 `chat-purge`, 18:50
+`retention-purge`, with `memory-consolidate` Sundays at 18:30 (UTC; the org is UTC+9, so this is
+~03:00 local).
+
+**The order is a correctness constraint, not tidiness** (D-357): `session-consolidate` projects
+finished learning threads into `learning_sessions`, and `checkpoint_retention_cli` both reads
+eligibility from that table *and* classifies a thread as chat by the **absence** of a row — so an
+unprojected learning thread is invisible to the learning windows and looks like chat to the other
+branch.
+
+> **"Retention" names two different jobs in this codebase, and only one of them is scheduled.**
+> *(Referent disambiguated 2026-08-20 per `BATCH-LOW-STALE-STATUS` and `DOC-SCHEDULER-SECTIONS`;
+> `checkpoint_retention_cli` was confirmed to have no schedule in AWS, which is what settles it.)*
+> **`retention-purge`** (D-114 / AUD-L-04 — `semantic_memory`, `stage_transitions`,
+> `student_reports`, `learning_events`) **is** the enabled daily 18:50 schedule above.
+> **Checkpoint retention** (`make checkpoint-retention`, `checkpoint_retention_cli`, D-333) has
+> **no schedule at all** and stays unscheduled until `session-consolidate` has a record of firing —
+> a prerequisite that RD-01 below silently blocks, since the instrument that would produce that
+> record is the one that does not work (`WORK-23-RETENTION-JOB-GATING`). Unqualified "the retention
+> job" in this file means `retention-purge`; the checkpoint one is always named as such.
+>
+> **And "scheduled" does not imply "observed to have run successfully"** (RD-01). The schedules
+> exist in AWS and were confirmed at runtime, **and** the jobs' dead-man's switch is structurally
+> non-functional — nothing would alarm if a job silently stopped completing. Both halves travel
+> together: do not read "confirmed at runtime" as "the 90-day retention promise is being kept".
 
 **Two shipped behaviors that deviate from the plan's own recommendation**, recorded here
 because reading the spec alone would mispredict the code: S22 kept **grade-on-submit** rather
@@ -120,7 +154,8 @@ to rot, because nothing fails when it does.)*
   tolerates both, so no assertion written here can hold that class. This is a property of the
   harness, not of any test, and it bounds what a browser spec in this repo is allowed to claim — a
   spec that says "this proves the fix" about browser *behaviour* is overclaiming unless a second
-  engine runs it. OPEN_DECISIONS #13 carries the options.
+  engine runs it. [docs/archive/OPEN_DECISIONS.md](archive/OPEN_DECISIONS.md) **(archived)** #13
+  carries the options.
 
 - **Whether a request reaches the app is decided by two hand-maintained lists, and both fail
   silently** (D-385). CloudFront's `api_path_patterns` selects which paths go to the ALB origin
@@ -281,6 +316,35 @@ to rot, because nothing fails when it does.)*
   direction. The headline: **at the documented pilot target of 25 concurrent, a comfortable p95
   costs three more tasks, not twenty-eight.** 2 → 5 tasks moves p95 from a 0.7%-margin 2.98 s to
   ~0.8 s.
+
+  > **⚠️ Resize caveat — the per-task columns above understate learning-api by 2×.** *(Added
+  > 2026-08-20, `D136-PRICE-TABLE`.)* The AUD-F-28 sweep that produced these numbers ran on the
+  > **old 256/512** task, where p95 ≤ 3 s held only to ~8 concurrent sessions. learning-api is now
+  > `cpu = 512 / memory = 1024` at desired-2, so a "task" in the columns above is half the task
+  > that is deployed. The task *count* is unchanged; the task *size* is not. chat-api meanwhile
+  > still runs on module defaults (256/512, min 1), so **the two services are not the same size at
+  > all** and no single per-task figure describes both. The 512/1024/desired-2 versus
+  > 256/512/desired-1 asymmetry is live-verified against AWS. Reusing this table without the
+  > caveat understates capacity per task; the `r` ∈ [2.5, 12.5] extrapolation ban above
+  > (`COST-29-EXTRAPOLATION-BAN`) governs any reuse, and the honest current statement is that
+  > **capacity is an extrapolation** — the r = 5 purchase this table justified was *withdrawn*, not
+  > deferred (D-153 §3), the configured autoscaling ceiling is 3 tasks per service, and 100-concurrent
+  > was never demonstrated live. Read the row for `r = 5` as a **plan that was cancelled**, not as a
+  > ceiling that exists (`BATCH-LOW-CONFIG-VS-PLAN` / DRIFT-56: a planned number and a configured
+  > ceiling are different kinds of fact and this table shows only the first).
+
+  **Two cost lines this model still omits** *(added 2026-08-20, `COST-25-ALARM-COUNT`; the alarm
+  *inventory* itself reconciles exactly — 15 resource blocks → 30 module instances → 34 account
+  alarms, per-name delta 0 — so this is a billing gap, not a count gap).* **Alarms are billable
+  past the free tier:** `CW:AlarmMonitorUsage` reads actual 10.0 / forecast 16.32 against a limit of
+  10.0, so **24 of the 34 alarms are billable at ~$0.10/alarm/month ≈ $2.40/month**, and no cost
+  document mentioned a per-alarm charge.
+
+  **Separately, X-Ray trace storage is the only genuinely *new* cost line:** `XRay-TracesStored`
+  reads **91,077 actual against a 100,000-trace free tier (91% consumed), forecast 148,599** — i.e.
+  forecast to exceed, consistent with the OTel sidecar actively exporting. This is its own line item
+  with its own driver (trace volume, not alarm count) and is deliberately not folded into the alarm
+  note above.
 - **Connection ceilings scale with total concurrency, not with task count — provided the pool is
   resized with it.** `create_engine`'s `pool_size=10, max_overflow=10` was sized in S34 for **one**
   process serving 150 concurrent sessions; it is a per-task constant, so multiplying tasks
@@ -452,10 +516,22 @@ to rot, because nothing fails when it does.)*
   gate is narrower rather than weaker: `FAILED`, a wrong image tag (checked *before* the retry, since
   waiting cannot fix a stale image), and `runningCount < 1` — the one state that would make the tag
   check vacuous.
-  **A deterministic frontend build gives a second, independent answer to the same question**
-  (D-173 §7): Vite content-hashes its bundles, so building the commit locally and comparing the
-  deployed asset's SHA-256 proves the bytes serving the edge are the bytes that commit produces. That
-  covers the S3/CloudFront half, which the ECS control plane says nothing about.
+  **The S3/CloudFront half has no artifact-freshness check, and this paragraph used to imply it
+  did** *(corrected 2026-08-20, `DRIFT-24-ARTIFACT-FRESHNESS`)*. What the pipeline contains for the
+  frontends is: `npm ci && npm run build`, `aws s3 sync --delete`, a CloudFront `/*` invalidation,
+  two curls against the SPA roots, and one `GET /me` edge-routing assertion (expects **401**, the
+  AUD-F-37/D-158 check with teeth). Verified 2026-08-20 by grepping the 711-line
+  `deploy-staging.yml`, the `Makefile` and `scripts/`: **there is no content-hash comparison
+  anywhere** — no `sha256`/`md5`/`ETag` step, no target, no script. What D-173 §7 actually
+  described is a **manual procedure an operator may run**, not a standing control: Vite
+  content-hashes its bundles, so *a human* can build the commit locally and compare the deployed
+  asset's SHA-256. Nothing in CI does that, and the workflow says so itself — the first two curls
+  "would pass against a completely stale deployment". So the ECS control plane answers "is the right
+  image serving" and **nothing answers "are the right frontend bytes serving"**: a silently failed
+  sync or a cached edge object is undetectable by CI today. `make image-check` is likewise
+  operator-invoked only (`ARCH-34-REVISION-DRIFT`). Building a real freshness check — e.g. asserting
+  the served `index.html` references the just-built hashed asset — is the **engineering** half, and
+  it rides `LB-05-DEPLOY-GAP` (UD-1), not this correction.
 - **A number shown to a family states its window, and is checked against what the system
   already measured** (D-156). Two failures with one root: nothing reconciled a figure against
   the data sitting beside it. A memory fact asserting a `strength` for a skill the same
@@ -492,6 +568,13 @@ to rot, because nothing fails when it does.)*
   accepted risk, awaiting the assignment/branch-roster data `IcProfileAdapter` brings in S43 —
   but their *writes* fail closed, because a read gap discloses data that exists while a write
   gap fabricates data that does not, indistinguishably, into scoring and parent-visible reports.
+  **This is accepted risk §7-R8, and the acceptance has an expiry: expiry conditions are
+  single-homed at [PROJECT_STATE §6.4](PROJECT_STATE.md) (`R8-READ-SCOPE`) — R8 expires at first
+  real traffic; R9 is voided by any movement.** *(Reduced to restatement-plus-pointer 2026-08-20,
+  `RISK-R2.2-ACCEPTED-RISK-HOMES`: this restated the risk with no expiry at all, and an accepted
+  risk whose expiry clause is invisible at the point of reading is how "accepted for the pilot
+  window" silently becomes "accepted for launch". The full expiry prose is deliberately **not**
+  copied here — one owner, pointers elsewhere.)*
 - **A session's owner is write-once** — the routes that read `student_external_id`/
   `user_external_id` out of the checkpoint are only sound if the route that *writes* it also
   checks it, which for a long time it did not: any holder of a session id could rebind it and
@@ -607,6 +690,12 @@ to rot, because nothing fails when it does.)*
   inventing rows; `learning_checkpoint_repairs_total` counts it, so a flat zero is the evidence the
   unfixed ordering is not being hit. **Partial: only the mid-finalize seam. The mid-interrupt seam
   and the commit ordering itself are still open** (S42, D-110 §3).
+  **Leaving them open is accepted risk §7-R9, and the acceptance has an expiry: expiry conditions
+  are single-homed at [PROJECT_STATE §6.4](PROJECT_STATE.md) (`ARCH-17-COMMIT-SEAM`) — R8 expires at
+  first real traffic; R9 is voided by any movement.** The flat zero above *is* the acceptance's
+  evidence, which is exactly why movement voids it — and note the counter is charted and **alarmed
+  nowhere** (UD-5's sub-question), so "flat zero" is a dashboard reading, not a tripwire.
+  *(Reduced to restatement-plus-pointer 2026-08-20, `RISK-R2.2-ACCEPTED-RISK-HOMES`.)*
 - **SSE events cross replicas via Postgres `LISTEN`/`NOTIFY`, because the bus is per-process**
   (U7-adjacent, D-334/D-335) — `SessionEventBus` is an in-process `dict[str, list[asyncio.Queue]]`
   and `learning-api` runs **2 ECS tasks**. An SSE connection is pinned to whichever replica the ALB
@@ -1788,8 +1877,12 @@ flowchart TB
 
 ## 6. YouTube catalog sync pipeline (S15, offline; hardened S27)
 
-Runs via `make youtube-sync` (manual trigger this session; a weekly EventBridge
-schedule is later infra work); never on a learning-time request path - the video option
+Runs via `make youtube-sync`. *(Scheduling clause corrected 2026-08-20,
+`DOC-SCHEDULER-SECTIONS`: this said "manual trigger this session; a weekly EventBridge schedule is
+later infra work", which stopped being true when the schedule landed. The weekly schedule now
+exists and is **deliberately disabled** — see [Scheduled
+jobs](#scheduled-jobs--the-single-statement-of-scheduler-state), the one place this file states
+scheduler state.)* Never on a learning-time request path - the video option
 only ever reads the already-synced `youtube_videos` table via
 `youtube_catalog.search`. A fetch failure aborts before any write, so SPEC §6.17
 "keeps the previous catalog on failure" holds. S27 added a real `YoutubeDataApiProvider`
@@ -1847,8 +1940,12 @@ Two triggers share one core (`_consolidate_events`): `graph/nodes.py::finalize_e
 calls `consolidate_student_session` inline, right after a post-exam completes (every
 event this one graph thread produced); `make memory-consolidate` calls
 `consolidate_student_window` over a rolling 7-day window for every student with recent
-activity (SPEC §5.15.4's weekly Sunday job - manual trigger only this session, same
-"schedule later" posture as `youtube-sync`/`webcontent-sync`). Deterministic code
+activity (SPEC §5.15.4's weekly Sunday job). *(Scheduling clause corrected 2026-08-20,
+`DOC-SCHEDULER-SECTIONS`: this said "manual trigger only this session, same 'schedule later'
+posture as `youtube-sync`/`webcontent-sync`", and the configuration falsifies it — this job is
+**enabled** on `cron(30 18 ? * SUN *)`, with `retry_attempts = 0` because it is the only enabled
+job that calls a paid API. See [Scheduled
+jobs](#scheduled-jobs--the-single-statement-of-scheduler-state).)* Deterministic code
 renders each `learning_events` row into a citable one-line summary *before* the model
 ever sees it; the model only ever proposes candidate facts citing `event_id`s it was
 shown, and code re-verifies every citation before trusting it (D-038-style).
@@ -2060,7 +2157,7 @@ it is **undecided** — see [Open architecture questions](#open-architecture-que
 | Concern | Store | Notes |
 |---|---|---|
 | Names, emails, roles, parent–child links, attendance, branch-manager email, branch address/coordinates | **MySQL 8.4** | Read-only via `MySQLProfileAdapter`; PII source of truth (S2); branch `address`/`latitude`/`longitude` added S15 (public org facts, not PII). Originally built Mongo-shaped on a wrong assumption about `go.intellichoice.org`'s real database engine; corrected and the dev-fake rewritten MySQL-shaped in D-082/D-083 |
-| Curriculum, question templates/variants, assessments, mastery, study, learning gain, blocked sessions, problem reports | **PostgreSQL 16** | External-id references only, no PII (S3/S4/S9). `study_items`/`study_attempts` gained retry-ladder columns (`target_skill_id`, `is_remediation`, `outcome_label`, `tutor_review_flagged`, ...) in S10; `learning_gain` gained `study_session_id`/`topic_id` in S11 so `services/history.py` can reconstruct a completed session's full history (no `LearningSession` grouping table exists post-S6); `assessment_sessions` gained `topic_id`/`policy`/`time_limit_seconds`/`finalized_at` and a new `assessment_item_state` table (unseen/answered/skipped/flagged nav bookkeeping) in S22 - grading itself stayed on the existing `assessment_attempts` path (D-064), `assessment_item_state` is nav/timer bookkeeping only, never a second source of truth for correctness |
+| Curriculum, question templates/variants, assessments, mastery, study, learning gain, blocked sessions, problem reports | **PostgreSQL 16** | External-id references only, no PII (S3/S4/S9). `study_items`/`study_attempts` gained retry-ladder columns (`target_skill_id`, `is_remediation`, `outcome_label`, `tutor_review_flagged`, ...) in S10; `learning_gain` gained `study_session_id`/`topic_id` in S11 so `services/history.py` can reconstruct a completed session's full history (this clause used to end "no `LearningSession` grouping table exists post-S6" — **false since U7/D-331/D-332 shipped `learning_sessions`**; corrected 2026-08-20, `BATCH-LOW-CITATIONS`/DRIFT-77); `assessment_sessions` gained `topic_id`/`policy`/`time_limit_seconds`/`finalized_at` and a new `assessment_item_state` table (unseen/answered/skipped/flagged nav bookkeeping) in S22 - grading itself stayed on the existing `assessment_attempts` path (D-064), `assessment_item_state` is nav/timer bookkeeping only, never a second source of truth for correctness |
 | LangGraph checkpoints, interrupt approvals, MCP tool-call audit trail | **PostgreSQL 16** | `AsyncPostgresSaver` (S6); `interrupt_approvals` is app-agnostic since S14 (`session_id`/`source_app`, D-043) - learning-api's payloads stay id-only (D-020), chat-api's `email_draft`/`calendar_event` checkpoint directly since neither carries MySQL PII (D-044), and `location_consent` never checkpoints the raw location at all (S15, D-045); `mcp_tool_calls` is the §6.16 audit trail (S14, no PII), also covers `maps.geocode`/`maps.compute_routes`/`youtube_catalog.search` (S15) |
 | RAG documents + chunks + embeddings | **PostgreSQL 16 + pgvector** | Populated by `make knowledge-load` (S12); 1024-dim Titan V2 embeddings (D-035); GIN index on `search_vector` + HNSW `vector_cosine_ops` index on `embedding` + composite btree pre-filter index (S13); queried via `RagRepository.hybrid_search` (FTS + pgvector + RRF) |
 | YouTube video catalog + embeddings | **PostgreSQL 16 + pgvector** | Populated by `make youtube-sync` (S15); `youtube_videos` - natural-key (`youtube_video_id`) upsert, 1024-dim Titan V2 embeddings, `topic_ids`/`skill_ids` re-validated against the real curriculum registry before storage (D-046); queried via `YoutubeRepository.search_catalog` (metadata filter, then a Python-side cosine rank over the filtered set - no JSONB containment operators needed for a small catalog) |
@@ -2071,12 +2168,48 @@ it is **undecided** — see [Open architecture questions](#open-architecture-que
 | Caller rate-limit counters (escalation cap, chat turns) | **PostgreSQL 16** | `rate_limit_events` (AUD-C-27/D-181; D-345 added the `chat_message` scope) - `scope`/`caller_key_hash`/`created_at`. The **second** repository bound to the session **factory** rather than a session, for the same reason as `cost_reservations`: an attempt written on the request session commits after the response, so it would be invisible to concurrent callers inside the very window it is enforcing. Serialized by `pg_advisory_xact_lock` around count-prune-insert. **`caller_key_hash` is an HMAC, never the key** - an anonymous caller's key is a client IP, and before this table no client IP was persisted anywhere; `test_schema_purity`'s denylist now carries `ip`/`ip_address`/`client_ip`/`remote_addr` so that stays true. No retention job: `try_consume` prunes the key it already holds a lock on. Two scopes use it as of D-345 - the escalation cap (5/hour) and every chat turn (120/hour, generous because D-087 measured that real school branches put many concurrent students behind one egress IP). The global 6000/min per-IP middleware stays per-task on purpose (a bound, not a promise; the WAF at S50 A7 is the precise control) |
 | Chat welcome/follow-up suggestion catalog | **PostgreSQL 16** | Populated by `make chat-suggestions-load` (S19, `chat_suggestions` - id/role_audience/category/prompt_text/sort_order/active); hand-authored reference data, not scraped - upsert-by-id, no `content_hash`/inactive-marking (D-057). No PII - prompt strings only |
 | Within-question hint ladder audit trail | **PostgreSQL 16** | `hint_events` (S21) - one row per hint level served (`student_external_id`, `study_attempt_id` FK, `question_variant_id` FK, `hint_level`, canonical + personalized text, `misconception_tag`, `was_personalized`); written by `_hint_round` on every round, including canonical-fallback rounds. External ids only, no PII |
-| Contextual chat turns | **PostgreSQL 16** | `tutor_chat_messages` (S24) - one row per chat turn (`student_external_id`, `learning_session_id`, nullable `question_variant_id` FK, `intent`, `redacted_student_message`, `reply_text`, `cost_cents`, `flagged_for_review`); `redacted_student_message` is always post-`pii_redaction.redact_free_text` (D-072), never the raw message. 90-day retention via `TutorChatMessageRepository.purge_older_than`/`make chat-purge` (no scheduler yet, same "manual trigger" posture as `youtube-sync`/`webcontent-sync`) |
+| Contextual chat turns | **PostgreSQL 16** | `tutor_chat_messages` (S24) - one row per chat turn (`student_external_id`, `learning_session_id`, nullable `question_variant_id` FK, `intent`, `redacted_student_message`, `reply_text`, `cost_cents`, `flagged_for_review`); `redacted_student_message` is always post-`pii_redaction.redact_free_text` (D-072), never the raw message. 90-day retention via `TutorChatMessageRepository.purge_older_than`/`make chat-purge`. *(Corrected 2026-08-20, `DOC-SCHEDULER-SECTIONS`: this said "no scheduler yet, same 'manual trigger' posture as `youtube-sync`/`webcontent-sync'". `chat-purge` is an **enabled** daily schedule — `cron(10 18 * * ? *)`, daily rather than weekly because the cutoff is computed per run and a weekly cadence would let a message sit up to 97 days against a 90-day promise. See [Scheduled jobs](#scheduled-jobs--the-single-statement-of-scheduler-state).)* |
 | Personalized stage narratives | **PostgreSQL 16** | `stage_transitions` (S26) - one row per (session, stage[, skill]) (`student_external_id`, `learning_session_id`, `stage`, nullable `related_skill_id` (`study_step` only), `narrative_text`, `evidence` JSON, `generated` bool, `cost_cents`); doubles as the idempotency key (`StageTransitionRepository.get_for_session_stage`) so a reconnect/retry never re-calls Bedrock. **90-day retention** via the daily `retention-purge` job (D-114) - narrative text derived from tutoring data gets the same window as its source |
 | Episodic learning events + durable semantic facts | **PostgreSQL 16** | `learning_events` (S25) - one row per emission point (`answer_submitted`/`intervention_chosen`/`study_outcome`/`chat_turn`/`exam_finalized`/`learning_gain_computed`), external ids + a code-owned `structured_payload` only (a `chat_turn` row holds `tutor_chat_message_id`, never the message text - D-074 #5). `semantic_memory` (S25) - `status` one of `provisional`/`active`/`contested`/`superseded`, `evidence_event_ids` always a subset of real `learning_events.event_id`s belonging to the same student (D-074 #2), `superseded_by_id` self-FK (`ON DELETE SET NULL`) + `contradicts_event_count` back the two-stage contradiction model (D-074 #4). No PII in either table. **Retention, both via the daily `retention-purge` job: `semantic_memory` 90 days on `last_confirmed_at` (D-114); `learning_events` 365 days on `occurred_at` (D-153), matching `student_reports` so the product makes one "a school year of learning history" promise.** The event window must stay ≥ the fact window + one consolidation window (90 + 7 = 97 days) or a live fact cites purged evidence and silently stops being promotable — asserted by `test_learning_event_retention_clears_the_semantic_memory_floor` |
 | In-flight chat turn cancellations | **PostgreSQL 16** | `chat_turn_cancellations` (D-402) - composite PK `(chat_session_id, client_turn_id)`, plus `requested_at` used only for pruning. Both columns are opaque ids the client mints; no PII. **A table rather than a signal, and the reason is the failure mode**: the cancel arrives as a *separate* request that may land on a different ECS task than the running turn, so an in-process flag is wrong - and `ChatSessionEventRelay`'s `LISTEN`/`NOTIFY` is deliberately fire-and-forget, where a dropped live update costs one repaint but a dropped *cancellation* costs the whole feature (the per-session advisory lock stays held for up to the 50s turn deadline). Self-pruning: the turn that acts on a row deletes it (so a retry of the same turn id is not cancelled the instant it starts), and `request()` sweeps **every** row older than 15 minutes for cancellations that raced their own turn's completion - global rather than per-session since D-416, because `POST /chat/sessions` persists nothing (a session id is a bare uuid4 until a message spends against it), so a per-session sweep could never reach a row written for an id that never returns |
 | Escalation emails already sent | **PostgreSQL 16** | `chat_escalation_sends` (D-421) - composite PK `(chat_session_id, question_fingerprint)`, plus `sent_at` for pruning. The fingerprint is a **SHA-256 of the normalised question, never the text**: equality is all this table decides, so storing the question would put visitor free text in a new table for no gain. Written as a *claim* (`ON CONFLICT DO NOTHING ... RETURNING`) rather than a check-then-write, so of two replicas resuming approvals in the same moment exactly one is told to send; **released when the send fails**, or SPEC §5.29's "try again" would be refused as a duplicate of an email nobody received. Swept globally on every claim |
 | Generated progress reports | **PostgreSQL 16** | `student_reports` (S28) - one row per report generation (`student_external_id`, `audience`, `verified_facts` JSON = the exact payload sent to Bedrock, `interpretation_text`, `recommendations_text`, `generated` bool, `cost_cents`, `idempotency_key`); **unique on `(student_external_id, audience, idempotency_key)` since D-159/AUD-X-04** - a replay is absorbed (no second row, no second paid call) while a new key still writes history, so `list_for_student` remains newest-first history rather than a cache. Scoped to the key, never to a time window; the migration backfilled pre-existing rows as `legacy-<student_report_id>`, unique by construction. `audience` always server-resolved from the caller's role, never a request field (D-077 #1). No PII - `verified_facts` is entirely already-resolved names/numbers/counts, and the key our frontend sends is `<student external id>:<range preset>:<per-mount UUID>`, i.e. an external id and two opaque tokens |
+
+**Correction note — this table under-describes Postgres, and here is the measured gap** *(added
+2026-08-20, `BATCH-LOW-CITATIONS` / DRIFT-77).* Every row above is real; the defect is omission.
+**Verified 2026-08-20 by enumerating `__tablename__` across
+`packages/db/src/intellichoice_db/models/`: 37 application tables ship** (plus LangGraph's own
+`checkpoints`/`checkpoint_writes`, which the saver owns and no model declares). Fourteen of the 37
+are **never named as tables anywhere in this table's rows**:
+
+`assessment_items`, `blocked_sessions`, `evaluation_results`, `learning_sessions`, `org_events`,
+`problem_reports`, `question_templates`, `question_validation_runs`, `question_variants`,
+`rag_chunks`, `rag_documents`, `skills`, `study_sessions`, `topics`.
+
+Nine of those fourteen are at least *gestured at* by a Concern cell — "Curriculum, question
+templates/variants, assessments, mastery, study, learning gain, blocked sessions, problem reports"
+and "RAG documents + chunks + embeddings" cover `skills`/`topics`/`study_sessions`/
+`assessment_items`/`blocked_sessions`/`problem_reports`/`question_templates`/`question_variants`/
+`rag_documents`/`rag_chunks` as *concepts* without naming the tables. **Five are genuine
+substantive omissions with no row of their own at all:** `evaluation_results` (S30/S31's evaluation
+platform), `org_events` (S18's real event history), `learning_sessions` (U7/D-331/D-332 — the
+durable per-session summary, and the one this table actively contradicted until the correction
+above), `question_validation_runs` (S20's independent difficulty review), and
+`assessment_item_state`'s sibling `assessment_items`. Treat the mermaid Postgres node in §1 and
+this table as complementary, not redundant — the node names several tables this table does not.
+
+**Mismatch with the reconciliation worklist, recorded rather than smoothed over.** DRIFT-77 states
+the gap as **twelve** tables and enumerates `study_sessions`, `study_items`, `study_attempts`,
+`mastery`, `learning_gain`, `hint_events`, `stage_transitions`, `interrupt_approvals`,
+`question_templates`, `question_variants`, `question_validation_runs`, `evaluation_results`. Re-run
+against the file as it stands today, **seven of those twelve are already named here** —
+`study_items`, `study_attempts`, `mastery` and `learning_gain` in the curriculum row,
+`interrupt_approvals` in the checkpoint row, `hint_events` and `stage_transitions` in their own
+rows — while seven tables DRIFT-77 does not list are missing. The *magnitude* (~a dozen) holds; the
+*membership* has drifted, which is DRIFT-77's own diagnosis applied to itself: nothing re-derives
+these figures when code moves. The enumeration above is the current one, as of 2026-08-20, and the
+command that produced it is a `__tablename__` grep over the models package — cheap enough to re-run
+rather than trust.
 
 ## Deployed topology (staging, measured 2026-08-20 on build `gha-44a12dfc9549`)
 

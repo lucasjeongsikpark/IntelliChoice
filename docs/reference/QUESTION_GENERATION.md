@@ -2,9 +2,15 @@
 
 # AI question generation — the as-built design
 
-Status: **implemented** as described. Decisions: D-026, D-186, D-188 … D-194.
-This is the narrowed design of record. A broader system was drafted; what is deferred from it, and
-why, is at the end.
+Status: **implemented** as described. This is the narrowed design of record. A broader system was
+drafted; what is deferred from it, and why, is at the end.
+
+**Decisions this document rests on** (corrected 2026-08-20, W-06/W-33 `DOC-CONTENT-PIPELINE`,
+`RISK-GROUP-OPS-DOC-STRATA` — the list previously stopped at D-194 while the body already cited
+D-342, so a reader could not tell how recent the design of record was). Verified by grepping the
+body: D-026, D-186, D-188, D-190, D-191, D-193, D-194, D-195, D-197, D-198, D-210, D-222, D-223,
+D-225, D-226, D-228, D-231, D-235, D-238, D-239, D-240, D-243, D-273, D-279, D-285, D-289, D-292,
+**D-342** (the parking instruction below, and the newest decision this file depends on).
 
 Scope right now: **one topic** (`linear_equations`), **multiple-choice only**, solo-maintained.
 Everything below is sized for that and is expected to grow when there is evidence it should.
@@ -69,6 +75,42 @@ pending  ──→  review_cli (human)  ──→  export_cli  ──→  versio
 Nothing is auto-approved, auto-exported or auto-deployed. `pending` → `approved` is a human action
 through `review_cli` (D-026), and approved content only reaches an environment by being committed as
 a file (D-190).
+
+## 2a. What the deterministic gate checks, and the four SPEC bullets it does not
+
+*Added 2026-08-20 — W-06 `DOC-CONTENT-PIPELINE` member DRIFT-31. Verified read-only against
+`authored_validation.py` and `SPEC.md` §5.8.5 on that date; no code was changed.*
+
+`validate_authored_item` is the whole deterministic gate. It calls **thirteen** checks: two figure
+checks (`check_figure_agrees_with_the_question`, `check_reading_matches_the_figure`, added with
+D-279) plus the eleven that predate them — schema/markdown safety, unique options, SymPy independent
+solve, exactly-one-correct, no answer leakage, hint-ladder monotonicity, hint/solution/answer
+agreement, difficulty-rubric compliance, age-appropriate wording, readable math notation, no meta
+commentary. A figure *reading* replaces the equation as the source of truth, so the two
+answer-derivation checks are exchanged for it rather than skipped.
+
+**Six of those checks are not in SPEC §5.8.5 at all** — the gate is stricter than the spec in those
+directions, which is fine and worth knowing.
+
+**Four §5.8.5 bullets have no implementing deterministic check inside the gate.** Stated plainly, in
+the "declared and never used" register wording rather than as an absence nobody noticed:
+
+| §5.8.5 bullet | status inside `validate_authored_item` |
+|---|---|
+| No division by zero | **no check** |
+| Numeric values within allowed range | **no check on item content** — the only range enforcement is on *metadata* (the bounded 1–5 fields, §7) |
+| No duplicate question | **not in the gate.** Implemented one layer up as a stem-embedding cosine threshold whose own code comment calls it *a placeholder pending real-embedding calibration* |
+| Topic and skill alignment | **no deterministic check.** Alignment is one of the LLM judge's rubric dimensions |
+
+Two further checks are materially narrower than their bullets, and one describes itself as "a rough
+proxy only".
+
+**The finding that matters here is the direction of delegation, not the count.** All four gaps and
+both narrowings resolve to *"the LLM judge does this"* — for a content gate feeding minors'
+assessments, that sits in tension with CLAUDE.md rule 2 (deterministic core). It is recorded as a
+documentation-only item because the pipeline is parked (D-342); it is **not** dispositioned as
+harmless. If the user wants an explicit ruling on the delegation direction, that ruling is
+outstanding, not implied. Fifteen of nineteen §5.29-adjacent rows also remain unsampled.
 
 ## 3. Difficulty
 
@@ -242,9 +284,15 @@ Intended paid configuration:
 | Solver B | **a different** lower-cost Anthropic model | two solvers that are one model agree by construction |
 | Judge | lower-cost or mid-tier Anthropic | reads a finished item against a rubric |
 
-### Re-measured (account 320503430250, us-east-1, 2026-08-11, D-273 C1 Phase 0)
+### Stratum 2026-08-11 — re-measured (account 320503430250, us-east-1, D-273 C1 Phase 0)
 
-**The §6 plan below cannot be run as written, and the reason is new.** Re-reading availability
+> **This is the current model stratum.** The 2026-08-05 roster it replaced is quarantined in
+> [Appendix A](#appendix-a--superseded-2026-08-05-model-availability) rather than sitting inline —
+> it held present-tense imperatives with no containment (dated 2026-08-20, W-33
+> `RISK-GROUP-OPS-DOC-STRATA`). Availability can change without notice; re-measure before a paid
+> run rather than trusting this table's date.
+
+**The §6 plan above cannot be run as written, and the reason is new.** Re-reading availability
 found a *third* AVAILABLE agreement — but availability and invocability are different facts, and
 this is the run that separated them:
 
@@ -257,9 +305,10 @@ this is the run that separated them:
 
 Measured with a 1-token `invoke-model` per candidate, not inferred from the availability API.
 **`agreementAvailability.status = AVAILABLE` is not a promise you can call the model** — Sonnet 5
-reports AVAILABLE and denies the call. The table below listed it as "indicated, unproven" and
-named it the intended premium Generator; that configuration would have failed on its first call,
-after preflight passed.
+reports AVAILABLE and denies the call. The superseded 08-05 table (now
+[Appendix A](#appendix-a--superseded-2026-08-05-model-availability)) listed it as "indicated,
+unproven" and named it the intended premium Generator; that configuration would have failed on its
+first call, after preflight passed.
 
 **What this does and does not buy.** The invocable set is **two** models, not three, so the
 pigeonhole in §6 stands: with Generator, Solver A and Solver B all wanting independence, two of
@@ -279,29 +328,7 @@ with Haiku as Generator. A better generator may raise yield enough to lower *cos
 item*, or may not — that is a measurement, and the wave structure exists to take it before the
 next wave spends.
 
-### Measured availability (account 320503430250, us-east-1, 2026-08-05) — superseded by the block above
-
-Read from `bedrock get-foundation-model-availability` and `cloudwatch list-metrics` — no invocation.
-Only **two** Anthropic models have an available agreement:
-
-| model | agreement | ever invoked | usable |
-|---|---|---|---|
-| `us.anthropic.claude-haiku-4-5-20251001-v1:0` | AVAILABLE | yes (S32 onward) | **verified** |
-| `us.anthropic.claude-sonnet-5` | AVAILABLE | no | indicated, unproven |
-| Opus 4.1 / 4.5 / 5, Sonnet 4 / 4.5, Claude 3 Haiku | NOT_AVAILABLE | no | no |
-
-Two consequences worth knowing before configuring a run:
-
-1. **The shipped code default `anthropic.claude-sonnet-5` is not invocable as written.** Every ACTIVE
-   Anthropic model in this region is `INFERENCE_PROFILE` only, so the bare id has no on-demand
-   throughput and the call fails. Use the `us.`-prefixed inference profile id, as `.env.example`
-   already does.
-2. **There is no second low-cost model to give Solver B.** With two accessible models, a
-   premium-generator configuration forces Solver B onto the generator's own model. That passes the
-   diversity gate but weakens it: the same weights re-reading their own question fail in correlated
-   ways. Solver A stays genuinely independent, so a generator error it catches still rejects — the
-   weakness is asymmetric, not fatal. Enabling model access for one more low-cost Anthropic model
-   is what makes a clean three-model setup possible.
+### Two rules that outlive any roster
 
 Solver A and B **must** be different model ids. They currently are not: both slots default to the
 same value, so every "independent solver agreement" recorded before D-194 was one opinion counted
@@ -349,7 +376,7 @@ Not built. Each waits on evidence from a real pilot rather than on a schedule.
 | deferred | would be justified by |
 |---|---|
 | YAML presets | more than one routinely-repeated argument set. Attaches to `build_plan`; no generation logic changes |
-| Verifier router beyond the SymPy check | a second topic whose mathematics SymPy does not model |
+| ~~Verifier router beyond the SymPy check~~ | **Built 2026-08-11 (D-273 Phase R)** — annotated 2026-08-20, W-06 `DOC-CONTENT-PIPELINE`. `route_answer` / `_option_matches` cover `value`, `multi_root`, `interval`, `tuple` and `symbolic`, fail-closed ("a form no model claims is an error, never a skip"), with both-directions tests per D-246. **Family B is no longer routed to Phase R as future work.** Phase R also falsified its own premise: `selection` needed no verifier — `Eq(x, Max(34, 43))` already derived 43 on the unchanged gate, so comparison questions ride the `value` model (see [CONTENT_COVERAGE.md](CONTENT_COVERAGE.md) §3's annotation) |
 | Separate engagement judge | evidence that the current judge misses dull-but-correct items |
 | Non-MCQ types (proof, open response) | a serving path. Grading is deterministic option matching today, so generating them would create content the app cannot show |
 | ~~Auto-approval for a narrow slice~~ | **Decided 2026-08-12, D-289.** The real sample exists (D-285: 54 items, **0 wrong answer keys**, 13% carrying a prose defect no gate can see) and all five of Phase 3's pre-registered criteria pass. The user's decision was **auto-approve with no spot-check sampling** — a 20-item-per-wave sample was recommended and declined. `--approve-all-unreviewed` is the path; every item it touches keeps `review_priority='high'` |
@@ -387,11 +414,27 @@ compares the whole list, order included, and the export orders by `(skill_id, di
 
 ### How many items a topic needs (D-223)
 
+> **Provenance of the "5–7 per tier" figure — corrected 2026-08-20 (W-06 `DOC-CONTENT-PIPELINE`,
+> member E2-33).** Three documents render this number three ways, and none of them is quoting a
+> target D-223 states. What D-223 (2026-08-08) actually *does*: it takes `fraction_operations` from
+> 15 items to 30 and records the resulting per-tier distribution **5 / 6 / 7 / 6 / 6**, against the
+> availability floor of 2. The **5–7 range is that measured distribution**, not a declared target.
+> The two derived renderings are: **D-273** (2026-08-11) — *"Volume target is D-223's measured 5–7
+> per occupied tier (~25–35/topic, ~1,000 items across 34 topics)"*, the reading the user adopted
+> over SPEC §5.8.1's 100-per-topic; and **D-313** (2026-08-13) — *"D-223's target of 5 per occupied
+> `(topic, tier)` cell"*, which sizes the backlog at 189 items using **5**, not 5–7.
+> **Treat D-223 as the owner of the measurement and D-273 as the owner of the target.** The exact
+> per-cell number is confirmed **at the moment D-342 is lifted**, not before — see the banner at the
+> top of this file. Verified read-only against `DECISIONS.md` on 2026-08-20; nothing in the decision
+> log was edited.
+
 The availability floor is 2 per difficulty (`QUESTIONS_PER_DIFFICULTY`), and it is a floor, not a
 target: a pre-exam draws 2 per tier, so a topic sitting on the floor serves a student *its whole
 bank* and repeats it in full on the next session. Measured on `fraction_operations` at 3 per tier,
 two independently-built exams had to share at least 5 of 10 items; at 5–7 per tier, three exams
-covered **19 of 30** distinct questions with **3/10 and 6/10** overlap.
+covered **19 of 30** distinct questions with **3/10 and 6/10** overlap. *(This measurement, dated
+2026-08-08 with D-223, is the only place it is written down — see the provenance box above before
+quoting "5–7" as a target.)*
 
 Two things do *not* have to be filled in, and treating them as targets would cost content quality:
 
@@ -403,8 +446,18 @@ Two things do *not* have to be filled in, and treating them as targets would cos
 
 ## 10. State
 
-**Current, 2026-08-12 (C1 Phase 3):** the bank holds **696 approved authored items across 33
-topics** — 529 generated by this pipeline, the rest hand-authored (D-222/223/225/228) or
+> **As-of note, added 2026-08-20 (W-37 `DOC-SNAPSHOT-BANNERS`).** Everything in §10 is a
+> **measurement snapshot, not a live reading**. The two blocks below are **two different dates** and
+> are deliberately *not* merged (W-33): the first is 2026-08-12, the second is 2026-08-08. Both were
+> already superseded when this note was written — the bank was measured at **958 items with 99 of 99
+> authorable skills stocked on 2026-08-13** (D-312), and coverage work has been parked since
+> 2026-08-15 (D-342), so nothing has re-measured it since. **Expiry rule:** any figure in §10 older
+> than the newest coverage decision in `DECISIONS.md` is provenance, not state. Re-derive from the
+> database (or from `scripts/build_content_coverage.py`) before planning a run; do not quote §10 as
+> current.
+
+**Snapshot, 2026-08-12 (C1 Phase 3) — superseded by D-312's 958-item reading, 2026-08-13:** the
+bank held **696 approved authored items across 33 topics** — 529 generated by this pipeline, the rest hand-authored (D-222/223/225/228) or
 deterministic figure items (D-279). **24 of the 33 topics are openable**; the other 9 sit below
 the per-difficulty serving floor and need 16 more items between them, which is the shopping list
 Phase 3 is working through. Two numbers to read together when planning a run: acceptance has run
@@ -412,8 +465,10 @@ Phase 3 is working through. Two numbers to read together when planning a run: ac
 difficulty** — an instrument whose exact self-agreement is 19% (D-292), so tier-4/5 slots cost
 about 3× per accepted item for reasons that have nothing to do with the content.
 
-**Superseded state block, kept because its provenance is still the clearest record of what came
-from where.** The bank held **127 approved authored items** — 47 `linear_equations`, 30
+**Earlier snapshot, 2026-08-08 (post-D-228) — superseded, kept because its provenance is still the
+clearest record of what came from where.** *This is a different measurement from the 696-item block
+above, four days earlier; the two are not stages of one count (labelled 2026-08-20, W-33).* The bank
+held **127 approved authored items** — 47 `linear_equations`, 30
 `fraction_operations` (15 in D-222, 15 more in D-223), 25 `place_value` (D-225) and 25
 `multiplication_division` (D-228) — so every topic in the taxonomy was stocked and grades 1-7 all
 resolved to one. **That was then the whole bank**: D-226 deleted the 50 hand-authored
@@ -423,7 +478,11 @@ them; nothing reads them. Twelve authored
 candidates sit at `pending` as the pilot's human-review comparison set; eight equation-first
 candidates were retired in D-193.
 
-### The first paid pilot (D-195, 2026-08-06)
+### Stratum 2026-08-06 — the first paid pilot (D-195)
+
+> **Historical stratum, date-headed 2026-08-20 (W-33 `RISK-GROUP-OPS-DOC-STRATA`).** What the pilot
+> *established about the gates* is durable and is why this section is kept. Its **model and
+> next-step conclusions are superseded** by the 2026-08-11 re-measurement in §6.
 
 Four candidates, seed offset `400000`, 13.21¢. **0 accepted, and that was the correct outcome** —
 all four were defective and each was caught by a different gate.
@@ -446,7 +505,55 @@ What the pilot established, beyond the four rejections:
   tier of 3 it would have passed. The gate is doing its job, not misfiring.
 - **No planned template id was created**, so seed offset `400000` remains reusable.
 
-**Next:** one identical four-candidate repeat — same models, same seed offset, with D-195 §5's
-snapshot in place so the content can actually be read this time. If it again yields 0 of 4, stop
-using Mistral Large 3 as Generator and obtain additional model access: it is the only accessible
-model that passes the generator contract, so there is no better one to switch to.
+> ### ⛔ SUPERSEDED — this was the plan on 2026-08-06. It is not an instruction.
+>
+> **Boxed and dated 2026-08-20 (W-06/W-33, `DOC-CONTENT-PIPELINE` DRIFT-48 · WORK-26).** This line
+> was the **last thing in the file**, undated and in the imperative, where a reader looks for what to
+> do next — and it is contradicted by §6's 2026-08-11 re-measurement roughly 180 lines earlier, which
+> put **Sonnet 4.5** in the Generator slot. **No Mistral model id is configured anywhere in this
+> repository** (a repo-wide grep over `.py`/`.yaml`/`.yml`/`.toml`/`.example`/`.tf`/`.json` yields
+> only non-configuration hits: prose comments citing `mistral-large-3` as historical evidence for a
+> *rejected* behaviour, plus adapter test assertions). Nothing here is to be acted on. Kept verbatim
+> below because it is the record of what was believed on 2026-08-06.
+>
+> Superseded by: §6's *Stratum 2026-08-11* roster. Also parked outright by **D-342** — no generation
+> run starts to close a coverage gap.
+>
+> > ~~**Next:** one identical four-candidate repeat — same models, same seed offset, with D-195 §5's
+> > snapshot in place so the content can actually be read this time. If it again yields 0 of 4, stop
+> > using Mistral Large 3 as Generator and obtain additional model access: it is the only accessible
+> > model that passes the generator contract, so there is no better one to switch to.~~
+
+---
+
+## Appendix A — Superseded: 2026-08-05 model availability
+
+> **Quarantined here 2026-08-20 (W-33 `RISK-GROUP-OPS-DOC-STRATA`).** This roster lived inline in §6
+> in the present tense with no visual containment. It is **superseded by §6's *Stratum 2026-08-11***
+> and is retained only as provenance — in particular for *why* Solver B shares the Generator's
+> weights. **Do not configure a run from this appendix.**
+
+Measured availability (account 320503430250, us-east-1, **2026-08-05**), read from
+`bedrock get-foundation-model-availability` and `cloudwatch list-metrics` — **no invocation**, which
+is exactly the gap the 08-11 re-measurement closed. As of that date only **two** Anthropic models
+had an available agreement:
+
+| model | agreement | ever invoked | usable |
+|---|---|---|---|
+| `us.anthropic.claude-haiku-4-5-20251001-v1:0` | AVAILABLE | yes (S32 onward) | **verified** |
+| `us.anthropic.claude-sonnet-5` | AVAILABLE | no | indicated, unproven — **later measured `AccessDenied` (08-11)** |
+| Opus 4.1 / 4.5 / 5, Sonnet 4 / 4.5, Claude 3 Haiku | NOT_AVAILABLE | no | no — **Sonnet 4.5 became AVAILABLE and INVOCABLE on 08-11** |
+
+Two consequences recorded at the time, the second of which still holds:
+
+1. **The shipped code default `anthropic.claude-sonnet-5` is not invocable as written.** Every ACTIVE
+   Anthropic model in this region is `INFERENCE_PROFILE` only, so the bare id has no on-demand
+   throughput and the call fails. Use the `us.`-prefixed inference profile id, as `.env.example`
+   already does. *(Still true; unrelated to the roster.)*
+2. **There is no second low-cost model to give Solver B.** With two accessible models, a
+   premium-generator configuration forces Solver B onto the generator's own model. That passes the
+   diversity gate but weakens it: the same weights re-reading their own question fail in correlated
+   ways. Solver A stays genuinely independent, so a generator error it catches still rejects — the
+   weakness is asymmetric, not fatal. Enabling model access for one more low-cost Anthropic model
+   is what makes a clean three-model setup possible. *(Still true on 08-11: the invocable set is two,
+   so the pigeonhole and the asymmetric weakness are unchanged.)*
