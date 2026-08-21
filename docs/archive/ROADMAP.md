@@ -15,7 +15,9 @@
 
 This is the session-by-session plan for building the platform described in [SPEC.md](SPEC.md)
 and, from S17 onward, the 2026-07-18 expansion plan
-([plans/2026-07-18-expansion-plan.md](plans/2026-07-18-expansion-plan.md), "the plan" below).
+([docs/archive/plans/2026-07-18-expansion-plan.md](plans/2026-07-18-expansion-plan.md) —
+**historical**, archived with this file; repathed 2026-08-20, W-20 step 9a / `RISK-R7.3-DANGLING-REFS`,
+the one edit permitted inside this archived file; "the plan" below).
 Each session is scoped to fit comfortably in one Claude Code session (roughly a half-day of
 focused work). Sessions within a milestone are ordered by dependency; milestones M4–M7 have
 some flexibility (see Dependency notes).
@@ -337,7 +339,9 @@ with `test_ai_pipeline.py`'s deliberately-chosen S17 anti-collision seed — see
 entry for the fix and the still-open follow-up.
 
 ### Session 22.5 — Brand identity and design tokens ✅ (done 2026-07-19)
-**Spec:** none (off-spec visual work); plan: [plans/2026-07-19-branding-plan.md](plans/2026-07-19-branding-plan.md)
+**Spec:** none (off-spec visual work); plan:
+[docs/archive/plans/2026-07-19-branding-plan.md](plans/2026-07-19-branding-plan.md) —
+**historical**, archived with this file (repathed 2026-08-20, W-20 step 9a)
 — that file carries the full brand audit (colors/fonts/logo extracted from the live
 `www.intellichoice.org` theme CSS), token mapping, codebase recon, and per-phase task
 list; read it instead of re-deriving any of that. Frontend-only: no backend/DB/

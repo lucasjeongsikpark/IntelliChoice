@@ -431,6 +431,28 @@ detail is single-homed there, not here). The three live residuals are `D310-RESI
 not primary truth.* Full precedence rules and conflict protocols:
 [reference/AUTHORITY_MODEL.md](reference/AUTHORITY_MODEL.md).
 
+**The two ladders, summarized** (full form: AUTHORITY_MODEL §3 — use the right ladder for the
+question):
+
+| Question | Ladder | Order |
+|---|---|---|
+| "What is required?" | A | SPEC **as amended by accepted DECISIONS entries** → a newer accepted decision beats the SPEC text it touches (a status tag of `accepted` is not evidence — grep the topic for later entries) → nothing else is normative: not a plan, a roadmap criterion, a diagram, or a comment |
+| "What is true right now?" | B | Primary evidence (code/tests/config for repository state; runtime observation for deployed state — always revision-qualified) → this file's dated snapshot, within its staleness window → an archived document, never (provenance only) |
+
+The layers never flatten: Ladder A settles requirement disputes, Ladder B current-state disputes;
+when a fact differs between layers, state both, each with its layer and date. `docs/log/` sits
+below every tier — narration, not evidence and not authority (user ruling DQ-1, 2026-08-20).
+
+**Session-label convention (W-35, `RISK-R6.4-SESSION-LABELS`).** Bare session labels are ambiguous
+and are always qualified at first use: "C1" names two different sessions (qualify as *content
+session C1, 2026-08-11 (D-273)* vs the earlier track); "S43"–"S47" are ROADMAP's frozen sessions
+(now in `reference/integration/ROADMAP_FROZEN_SESSIONS.md`) and must not be confused with
+PROGRESS's unnumbered self-applied labels — most consequentially, PROGRESS's completed unnumbered
+"S45" is **not** ROADMAP's unstarted consent session S45 (the owner of `DISCLOSURES-LEGAL` and
+`FIRST-VISIT-REVERIFY` is the ROADMAP one); a bare "§2.6" resolves to `INTEGRATION_PLAN.md` §2.6
+(the gate criteria), not SPEC. D-049's translation layer covers old S17–S23 only — outside that
+range, translate nothing mechanically.
+
 **The five active documents** (plus repo-root `CLAUDE.md`, the pointer and non-negotiables):
 
 | Document | Role |

@@ -693,7 +693,7 @@ separable so the eight features that *are* present stop being under-credited.
 
 # UD-10 — First-visit disclosures and the legal track
 
-**Register entry:** `DISCLOSURES-LEGAL` (separate entry: `REQ-27`)
+**Register entry:** `DISCLOSURES-LEGAL` (separate entries, qualified 2026-08-20 at step 9c: `REQ-27-FROZENSET` — ACTIVE_IMPLEMENTATION, an unblocked local test — versus `REQ-27-TOKEN-CONTRACT` — DEFERRED to integration; a bare `REQ-27` conflates them)
 
 **Question requiring judgment.** Does the first-visit notice ship eight disclosures or eleven; is
 counsel engaged; and who owns and schedules the §6.1 legal track?
@@ -760,7 +760,7 @@ outstanding and that counsel has not been engaged, and add an owner field to the
 the owner is "user, unscheduled". The deferral cost is that a mandatory production gate stays
 invisible to any status sweep.
 
-**Separable and not a decision.** REQ-27's frozenset test (the token-claim contract) is owed
+**Separable and not a decision.** `REQ-27-FROZENSET`'s test (the token-claim contract; distinct from `REQ-27-TOKEN-CONTRACT`, deferred) is owed
 regardless of any answer here and is filed as implementation work.
 
 ---
@@ -947,7 +947,7 @@ default.**
 
 ### UD-12(f) — Committed org-draft policy
 
-**Register entry:** `RISK-R7.2`
+**Register entry:** `COMMITTED-ORG-DRAFTS` (from risk R7.2; corrected 2026-08-20 at migration step 9c — the register's entry key is `COMMITTED-ORG-DRAFTS`, and `R7.2` is the documentation-risk id that maps to it per register §11(h))
 
 - **Question.** Are committed outbound drafts allowed, and which credential-mention policy governs a
   sent message?
@@ -1017,5 +1017,3 @@ reopen condition exists, it is stated.
 - **Blocks current work:** UD-1 only, and only partially.
 - **Blocks the canonical-document proposal:** nothing. UD-12(a) and the status-tag convention are
   *inputs* to it, and both have safe defaults.
-</content>
-</invoke>

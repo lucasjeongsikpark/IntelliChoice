@@ -1,5 +1,7 @@
 > **⛔ 이 문서의 대상 작업은 D-152로 동결되었습니다 — FROZEN by D-152 (막힌 게 아니라, 미룬 것).**
-> *Banner added 2026-08-20 (W-20); shape copied from `docs/S42_OPEN_QUESTIONS.md`, the only S42-era
+> *Banner added 2026-08-20 (W-20); shape copied from
+> [S42_OPEN_QUESTIONS.md](S42_OPEN_QUESTIONS.md) (repathed 2026-08-20 from `docs/` to
+> `docs/reference/integration/`, W-20 step 9a), the only S42-era
 > file where the freeze was visible from inside. `D-152` appeared **zero times** in this file before
 > this banner.*
 >
@@ -37,13 +39,23 @@ Rewritten 2026-07-24 under a hardened scope constraint (user-set, supersedes the
 earlier drafts of this document):
 
 > **The production system powering intellichoice.org and go.intellichoice.org
-> (`icrest`/`icweb` + the `ic` MySQL database) is immutable.** No changes to its
+> (`icrest`/`icweb` + the `ic` MySQL database)<sup>†</sup> is immutable.** No changes to its
 > frontend, backend, schema, auth logic, credentials, deployment, security posture, or
 > operational processes may be planned — even to fix known weaknesses. All
 > compatibility problems are resolved inside the new Chat/Learning stack via adapters,
 > translation layers, read-only access, independent authentication/session handling,
 > and configuration. Pre-existing production risks may be recorded as assumptions or
 > accepted residual risks only.
+
+> <sup>†</sup> **Engine correction, applied 2026-08-20 (W-11 / `RISK-R6.5-SUPERSESSION-DIRECTION`).**
+> The engine is **MariaDB**, not MySQL, and the database is named `ic` — proved by
+> `scripts/drop-indexes.sh` running `sudo mariadb ic`
+> ([S42_DISCOVERY.md](S42_DISCOVERY.md) §4.5). The word "MySQL" is **annotated rather than
+> mass-replaced** throughout this file, deliberately: the *quoted scope constraint above is the
+> user's own wording* and stays verbatim, and most downstream statements (wire protocol, SQL dialect,
+> read-only account, connectivity path) hold for either engine. Where it matters is version-specific
+> behaviour — reserved words, JSON functions, `sequelize.sync({alter:true})` semantics, and any
+> client or driver pin. **Read every "MySQL" in this document as "the MariaDB `ic` database".**
 
 **Boundary tiers** (clarified 2026-07-24):
 
@@ -117,13 +129,15 @@ again in §7 as an accepted residual risk.
   >    only way to learn what is actually stored (frozen; `S42_OPEN_QUESTIONS.md` D1). Per D-153 §7
   >    the org intends to fix this, and **our side does not relax when it lands** (CLAUDE.md rule 3).
   >
-  > Two further S42_DISCOVERY corrections touch this document *outside* §1 and are **not** applied
-  > here, to keep this pass in scope — recorded so they are not lost: **(a)** §6.7 — `GET /` returns
-  > 200, so "no health endpoint" (§3.1's operational-reliability row, §7-R7) is inaccurate for
-  > *liveness*; it never touches the database, so 200 on `/` does not imply the app can serve data.
+  > Two further S42_DISCOVERY corrections touch this document *outside* §1. They were **recorded
+  > here and deferred** on 2026-08-20's first pass, and are now **applied** (second pass, same day,
+  > W-11 / `RISK-R6.5-SUPERSESSION-DIRECTION` — a correction that lives only in the correcting
+  > document is not applied): **(a)** §6.7 — `GET /` returns 200, so "no health endpoint" (§3.1's
+  > operational-reliability row, §7-R7) is inaccurate for *liveness*; it never touches the database,
+  > so 200 on `/` does not imply the app can serve data. **→ Applied at both sites, dated.**
   > **(b)** §4.5 — the engine is **MariaDB**, and the database is named `ic` (proved by
   > `scripts/drop-indexes.sh` running `sudo mariadb ic`); this file's scope note and §1 both say
-  > "MySQL".
+  > "MySQL". **→ Annotated at the scope note and in §1, not mass-replaced.**
 - **Attendance** is per-session (`signups.attended` against a `calendars.startTime`),
   recorded by branch managers, sometimes for "non-registered" ad-hoc children who have
   no account linkage.
@@ -132,6 +146,11 @@ again in §7 as an accepted residual risk.
 - **No consent, age-band, or tutor→student-assignment data exists anywhere.**
 - **Hosting/topology is undocumented** — where the MySQL server runs, and whether it
   is network-reachable from AWS, is unknown from the repos.
+  > **Engine: MariaDB, applied 2026-08-20 (W-11).** Per [S42_DISCOVERY.md](S42_DISCOVERY.md) §4.5 the
+  > engine is **MariaDB** and the database is named `ic`. This bullet's substance is unchanged —
+  > topology is still undocumented — but a reader sizing a client, driver pin or SQL-dialect
+  > assumption from the word "MySQL" would be sizing the wrong engine. Annotated, not replaced (see
+  > the scope-note footnote).
 - **DB credentials (write-capable) and the Gmail service-account key are committed to
   the production repo** and will remain so.
 
@@ -270,12 +289,13 @@ and cheap-P2 audit finding.
 
 Parallel tracks, unchanged: **A6** real content (3 of 23 knowledge docs are real;
 curriculum breadth is `linear_equations`-only authored, D-060) gates the *pilot*;
-**A7** (WAF, backup-restore drill, ZAP, pen-test scheduling) gates *public*
-promotion.
+**A7** (WAF, **GuardDuty** — added 2026-08-20, W-11, per D-125 — backup-restore drill, ZAP,
+pen-test scheduling) gates *public* promotion.
 
 ### 2.6 Measurable exit criteria — the gate before integration discovery (S42)
 
-All of the following, with evidence recorded in PROGRESS.md:
+All of the following, with evidence recorded in `docs/archive/PROGRESS.md` (repathed 2026-08-20,
+step 9a — the session log was archived; current state lives in `docs/PROJECT_STATE.md`):
 
 1. **Traceability**: 100% of launch-scope SPEC requirements mapped to implementation
    + test; every discrepancy dispositioned in DECISIONS.md.
@@ -346,7 +366,7 @@ login API exist.
 | Trust anchor | Password knowledge, verified by **production's own logic** (verified-account checks included, enforced by production itself) | Password knowledge, verified by a **reimplementation** the new stack must keep faithful | Email control only (≈ production's own reset-flow trust level) |
 | Credential exposure | Plaintext transits new backend → HTTPS to icrest (same wire as a normal login); transient handling, never stored/logged | Plaintext handled **and** hash values read into the new stack; the weak HMAC key must be held in Secrets Manager | None — no credentials handled |
 | Coupling surface | Production's **public API contract** (endpoint + response shape) — the loosest available; survives any internal production change, including a future hashing fix | Production's **internal implementation** (column semantics + algorithm + key) — the tightest; any future hashing change breaks login silently | Email→account lookup (DB read) + sender infrastructure |
-| Operational reliability | New *logins* depend on icrest uptime (unmonitored, no health endpoint — real risk); active sessions/refresh unaffected; **no DB network path needed for auth** (public HTTPS reaches it today) | Independent of icrest uptime, but requires the DB network path — potentially the hardest Tier 1 ask (topology unknown) | Depends on SES deliverability + DB read; inbox latency per login |
+| Operational reliability | New *logins* depend on icrest uptime (unmonitored, ~~no health endpoint~~ — **corrected 2026-08-20, W-11, per [S42_DISCOVERY.md](S42_DISCOVERY.md) §6.7: a *liveness* endpoint does exist — `GET /` returns 200 with a stock message. But it never touches the database and `sync` failures are non-fatal, so 200 on `/` does not imply the app can serve data. There is no *readiness* endpoint, so any availability measurement must exercise a DB-backed endpoint. The risk is real; only the "no endpoint at all" wording was wrong**); active sessions/refresh unaffected; **no DB network path needed for auth** (public HTTPS reaches it today) | Independent of icrest uptime, but requires the DB network path — potentially the hardest Tier 1 ask (topology unknown) | Depends on SES deliverability + DB read; inbox latency per login |
 | Side effects on production | Uses existing behavior as designed; login updates `lastLoggedinAt` (org's "last login" data now includes new-app logins — documented, not a change) | None (pure reads) | None (pure reads) |
 | UX | Familiar email+password on the new domain | Identical | Slower (inbox round-trip); awkward for shared/parent-managed email |
 | Implementation complexity | Low: HTTP client + timeout/retry + error mapping + own rate limiting in front | Low for the HMAC itself; high if the DB path is hard to obtain | Moderate: one-time links, sender setup (I13) |
@@ -541,10 +561,10 @@ was reading the *oldest* of three homes for session status. There are now exactl
   file exists so that archiving `ROADMAP.md` does not archive live acceptance criteria; it is the
   home for the frozen sessions' "done when" definitions. Everything in it is **frozen by D-152** and
   carries the freeze annotation — including S48–S51, which used to carry none anywhere.
-- **S35–S42 (executed)** → `docs/archive/ROADMAP.md`, **historical**. *Note:* `ROADMAP.md` is still
-  at `docs/ROADMAP.md` at the moment this pointer was written; it archives to `docs/archive/ROADMAP.md`
-  later in the same migration (step 9). The pointer is written to its **destination** path
-  deliberately — repoint here if the archive step does not land.
+- **S35–S42 (executed)** → [docs/archive/ROADMAP.md](../../archive/ROADMAP.md), **historical**.
+  *Note, updated 2026-08-20 (step 9a repathing):* the archive step **landed** — `ROADMAP.md` now
+  lives at `docs/archive/ROADMAP.md` and carries an ARCHIVED banner. The forward-written pointer
+  resolved as intended; no repoint was needed.
 
 **Per-session statuses are deliberately NOT carried forward** from the table below. Copying them
 would re-create the third status home this pass exists to remove.
@@ -571,7 +591,7 @@ two stabilization sessions.
 | | S38 | **AUD-X** — cross-cutting integrity (new-stack authn/authz boundaries, consistency/idempotency/crash recovery, cost ceilings, live PII floor) | S35 |
 | | S39 | **AUD-F** — frontend contracts for every launch journey + CI/deploy/jobs/observability/perf operations audit | S35 |
 | **0B — Stabilization** (§2.5) | S40–S41 (elastic) | All P1s + cheap P2s from the audits, merged with the seeded known-issues backlog (fixes, EventBridge jobs, retention, autoscaling/P95, test-signal debt) | S36–S39 |
-| — | **Gate** | §2.6 exit criteria all green, evidenced in PROGRESS.md | S40–S41 |
+| — | **Gate** | §2.6 exit criteria all green, evidenced in `docs/archive/PROGRESS.md` (repathed 2026-08-20) | S40–S41 |
 | **1 — Integration readiness** | S42 | **Discovery, org asks (Tier 1 only), and the auth decision gate**: exercise `POST /api/accounts/login` + `GET /api/accounts` + `GET /api/accounts/signups` server-side from AWS (reachability, response shapes incl. whether signups carries `attended`, latency, captured fixtures); icrest availability history; DB topology, network path or dump cadence, read-only account, DNS additions; live role-string survey, timezone convention, schema snapshot; **select the §3.1 auth option and I11 rung**, record with §7 residual-risk acceptance in DECISIONS.md | Gate |
 | | S43 | **`IcProfileAdapter`** (I3–I7, I15) backed by the selected I11 rung (API client, read-only SQL, or hybrid): id namespacing, attendance derivation, role mapping fail-closed, branch enrichment; contract tests against captured fixtures/schema snapshot + deploy smoke probe (I12); staging runs against a prod-shaped replica | S42 |
 | **2 — Integration implementation** | S44 | **Independent auth** (I1, I14): implement the selected §3.1 option (O1 delegation client with timeout/retry/error mapping, or O2 verifier), token issuer with SPEC claims + per-app secrets, login UI replacing `DevLoginScreen`, dedicated per-account+per-IP rate limiting, refresh/revocation per I14, logout semantics | S43 |
@@ -580,8 +600,19 @@ two stabilization sessions.
 | **3 — Integration testing** | S47 | **Integration-specific test pass** (not the first comprehensive E2E — Phase 0A owns that): E2E against a production-schema replica seeded with realistic edge data (soft-deleted children, NULL attendance, unknown roles, unverified accounts, duplicate signups); auth abuse tests (brute-force limits, forged/expired tokens, cross-audience); staleness drill for the I11 fallback; PII-boundary re-audit covering the new login path | S43–S46 |
 | **4 — Rollout** | S48 | Production environment: `terraform/environments/production` (multi-AZ, ≥2 tasks, deletion protection, dev-token gates off), domains + ACM + additive DNS, prod alarms to a monitored inbox | S35 |
 | | S49 | Real credentials + feature-flag audit (I13 SES or flag-off; Maps/Calendar/YouTube real-or-off); connectivity path live (I11) | S42, S48 |
-| | S50 | A7 close-out: WAF, backup-restore drill, ZAP on prod config; incident-response runbook updated for the integrated topology | S48 |
+| | S50 | A7 close-out: WAF, **GuardDuty** (added 2026-08-20, W-11 — see the note below the table), backup-restore drill, ZAP on prod config; incident-response runbook updated for the integrated topology | S48 |
 | | S51 | Pilot start + graduated rollout (§6) | S45–S50, A6, legal docs |
+
+> **GuardDuty added to the S50 A7 scope list, 2026-08-20 (W-11 `TRACEABILITY-ARITHMETIC`,
+> DRIFT-02).** `TRACEABILITY.md` tracks GuardDuty to **S50 A7**, and D-125 says so in the decision
+> itself — *"tracked to the same place as WAF — S50's A7 close-out"* — but the scope list above named
+> WAF, the backup-restore drill, ZAP and the runbook, and **not GuardDuty**. A required control was
+> deferred to a destination that did not list it, which is how a deferral becomes an omission.
+> Verified 2026-08-20: this is the **only** S50 A7 scope list in this file (§2.5's `A7 (WAF,
+> backup-restore drill, ZAP, pen-test scheduling)` parenthetical is an A7 *track* summary, annotated
+> in place). D-125's reconsideration trigger travels with it: **revisit the moment real user traffic
+> exists or the account holds production data** — both of which the pilot (S51) meets, so this is a
+> deferral with a foreseeable end.
 
 **Dependency spine:** S35 → the four audits → stabilization → **§2.6 gate** →
 discovery (S42) → adapter → auth → consent/scoping → integration testing · A6 real
@@ -641,7 +672,16 @@ promotion, not the pilot.
   logins fail (active sessions and refresh keep working). Accepted — when icrest is
   down, the org's primary system is down too. Tier 2 mitigation: the new stack's own
   alarms probe the login endpoint externally, so the org hears about outages faster
-  than it does today. Side note, accepted: new-app logins update `lastLoggedinAt`
+  than it does today.
+  > **Corrected 2026-08-20 (W-11), source [S42_DISCOVERY.md](S42_DISCOVERY.md) §6.7.** "icrest has
+  > no health endpoint" is wrong for *liveness*: **`GET /` returns 200** with a stock message. It is
+  > right in the sense that matters — the endpoint **never touches the database**, and a
+  > `sequelize.sync` failure is only logged while the process keeps serving, so **200 on `/` does not
+  > imply the app can serve data**. There is no readiness endpoint. Consequences for this risk, both
+  > unchanged in severity: the coupling and the absence of monitoring stand, and **the Tier 2 alarm
+  > must probe a DB-backed endpoint (the login endpoint), not `/`** — probing `/` would report
+  > healthy through a database outage. Read the "no health endpoint" phrase as "no *readiness*
+  > endpoint, and nothing monitors the liveness one". Side note, accepted: new-app logins update `lastLoggedinAt`
   (production behaving as designed), so the org's "last login" data includes them.
 - **R8 — Tutor and branch_manager can read any student (AUD-L-07's read half).**
   `resolve_target_student` verifies students against their own `sub` and parents against a
@@ -691,7 +731,7 @@ promotion, not the pilot.
 
 The production repos (`IntelliChoice-web/`: `icrest`, `icweb`, and their own
 `docs/codebase-analysis/`) were read at S36 close-out. **D-099 in
-[DECISIONS.md](DECISIONS.md) holds the detail and the citations**; this section records only what it
+[DECISIONS.md](../../DECISIONS.md) holds the detail and the citations**; this section records only what it
 changes in the sections above, so nobody re-derives it.
 
 **§1 (facts) gains three corrections.**
