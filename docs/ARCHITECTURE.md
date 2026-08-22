@@ -69,12 +69,16 @@ branch.
 > exist in AWS and were confirmed at runtime, **and** the jobs' dead-man's switch was structurally
 > non-functional until 2026-08-21: the metric-filter patterns searched for hyphenated event names
 > the emitter never wrote. The terraform-side pattern fix (`replace(each.key, "-", "_")`,
-> commit `b06a5df`) was applied to staging on 2026-08-21 and the four live filter patterns were
-> read back underscored — but **no post-fix nightly run has fired yet**, so `JobCompletions` has
-> still never published a datapoint and the four heartbeat alarms remain in ALARM until the first
-> one does. `test_scheduled_job_event_parity.py` now pins filter↔emitter parity locally (the
-> D-385 class). Both halves still travel together: do not read "confirmed at runtime" as "the
-> 90-day retention promise is being kept" until ALARM → OK is observed.
+> commit `b06a5df`) was applied to staging on 2026-08-21, and **confirmed end-to-end on
+> 2026-08-22**: the first post-fix firings published `JobCompletions`' first-ever datapoints and
+> the three nightly heartbeat alarms transitioned ALARM → OK (19:05/19:11/19:42 UTC; long-period
+> alarms evaluate ~1–1.7 h behind their datapoints). `test_scheduled_job_event_parity.py` pins
+> filter↔emitter parity locally (the D-385 class). **One instrument is still mis-specified:**
+> `memory-consolidate` is weekly (Sundays 18:30 UTC) but sits in `nightly_job_events` under the
+> uniform two-day heartbeat period, so its alarm will flap OK → ALARM every week even once it
+> fires — the fix (a weekly-scaled period) is RD-01's open residual. And the events report
+> completion, not correctness: do not read "confirmed" as "the 90-day retention promise is being
+> kept".
 
 **Two shipped behaviors that deviate from the plan's own recommendation**, recorded here
 because reading the spec alone would mispredict the code: S22 kept **grade-on-submit** rather
