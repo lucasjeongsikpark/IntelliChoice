@@ -184,6 +184,63 @@ cleared**. (c) **Documentation:** `e2e/README.md` still documents the pre-D-310 
 manual targeted apply, accepted because the S44 plan deletes these secrets when real auth lands.
 D-310 itself is resolved history — see §9's standing framing and the register's `D310-ROTATION`.
 
+### 4.4 Execution queue — the persistent cursor (canonical execution state)
+
+**What this is.** The single ordered choice among the §4 items currently eligible to execute. It
+is a cursor over §4, **not a second backlog**: §4 and the register keep owning whether work
+exists and what its status is; this queue owns only the order. Single-homed here — no other file
+(and no `tasks/` artifact) may carry a competing copy. Only executable engineering work belongs
+here: §5 user decisions and §6 blocked/deferred/parked items (including everything D-152
+freezes) never enter.
+
+**Selection rule.** On a generic continue/resume request ("continue the project"), the next task
+is the **first eligible row below**. The cursor is positional: delete-on-resolve removes finished
+rows, so the first row is always NEXT. Nobody reprioritizes this queue during an ordinary
+continue — reordering is itself a state change, made here with a dated reason *before* it is
+used. A user-named task overrides the queue only when it is legitimately startable and does not
+conflict with existing decisions or freeze boundaries.
+
+**Eligibility gate (checked at dispatch, before a Frozen Spec is written).** Verify the first
+row against its register entry and primary evidence: (a) still open; (b) prerequisites still
+hold; (c) startable now; (d) not made stale by primary evidence; (e) not dependent on an
+unresolved UD; (f) not crossing D-152 or any §6 boundary. If it fails the gate, do **not**
+silently skip it: reconcile this file per AUTHORITY_MODEL's conflict rules (delete or restate
+the §4 row, correct this queue), and only then take the newly valid first row.
+
+**Ownership and advance.** A standalone session or the Orca coordinator advances this queue; an
+**Orca executor never selects, reorders, or advances it**. A completed item advances the cursor
+only **after** coordinator acceptance and canonical-document reconciliation — in the same update
+that deletes the item's §4 row. Entries are register keys plus minimal ordering metadata; the
+descriptions stay in §4 and the register.
+
+**Initial ordering (derived 2026-08-21 from the register's explicit priority statements, the
+documents' own batching/prerequisite couplings, security/privacy/cost severity, and the two
+UD-constrained tails; every §4 key appears exactly once):**
+
+| # | Item(s) | Ordering evidence |
+|---|---|---|
+| 1 | `RD-01` + `COST-22-LABEL-PREINIT` | Register (verbatim): "the highest-priority engineering item in the register"; §8: fix the false ALARM before UD-6 is even discussed. COST-22 rides the register's own "silent instrument" batch (its UD-5 tripwire half stays out — user decision). Startable side is the terraform pattern fix (apply-only; the Python side is inert until UD-1's deploy); the cross-boundary parity test is a second deliverable |
+| 2 | `SEC-13-PURGE` | Register: "ranked first of the three named new-test candidates"; minors' precise coordinates survive cancel/exception; cancel-path test first, then the `finally`. Local, no spend |
+| 3 | `COST-06-FLUSH` | Last open member of the "fail-closed invariants have no pins" package (the REQ-27 half landed at `00f6886`); a real cost bug; the test forces `IntegrityError` with a fake gateway |
+| 4 | `BATCH-LOW-NARROW-COVERAGE` + `REQ-44-REASON-SWEEP` | The span-event redaction member is a live security gap (a credential inside a span event is not redacted today); the reason-sweep member overlaps REQ-44, so both close together |
+| 5 | `DRIFT-59-DATE-SHIFT` + `WORK-40-TZ` (also closes `WORK-40`'s residual) | The documents' own shared prerequisite (export `buildDateLabelFormatter`; "whichever lands first, update both rows"); WORK-40-TZ is a rule-4 human-approval surface rendering wrong times |
+| 6 | `WORK-12-BANNER` | Untested condition carrying two live contradictory statuses; local (mock `useLearningSession`) |
+| 7 | `DRIFT-91-ORGTIME-IMPORT` | Seam hygiene; cheap and local |
+| 8 | `DRIFT-86-COST-RUNBOOK` | The runbook's lever does not move a live service and the scenario is live via `BUDGET-GROSS-SPEND` |
+| 9 | `WORK-44-DECIDED-NOT-BUILT` | Two cheap read-only verifications (react-router; `gh pr list`) |
+| 10 | `ARCH-17-COMMIT-SEAM`, then `WORK-24-DUPLICATE-GAIN` | WORK-24's stated hypothesis is the same root cause as ARCH-17; read the repair counter first — movement voids §7-R9 |
+| 11 | `D329-PHANTOM` | Detection gap for silently-swallowed background failures (generalises D-344/D-350) |
+| 12 | `D356-FAMILY` | Publisher enumeration, then one dated status correction (rides W-18) |
+| 13 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
+| 14 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
+| 15 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
+| 16 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
+| 17 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
+| 18 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
+| 19 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
+| 20 | `WORK-13-FIXTURES` | Explicitly "Order against UD-1 — a deploy changes the build under test"; the paid re-run stays with UD-2 |
+| 21 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
+
 ---
 
 ## 5. Open user decisions (UD-1 … UD-12)
@@ -403,11 +460,17 @@ detail is single-homed there, not here). The three live residuals are `D310-RESI
 
 ## 10. Update protocol
 
-- **Who and when.** Whoever closes a working session updates this file as part of `/end-session` —
-  sections **3, 4, 5, 6, 7 and 8**, plus the snapshot header's date and revisions.
+- **Who and when — role-aware (CLAUDE.md "Execution modes", AUTHORITY_MODEL §6).** A
+  **standalone Claude Code** session updates this file as part of `/end-session`. An **Orca
+  coordinator** updates it as part of post-acceptance canonical reconciliation — it is the only
+  Orca role that edits it. An **Orca executor** never updates this file; it reports documentation
+  impact to the coordinator. In every mode the update covers sections **3, 4 (including the §4.4
+  execution queue), 5, 6, 7 and 8**, plus the snapshot header's date and revisions.
 - **Delete on resolve.** When an item resolves it is **REMOVED from this file**, not annotated as
   done. Its record lives in DECISIONS (the judgement) and git history (the change). PROJECT_STATE
-  accumulating resolved items is exactly the failure mode this file replaces.
+  accumulating resolved items is exactly the failure mode this file replaces. The same update
+  deletes the item's §4.4 queue row, advancing the execution cursor — and only after acceptance
+  and reconciliation, never before.
 - **Fan-out check before deleting.** Grep the register key across this whole file before removing
   its row. Keys appearing in more than one section (today: `RD-01`, `UD-1`, `D310-RESIDUALS`,
   `WORK-40-TZ`/`DRIFT-59-DATE-SHIFT`, `LANGSMITH-RETENTION`) carry consequences in §3, §5, §6 and
