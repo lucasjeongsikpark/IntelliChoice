@@ -1169,6 +1169,24 @@ cross-referenced into the relevant domain section.
 - **Reopen condition:** n/a
 - **PROJECT_STATE?** yes
 - **Historical/archive only?** no
+- **⚠️ RESOLVED 2026-08-22 — implementation evidence supersedes this entry's disposition.**
+  Fixed at `ba660e1` (PR #366), test-first: the forcing test recorded the pre-fix loss (exactly
+  the colliding candidate's cents missing from `summary.total_cost_cents`), and a second test
+  **measured the budget-overrun consequence** — with the budget below one candidate's cost, the
+  pre-fix gate admitted, paid for and persisted a slot it should have refused. This resolves the
+  entry's standing ledger `CONFLICT` in the confirming direction: the branch did lose the money.
+  **One correction to the remaining-action wording above:** "reorder so `spend +=` and `_settle`
+  run before the `continue`" was not implementable as written — `outcome` is never assigned on
+  that branch (the exception escapes `generate_authored_candidate` with the cost trapped in its
+  locals). The implemented shape carries the cost across the exception boundary
+  (`DuplicateTemplateIdError(IntegrityError)` raised at the flushing `create_template`, the
+  slot-level design/repair spend added on re-raise) and mirrors `_settle`'s commit-time
+  accounting; `_settle` and its two tests are untouched. Known non-widened residuals, reported
+  not fixed: a non-duplicate `IntegrityError` on the same path still carries no cost
+  (theoretical — those keys are generated, not plan-reserved), and REQ-20's row-level
+  attribution for skipped duplicates remains impossible (no row can exist for a taken id). No
+  new judgment — no D-number; git history and `docs/log/2026-08-22-cost06-flush-orca.md` are
+  the record.
 
 ### `COST-10-INPUT-BOUND` — the gateway has no input-token ceiling and the cost reserve hard-codes 2000 input tokens
 
