@@ -1538,6 +1538,26 @@ cross-referenced into the relevant domain section.
   `checkpoint_retention_cli` wiring stays with `BATCH-LOW-UNSCHEDULED-CONTROLS`. No new judgment
   was made — no D-number; git history and the session narrative
   (`docs/log/2026-08-21-rd01-cost22-orca.md`) are the record.
+- **⚠️ STEP (c) CONFIRMED FOR THE THREE NIGHTLY JOBS 2026-08-22 — and it surfaced one new
+  defect.** The first post-fix firings published `JobCompletions`' first-ever datapoints
+  (18:00/18:10/18:50 UTC, one per nightly `job` dimension; `session_consolidate_job_complete`
+  read back from the ops-task log group with the underscored `event`, the hyphenated `job`, and
+  real counts — threads 5623, written 0), and three of the four heartbeat alarms transitioned
+  ALARM → OK the same evening: `chat-purge` 19:05:51Z, `retention-purge` 19:11:05Z,
+  `session-consolidate` 19:42:40Z (long-period alarm evaluation lags its datapoint by ~1–1.7 h).
+  **The fourth cannot confirm and will not stay confirmed: `memory-consolidate` is a WEEKLY job
+  (`cron(30 18 ? * SUN *)`, `terraform/modules/scheduled-jobs/main.tf:91`) sitting in the
+  `nightly_job_events` list under the uniform two-day heartbeat period
+  (`app_events.tf:225`, `period = 172800`).** Even after a Sunday run its alarm will be OK for
+  ~2 days and then re-enter ALARM for the rest of every week — permanent weekly flapping to the
+  page mailbox, the exact noise class this entry existed to end. Previously invisible because the
+  alarm never left ALARM at all; no document had connected "weekly job" (ARCHITECTURE knows) with
+  "two-day period" (this register verified it matches the filter — which it does; the mismatch is
+  against the schedule, not the filter). **New remaining action (replaces step (c)'s
+  memory-consolidate half):** give the weekly job a weekly-scaled heartbeat period (the nightly
+  rule "one missed night is a blip and two is an alarm" scales to one missed week/two weeks),
+  apply-only, then confirm its ALARM → OK after the first post-fix Sunday run. Job success still
+  unproven for all four — the events report completion, not correctness.
 
 ### `KPI-ALARM-FLOOR` — zero product-KPI alarms are deployed while both KPI metrics carry live data
 

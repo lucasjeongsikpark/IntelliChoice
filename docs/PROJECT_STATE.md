@@ -10,7 +10,7 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-22** (post-migration reconciliation + fourth Orca run: COST-06-FLUSH) |
+| Snapshot date | **2026-08-22** (post-migration reconciliation; COST-06-FLUSH landed; RD-01's nightly three confirmed live) |
 | Last product-code commit | **`ba660e1`** (2026-08-22) — the accepted COST-06-FLUSH fix landed by PR #366 (a flush-time duplicate's paid spend now reaches the run total and the budget gate; `DuplicateTemplateIdError` carries the cost across the exception boundary) |
 | Deployed staging image (both ECS services) | **`gha-44a12dfc9549`** = commit `44a12dfc9549`, 2026-08-18 (D-415) |
 | Deployed task definitions | learning `:150` (2/2 running), chat `:148` (1/1 running) — one behind each family's latest (`:151`/`:149`), which are byte-identical no-ops; compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
@@ -70,8 +70,9 @@ conditional on staging still running `gha-44a12dfc9549`.
   for `WORK-01-SCOPE-GUARD`'s ~22% win — a deploy destroys it, so capture it (with its SHA) before
   any deploy.
 - `RD-01`'s fix landed on the **terraform side and reached staging on 2026-08-21** without a
-  deploy: the four filter patterns were re-applied and read back underscored live. No Python-side
-  change exists or is owed. What remains is time, not code — see §4.3.
+  deploy, and was **confirmed end-to-end on 2026-08-22** (first `JobCompletions` datapoints;
+  three nightly alarms ALARM → OK). The residual is the weekly job's mis-scaled heartbeat
+  period — see §4.3.
 - The deploy pipeline has **no artifact-freshness check** — no content-hash, ETag or digest
   comparison anywhere in the workflow. Its own comment says the SPA curls "would pass against a
   completely stale deployment, and they never touch the API". The documentation claiming a
@@ -96,7 +97,7 @@ tests on 2026-08-21/22.
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
-| `RD-01` | Dead-man's switch pattern fix applied live 2026-08-21; parity test landed (`b06a5df`) | Confirmation only: after the first post-fix nightly firing (earliest 2026-08-22 ~19:00 UTC), read `JobCompletions` and confirm the four alarms transition ALARM → OK — see 4.3 | engineering |
+| `RD-01` | Dead-man's switch confirmed working for the three nightly jobs 2026-08-22 (ALARM → OK observed); the confirmation surfaced a new defect — `memory-consolidate` is a **weekly** job under the uniform **2-day** heartbeat period, so its alarm will flap OK→ALARM every week even once it fires | Give the weekly job a weekly-scaled heartbeat period (terraform, apply-only; the nightly "one missed night is a blip, two is an alarm" rule scales to weeks), then confirm its ALARM → OK after the first post-fix **Sunday 18:30 UTC** run — see 4.3 | engineering |
 | `WORK-40-TZ` | chat-web renders calendar-approval times in the viewer's browser locale — shares one prerequisite with `DRIFT-59-DATE-SHIFT` (export `buildDateLabelFormatter`); whichever lands first, update both rows | See 4.3 | engineering |
 | `D310-RESIDUALS` | Three follow-ups surviving the executed D-310 rotation | See 4.3 | user / engineering / docs |
 | `LANGSMITH-INGEST` | Trace ingestion failing at volume and flapping; nobody paged by design | Read app/ops log content for `langsmith.client` lines; classify 403 / quota / timeout. A quota or plan-limit cause escalates to a user call | engineering |
@@ -127,17 +128,20 @@ tests on 2026-08-21/22.
 
 ### 4.3 The three items an agent should be able to act on from this file alone
 
-**`RD-01` — confirmation only.** The fix landed 2026-08-21: the terraform-side pattern change
-(`replace(each.key, "-", "_")`, commit `b06a5df`) was applied to staging via a targeted
-`terraform plan`/`apply` (plan showed exactly `0 add / 4 change / 0 destroy`), and all four live
-filter patterns were read back **underscored** the same day. The cross-boundary parity test
-(`packages/observability/tests/test_scheduled_job_event_parity.py`, D-385 class) landed with it —
-verified failing pre-fix, and failing under a one-sided emitter mutation. **What remains:** the
-four alarms mathematically cannot leave ALARM until the first post-fix nightly firing publishes a
-`JobCompletions` datapoint (jobs run 18:01/18:11/18:50 UTC; alarm period 172800 s). After the
-first firing (earliest 2026-08-22 ~19:00 UTC), read the metric and confirm ALARM → OK; then delete
-this row and start `C6-UNATTENDED`'s seven-day clock (§6.2). Job **success** stays unproven
-independently: the log streams prove invocation, not outcome.
+**`RD-01` — the nightly three are confirmed; the weekly job needs a period fix.** The 2026-08-21
+pattern fix (`b06a5df`, applied live) was confirmed end-to-end on 2026-08-22: the first post-fix
+firings published `JobCompletions`' first-ever datapoints (18:00/18:10/18:50 UTC), and the three
+nightly heartbeat alarms transitioned ALARM → OK the same evening (`chat-purge` 19:05:51Z,
+`retention-purge` 19:11:05Z, `session-consolidate` 19:42:40Z — long-period alarms evaluate
+~1–1.7 h behind their datapoints). **What remains — a new defect the confirmation surfaced:**
+`memory-consolidate` is a **weekly** job (`cron(30 18 ? * SUN *)`,
+`terraform/modules/scheduled-jobs/main.tf:91`) listed in `nightly_job_events` under the uniform
+**2-day** period (`app_events.tf:225`), so even after a Sunday run its alarm will be OK ~2 days
+then flap back to ALARM for the rest of every week — permanent weekly page noise. Fix: a
+weekly-scaled period for that one alarm (the nightly "one missed night is a blip, two is an
+alarm" rule scales to weeks), apply-only; then confirm its ALARM → OK after the first post-fix
+Sunday 18:30 UTC run. Job **success** stays unproven for all four: the events report completion,
+not correctness.
 
 **`WORK-40-TZ` — a human-approval surface renders the wrong time.**
 `apps/chat-web/src/screens/CalendarActionModal.tsx` calls `date.toLocaleString()` with no `timeZone`
@@ -192,7 +196,7 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-| 1 | `RD-01` (confirmation) | Time-blocked, not work-blocked: eligible only after the first post-fix nightly firing (earliest 2026-08-22 ~19:00 UTC). A free read-only CloudWatch check (§4.3); on ALARM → OK, delete the row and start `C6-UNATTENDED`'s clock. (Became row 1 on 2026-08-22 when `SEC-13-PURGE` landed at `b6fa067`; if a continue arrives before the firing, the eligibility gate skips to row 2 after reconciling this note) |
+| 1 | `RD-01` (weekly-period fix) | Restated 2026-08-22 after the nightly-three confirmation: the startable work is the `memory-consolidate` heartbeat-period fix (terraform, apply-only, same class as the original pattern fix); its ALARM → OK confirmation then waits for the first post-fix Sunday 18:30 UTC run (§4.3) |
 | 2 | `BATCH-LOW-NARROW-COVERAGE` + `REQ-44-REASON-SWEEP` | The span-event redaction member is a live security gap (a credential inside a span event is not redacted today); the reason-sweep member overlaps REQ-44, so both close together |
 | 3 | `DRIFT-59-DATE-SHIFT` + `WORK-40-TZ` (also closes `WORK-40`'s residual) | The documents' own shared prerequisite (export `buildDateLabelFormatter`; "whichever lands first, update both rows"); WORK-40-TZ is a rule-4 human-approval surface rendering wrong times |
 | 4 | `WORK-12-BANNER` | Untested condition carrying two live contradictory statuses; local (mock `useLearningSession`) |
@@ -290,7 +294,7 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 
 | Register key | One line | Reopen condition |
 |---|---|---|
-| `C6-UNATTENDED` | §2.6 criterion 6 arithmetically unsatisfiable yet, and job success unproven | `RD-01`'s fix is applied live as of 2026-08-21; the seven-day confirmed-firing clock can start at the first observed `JobCompletions` datapoint (RD-01 confirmation, §4.3) |
+| `C6-UNATTENDED` | §2.6 criterion 6 arithmetically unsatisfiable yet, and job success unproven | First `JobCompletions` datapoints observed 2026-08-22 — the seven-day confirmed-firing clock for the nightly three runs from that date (earliest satisfiable 2026-08-29); the weekly job's instrument stays mis-specified until `RD-01`'s residual lands (§4.3) |
 | `DB-CONTENT-VERIFY` | Four DB-content claims unverifiable read-only; one needs a mutation | UD-2 authorizes a read-only session, or the UD-1 deploy closes WORK-03 by itself |
 | `LANGSMITH-RETENTION` | The retention setting has no in-repo expression and was never read (UD-11) | Open now — a two-minute user console read |
 | `ARCH-35-ORG-TIME` | `ORG_TIME_CONFIRMED = false` is deployed; anything time-of-day dependent runs on assumed hours | The org answers, or the user authorises building the D-153 §4 guard early — the guard is a **local** assertion and is buildable now |
@@ -327,8 +331,8 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | `R8-READ-SCOPE` | Tutor and branch_manager reads are unscoped; writes fail closed. Accepted as §7-R8 with an expiry that a running system cannot trip | Integration reopen, or first real traffic — whichever comes first. **At integration start this MUST be re-presented to the user; it is launch-blocking at that point. Parked ≠ closed.** |
 | `INT-10-PEAK-CONCURRENCY` | Parked by **D-153 §3/§6** (purchase withdrawn — not deferred — and the ask held for integration); the 150-concurrent org ask sits behind an unsent message | Integration start; measure peak concurrency then |
 | `RD-12-INGRESS` | Parked by **D-152** (DNS records are added at integration time, D-153 §6); documented product hostnames are absent live; staging is reached through two `*.cloudfront.net` domains. **Procedural:** probe those, and a direct-ALB timeout is by design, not an outage | Integration, when the org adds DNS records |
-| `WORK-23-RETENTION-JOB-GATING` | Parked by **D-333** (its consolidate-before-delete precondition is the parking condition, not yet verified); the checkpoint-retention job is genuinely unscheduled. Its stated prerequisite (a record of `session-consolidate` firing) was `RD-01`-blocked until 2026-08-21; the first record is obtainable from the first post-fix nightly run. D-333's consolidate-before-delete precondition (§5 UD-7) must still be verified implemented first | The consolidate job has a verified record of firing, plus UD-7 |
-| `F4-CRITERION6` | Criterion 6 was closed on an explicit user bypass; its reopen condition is live and was undetectable while `RD-01` silenced the instrument — the instrument was repaired 2026-08-21, so detectability begins with the first confirmed post-fix firing | A failure in any waived scheduled firing |
+| `WORK-23-RETENTION-JOB-GATING` | Parked by **D-333** (its consolidate-before-delete precondition is the parking condition, not yet verified); the checkpoint-retention job is genuinely unscheduled. Its stated prerequisite is now **half met**: `session-consolidate` has a verified record of firing as of 2026-08-22 (`session_consolidate_job_complete`, threads 5623, written 0, plus its `JobCompletions` datapoint and ALARM → OK). D-333's consolidate-before-delete precondition (§5 UD-7) must still be verified implemented first | UD-7, plus verifying the D-333 precondition is implemented (the firing record now exists) |
+| `F4-CRITERION6` | Criterion 6 was closed on an explicit user bypass; its reopen condition is live and was undetectable while `RD-01` silenced the instrument — the instrument was repaired and confirmed 2026-08-22, so a waived-firing failure among the nightly three is detectable from that date (the weekly job's instrument stays mis-specified until `RD-01`'s residual lands) | A failure in any waived scheduled firing |
 | `SEC-17-GUARDDUTY` | GuardDuty is absent as an account fact, by costed decision D-125 | Production posture review, or staging ceasing to be synthetic |
 | `IMAGE-WORK-PARK` | Parked by **D-078** (feature deferred); SPEC §5.17's requirements have no subject in the codebase | The user reopens §5.17 — **both** preconditions (incidental-capture privacy with counsel; real-credential footing for scanning and encryption at rest) must be answered first |
 | `D342-PARKING` | All question-bank **quantity** coverage work is parked by standing user instruction. Non-quantity defects (wrong answer key, unservable path) remain defects | The user explicitly asks for new problems to be generated |
@@ -370,13 +374,15 @@ resolution step; three of them are cheap.
 
 Every item carries its register key. These are the headline live risks, not the full list.
 
-- **The four nightly-heartbeat alarms are still in ALARM, but the defect behind them is fixed.**
-  `RD-01`'s pattern fix was applied and live-verified 2026-08-21; the alarms have been in ALARM
-  since 2026-08-16/17 and **cannot clear until the first post-fix nightly firing publishes a
-  datapoint** (earliest 2026-08-22 ~19:00 UTC). Until ALARM → OK is observed, treat the page
-  mailbox's four standing ALARMs as expected residue, not new signal — and confirm the
-  transition promptly (§4.3), because every day they linger keeps training the operator to
-  ignore the page channel.
+- **Three of the four nightly-heartbeat alarms cleared on 2026-08-22** (`chat-purge` 19:05Z,
+  `retention-purge` 19:11Z, `session-consolidate` 19:42Z) — the dead-man's switch works
+  end-to-end for the first time since it was built. **`memory-consolidate`'s alarm stays in
+  ALARM and will keep re-entering ALARM weekly** until its heartbeat period is scaled to the
+  job's weekly schedule (`RD-01`'s residual, §4.3): under the uniform 2-day period, a correct
+  weekly job is "missing" five days out of seven. Until that fix lands and a Sunday run
+  confirms it, treat that one standing ALARM as a mis-specified instrument, not a job failure —
+  and fix it promptly, because it is the last alarm still training the operator to ignore the
+  page channel.
 - **The alert endpoint is one personal mailbox.** `ALERT-ENDPOINT` / UD-6: exactly two SNS topics,
   both unencrypted, both subscribed to the same personal address; 26 of 34 alarms page it (a
   pre-D-377 count — the register's own caveat; see `ALERT-ENDPOINT`), and
