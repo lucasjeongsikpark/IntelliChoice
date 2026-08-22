@@ -195,8 +195,35 @@ variable "daily_completed_sessions_floor" {
 variable "nightly_job_events" {
   description = <<-EOT
     Job names whose `<name>_job_complete` record is metric-filtered and heartbeat-alarmed.
-    Must match the `job` field the CLIs emit.
+    Must match the `job` field the CLIs emit. Not all of them are nightly -
+    `memory-consolidate` is weekly, and `job_heartbeat_period_seconds` carries every cadence
+    that is not daily. The name is a misnomer left in place because renaming it, while a plan
+    no-op, touches this module, the environment and the parity tests for no behaviour change.
   EOT
   type        = list(string)
   default     = []
+}
+
+variable "job_heartbeat_period_seconds" {
+  description = <<-EOT
+    Heartbeat evaluation window in seconds, for `nightly_job_events` entries whose schedule is
+    not daily. Anything absent gets two days (one missed daily run is a blip and two is an
+    alarm), so this map holds only the exceptions.
+
+    The window must be 2x the job's own schedule cadence. A weekly job left on the daily
+    default is OK for two days after each run and in ALARM for the other five - permanent
+    weekly flapping to the page mailbox (RD-01, 2026-08-22).
+    `test_scheduled_job_heartbeat_cadence_parity.py` fails on any job whose window and cron
+    disagree, so this map cannot silently fall behind a schedule change.
+
+    **Apply-time risk, unverified locally:** CloudWatch validates `period` at the API rather
+    than at `terraform validate`, and 1,209,600 s may exceed what it accepts for a single
+    alarm period. If an apply rejects it, the same rule has a second shape that stays inside
+    the ordinary range: `period = 86400` with `evaluation_periods = 14` and
+    `datapoints_to_alarm = 14` - fourteen consecutive breaching daily windows is the same two
+    missed weeks. That shape is deliberately not implemented here; write it only if an apply
+    refuses this one.
+  EOT
+  type        = map(number)
+  default     = {}
 }

@@ -769,17 +769,31 @@ module "observability" {
   # records were already reaching CloudWatch - just as unstructured text nothing could read.
   ops_task_log_group = module.ops_task.log_group_name
 
-  # D-377: the nightly jobs whose `<name>_job_complete` record is counted and heartbeat-
+  # D-377: the scheduled jobs whose `<name>_job_complete` record is counted and heartbeat-
   # alarmed. **These strings must match `scheduled-jobs`'s own `locals.jobs` keys** - the
   # alarm carries `job` as a dimension, so a mismatch produces one that can never clear.
   # `youtube-sync` is deliberately absent: it is `enabled = false`, and a heartbeat alarm on
   # a schedule that is switched off would fire forever and teach everyone to ignore it.
+  # The variable name says "nightly" and three of the four are; `memory-consolidate` is
+  # weekly. Renaming the *variable* would be a plan no-op, but it touches the module, this
+  # file and the parity tests, so it is left alone and the wording carries the correction
+  # instead. Renaming the *alarm resource* is a different thing entirely and is not done:
+  # that changes the terraform addresses and destroys and recreates four live alarms.
   nightly_job_events = [
     "session-consolidate",
     "chat-purge",
     "retention-purge",
     "memory-consolidate",
   ]
+  # RD-01 (2026-08-22): the non-daily cadences, whose heartbeat window is 2x their own
+  # schedule rather than the two-day default. `memory-consolidate` is `cron(30 18 ? * SUN *)`
+  # in the `scheduled_jobs` module above, so 14 days - one missed week is a blip and two is an
+  # alarm, the same rule the daily jobs get. On the two-day default it would have gone OK on
+  # Sunday evening and been back in ALARM by Tuesday, paging for the rest of every week; it
+  # never got that far only because the filter defect kept it in ALARM continuously.
+  job_heartbeat_period_seconds = {
+    memory-consolidate = 1209600
+  }
   # Staging traffic is synthetic - the e2e suite is most of it - so there is no honest floor
   # to put under "sessions completed in a day". Left at 0 (disabled) rather than guessed at;
   # this is the one alarm in D-377 that needs a real usage baseline before it means anything,

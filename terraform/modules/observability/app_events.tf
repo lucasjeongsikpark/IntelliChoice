@@ -156,7 +156,7 @@ resource "aws_cloudwatch_metric_alarm" "sessions_completed_floor" {
   tags          = var.tags
 }
 
-# --- Nightly maintenance: did it run, and did it do anything? ---------------------------
+# --- Scheduled maintenance: did it run, and did it do anything? -------------------------
 #
 # **Two different questions, and before D-377 only the first was answerable.** The four
 # enabled schedules report in unstructured `print()`, so a three-day structured-event query
@@ -204,17 +204,38 @@ resource "aws_cloudwatch_log_metric_filter" "nightly_jobs" {
   }
 }
 
+locals {
+  # Two days: one missed daily run is a blip and two is an alarm. This was the uniform `period`
+  # on the heartbeat alarm below, and it stays the default for every job whose schedule is
+  # daily - `var.job_heartbeat_period_seconds` carries the exceptions.
+  default_job_heartbeat_period_seconds = 172800
+}
+
 # **The dead-man's switch, which is the finding rather than a nicety.**
 #
 # The existing alarm in `scheduled-jobs/main.tf` watches ECS task **exit != 0** - a job that
 # runs and fails. A job that *never runs* emits no task-state event at all, so no rule
 # matches and no alarm fires: a disabled schedule, a revoked `iam:PassRole`, a Scheduler-side
-# failure and a `RunTask` that never launches are all indistinguishable from a quiet night.
+# failure and a `RunTask` that never launches are all indistinguishable from a quiet window.
 # `grep` for `AWS/Scheduler` alarms in `terraform/` returned zero.
 #
 # For a 90-day retention promise over minors' chat data, **the absence of a failure is not
 # evidence of a run**, and silence is the dangerous direction. Hence
 # `treat_missing_data = "breaching"`: here missing data *is* the incident.
+#
+# **The window is per job, because the cadences are not uniform (RD-01, 2026-08-22).** The rule
+# is one rule - *one missed run is a blip and two is an alarm* - but it is a statement about the
+# job's own schedule, and the uniform `period = 172800` only encoded it for the daily jobs.
+# `memory-consolidate` runs weekly (`cron(30 18 ? * SUN *)`), so a two-day window put it back in
+# ALARM for five days out of every seven: permanent flapping to the page mailbox, which is the
+# noise class the whole D-377 pair exists to avoid. It stayed invisible while the filter defect
+# kept the alarm in ALARM permanently, and no test crossed "weekly job" (`scheduled-jobs`) with
+# "two-day period" (here) until `test_scheduled_job_heartbeat_cadence_parity.py` (D-385 class),
+# which now fails locally on any job whose window is not 2x its cadence.
+#
+# **The resource keeps its `nightly_` name deliberately.** Renaming it changes the terraform
+# address and CloudWatch would destroy and recreate all four alarms; the name is a misnomer and
+# the comments and descriptions say "scheduled" instead.
 resource "aws_cloudwatch_metric_alarm" "nightly_job_heartbeat" {
   for_each            = toset(var.nightly_job_events)
   alarm_name          = "${var.name_prefix}-job-${each.key}-heartbeat"
@@ -222,13 +243,17 @@ resource "aws_cloudwatch_metric_alarm" "nightly_job_heartbeat" {
   evaluation_periods  = 1
   metric_name         = "JobCompletions"
   namespace           = local.pipeline_namespace
-  period              = 172800 # two days, so one missed night is a blip and two is an alarm
-  statistic           = "Sum"
-  threshold           = 1
-  treat_missing_data  = "breaching"
-  dimensions          = { job = each.key }
+  # 2x this job's own schedule cadence; the daily default is the two days this line used to
+  # hard-code for everything. Spelled out again in the description below because terraform has
+  # no per-resource binding to name it once.
+  period             = lookup(var.job_heartbeat_period_seconds, each.key, local.default_job_heartbeat_period_seconds)
+  statistic          = "Sum"
+  threshold          = 1
+  treat_missing_data = "breaching"
+  dimensions         = { job = each.key }
   alarm_description = join(" ", [
-    "D-377: the ${each.key} nightly job has not reported a completion in 48h. The exit-code",
+    "D-377: the ${each.key} scheduled job has not reported a completion in",
+    "${lookup(var.job_heartbeat_period_seconds, each.key, local.default_job_heartbeat_period_seconds) / 86400} days. The exit-code",
     "alarm cannot see this - a job that never starts emits no task-state event, so no failure",
     "is recorded and the silence reads as health. Check `aws scheduler get-schedule` and the",
     "ops-task log group before assuming it ran.",
