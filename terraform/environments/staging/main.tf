@@ -785,14 +785,21 @@ module "observability" {
     "retention-purge",
     "memory-consolidate",
   ]
-  # RD-01 (2026-08-22): the non-daily cadences, whose heartbeat window is 2x their own
-  # schedule rather than the two-day default. `memory-consolidate` is `cron(30 18 ? * SUN *)`
-  # in the `scheduled_jobs` module above, so 14 days - one missed week is a blip and two is an
-  # alarm, the same rule the daily jobs get. On the two-day default it would have gone OK on
-  # Sunday evening and been back in ALARM by Tuesday, paging for the rest of every week; it
-  # never got that far only because the filter defect kept it in ALARM continuously.
+  # RD-01 (2026-08-22): the non-daily cadences, whose heartbeat window is 2x their own schedule
+  # rather than the two-day default, capped at the one week CloudWatch will evaluate.
+  # `memory-consolidate` is `cron(30 18 ? * SUN *)` in the `scheduled_jobs` module above. On the
+  # two-day default it would have gone OK on Sunday evening and been back in ALARM by Tuesday,
+  # paging for the rest of every week; it never got that far only because the filter defect kept
+  # it in ALARM continuously.
+  #
+  # 2x weekly is 1,209,600 s and the apply was refused - `ValidationError: Metrics cannot be
+  # checked across more than a week (EvaluationPeriods * Period must be <= 604800) for alarms
+  # using period >= 3600` - so the window is 604800 (RD-01 correction, 2026-08-22). The trade-off
+  # is deliberate: this alarm pages after the *first* missed Sunday rather than the second, which
+  # for a `retry_attempts = 0` job is the safe direction. It does not flap - while the job is
+  # healthy every trailing week contains the last Sunday run.
   job_heartbeat_period_seconds = {
-    memory-consolidate = 1209600
+    memory-consolidate = 604800
   }
   # Staging traffic is synthetic - the e2e suite is most of it - so there is no honest floor
   # to put under "sessions completed in a day". Left at 0 (disabled) rather than guessed at;

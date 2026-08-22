@@ -210,19 +210,32 @@ variable "job_heartbeat_period_seconds" {
     not daily. Anything absent gets two days (one missed daily run is a blip and two is an
     alarm), so this map holds only the exceptions.
 
-    The window must be 2x the job's own schedule cadence. A weekly job left on the daily
-    default is OK for two days after each run and in ALARM for the other five - permanent
-    weekly flapping to the page mailbox (RD-01, 2026-08-22).
+    The window must be `min(2x the job's own schedule cadence, 604800)`. A weekly job left on
+    the daily default is OK for two days after each run and in ALARM for the other five -
+    permanent weekly flapping to the page mailbox (RD-01, 2026-08-22).
     `test_scheduled_job_heartbeat_cadence_parity.py` fails on any job whose window and cron
     disagree, so this map cannot silently fall behind a schedule change.
 
-    **Apply-time risk, unverified locally:** CloudWatch validates `period` at the API rather
-    than at `terraform validate`, and 1,209,600 s may exceed what it accepts for a single
-    alarm period. If an apply rejects it, the same rule has a second shape that stays inside
-    the ordinary range: `period = 86400` with `evaluation_periods = 14` and
-    `datapoints_to_alarm = 14` - fourteen consecutive breaching daily windows is the same two
-    missed weeks. That shape is deliberately not implemented here; write it only if an apply
-    refuses this one.
+    **The 604800 cap is the CloudWatch API's, measured at apply, not a preference.** 2x a weekly
+    cadence is 1,209,600 s and the apply was rejected, verbatim:
+
+        ValidationError: Metrics cannot be checked across more than a week
+        (EvaluationPeriods * Period must be <= 604800) for alarms using period >= 3600
+
+    The limit is on the product `EvaluationPeriods * Period`, so no re-shaping evades it -
+    `86400 x 14` is the same 1,209,600 s and is refused identically. **Do not re-attempt a
+    longer window for a weekly job.**
+
+    The trade-off the cap buys, so it is not mistaken for an oversight: a weekly job's alarm
+    pages after its **first** missed run rather than the second - stricter than the rule the
+    daily jobs get. It does not flap (while the job is healthy every trailing week contains the
+    last run), and `memory-consolidate` has `retry_attempts = 0`, so erring toward one page too
+    early rather than one silent skipped week is the safe direction.
+
+    If a future apply also refuses a single 604800-second `period` (the API's other, unmeasured
+    constraint is on `period` itself), the same 7-day window has an equivalent shape inside the
+    cap: `period = 86400` with `evaluation_periods = 7` and `datapoints_to_alarm = 7`. That is a
+    fallback for a *rejected shape*, never a route to a longer window.
   EOT
   type        = map(number)
   default     = {}
