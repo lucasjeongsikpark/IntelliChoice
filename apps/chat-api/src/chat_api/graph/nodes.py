@@ -525,7 +525,12 @@ async def synthesize_answer(state: QAState, runtime: Runtime[TurnContext]) -> di
     ctx = _ctx(runtime)
     assert state.standalone_query is not None
     chunk_ids = state.retrieved_chunk_ids or []
-    chunks_by_id = await ctx.rag_repo.get_chunks_by_ids(chunk_ids)
+    # DRIFT-68: `as_of=now` re-asserts approved-and-effective at *synthesis* time rather
+    # than inheriting it from the retrieval query that ran earlier in this same turn. A
+    # chunk that lost its approval or fell out of its effective window in between is
+    # dropped here, and the comprehension below already tolerates a missing id - so the
+    # total-loss case lands in `answer_question`'s zero-chunk refusal (rule 5, fail closed).
+    chunks_by_id = await ctx.rag_repo.get_chunks_by_ids(chunk_ids, as_of=datetime.now(UTC))
     chunks = [chunks_by_id[chunk_id] for chunk_id in chunk_ids if chunk_id in chunks_by_id]
 
     grounded, answer_cost = await qa.answer_question(

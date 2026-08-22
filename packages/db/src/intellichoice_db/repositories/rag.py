@@ -242,13 +242,36 @@ class RagRepository:
         result = await self._session.execute(stmt)
         return result.scalars().first()
 
-    async def get_chunks_by_ids(self, chunk_ids: list[str]) -> dict[str, RagChunk]:
+    async def get_chunks_by_ids(
+        self, chunk_ids: list[str], *, as_of: datetime | None
+    ) -> dict[str, RagChunk]:
         """Loads full rows for a fused id list, preserving no particular order - callers
         re-order by their own fused ranking (`chunk_ids` from `reciprocal_rank_fusion`).
+
+        **Approved-and-effective is re-asserted here, not assumed (DRIFT-68).** This is the
+        *second* read of a chunk in a turn: `hybrid_search` fuses ids from two filtered
+        queries, and `chat_api.graph.nodes.synthesize_answer` then re-loads the bodies by id
+        (`QAState` checkpoints ids and never bodies, deliberately - see its docstring). With
+        no predicate here, non-negotiable rule 5 - no RAG answer without an approved,
+        effective source - rested entirely on a query that had already run, so an approval
+        revoked or a window closed *inside* one turn still reached the answer. Narrow, and
+        the direction is not optional.
+
+        Both predicates come from `_apply_filters` rather than being restated, so the
+        synthesis-time check cannot drift from the pre-retrieval one. `as_of` is required
+        rather than defaulted: a caller with no "today" to compare against passes `None`
+        explicitly (the ingestion-time shape `ChunkFilters.as_of` already documents), and
+        `status == "approved"` holds either way.
+
+        A row the predicate drops is simply **absent** from the returned mapping, which is
+        the shape both callers already handle for an id with no row - so a total loss
+        degrades into the existing zero-chunk refusal rather than into an error.
         """
         if not chunk_ids:
             return {}
-        stmt = select(RagChunk).where(RagChunk.chunk_id.in_(chunk_ids))
+        stmt = _apply_filters(
+            select(RagChunk).where(RagChunk.chunk_id.in_(chunk_ids)), ChunkFilters(as_of=as_of)
+        )
         result = await self._session.execute(stmt)
         return {chunk.chunk_id: chunk for chunk in result.scalars().all()}
 
@@ -390,5 +413,7 @@ class RagRepository:
             filters, query_embedding, limit=candidate_limit
         )
         fused_ids = reciprocal_rank_fusion([keyword_ids, semantic_ids], limit=candidate_limit)
-        chunks_by_id = await self.get_chunks_by_ids(fused_ids)
+        # `filters.as_of` rather than a fresh clock: the two id queries above already
+        # applied this caller's window, so re-deriving one here could disagree with them.
+        chunks_by_id = await self.get_chunks_by_ids(fused_ids, as_of=filters.as_of)
         return [chunks_by_id[chunk_id] for chunk_id in fused_ids if chunk_id in chunks_by_id]
