@@ -348,6 +348,23 @@ cross-referenced into the relevant domain section.
 - **Reopen condition:** n/a
 - **PROJECT_STATE?** yes
 - **Historical/archive only?** no
+- **⚠️ RESOLVED 2026-08-22 — implementation evidence supersedes this entry's disposition.**
+  Both remaining actions are done (commit `b6fa067`, PR #364): the purge now runs in a `finally`
+  covering all four ways a location-consent resume turn can end, **on its own committed
+  `session_scope` unit of work** — necessary because `get_db_session` commits only on the normal
+  path, so a purge on the request session is silently rolled back exactly on the exception path
+  while `AsyncPostgresSaver`'s `autocommit=True` connection has already committed the
+  coordinates. Test-first evidence: both leak paths were demonstrated failing pre-fix against
+  committed Postgres state (`test_a_cancelled_locator_resume_still_purges_the_location`,
+  `test_a_locator_resume_that_raises_still_purges_the_location` in
+  `apps/chat-api/tests/test_chat_endpoints.py`); an asymmetric vacuity control proved the
+  exception-path test catches a rolled-back purge; a third test pins that a failed resume stays
+  retryable. This entry's heading and its "not in a `finally`" / line-reference evidence are
+  historical as of `b6fa067`; the "zero tests" clause was already corrected (the success path was
+  covered pre-fix). **Deployed staging (`gha-44a12dfc9549`) still has the defect until the next
+  image deploy (UD-1, LB-05)**, and rows already leaked on live threads are not swept
+  (`RETENTION-CLUSTER` / UD-7). No new judgment — no D-number; git history and
+  `docs/log/2026-08-22-sec13-purge-orca.md` are the record.
 
 ### `REQ-32-SAFETY` — the minors-safety posture is a ten-keyword screen on one of two surfaces, with one test repo-wide
 
@@ -868,7 +885,10 @@ cross-referenced into the relevant domain section.
 - **Related claim IDs:** SEC-12, SEC-13, REQ-28
 - **Related decision IDs:** D-045, D-101, D-113 §1
 - **Repository evidence:** the purge exists and is parameterized; its reachability defect is
-  `SEC-13-PURGE`.
+  `SEC-13-PURGE`. *(2026-08-22: that defect is repo-fixed at `b6fa067` but NOT deployed — staging
+  runs `gha-44a12dfc9549`. If this entry's staging `SELECT` over `checkpoint_writes` is ever run,
+  state which build it probed: before the next image deploy it tests the defective code, after it
+  the fixed code — LB-05.)*
 - **Deployed/live evidence:** **not established.** Phase 3B-1 could not query database contents
   (`DB-CONTENT-VERIFY`) and Phase 3B-2's chat lane probed a guest QA turn, not a location consent, so
   no live read of `checkpoint_writes` exists in the corpus.
