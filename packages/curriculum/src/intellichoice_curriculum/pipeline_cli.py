@@ -38,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_curriculum.ai_pipeline import (
     TOPIC_SKILL_DIFFICULTIES,
+    DuplicateTemplateIdError,
     JudgeDispersion,
     PipelineOutcome,
     generate_authored_candidate,
@@ -607,6 +608,21 @@ async def run_plan(
             # failed against that version. `_settle` keeps its own catch for the same error
             # arriving at commit time, since either is possible and both cost one candidate.
             await session.rollback()
+            # The candidate is dropped; its money is not. Every paid call of the slot -
+            # design, generator, embedding, both solvers, judge - precedes the flush, so
+            # this branch is the only place that spend can still be recorded, and until
+            # COST-06 it recorded none of it: the `continue` below runs before both
+            # `spend +=` and `_settle`, so a collision reached neither the run total nor
+            # the budget check above, which then admitted a slot it should have refused.
+            # `DuplicateTemplateIdError` carries the figure out because `outcome` is never
+            # assigned on this path. Any *other* `IntegrityError` reaching here carries
+            # none, and still costs one candidate rather than the run.
+            duplicate_cost = exc.cost_cents if isinstance(exc, DuplicateTemplateIdError) else 0.0
+            spend += duplicate_cost
+            # `_settle`'s commit-time branch does exactly this, for exactly this reason
+            # (D-193): a dropped duplicate has no row - the id is already taken - so the
+            # run total is the only place its cost can appear at all.
+            summary.total_cost_cents += duplicate_cost
             summary.skipped_duplicate_id += 1
             summary.rejections.append(
                 (

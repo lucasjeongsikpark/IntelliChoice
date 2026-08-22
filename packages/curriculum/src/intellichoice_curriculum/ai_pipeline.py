@@ -62,6 +62,7 @@ from intellichoice_shared.bedrock import (
     StructuredOutputError,
 )
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_curriculum.authored_validation import (
@@ -1090,6 +1091,63 @@ class EquationDesignError(Exception):
     """The design stage could not produce a usable equation within its attempt budget."""
 
 
+class DuplicateTemplateIdError(IntegrityError):
+    """A flush-time duplicate template id, carrying what the dropped candidate had spent.
+
+    The collision surfaces inside `QuestionRepository.create_template`, which flushes, so
+    it is raised while the candidate is still being built - *after* the design, generator,
+    embedding, solver and judge calls have all been paid for. The caller's `outcome` is
+    therefore never assigned, and before this type existed the cost was simply trapped in
+    this module's locals when the exception escaped: `run_plan`'s duplicate branch had
+    nothing to add to the run total or to the spend its budget check reads, so a duplicate
+    silently bought a candidate the operator had not authorised (COST-06).
+
+    A subclass of `IntegrityError` rather than a new exception hierarchy, so every existing
+    `except IntegrityError` - `pipeline_cli.run_plan`'s branch, `_settle`'s commit-time one
+    (D-193), any caller that never asked about cost - keeps catching it unchanged. The
+    positional signature is the parent's, which is what `StatementError.__reduce__` passes.
+    """
+
+    def __init__(
+        self,
+        statement: str | None,
+        params: object,
+        # `StatementError` stores both as optional and `__reduce__` hands them straight
+        # back, so the signature has to accept what the parent can produce.
+        orig: BaseException | None,
+        hide_parameters: bool = False,
+        connection_invalidated: bool = False,
+        code: str | None = None,
+        ismulti: bool | None = None,
+        *,
+        cost_cents: float = 0.0,
+    ) -> None:
+        super().__init__(
+            statement,
+            params,  # type: ignore[arg-type]
+            orig,  # type: ignore[arg-type]
+            hide_parameters,
+            connection_invalidated,
+            code,
+            ismulti,
+        )
+        self.cost_cents = cost_cents
+
+    @classmethod
+    def wrapping(cls, cause: IntegrityError, *, cost_cents: float) -> DuplicateTemplateIdError:
+        """The same error, re-raised with the money attached and the message unchanged."""
+        return cls(
+            cause.statement,
+            cause.params,
+            cause.orig,
+            cause.hide_parameters,
+            cause.connection_invalidated,
+            cause.code,
+            cause.ismulti,
+            cost_cents=cost_cents,
+        )
+
+
 def validate_equation_design(
     design: EquationDesignResponse,
     *,
@@ -2043,48 +2101,57 @@ async def _attempt_authored_candidate(
     # `template_id` is computed once at the top of the function: the rejection evidence
     # needs the id the plan reserved for this candidate, and a second identical f-string
     # here would be two places to change the id format.
-    template = await repo.create_template(
-        QuestionTemplate(
-            question_template_id=template_id,
-            curriculum_version=curriculum.curriculum_version,
-            topic_id=topic_id,
-            skill_id=skill_id,
-            grade_band=topic.grade_band,
-            # Where the judge read it when it moved, where the slot asked otherwise
-            # (D-239). The `d{n}` in `template_id` still names the tier it was AUTHORED
-            # at - D-235's rule, and the reason this column is the one to read.
-            difficulty_label=difficulty.effective_difficulty,
-            # Two independent readings agreeing is the only thing here worth calling
-            # confidence; the requested tier is an instruction, not a second opinion.
-            difficulty_confidence=1.0 if difficulty.decision == "accepted" else 0.5,
-            question_type="multiple_choice",
-            parameter_schema={},
-            solution_function="authored",
-            correct_option_generator="authored",
-            distractor_generators=[],
-            common_error_tags=item.misconception_tags,
-            estimated_time_seconds=item.estimated_time_seconds,
-            generator_model="bedrock-authored-question-generation",
-            review_model_versions={
-                "solver_a": "bedrock-question-generation",
-                "solver_b": "bedrock-question-review",
-                "judge": "bedrock-question-judge",
-            },
-            validation_status="pending",
-            active_status="active",
-            authoring_mode="authored",
-            stem=item.stem,
-            context_block=item.context_block,
-            # The response field is `equation` (D-191); the column keeps its
-            # original name, so the mapping is stated here rather than implied.
-            answer_expression=item.equation,
-            hint_ladder=item.hint_ladder,
-            canonical_solution=item.canonical_solution.model_dump(),
-            stem_embedding=stem_embedding,
-            review_priority=review_priority,
-            version=version,
-        )
+    pending_template = QuestionTemplate(
+        question_template_id=template_id,
+        curriculum_version=curriculum.curriculum_version,
+        topic_id=topic_id,
+        skill_id=skill_id,
+        grade_band=topic.grade_band,
+        # Where the judge read it when it moved, where the slot asked otherwise
+        # (D-239). The `d{n}` in `template_id` still names the tier it was AUTHORED
+        # at - D-235's rule, and the reason this column is the one to read.
+        difficulty_label=difficulty.effective_difficulty,
+        # Two independent readings agreeing is the only thing here worth calling
+        # confidence; the requested tier is an instruction, not a second opinion.
+        difficulty_confidence=1.0 if difficulty.decision == "accepted" else 0.5,
+        question_type="multiple_choice",
+        parameter_schema={},
+        solution_function="authored",
+        correct_option_generator="authored",
+        distractor_generators=[],
+        common_error_tags=item.misconception_tags,
+        estimated_time_seconds=item.estimated_time_seconds,
+        generator_model="bedrock-authored-question-generation",
+        review_model_versions={
+            "solver_a": "bedrock-question-generation",
+            "solver_b": "bedrock-question-review",
+            "judge": "bedrock-question-judge",
+        },
+        validation_status="pending",
+        active_status="active",
+        authoring_mode="authored",
+        stem=item.stem,
+        context_block=item.context_block,
+        # The response field is `equation` (D-191); the column keeps its
+        # original name, so the mapping is stated here rather than implied.
+        answer_expression=item.equation,
+        hint_ladder=item.hint_ladder,
+        canonical_solution=item.canonical_solution.model_dump(),
+        stem_embedding=stem_embedding,
+        review_priority=review_priority,
+        version=version,
     )
+    # `create_template` flushes, so a duplicate id is raised HERE - with every paid call of
+    # this attempt already behind it - rather than at commit. Re-raised carrying that spend
+    # because the caller never gets an `outcome` on this path: the cost used to stay in
+    # these locals, so `run_plan`'s duplicate branch added nothing to the run total or to
+    # the spend its budget check reads, and a collision quietly bought an unauthorised
+    # candidate (COST-06). `_settle` still catches the same error arriving at commit time,
+    # where an `outcome` does exist (D-193).
+    try:
+        template = await repo.create_template(pending_template)
+    except IntegrityError as exc:
+        raise DuplicateTemplateIdError.wrapping(exc, cost_cents=total_cost) from exc
     persisted_variant = await repo.create_variant(
         QuestionVariant(
             # The newly authored template's defining rendering (D-106), declared
@@ -2288,30 +2355,39 @@ async def generate_authored_candidate(
     designed_scenario = design.scenario_sketch if design is not None else None
 
     while True:
-        outcome = await _attempt_authored_candidate(
-            session=session,
-            gateway=gateway,
-            curriculum=curriculum,
-            topic_id=topic_id,
-            difficulty_label=difficulty_label,
-            seed=seed,
-            session_spend_cents=session_spend_cents + spent,
-            version=version,
-            skill_id=skill_id,
-            attempt=attempt,
-            repair=repair,
-            # Designed once, before the loop: the skeleton was already verified, so
-            # re-designing per repair would pay again for the same check *and* hand the
-            # repair a different equation - contradicting "keep what was sound and fix
-            # the defect", which is the whole instruction a repair is given.
-            design=design,
-            dispersion=dispersion,
-            # Attempt 1 only: the design was paid for once, so recording it on every
-            # attempt's row would make a repaired slot look like it designed twice
-            # (D-294).
-            design_cost_cents=design_cost if attempt == 1 else 0.0,
-            pipeline_run_id=pipeline_run_id,
-        )
+        try:
+            outcome = await _attempt_authored_candidate(
+                session=session,
+                gateway=gateway,
+                curriculum=curriculum,
+                topic_id=topic_id,
+                difficulty_label=difficulty_label,
+                seed=seed,
+                session_spend_cents=session_spend_cents + spent,
+                version=version,
+                skill_id=skill_id,
+                attempt=attempt,
+                repair=repair,
+                # Designed once, before the loop: the skeleton was already verified, so
+                # re-designing per repair would pay again for the same check *and* hand the
+                # repair a different equation - contradicting "keep what was sound and fix
+                # the defect", which is the whole instruction a repair is given.
+                design=design,
+                dispersion=dispersion,
+                # Attempt 1 only: the design was paid for once, so recording it on every
+                # attempt's row would make a repaired slot look like it designed twice
+                # (D-294).
+                design_cost_cents=design_cost if attempt == 1 else 0.0,
+                pipeline_run_id=pipeline_run_id,
+            )
+        except DuplicateTemplateIdError as exc:
+            # The one exit from this loop that returns no outcome, so it is also the one
+            # place `spent += outcome.cost_cents` below never runs. What the attempt itself
+            # cost travels on the exception; what the slot spent before it - the design
+            # call, and any earlier repair attempt - is only known here, so the caller is
+            # told the whole figure rather than the last attempt's share (COST-06).
+            exc.cost_cents += spent
+            raise
         outcome.equation = designed_equation
         outcome.scenario_sketch = designed_scenario
         spent += outcome.cost_cents
