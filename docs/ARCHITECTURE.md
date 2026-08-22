@@ -73,12 +73,15 @@ branch.
 > 2026-08-22**: the first post-fix firings published `JobCompletions`' first-ever datapoints and
 > the three nightly heartbeat alarms transitioned ALARM → OK (19:05/19:11/19:42 UTC; long-period
 > alarms evaluate ~1–1.7 h behind their datapoints). `test_scheduled_job_event_parity.py` pins
-> filter↔emitter parity locally (the D-385 class). **One instrument is still mis-specified:**
-> `memory-consolidate` is weekly (Sundays 18:30 UTC) but sits in `nightly_job_events` under the
-> uniform two-day heartbeat period, so its alarm will flap OK → ALARM every week even once it
-> fires — the fix (a weekly-scaled period) is RD-01's open residual. And the events report
-> completion, not correctness: do not read "confirmed" as "the 90-day retention promise is being
-> kept".
+> filter↔emitter parity locally (the D-385 class). **The heartbeat window is per-job, not
+> uniform** (RD-01 correction, applied 2026-08-22): `min(2 × the job's schedule cadence,
+> 604800)` — the cap is CloudWatch's hard one-week evaluation maximum (*"EvaluationPeriods *
+> Period must be <= 604800 for alarms using period >= 3600"*, refused at apply), so the weekly
+> `memory-consolidate` runs a 7-day window and pages after the **first** missed Sunday rather
+> than the second; the three daily jobs keep 2-day windows.
+> `test_scheduled_job_heartbeat_cadence_parity.py` pins schedule-cadence ↔ alarm-window parity
+> (the second D-385-class instrument). And the events report completion, not correctness: do not
+> read "confirmed" as "the 90-day retention promise is being kept".
 
 **Two shipped behaviors that deviate from the plan's own recommendation**, recorded here
 because reading the spec alone would mispredict the code: S22 kept **grade-on-submit** rather

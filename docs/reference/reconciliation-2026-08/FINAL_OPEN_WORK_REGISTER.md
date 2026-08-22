@@ -1558,6 +1558,24 @@ cross-referenced into the relevant domain section.
   rule "one missed night is a blip and two is an alarm" scales to one missed week/two weeks),
   apply-only, then confirm its ALARM → OK after the first post-fix Sunday run. Job success still
   unproven for all four — the events report completion, not correctness.
+- **⚠️ WEEKLY-WINDOW FIX BUILT AND APPLIED 2026-08-22 — capped at CloudWatch's hard limit; only
+  the Sunday confirmation remains.** The heartbeat window is now per-job:
+  `min(2 × cadence, 604800)` (`4669ee2` + `4a5ad20`, PRs #369/#370). The 2×-weekly ideal
+  (1,209,600 s) was **refused by CloudWatch at apply time**, verbatim: *"ValidationError:
+  Metrics cannot be checked across more than a week (EvaluationPeriods * Period must be <=
+  604800) for alarms using period >= 3600"* — which also invalidated the earlier 86400×14
+  fallback (same product). So `memory-consolidate` runs a **7-day window** (period 604800,
+  applied and read back live 2026-08-22): no flapping (every trailing week contains the last
+  Sunday run while healthy), and it pages after the **first** missed Sunday — more sensitive
+  than the ideal rule, the safe direction for a `retry_attempts = 0` paid-API job.
+  `test_scheduled_job_heartbeat_cadence_parity.py` (the second D-385-class instrument) pins
+  schedule-cadence ↔ alarm-window parity bidirectionally and cites the API error so nobody
+  re-attempts a longer window. Its current ALARM is accurate signal (no completion in the
+  trailing week). Remaining: after Sunday 2026-08-24 18:30 UTC, confirm
+  `JobCompletions{job=memory-consolidate}` publishes and ALARM → OK — that closes RD-01
+  entirely. Engineering adaptation under a hard platform constraint, in the fail-safe
+  direction — no new judgment, no D-number; git history and
+  `docs/log/2026-08-22-rd01-weekly-window-orca.md` are the record.
 
 ### `KPI-ALARM-FLOOR` — zero product-KPI alarms are deployed while both KPI metrics carry live data
 
