@@ -173,8 +173,15 @@ resource "aws_cloudwatch_metric_alarm" "sessions_completed_floor" {
 # directly, this pattern searched for `session-consolidate_job_complete`, an event nothing has
 # ever written: `JobCompletions` published no datapoint on any of the four dimensions for
 # fourteen days and all four heartbeat alarms sat in a permanent false ALARM from 2026-08-16.
-# The fix belongs here rather than on the emitter, which would have broken the dimension
-# instead. `test_scheduled_job_event_parity.py` now fails if either side moves alone.
+#
+# **Either side could have been the one line.** The event name and the `job` field are
+# independent - the emitter could have written the hyphenated name verbatim and left the
+# dimension untouched - so this is not the only correct fix. It is on this side for two
+# reasons. **Deploy cost:** a terraform change reaches staging with an `apply`, while an
+# emitter change is inert until a full image build and deploy (LB-05), which is gated on UD-1.
+# **Convention:** underscored event names are what every structured event in this repository
+# uses (`curriculum_load_complete`, `client_error`), so the terraform spelling was the odd one
+# out. `test_scheduled_job_event_parity.py` now fails if either side moves alone.
 resource "aws_cloudwatch_log_metric_filter" "nightly_jobs" {
   for_each       = toset(var.nightly_job_events)
   name           = "${var.name_prefix}-job-${each.key}"

@@ -158,11 +158,19 @@ def test_every_nightly_job_filter_pattern_selects_the_emitted_event() -> None:
 
 
 def test_the_job_dimension_stays_the_hyphenated_terraform_key() -> None:
-    """The other half, and the reason the fix went on the terraform side.
+    """The other half: the field the pattern must *not* be reconciled against.
 
-    The alarm's `job` dimension reads `$.job` out of the same record. Making the event name
-    match by teaching the emitter to stop rewriting hyphens would have fixed the pattern and
-    broken the dimension, so this pins the field the pattern must *not* be reconciled against.
+    The alarm's `job` dimension reads `$.job` out of the same record, and it is independent of
+    the event name - an emitter that wrote the hyphenated event name verbatim would have fixed
+    the pattern and left this field alone, which is why the register offered that side as a
+    valid one-line fix too. The terraform side was chosen for deploy cost (an `apply`, versus an
+    image build and deploy gated on UD-1) and for convention (`curriculum_load_complete`,
+    `client_error` - every structured event here is underscored).
+
+    So this test is not the reason for that choice; it is the guard on the half the choice did
+    *not* touch. `$.job` must keep matching the hyphenated terraform key verbatim, and a future
+    "let's make the two spellings consistent" edit to `extra={"job": job}` would break the
+    dimension for all four alarms while leaving the pattern parity above green.
     """
     dimensions = _DIMENSIONS_LINE.search(_filter_body())
     assert dimensions is not None, "the nightly_jobs metric_transformation lost its `dimensions`"
