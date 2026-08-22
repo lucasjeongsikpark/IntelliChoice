@@ -72,6 +72,11 @@ _TEST_RESERVED_SEED_OFFSET_5 = 995_000_000
 _TEST_RESERVED_SEED_OFFSET_6 = 996_000_000
 _TEST_RESERVED_SEED_OFFSET_7 = 997_000_000
 _TEST_RESERVED_SEED_OFFSET_8 = 998_000_000
+_TEST_RESERVED_SEED_OFFSET_9 = 999_000_000
+# The range continues upward and still fits `question_variants.random_seed`'s int4 - the
+# ceiling a reserved offset has to respect, and the only reason it does not simply keep
+# adding nines.
+_TEST_RESERVED_SEED_OFFSET_10 = 1_000_000_000
 
 
 def _postgres_skip_reason() -> str | None:
@@ -194,6 +199,11 @@ class _ScriptedAuthoredGateway:
         # `test_authored_stages_get_ceilings_above_the_measured_response_size`).
         self.ceilings: dict[str, int] = {}
         self.design_calls = 0
+        # Every cent this double charges, recorded rather than asserted here (same idiom
+        # as `ceilings`). A cost test that hardcodes the total re-states the stage list as
+        # a number and goes quietly wrong the day a stage is added; comparing a run's
+        # totals against what the gateway actually charged does not (COST-06).
+        self.charged_cents = 0.0
 
     async def generate_structured[T: BaseModel](
         self,
@@ -294,6 +304,7 @@ class _ScriptedAuthoredGateway:
             )
         else:
             raise AssertionError(f"unexpected response_model {name}")
+        self.charged_cents += 0.01
         return BedrockGenerationResult(
             value=value,  # type: ignore[arg-type]
             input_tokens=1,
@@ -307,6 +318,7 @@ class _ScriptedAuthoredGateway:
         self, *, texts: list[str], session_spend_cents: float
     ) -> EmbeddingResult:
         vectors = [self._embedding_vector or _hash_vector(t) for t in texts]
+        self.charged_cents += 0.001
         return EmbeddingResult(
             vectors=vectors, model_id="test", dimensions=len(vectors[0]), cost_cents=0.001
         )
@@ -1713,6 +1725,139 @@ def test_per_candidate_settlement_survives_a_duplicate_id() -> None:
             assert (
                 await QuestionRepository(session).get_template(slot.question_template_id)
             ) is not None
+
+    asyncio.run(run())
+
+
+# --- COST-06: the OTHER duplicate branch, and the money it was dropping ---------------
+# `_settle` catches the collision that arrives at *commit* time and adds the candidate's
+# cost to the run total before dropping it (the test above). The collision that arrives at
+# *flush* time - `QuestionRepository.create_template` flushes, so a unique violation is
+# raised while the candidate is still being built - was caught in `run_plan` instead, and
+# that branch `continue`d before `spend += outcome.cost_cents` ever ran. Every paid call of
+# the slot (design, generator, embedding, both solvers, judge) precedes the flush, so the
+# cost reached neither `summary.total_cost_cents` nor the `spend` total the between-slot
+# budget check reads. The two tests below are the two halves of that: the money, and the
+# consequence of losing it.
+#
+# The cost could not simply be read off `outcome` there - the exception escapes before
+# `outcome` is assigned, so `DuplicateTemplateIdError` carries what the candidate had
+# already spent out with it.
+
+
+def _collision_plan(seed_offset: int) -> pipeline_cli.GenerationPlan:
+    """Two candidates of one slot, so the first can be made to collide and the second is
+    the one whose fate says what the run did with the first one's money."""
+    return pipeline_cli.build_plan(
+        skill_ids=["linear_one_step"],
+        difficulties=[1],
+        candidates_per_slot=2,
+        seed_offset=seed_offset,
+    )
+
+
+async def _take_the_id(
+    session: AsyncSession,
+    slot: pipeline_cli.GenerationSlot,
+    *,
+    stem: str,
+) -> float:
+    """Commit a template at `slot`'s id, so a later run of the same plan collides at flush
+    time. Returns what that one candidate cost, which is also what the colliding candidate
+    will cost - it does exactly the same paid work before reaching the flush.
+    """
+    gateway = _ScriptedAuthoredGateway(item=_good_item(stem=stem))
+    await generate_authored_candidate(
+        session=session,
+        gateway=gateway,  # type: ignore[arg-type]
+        curriculum=load_curriculum(),
+        topic_id=slot.topic_id,
+        difficulty_label=slot.difficulty_label,
+        seed=slot.seed,
+        session_spend_cents=0.0,
+        skill_id=slot.skill_id,
+    )
+    await session.commit()
+    assert gateway.charged_cents > 0, "a candidate that cost nothing cannot lose anything"
+    return gateway.charged_cents
+
+
+def test_a_flush_time_duplicate_id_keeps_its_paid_spend_in_the_run_total() -> None:
+    """COST-06: a duplicate candidate costs one candidate, never the record of its money.
+
+    The candidate is dropped exactly as before - no row, `skipped_duplicate_id`, a
+    rejection naming the id - but the design, generator, embedding, solver and judge calls
+    it already paid for are the run's spend and have to appear in the run's total. The
+    invariant is stated against what the gateway actually charged rather than against a
+    hardcoded figure, so adding a stage cannot make it pass by arithmetic drift.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            plan = _collision_plan(_TEST_RESERVED_SEED_OFFSET_9)
+            colliding, free = plan.slots[0], plan.slots[1]
+            await _take_the_id(
+                session, colliding, stem="Solve: flush collision fixture, what is 2 + 2?"
+            )
+
+            gateway = _ScriptedAuthoredGateway(
+                item=_good_item(stem="Solve: flush collision rerun, what is 3 + 3?")
+            )
+            summary = await pipeline_cli.run_plan(session, gateway, plan)  # type: ignore[arg-type]
+
+            # The drop is unchanged: one candidate lost, one rejection naming the id, and
+            # no row for it (the id belongs to the fixture's template).
+            assert summary.skipped_duplicate_id == 1
+            assert [
+                reasons for _, _, reasons in summary.rejections if "already exists" in reasons[0]
+            ] != []
+            assert summary.pending == 1, "the second slot's id was free and had to survive"
+            assert (
+                await QuestionRepository(session).get_template(free.question_template_id)
+            ) is not None
+
+            # The money is not lost with it. Both slots reached a model, so the run total
+            # is the whole ledger - the dropped candidate's cents included.
+            assert summary.total_cost_cents == pytest.approx(gateway.charged_cents)
+
+    asyncio.run(run())
+
+
+def test_a_flush_time_duplicates_spend_still_stops_the_run_at_its_budget(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The consequence of losing that spend, measured rather than asserted (COST-06).
+
+    `run_plan`'s budget check is between slots and reads the run's `spend` total, so cost
+    that never reaches it buys candidates the operator did not authorise: with the budget
+    set below one candidate's cost, the collision alone must exhaust it. Before the fix the
+    second slot ran and was persisted - a real overrun, not a bookkeeping detail.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            plan = _collision_plan(_TEST_RESERVED_SEED_OFFSET_10)
+            slot_cost = await _take_the_id(
+                session, plan.slots[0], stem="Solve: budget collision fixture, what is 5 + 5?"
+            )
+            # Under one candidate's cost, so the colliding slot exhausts the budget by
+            # itself and the second slot is exactly the one the gate must refuse.
+            budget = replace(plan, run_budget_cents=slot_cost / 2)
+
+            gateway = _ScriptedAuthoredGateway(
+                item=_good_item(stem="Solve: budget collision rerun, what is 7 + 7?")
+            )
+            summary = await pipeline_cli.run_plan(session, gateway, budget)  # type: ignore[arg-type]
+
+            assert summary.skipped_duplicate_id == 1
+            assert summary.pending == 0, "the second slot was not affordable"
+            assert gateway.charged_cents == pytest.approx(slot_cost), (
+                "the second slot must never have reached a model"
+            )
+            assert (
+                await QuestionRepository(session).get_template(plan.slots[1].question_template_id)
+            ) is None
+            assert "stopping early" in capsys.readouterr().out
 
     asyncio.run(run())
 
