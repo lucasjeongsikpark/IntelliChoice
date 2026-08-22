@@ -17,17 +17,23 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
+from chat_api.graph.nodes import branch_locator_service
 from chat_api.main import app
 from chat_api.routers.sessions import SessionSnapshotEvent
 from chat_api.routers.stream import _initial_snapshot
 from chat_api.services.admin_escalation import MAX_NOTE_CHARS
+from chat_api.services.branch_locator import BranchLocatorResult
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from intellichoice_adapters.fake_auth import FakeTokenIssuer, JwtTokenVerifier
 from intellichoice_db.engine import create_engine, create_session_factory
 from intellichoice_db.models.chat import ChatSuggestion
 from intellichoice_db.repositories.chat import ChatSuggestionRepository
+from intellichoice_db.repositories.chat_turn_cancellation import (
+    ChatTurnCancellationRepository,
+)
 from intellichoice_shared.auth import Audience, Role
+from intellichoice_shared.maps import GeocodeQuery
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from sqlalchemy import text
 
@@ -569,6 +575,222 @@ def test_the_other_location_forms_also_do_not_outlive_the_locator_turn(
         "below proves nothing about whether it was stored"
     )
     assert value not in decoded, f"the {form} survived the locator turn in a checkpointed field"
+
+
+def _request_cancellation(session_id: str, turn_id: str) -> None:
+    """Records a Stop exactly as `POST .../turns/{id}/cancel` does, before the `/respond`
+    that has to observe it. Own engine for the same event-loop reason as `_snapshot` above
+    (mirrors `test_turn_cancellation._request_cancellation`).
+    """
+
+    async def run() -> None:
+        engine = create_engine()
+        try:
+            repo = ChatTurnCancellationRepository(create_session_factory(engine))
+            await repo.request(chat_session_id=session_id, client_turn_id=turn_id)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())
+
+
+def _paused_locator_thread(client: TestClient, client_turn_id: str) -> str:
+    """A fresh thread parked on the location-consent interrupt, ready to be resumed.
+
+    `client_turn_id` is supplied on the *question* rather than on the resume because that is
+    where it enters `QAState`: `/respond` carries a consent choice, not a turn id, and reads
+    the id of the turn it is resuming off the checkpoint.
+    """
+    session_id = client.post("/chat/sessions").json()["chat_session_id"]
+    paused = client.post(
+        f"/chat/sessions/{session_id}/messages",
+        json={"query": "What is the nearest branch to me?", "client_turn_id": client_turn_id},
+    ).json()
+    assert paused["pending_interrupt"]["interrupt_type"] == "location_consent"
+    return session_id
+
+
+def _assert_location_purged(session_id: str, *, latitude: float, longitude: float) -> None:
+    """The failure-path tests' shared assertion, read through a **fresh engine** - which is
+    the whole point rather than a convenience. A purge issued on the request's own session
+    and rolled back with a failed request is still visible to that session; only a connection
+    that never took part in the request can tell "deleted" from "deleted and undone".
+    """
+    rows = asyncio.run(_checkpoint_writes_for_thread(session_id))
+    assert rows, "expected checkpoint writes for the thread - wrong thread id?"
+    assert [row for row in rows if row[0] == "__resume__"] == [], (
+        "the caller's coordinates are still sitting in a `__resume__` write"
+    )
+
+    serde = JsonPlusSerializer()
+    decoded = " ".join(repr(serde.loads_typed((type_, blob))) for _, type_, blob in rows)
+    # The same control the success-path siblings use: the caller's *question* is checkpointed
+    # on purpose, so a decode-and-search that works must find it. Without this, "the
+    # coordinates are absent" could just mean nothing was searched.
+    assert "nearest branch" in decoded, (
+        "the decoded writes do not even contain the query, so the absence of the location "
+        "below proves nothing about whether it was stored"
+    )
+    assert str(latitude) not in decoded
+    assert str(longitude) not in decoded
+
+
+def test_a_cancelled_locator_resume_still_purges_the_location() -> None:
+    """SEC-13-PURGE, the first of the two paths AUD-C-03's purge never reached.
+
+    The purge sat *below* `/respond`'s `if cancelled: ... return`, so a visitor who pressed
+    Stop on a locator resume got the cancelled terminal state and left their coordinates in
+    `checkpoint_writes.__resume__` - permanently, since no retention job covers `__resume__`
+    rows for a live thread (RETENTION-CLUSTER). Whether the turn was stopped or allowed to
+    finish changes nothing about the promise `LOCATION_CONSENT_NOTICE` makes verbatim (SPEC
+    §5.1.3), and the visitor is a minor either way.
+
+    Driven by the real cooperative-cancellation mechanism rather than a patched `_run_turn`:
+    the Stop is recorded before the resume POST, so it is observed at the resumed turn's
+    first checkpoint boundary - `test_turn_cancellation`'s method, whose docstring explains
+    why that is deterministic rather than a race against the fakes.
+    """
+    distinctive_lat, distinctive_lon = 41.111111, -87.222222
+
+    with TestClient(app) as client:
+        session_id = _paused_locator_thread(client, "turn-sec13-cancelled")
+        _request_cancellation(session_id, "turn-sec13-cancelled")
+
+        result = client.post(
+            f"/chat/sessions/{session_id}/respond",
+            json={
+                "interrupt_type": "location_consent",
+                "approved": True,
+                "latitude": distinctive_lat,
+                "longitude": distinctive_lon,
+            },
+        ).json()
+
+    # The turn really took the cancelled path - so the resume value was applied (the saver
+    # writes `__resume__` before the first super-step boundary the Stop is observed at) and
+    # this is not a success-path test wearing a different name.
+    assert result["reason"] == "cancelled", result
+    assert result["answer"] is None, "a stopped turn still answered"
+
+    _assert_location_purged(session_id, latitude=distinctive_lat, longitude=distinctive_lon)
+
+
+def test_a_locator_resume_that_raises_still_purges_the_location(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SEC-13-PURGE, the second path - and the one that also has to survive a rollback.
+
+    Two facts about this path pull in opposite directions. `get_db_session` commits **only**
+    on the normal path, so work issued on the request's session inside a bare `finally` is
+    thrown away with the failed request's transaction: a purge written that way passes an
+    in-session assertion and leaves the row in the database. The `__resume__` row itself is
+    not subject to that, because `AsyncPostgresSaver` runs its own `autocommit=True`
+    connection and had already committed the coordinates before the node failed. So the
+    coordinates outlive the rollback and a naive purge does not - which is why the purge runs
+    on a session of its own, and why this test reads through a fresh engine.
+
+    The failure is injected where a real one lands: `find_nearest_branches` is the first thing
+    the node does with the location, so reaching it proves the resume value was delivered.
+    That is the control without which "no `__resume__` row" could just mean the resume never
+    happened.
+    """
+    distinctive_lat, distinctive_lon = 42.333333, -88.444444
+    reached: list[GeocodeQuery] = []
+
+    async def failing_locator(**kwargs: object) -> BranchLocatorResult:
+        location = kwargs["location"]
+        assert isinstance(location, GeocodeQuery)
+        reached.append(location)
+        raise RuntimeError("injected maps failure mid-resume")
+
+    monkeypatch.setattr(branch_locator_service, "find_nearest_branches", failing_locator)
+
+    # `raise_server_exceptions=False` so the request fails the way it fails in production -
+    # through the app's own 500 - rather than tearing the test out of the `with` block before
+    # the response exists.
+    with TestClient(app, raise_server_exceptions=False) as client:
+        session_id = _paused_locator_thread(client, "turn-sec13-raised")
+        failed = client.post(
+            f"/chat/sessions/{session_id}/respond",
+            json={
+                "interrupt_type": "location_consent",
+                "approved": True,
+                "latitude": distinctive_lat,
+                "longitude": distinctive_lon,
+            },
+        )
+
+    assert failed.status_code == 500, "the injected failure did not fail the request"
+    assert reached and reached[0].latitude == distinctive_lat, (
+        "the node never received the location, so this thread has no `__resume__` value to "
+        "purge and a passing assertion below would be vacuous"
+    )
+
+    _assert_location_purged(session_id, latitude=distinctive_lat, longitude=distinctive_lon)
+
+
+def test_a_locator_resume_can_be_retried_after_a_purged_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The purge deletes the `__resume__` row belonging to a turn that *failed*, which raises a
+    fair question: that row is LangGraph's crash-safety copy of the resume value, so does
+    removing it strand the pending interrupt?
+
+    It does not, and this pins the reason rather than asserting it in a comment. The failed
+    task's writes were never applied, so the interrupt is still pending on the last committed
+    checkpoint; `/respond` then sends a **fresh** `Command(resume=...)`, which the saver writes
+    anew. The purged row covered a resume that is over, not the interrupt itself. (Checkpoint
+    history/time travel is the one thing that would notice, and this app never uses it - see
+    `services/checkpoint_privacy.py`.)
+
+    Worth a test rather than a note because the failure mode is a dead conversation: a visitor
+    whose locator turn errored would be unable to answer the consent prompt again, with no way
+    forward but a new session.
+    """
+    first_lat, first_lon = 43.555555, -89.666666
+    retry_lat, retry_lon = 44.777777, -90.888888
+
+    async def failing_locator(**kwargs: object) -> BranchLocatorResult:
+        raise RuntimeError("injected maps failure mid-resume")
+
+    monkeypatch.setattr(branch_locator_service, "find_nearest_branches", failing_locator)
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        session_id = _paused_locator_thread(client, "turn-sec13-retried")
+        failed = client.post(
+            f"/chat/sessions/{session_id}/respond",
+            json={
+                "interrupt_type": "location_consent",
+                "approved": True,
+                "latitude": first_lat,
+                "longitude": first_lon,
+            },
+        )
+        assert failed.status_code == 500
+
+        # The real locator again - the visitor's second attempt is an ordinary resume.
+        monkeypatch.undo()
+        retried = client.post(
+            f"/chat/sessions/{session_id}/respond",
+            json={
+                "interrupt_type": "location_consent",
+                "approved": True,
+                "latitude": retry_lat,
+                "longitude": retry_lon,
+            },
+        )
+
+    assert retried.status_code == 200, (
+        "the purge of the failed turn's resume value left the interrupt unresumable"
+    )
+    assert "miles away" in (retried.json()["answer"] or ""), (
+        "the retry was accepted but the location was not used, so the resume value did not "
+        "reach the node"
+    )
+
+    # Both attempts' coordinates are gone: the retry is purged by the same `finally`.
+    _assert_location_purged(session_id, latitude=retry_lat, longitude=retry_lon)
+    _assert_location_purged(session_id, latitude=first_lat, longitude=first_lon)
 
 
 def test_an_anonymous_caller_cannot_continue_an_owned_thread() -> None:
