@@ -166,11 +166,20 @@ resource "aws_cloudwatch_metric_alarm" "sessions_completed_floor" {
 #
 # The CLIs now emit a `*_job_complete` record (see the Python side of D-377). These filters
 # read it, and the alarm below is the half that matters most.
+#
+# **`replace(each.key, "-", "_")`, and the two spellings are not interchangeable (RD-01).** The
+# emitter's event name is underscored (`report_job_complete` rewrites the hyphens) while the
+# `job` field - the dimension below - stays the hyphenated key verbatim. Built from `each.key`
+# directly, this pattern searched for `session-consolidate_job_complete`, an event nothing has
+# ever written: `JobCompletions` published no datapoint on any of the four dimensions for
+# fourteen days and all four heartbeat alarms sat in a permanent false ALARM from 2026-08-16.
+# The fix belongs here rather than on the emitter, which would have broken the dimension
+# instead. `test_scheduled_job_event_parity.py` now fails if either side moves alone.
 resource "aws_cloudwatch_log_metric_filter" "nightly_jobs" {
   for_each       = toset(var.nightly_job_events)
   name           = "${var.name_prefix}-job-${each.key}"
   log_group_name = var.ops_task_log_group
-  pattern        = "{ $.event = \"${each.key}_job_complete\" }"
+  pattern        = "{ $.event = \"${replace(each.key, "-", "_")}_job_complete\" }"
 
   metric_transformation {
     name      = "JobCompletions"
