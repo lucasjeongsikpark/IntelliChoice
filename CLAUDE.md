@@ -172,7 +172,9 @@ modes stay within the chosen item's / Frozen Spec's scope; new discoveries becom
 A workflow adapter only. Project memory stays in the documents indexed above — nothing in this
 section restates project state, and it must never grow a second copy of it.
 
-**Coordinator responsibilities:** understand the user goal; investigate project context; make
+**Coordinator responsibilities:** understand the user goal (a generic continue/resume request
+means: the first eligible item of `docs/PROJECT_STATE.md` §4.4's execution queue — see "Task
+selection" below); investigate project context; make
 implementation/technical-design choices only where existing project authority (SPEC as amended,
 accepted decisions, ARCHITECTURE) legitimately determines them; create the Frozen Spec; delegate
 non-trivial implementation through Orca; answer executor technical questions; independently
@@ -197,6 +199,26 @@ coordinator as a finding (AUTHORITY_MODEL §6.2).
 - An executor must not infer its role merely from being inside an Orca-created worktree.
 - If an Orca role is genuinely ambiguous, do not mutate project state until the role is
   established.
+
+### Task selection — the PROJECT_STATE execution queue
+
+- On a generic continue/resume request ("continue the project", "do the next task"), the
+  coordinator takes the **first eligible item** of `docs/PROJECT_STATE.md` §4.4 (the execution
+  queue — canonical execution state, single-homed there). It verifies §4.4's eligibility gate
+  against the register row and primary evidence *before* writing the Frozen Spec, and does not
+  independently reprioritize the queue during an ordinary continue.
+- If the first item fails the gate (stale, no longer eligible), it is **not silently skipped**:
+  reconcile PROJECT_STATE per AUTHORITY_MODEL's conflict rules first, then take the newly valid
+  first item.
+- A **user-named task overrides the queue** only when it is legitimately startable and the
+  request does not conflict with existing decisions or freeze boundaries (D-152, PROJECT_STATE
+  §6, unresolved UDs); a conflicting request is surfaced to the user, not worked around.
+- **Executors never select, reorder, or advance project tasks**; they start from the Frozen Spec
+  they are handed. Only the coordinator (or a standalone session) advances or reconciles the
+  queue, and a completed task advances it only **after** coordinator acceptance and
+  canonical-document reconciliation.
+- One task per generic continue request: after advancing the cursor, stop — unless the user
+  explicitly asked for multiple tasks.
 
 ### Orca orchestration mechanics
 
