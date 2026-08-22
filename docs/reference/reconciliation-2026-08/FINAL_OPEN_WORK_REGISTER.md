@@ -1487,6 +1487,19 @@ cross-referenced into the relevant domain section.
   (`intellichoice-staging-ops-task-failed`, ENABLED, firing on any ops-task container that stops with a
   non-zero exit code) **narrows but does not close** the silent-failure space: a job that fails *and*
   exits 0 is still invisible.
+- **⚠️ STEPS (a), (b), (d) DONE 2026-08-21 — only the step-(c) confirmation remains.**
+  (a) The terraform-side fix (`replace(each.key, "-", "_")`) landed as `b06a5df` via PR #362.
+  (d) The cross-boundary parity test exists
+  (`packages/observability/tests/test_scheduled_job_event_parity.py`) — verified failing against
+  the hyphenated pattern pre-fix, and failing again under a temporary emitter-side mutation, so a
+  one-sided rename on either side now fails locally. (b) The targeted `terraform apply` executed
+  the same day (plan: exactly `0 add / 4 change / 0 destroy`) and all four live filter patterns
+  were read back underscored from `/ecs/intellichoice-staging-ops-task`. (c) is time-blocked:
+  the first post-fix nightly firing (earliest 2026-08-22 ~19:00 UTC) must publish `JobCompletions`
+  and the four alarms must be observed transitioning ALARM → OK. The
+  `checkpoint_retention_cli` wiring stays with `BATCH-LOW-UNSCHEDULED-CONTROLS`. No new judgment
+  was made — no D-number; git history and the session narrative
+  (`docs/log/2026-08-21-rd01-cost22-orca.md`) are the record.
 
 ### `KPI-ALARM-FLOOR` — zero product-KPI alarms are deployed while both KPI metrics carry live data
 
@@ -1743,6 +1756,20 @@ cross-referenced into the relevant domain section.
 - **Reopen condition:** n/a
 - **PROJECT_STATE?** yes
 - **Historical/archive only?** no
+- **⚠️ RESOLVED IN REPO 2026-08-21 — deploy-gated in staging (LB-05).** All eight bounded
+  labelled metrics (20 label combinations) are pre-initialised at import in `metrics.py`
+  (commit `4dbcc41`, PR #362); `HTTP_REQUESTS`/`HTTP_REQUEST_DURATION` are explicitly exempt
+  (route×status cardinality), and
+  `packages/observability/tests/test_metrics_label_preinitialisation.py` fails on any future
+  labelled metric that is neither pre-initialised nor exempted (mutation-checked). The
+  undocumented `qa_maps_calls_total`/`qa_calendar_calls_total` vocabularies were enumerated from
+  all call sites as `success|failure`. Staging namespaces gain the series only at the next image
+  deploy (UD-1): upper bound **34 new always-present custom-metric series** (17 × 2 services).
+  Observed in passing: `sse_relay_failures_total` (D-396) is in neither the otel `filter/kpis`
+  include list nor `metric_declarations`, so it cannot be alarmed on in AWS at all — the same
+  silent-instrument shape, recorded in ARCHITECTURE's observability lessons. The UD-5 tripwire
+  half of the batch stays a user decision. No new judgment — no D-number; git history and
+  `docs/log/2026-08-21-rd01-cost22-orca.md` are the record.
 
 ### `COST-17-CLIENT-ERRORS` — the client-error alarm path is correctly deployed and has never been exercised end to end
 
