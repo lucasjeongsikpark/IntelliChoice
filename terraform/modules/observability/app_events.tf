@@ -230,8 +230,27 @@ locals {
 # ALARM for five days out of every seven: permanent flapping to the page mailbox, which is the
 # noise class the whole D-377 pair exists to avoid. It stayed invisible while the filter defect
 # kept the alarm in ALARM permanently, and no test crossed "weekly job" (`scheduled-jobs`) with
-# "two-day period" (here) until `test_scheduled_job_heartbeat_cadence_parity.py` (D-385 class),
-# which now fails locally on any job whose window is not 2x its cadence.
+# "two-day period" (here) until `test_scheduled_job_heartbeat_cadence_parity.py` (D-385 class).
+#
+# **The rule is `min(2x cadence, 604800)`, and the cap is the API's, not a preference.** The
+# first shape written here asked for 2 x 604800 for the weekly job and the apply was rejected,
+# verbatim:
+#
+#   ValidationError: Metrics cannot be checked across more than a week
+#   (EvaluationPeriods * Period must be <= 604800) for alarms using period >= 3600
+#
+# The ceiling is on `EvaluationPeriods * Period` - the whole window - so re-shaping buys nothing:
+# `86400 x 14` is the same 1,209,600 s and is refused identically. **Do not re-attempt a longer
+# window.** Two missed weekly runs are not observable by one CloudWatch alarm.
+#
+# So `memory-consolidate` gets `period = 604800`, `evaluation_periods = 1`. The trade-off, stated
+# so nobody reads it as an oversight: that alarm pages after the **first** missed Sunday rather
+# than the second - stricter than the rule the daily jobs get. It does not flap, because while
+# the job is healthy every trailing week contains the last Sunday run and the Sum is 1. And the
+# job runs with `retry_attempts = 0` (`scheduled-jobs/main.tf`), so a skipped week is a skipped
+# week: for the 90-day retention promise a false page is the cheap error and silence is the
+# expensive one. The parity test enforces the capped rule and fails locally on any job whose
+# window is neither 2x its cadence nor the cap.
 #
 # **The resource keeps its `nightly_` name deliberately.** Renaming it changes the terraform
 # address and CloudWatch would destroy and recreate all four alarms; the name is a misnomer and
@@ -243,9 +262,10 @@ resource "aws_cloudwatch_metric_alarm" "nightly_job_heartbeat" {
   evaluation_periods  = 1
   metric_name         = "JobCompletions"
   namespace           = local.pipeline_namespace
-  # 2x this job's own schedule cadence; the daily default is the two days this line used to
-  # hard-code for everything. Spelled out again in the description below because terraform has
-  # no per-resource binding to name it once.
+  # `min(2x this job's own schedule cadence, 604800)`; the daily default is the two days this
+  # line used to hard-code for everything, and the cap is what the CloudWatch API accepts (see
+  # above). Spelled out again in the description below because terraform has no per-resource
+  # binding to name it once.
   period             = lookup(var.job_heartbeat_period_seconds, each.key, local.default_job_heartbeat_period_seconds)
   statistic          = "Sum"
   threshold          = 1

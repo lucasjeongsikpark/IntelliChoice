@@ -1,4 +1,5 @@
-"""RD-01/D-385: every heartbeat alarm's evaluation window must be 2x its job's own cadence.
+"""RD-01/D-385: every heartbeat alarm's evaluation window must be 2x its job's own cadence,
+capped at the one week CloudWatch will evaluate.
 
 **The second half of the RD-01 story, and a different boundary from the first.**
 `test_scheduled_job_event_parity.py` guards terraform-pattern <-> Python-emitter agreement - the
@@ -14,12 +15,32 @@ to the page mailbox. Nothing caught it because no document and no test connected
 (`scheduled-jobs/main.tf`) with "two-day period" (`observability/app_events.tf`), and while the
 alarm could never leave ALARM at all the flapping had nowhere to show.
 
-So the invariant asserted here is the rule the comment already stated, applied per job:
+**The cap is not a preference; CloudWatch refuses the un-capped rule.** The first shape written
+here gave the weekly job 2 x 604800 = 1,209,600 s, and the apply came back with, verbatim:
 
-    evaluation window (period x evaluation_periods) == 2 x the job's schedule cadence
+    ValidationError: Metrics cannot be checked across more than a week
+    (EvaluationPeriods * Period must be <= 604800) for alarms using period >= 3600
+
+That is a ceiling on `EvaluationPeriods * Period` - the *whole window* - so no re-shaping buys a
+longer one: 86400 x 14 is the same 1,209,600 s and is refused identically. Two missed weekly runs
+are simply not observable by one CloudWatch alarm. So the rule became `min(2 x cadence, 604800)`
+(the RD-01 correction, 2026-08-22), and for the weekly job that is `period = 604800`,
+`evaluation_periods = 1`.
+
+**What the cap costs, stated plainly.** The weekly job now pages after the *first* missed run
+rather than the second - stricter than the rule the daily jobs get. It does not flap: while the
+job is healthy every trailing week contains the last Sunday run, so the Sum is 1 and the alarm
+stays OK. `memory-consolidate` runs with `retry_attempts = 0`, and for a job that gets no retry a
+false page is the cheap error and a silent skipped week is the expensive one, so the cap errs in
+the safe direction.
+
+So the invariant asserted here is the rule the comment already stated, applied per job and clamped
+to what the API will accept:
+
+    evaluation window (period x evaluation_periods) == min(2 x cadence, 604800)
 
 A future job added to `nightly_job_events` with a cadence its period does not match fails here
-rather than shipping another flapping alarm.
+rather than shipping another flapping alarm - or another alarm the API rejects at apply time.
 
 Terraform is parsed rather than planned, following `test_scheduled_job_event_parity.py` and
 `test_deployed_route_admission_parity.py` (D-385): the property is about what the configuration
@@ -46,6 +67,16 @@ _DAY_SECONDS = 86400
 _WEEK_SECONDS = 7 * _DAY_SECONDS
 # The rule `period = 172800`'s own comment encodes: one missed run is a blip, two is an alarm.
 _MISSED_RUNS_TOLERATED = 2
+# **Do not raise this, and do not try to reshape around it.** CloudWatch rejected the un-capped
+# 14-day window for `memory-consolidate` at apply time with, verbatim:
+#
+#   ValidationError: Metrics cannot be checked across more than a week
+#   (EvaluationPeriods * Period must be <= 604800) for alarms using period >= 3600
+#
+# The ceiling is on the product `EvaluationPeriods * Period`, so `86400 x 14` is the same
+# 1,209,600 s and is refused the same way. A weekly job therefore cannot tolerate a missed run:
+# it pages after the first. See the module docstring for why that is the safe direction here.
+_CLOUDWATCH_MAX_EVALUATION_WINDOW_SECONDS = _WEEK_SECONDS
 
 _HEARTBEAT_JOB_KEYS = re.compile(r"nightly_job_events\s*=\s*\[(?P<items>[^\]]*)\]", re.DOTALL)
 _PERIOD_OVERRIDES = re.compile(r"job_heartbeat_period_seconds\s*=\s*\{(?P<body>[^}]*)\}", re.DOTALL)
@@ -231,10 +262,14 @@ def _cadence_seconds(job_key: str, cron: str) -> int:
 
 
 def _required_window_seconds(job_key: str, cron: str) -> int:
-    return _MISSED_RUNS_TOLERATED * _cadence_seconds(job_key, cron)
+    """2x the cadence, clamped to the longest window CloudWatch will evaluate (RD-01 correction)."""
+    return min(
+        _MISSED_RUNS_TOLERATED * _cadence_seconds(job_key, cron),
+        _CLOUDWATCH_MAX_EVALUATION_WINDOW_SECONDS,
+    )
 
 
-def test_every_heartbeat_window_is_twice_its_job_schedule_cadence() -> None:
+def test_every_heartbeat_window_is_the_capped_two_run_rule() -> None:
     """RD-01's residual. One assertion per job, so the failure names the job that flaps."""
     schedules = _job_schedules()
 
@@ -244,16 +279,24 @@ def test_every_heartbeat_window_is_twice_its_job_schedule_cadence() -> None:
             "carries `job` as a dimension, so this one can never receive a datapoint"
         )
         cron = schedules[job_key]
+        cadence = _cadence_seconds(job_key, cron)
         required = _required_window_seconds(job_key, cron)
         actual = _evaluation_window_seconds(job_key)
+        capped = _MISSED_RUNS_TOLERATED * cadence > required
+        rule = (
+            "2x that cadence exceeds the 604800 s CloudWatch will evaluate "
+            "(`EvaluationPeriods * Period must be <= 604800`), so the window is capped at one "
+            "week and this job pages after its first missed run"
+            if capped
+            else "one missed run is a blip and two is an alarm"
+        )
         assert actual == required, (
-            f"{job_key}: schedule `{cron}` fires every "
-            f"{_cadence_seconds(job_key, cron) // _DAY_SECONDS} day(s), so its heartbeat needs a "
-            f"{required // _DAY_SECONDS}-day evaluation window (one missed run is a blip, two "
-            f"is an alarm) - the alarm renders {actual // _DAY_SECONDS} day(s) "
-            f"(period {_render_period(job_key)} x {_render_evaluation_periods(job_key)}). Too "
-            "short and the alarm re-enters ALARM between every run; too long and two missed "
-            "runs go unreported"
+            f"{job_key}: schedule `{cron}` fires every {cadence // _DAY_SECONDS} day(s), so its "
+            f"heartbeat needs a {required // _DAY_SECONDS}-day evaluation window - {rule}. The "
+            f"alarm renders {actual // _DAY_SECONDS} day(s) (period {_render_period(job_key)} x "
+            f"{_render_evaluation_periods(job_key)}). Too short and the alarm re-enters ALARM "
+            "between every run; too long and either a missed run goes unreported or the API "
+            "rejects the alarm at apply time"
         )
 
 
@@ -267,7 +310,7 @@ def test_the_alarm_description_states_each_job_own_window() -> None:
     description = _alarm_body()
     assert "48h" not in description, (
         "the heartbeat `alarm_description` still hard-codes `48h`; it is rendered for every job "
-        "including the weekly one, whose window is 14 days"
+        "including the weekly one, whose window is 7 days"
     )
     assert "nightly job" not in description, (
         "the heartbeat `alarm_description` still calls every job `nightly`; `memory-consolidate` "
@@ -383,13 +426,28 @@ def test_the_cadence_rule_rejects_a_uniform_window() -> None:
     every week - which is the *actual* defect's shape, not a hypothetical. So: the uniform
     two-day window the configuration shipped with must be rejected for a weekly job, and the
     weekly window must be rejected for a daily one.
+
+    The cap is scored in both directions too. It must bite on the weekly job (2 x 604800 is the
+    window CloudWatch refused) and it must *not* silently widen a daily job's window to a week,
+    which is how a badly-written clamp goes vacuous.
     """
-    assert _required_window_seconds("weekly-job", "cron(30 18 ? * SUN *)") == 14 * _DAY_SECONDS
+    assert _required_window_seconds("weekly-job", "cron(30 18 ? * SUN *)") == 7 * _DAY_SECONDS
     assert _required_window_seconds("daily-job", "cron(0 18 * * ? *)") == 2 * _DAY_SECONDS
 
     # The shipped uniform period, scored against both cadences.
     assert 172800 != _required_window_seconds("weekly-job", "cron(30 18 ? * SUN *)")
     assert 172800 == _required_window_seconds("daily-job", "cron(0 18 * * ? *)")
+
+    # The window the API rejected must never be what this rule asks for again, and the clamp
+    # must be the thing doing it - an uncapped 2x weekly is 1,209,600 s.
+    assert _MISSED_RUNS_TOLERATED * _WEEK_SECONDS > _CLOUDWATCH_MAX_EVALUATION_WINDOW_SECONDS
+    for job_key, cron in (
+        ("weekly-job", "cron(30 18 ? * SUN *)"),
+        ("daily-job", "cron(0 18 * * ? *)"),
+    ):
+        assert (
+            _required_window_seconds(job_key, cron) <= _CLOUDWATCH_MAX_EVALUATION_WINDOW_SECONDS
+        ), f"{job_key}: the rule asks for a window the CloudWatch API rejects at apply time"
 
     # Cadence shapes the classifier does not know must fail rather than be approximated. An
     # hourly cron carries the *same* six-field tail as a daily one and differs only in its hour
