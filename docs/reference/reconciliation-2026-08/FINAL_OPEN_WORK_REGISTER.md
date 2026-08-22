@@ -3864,6 +3864,24 @@ Nothing is omitted; the evidence citations are the load-bearing part.*
   existing sweep total. Local, cheap, no live or paid dependency. Quote F-09 verbatim in any summary.
 - **Owner type:** engineering · **Reopen condition:** n/a · **PROJECT_STATE?** yes
 - **Historical/archive only?** no
+- **⚠️ RESOLVED 2026-08-22 — by the FIRST option; the second option is rejected with cause.**
+  The sweep is total by **discovery** (commit `67cd708`, PR #372):
+  `test_no_user_facing_copy_restates_a_reason_code` walks every `chat_api` module's module-level
+  copy constants (strings inside dicts/sequences included) against all ten reason-code labels,
+  with an explicit 14-entry `_NOT_USER_FACING_COPY` exclusion set whose stale entries fail a
+  maintenance test. Nine of ten labels are swept; `ANSWER` is the sole exemption, forced by
+  real correct copy and self-removing when that stops being true. The current corpus has no
+  violation, so the evidence is the recorded vacuity contrast: a temporary node-local constant
+  restating `policy_restricted` fails the widened sweep and does NOT fail the old dict-scoped
+  one. **The "assert `REASON_MESSAGES` exhaustive over the ten" option is wrong in two ways,
+  not one:** `ANSWER`/`CANCELLED` legitimately have no default copy, and three further reasons
+  (`HUMAN_ACTION_REQUIRED`, `POLICY_RESTRICTED`, `NEEDS_CLARIFICATION`) carry node-local
+  specific copy only — exactly the pattern `REASON_MESSAGES`' own comment describes. The landed
+  pin is therefore **three-way** (dict / node-local / no-copy must partition the ten), verified
+  against the six production call sites. Scope note: the guard covers chat-api only —
+  `TurnReason` is chat-api's; learning-app copy is outside every version of this guard. No new
+  judgment — no D-number; git history and `docs/log/2026-08-22-narrow-coverage-orca.md` are the
+  record.
 
 ### `M3-D370-SOLUTION-RUNG` — the solution terminal rung has no staging e2e coverage under a roadmap-closing ✅
 
@@ -6259,6 +6277,24 @@ intact.*
   same family as DRIFT-10 (a metric without an alarm) and DRIFT-04 (an expiry without a monitor).
 - **Owner type:** engineering
 - **Reopen condition:** n/a · **PROJECT_STATE?** yes · **Historical/archive only?** no
+- **⚠️ THREE OF FOUR MEMBERS RESOLVED 2026-08-22 (PR #372); DRIFT-85 stays the standing
+  exception (BLOCKED on S43).** **DRIFT-82** (`fb74f38`): `RedactingSpanExporter` now redacts
+  span **events** (names and attribute values, recorded-exception messages included) on both
+  exporter branches — including the case the old `if cleaned == attributes` early return
+  missed (clean attributes, credential-bearing events); the no-copy fast path survives, and
+  the events fix plus the early-return widening are each independently mutation-killed.
+  **DRIFT-68** (`fd6927d`): the approved/effective predicate now lives inside
+  `get_chunks_by_ids` itself (required `as_of` keyword; reuses `_apply_filters` so the
+  synthesis-time check cannot drift from the pre-retrieval one) — `synthesize_answer` passes
+  `now`, `hybrid_search` passes `filters.as_of`, and both flip dimensions
+  (approval revoked / window closed between retrieval and synthesis) are pinned by tests that
+  wrongly synthesized pre-fix; total chunk loss fails closed into `NO_APPROVED_SOURCE` with
+  `[]` citations (AUD-C-11), asserted. **DRIFT-74/REQ-44** (`67cd708`): resolved — the full
+  record is on the `REQ-44-REASON-SWEEP` entry, including why the exhaustiveness option is
+  rejected with cause. Flags 1–3 discharged (F-09 quoted verbatim in the executor report);
+  flag 4 (the DRIFT-85 pattern) unaffected. All three fixes are repo-only and deploy-gated
+  (LB-05). No new judgment — no D-number; git history and
+  `docs/log/2026-08-22-narrow-coverage-orca.md` are the record.
 
 ### `BATCH-LOW-CONFIG-VS-PLAN` — LOW batch G: infrastructure configuration versus documented plan or invariant
 
