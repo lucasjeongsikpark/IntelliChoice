@@ -60,14 +60,21 @@ branch.
 > `student_reports`, `learning_events`) **is** the enabled daily 18:50 schedule above.
 > **Checkpoint retention** (`make checkpoint-retention`, `checkpoint_retention_cli`, D-333) has
 > **no schedule at all** and stays unscheduled until `session-consolidate` has a record of firing —
-> a prerequisite that RD-01 below silently blocks, since the instrument that would produce that
-> record is the one that does not work (`WORK-23-RETENTION-JOB-GATING`). Unqualified "the retention
+> a prerequisite RD-01 blocked until 2026-08-21, when the instrument that produces that record was
+> repaired (see below); the first record is obtainable from the first post-fix nightly run
+> (`WORK-23-RETENTION-JOB-GATING`). Unqualified "the retention
 > job" in this file means `retention-purge`; the checkpoint one is always named as such.
 >
 > **And "scheduled" does not imply "observed to have run successfully"** (RD-01). The schedules
-> exist in AWS and were confirmed at runtime, **and** the jobs' dead-man's switch is structurally
-> non-functional — nothing would alarm if a job silently stopped completing. Both halves travel
-> together: do not read "confirmed at runtime" as "the 90-day retention promise is being kept".
+> exist in AWS and were confirmed at runtime, **and** the jobs' dead-man's switch was structurally
+> non-functional until 2026-08-21: the metric-filter patterns searched for hyphenated event names
+> the emitter never wrote. The terraform-side pattern fix (`replace(each.key, "-", "_")`,
+> commit `b06a5df`) was applied to staging on 2026-08-21 and the four live filter patterns were
+> read back underscored — but **no post-fix nightly run has fired yet**, so `JobCompletions` has
+> still never published a datapoint and the four heartbeat alarms remain in ALARM until the first
+> one does. `test_scheduled_job_event_parity.py` now pins filter↔emitter parity locally (the
+> D-385 class). Both halves still travel together: do not read "confirmed at runtime" as "the
+> 90-day retention promise is being kept" until ALARM → OK is observed.
 
 **Two shipped behaviors that deviate from the plan's own recommendation**, recorded here
 because reading the spec alone would mispredict the code: S22 kept **grade-on-submit** rather
@@ -397,6 +404,19 @@ to rot, because nothing fails when it does.)*
   questions and `print()` answers neither; and a heartbeat alarm on a scheduled job is the one
   place `treat_missing_data = "breaching"` is correct — the exit-code alarm cannot see a job that
   never starts, so there the **absence of data is the incident**.
+- **A labelled counter has no series until its first event, which is the moment an alarm on it
+  would have been useful** (COST-22, fixed 2026-08-21 at `4dbcc41`). `prometheus_client` creates
+  a child lazily on the first `.labels()` call, so `qa_service_degraded_total` — built so a
+  Bedrock outage stops reading as a surge of off-topic questions — was absent from the deployed
+  namespace until an outage would have created it. All eight bounded labelled metrics (20 label
+  combinations) are now pre-initialised at import in `metrics.py`;
+  `HTTP_REQUESTS`/`HTTP_REQUEST_DURATION` are explicitly exempt (route×status cardinality), and
+  `test_metrics_label_preinitialisation.py` fails on any future labelled metric that is neither
+  pre-initialised nor exempted. Once an image deploy ships this (it is deploy-gated, UD-1), the
+  pre-inited series reach CloudWatch through the otel `filter/kpis` allowlist in **both** app
+  namespaces — an upper bound of **34 new always-present custom-metric series** (17 × 2 services;
+  `sse_relay_failures_total` is in neither the include list nor `metric_declarations`, so its
+  three series stay Prometheus-only — and it therefore cannot be alarmed on in AWS at all).
 - **A layout constraint about vertical fit must be queried on height, not width** (D-382).
   `.journey-stage-hint` carried the rule in words — *"must never push the bar tall enough to
   shove the question below the fold"* — and the only media query enforcing it was

@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-21** (post-migration reconciliation + first Orca pilot) |
-| Last product-code commit | **`a3f1511`** (2026-08-21) — the accepted REQ-27-FROZENSET test commit (`test: pin fail-closed consent gate invariants`, tests only); every commit between `344f016` (2026-08-18) and it is docs/skills only |
+| Snapshot date | **2026-08-21** (post-migration reconciliation + second Orca run: RD-01/COST-22) |
+| Last product-code commit | **`bb75829`** (2026-08-21) — the accepted RD-01/COST-22 batch landed by PR #362 (`b06a5df` filter-parity fix + parity test, `4dbcc41` label pre-init + completeness test, `bb75829` comment correction) |
 | Deployed staging image (both ECS services) | **`gha-44a12dfc9549`** = commit `44a12dfc9549`, 2026-08-18 (D-415) |
 | Deployed task definitions | learning `:150` (2/2 running), chat `:148` (1/1 running) — one behind each family's latest (`:151`/`:149`), which are byte-identical no-ops; compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **11 product commits** (`44a12dfc9549` → `a3f1511`); any HEAD advance beyond `a3f1511` is docs-only reconciliation |
+| Repo-vs-deployed gap | **14 product commits** (`44a12dfc9549` → `bb75829`); any HEAD advance beyond `bb75829` is docs-only reconciliation. Separately, the four nightly-job **metric-filter patterns were re-applied live on 2026-08-21** (control-plane `terraform apply`, no image change — see §3/§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `a3f1511`, or if the deployed staging image tag no longer matches this
+commit lands after `bb75829`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -52,6 +52,10 @@ conditional on staging still running `gha-44a12dfc9549`.
   D-421 (the same question is not emailed to staff twice), D-422 (note field in the approval modal).
 - **C8** (a `ruff format` pass) and **D-423's documentation** (the RAG latency split). Four further
   commits plus HEAD are docs/roadmap-only — the full ten are enumerated in UD-1's queue entry.
+- **The COST-22 label pre-initialisation (`4dbcc41`, 2026-08-21).** The pre-inited series appear
+  in the staging CloudWatch namespaces only after the next image deploy — an upper bound of
+  **34 new always-present custom-metric series** (17 × 2 services) once it ships
+  (as-built detail: ARCHITECTURE's observability lessons).
 - **B4 escalation behaviour has never been observed live**, on any build. There is zero live
   evidence for it until a deploy happens.
 
@@ -65,8 +69,9 @@ conditional on staging still running `gha-44a12dfc9549`.
   `44a12dfc9549` beside it or do not quote it. It is the only untouched pre-optimisation baseline
   for `WORK-01-SCOPE-GUARD`'s ~22% win — a deploy destroys it, so capture it (with its SHA) before
   any deploy.
-- `RD-01`'s Python-side fix (§4) is **inert until a deploy**; only its terraform-side variant can
-  reach staging without one.
+- `RD-01`'s fix landed on the **terraform side and reached staging on 2026-08-21** without a
+  deploy: the four filter patterns were re-applied and read back underscored live. No Python-side
+  change exists or is owed. What remains is time, not code — see §4.3.
 - The deploy pipeline has **no artifact-freshness check** — no content-hash, ETag or digest
   comparison anywhere in the workflow. Its own comment says the SPA curls "would pass against a
   completely stale deployment, and they never touch the API". The documentation claiming a
@@ -79,7 +84,7 @@ conditional on staging still running `gha-44a12dfc9549`.
 
 ## 4. Active engineering work
 
-26 open engineering entries. Full evidence per entry:
+25 open engineering entries. Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
@@ -87,17 +92,16 @@ lowercased key to the link above). `SEC-13-PURGE` and `COST-06-FLUSH` are
 established **by code reading**; no executed test reproduces the defective paths
 (`NO-NEW-TEST-CODE`).
 
-### 4.1 ACTIVE_REMEDIATION (16) — something built is wrong or silently ineffective
+### 4.1 ACTIVE_REMEDIATION (15) — something built is wrong or silently ineffective
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
-| `RD-01` | Nightly-job dead-man's switch structurally non-functional (hyphen-vs-underscore event names) | See 4.3 — highest priority | engineering |
+| `RD-01` | Dead-man's switch pattern fix applied live 2026-08-21; parity test landed (`b06a5df`) | Confirmation only: after the first post-fix nightly firing (earliest 2026-08-22 ~19:00 UTC), read `JobCompletions` and confirm the four alarms transition ALARM → OK — see 4.3 | engineering |
 | `SEC-13-PURGE` | Minors' location coordinates survive cancel and exception paths | See 4.3 | engineering |
 | `COST-06-FLUSH` | Duplicate-id flush branch loses paid spend from row, run total and budget gate | See 4.3 | engineering |
 | `WORK-40-TZ` | chat-web renders calendar-approval times in the viewer's browser locale — shares one prerequisite with `DRIFT-59-DATE-SHIFT` (export `buildDateLabelFormatter`); whichever lands first, update both rows | See 4.3 | engineering |
 | `D310-RESIDUALS` | Three follow-ups surviving the executed D-310 rotation | See 4.3 | user / engineering / docs |
 | `LANGSMITH-INGEST` | Trace ingestion failing at volume and flapping; nobody paged by design | Read app/ops log content for `langsmith.client` lines; classify 403 / quota / timeout. A quota or plan-limit cause escalates to a user call | engineering |
-| `COST-22-LABEL-PREINIT` | No labelled counter pre-initialises its labels, so low-frequency KPIs are unalarmable until first occurrence | Pre-initialise label sets at import for every labelled counter; batch with `RD-01` as one "silent instrument" fix | engineering |
 | `ARCH-17-COMMIT-SEAM` | Checkpoint/domain commit seam is entered by every routine deploy; one seam still open | Fix commit ordering and the mid-interrupt seam, or re-accept with a trippable expiry; read the repair counter's current value first (movement voids the §7-R9 acceptance — see the accepted-risk expiries block in §6.4) | engineering |
 | `WORK-24-DUPLICATE-GAIN` | One completed staging thread has two `learning_gain` rows; never investigated | Test the re-entered-finalize hypothesis (same root cause as `ARCH-17-COMMIT-SEAM`), then confirm D-336's fix covers it | engineering |
 | `D329-PHANTOM` | Personalized hints ran dead in production; the detection gap is unchanged | Close the detection gap for silently-swallowed background failures (generalises to D-344/D-350); prove end-to-end that a student sees the personalized hint | engineering + docs |
@@ -125,23 +129,17 @@ established **by code reading**; no executed test reproduces the defective paths
 
 ### 4.3 The five items an agent should be able to act on from this file alone
 
-**`RD-01` — the nightly-job dead-man's switch cannot ever fire.** Deployed CloudWatch metric-filter
-patterns match **hyphenated** event names (`session-consolidate_job_complete`, and the same for
-`chat-purge`, `retention-purge`, `memory-consolidate`); the Python emitter produces **underscored**
-ones. Both sides are internally consistent and mutually incompatible, and unchanged at HEAD.
-`JobCompletions` has **never published a single datapoint** (0 across four `job` dimensions over
-14 days). All four alarms have exactly one state transition in their history,
-`INSUFFICIENT_DATA → ALARM` on 2026-08-16/17 — a **permanent false ALARM to the confirmed page
-mailbox**. Fix = a one-line change on exactly ONE side: stop rewriting hyphens in
-the hyphen-rewrite line in `packages/observability/.../scheduled_jobs.py` (`job.replace('-','_')`,
-line 61 as of 2026-08-20), **or** build the pattern from an underscored key in the pattern
-interpolation in `terraform/modules/observability/app_events.tf` (`${each.key}_job_complete`,
-line 173 as of 2026-08-20). Deploy-cost asymmetry: the terraform side is
-`apply`-only, the Python side needs a full image build and deploy (so it depends on UD-1). Then wait
-≥1 nightly firing, confirm ALARM→OK, and **add the missing cross-boundary parity test** (a second
-deliverable, not polish). Do **not** "fix" the matching attributes — period, threshold, statistic,
-dimensions and `treat_missing_data` all match exactly. Job **success** stays unproven independently
-of this fix: the log streams prove invocation, not outcome.
+**`RD-01` — confirmation only.** The fix landed 2026-08-21: the terraform-side pattern change
+(`replace(each.key, "-", "_")`, commit `b06a5df`) was applied to staging via a targeted
+`terraform plan`/`apply` (plan showed exactly `0 add / 4 change / 0 destroy`), and all four live
+filter patterns were read back **underscored** the same day. The cross-boundary parity test
+(`packages/observability/tests/test_scheduled_job_event_parity.py`, D-385 class) landed with it —
+verified failing pre-fix, and failing under a one-sided emitter mutation. **What remains:** the
+four alarms mathematically cannot leave ALARM until the first post-fix nightly firing publishes a
+`JobCompletions` datapoint (jobs run 18:01/18:11/18:50 UTC; alarm period 172800 s). After the
+first firing (earliest 2026-08-22 ~19:00 UTC), read the metric and confirm ALARM → OK; then delete
+this row and start `C6-UNATTENDED`'s seven-day clock (§6.2). Job **success** stays unproven
+independently: the log streams prove invocation, not outcome.
 
 **`SEC-13-PURGE` — minors' precise coordinates can survive a cancelled turn.**
 `purge_resume_writes` has exactly one trigger; a cancelled location-consent resume returns before
@@ -219,8 +217,8 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-| 1 | `RD-01` + `COST-22-LABEL-PREINIT` | Register (verbatim): "the highest-priority engineering item in the register"; §8: fix the false ALARM before UD-6 is even discussed. COST-22 rides the register's own "silent instrument" batch (its UD-5 tripwire half stays out — user decision). Startable side is the terraform pattern fix (apply-only; the Python side is inert until UD-1's deploy); the cross-boundary parity test is a second deliverable |
-| 2 | `SEC-13-PURGE` | Register: "ranked first of the three named new-test candidates"; minors' precise coordinates survive cancel/exception; cancel-path test first, then the `finally`. Local, no spend |
+| 1 | `SEC-13-PURGE` | Register: "ranked first of the three named new-test candidates"; minors' precise coordinates survive cancel/exception; cancel-path test first, then the `finally`. Local, no spend. (Moved to #1 on 2026-08-21: the former row-1 batch landed — `COST-22-LABEL-PREINIT` resolved, `RD-01` reduced to a time-blocked confirmation, below) |
+| 2 | `RD-01` (confirmation) | Time-blocked, not work-blocked: eligible only after the first post-fix nightly firing (earliest 2026-08-22 ~19:00 UTC). A free read-only CloudWatch check (§4.3); on ALARM → OK, delete the row and start `C6-UNATTENDED`'s clock |
 | 3 | `COST-06-FLUSH` | Last open member of the "fail-closed invariants have no pins" package (the REQ-27 half landed at `00f6886`); a real cost bug; the test forces `IntegrityError` with a fake gateway |
 | 4 | `BATCH-LOW-NARROW-COVERAGE` + `REQ-44-REASON-SWEEP` | The span-event redaction member is a live security gap (a credential inside a span event is not redacted today); the reason-sweep member overlaps REQ-44, so both close together |
 | 5 | `DRIFT-59-DATE-SHIFT` + `WORK-40-TZ` (also closes `WORK-40`'s residual) | The documents' own shared prerequisite (export `buildDateLabelFormatter`; "whichever lands first, update both rows"); WORK-40-TZ is a rule-4 human-approval surface rendering wrong times |
@@ -261,7 +259,7 @@ UD-constrained tails; every §4 key appears exactly once):**
 | UD-3 | `BUDGET-GROSS-SPEND` | Is the $20 net monthly budget raised, accepted or re-scoped, and is a gross credit-excluding control wanted before credits run out? | No | [agent may apply] Leave both budgets in place and treat the console-created budget as **load-bearing** — do not delete it during cleanup |
 | UD-4 | `RDS-POSTURE` | Is 1-day backup retention / deletion protection off / single-AZ the accepted staging posture, and what does production require? | No | [USER ONLY — hold:] change nothing; add a dated note that the posture is undeclared and that the §2.6 gate criteria were measured on this environment. Recording it as "the deliberate staging answer" is the decision itself. |
 | UD-5 | `KPI-ALARM-FLOOR` | Does a product-KPI alarm get created now (which metric, what floor), or is "none while traffic is synthetic" the settled answer to P1-10? | No | [USER ONLY — hold:] change nothing; note (dated) that the alarm floor is undecided, citing the terraform comment. Recording the disabled state as "the answer to P1-10" closes the item. |
-| UD-6 | `ALERT-ENDPOINT` | Should the page channel reach an organization address rather than one personal mailbox, and is a separate informational endpoint wanted? | No | [USER ONLY — hold:] change nothing; fix `RD-01` regardless — the false-ALARM noise is a defect, not a decision. Accepting one mailbox is itself the decision. |
+| UD-6 | `ALERT-ENDPOINT` | Should the page channel reach an organization address rather than one personal mailbox, and is a separate informational endpoint wanted? | No | [USER ONLY — hold:] change nothing; `RD-01`'s fix landed 2026-08-21 independent of this question, as its false-ALARM noise was a defect, not a decision. Accepting one mailbox is itself the decision. |
 | UD-7 | `RETENTION-CLUSTER` | One cluster of seven linked calls: how long minors' data is kept, what enforces it, what guardians are told — it is the first unblocked step toward a launch-gating privacy requirement | No | [agent may apply] Keep dry-run, keep the job unscheduled, add a dated note that the notice obligation now spans five windows across three decisions. Verbatim precondition (D-333): *"Before deleting any eligible checkpoint, run long-term memory consolidation first."* That ordering must be verified implemented before any dry-run flip is even recommended. |
 | UD-8 | `ORG-COMMS` | Is the production security report sent, and who signs off the §7-R1 accepted risk? — no code waits on it; the enrollment FAQ gates the guest journey's most obvious question | No | [USER ONLY — hold:] record, with a date, that the report is deliberately unsent and why (the send-status line); sending or closing is the decision. |
 | UD-9 | `REQ-32-SAFETY` | Are Bedrock Guardrails adopted, is the "separately approved" safety policy defined, or is SPEC amended to match what exists? | No | [USER ONLY — hold:] change nothing; add a dated note that the chat surface is unscreened and the learning-side screen has one caller and one test — do NOT record an accepted risk without the user. The register's three engineering deliverables (chat-api coverage, a real escalation destination, pinning tests) stay unowned until this is answered. |
@@ -319,7 +317,7 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 
 | Register key | One line | Reopen condition |
 |---|---|---|
-| `C6-UNATTENDED` | §2.6 criterion 6 arithmetically unsatisfiable yet, and job success unproven | `RD-01` fixed **and deployed**, plus seven days of confirmed firings |
+| `C6-UNATTENDED` | §2.6 criterion 6 arithmetically unsatisfiable yet, and job success unproven | `RD-01`'s fix is applied live as of 2026-08-21; the seven-day confirmed-firing clock can start at the first observed `JobCompletions` datapoint (RD-01 confirmation, §4.3) |
 | `DB-CONTENT-VERIFY` | Four DB-content claims unverifiable read-only; one needs a mutation | UD-2 authorizes a read-only session, or the UD-1 deploy closes WORK-03 by itself |
 | `LANGSMITH-RETENTION` | The retention setting has no in-repo expression and was never read (UD-11) | Open now — a two-minute user console read |
 | `ARCH-35-ORG-TIME` | `ORG_TIME_CONFIRMED = false` is deployed; anything time-of-day dependent runs on assumed hours | The org answers, or the user authorises building the D-153 §4 guard early — the guard is a **local** assertion and is buildable now |
@@ -356,8 +354,8 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | `R8-READ-SCOPE` | Tutor and branch_manager reads are unscoped; writes fail closed. Accepted as §7-R8 with an expiry that a running system cannot trip | Integration reopen, or first real traffic — whichever comes first. **At integration start this MUST be re-presented to the user; it is launch-blocking at that point. Parked ≠ closed.** |
 | `INT-10-PEAK-CONCURRENCY` | Parked by **D-153 §3/§6** (purchase withdrawn — not deferred — and the ask held for integration); the 150-concurrent org ask sits behind an unsent message | Integration start; measure peak concurrency then |
 | `RD-12-INGRESS` | Parked by **D-152** (DNS records are added at integration time, D-153 §6); documented product hostnames are absent live; staging is reached through two `*.cloudfront.net` domains. **Procedural:** probe those, and a direct-ALB timeout is by design, not an outage | Integration, when the org adds DNS records |
-| `WORK-23-RETENTION-JOB-GATING` | Parked by **D-333** (its consolidate-before-delete precondition is the parking condition, not yet verified); the checkpoint-retention job is genuinely unscheduled — and **`RD-01` silently blocks its stated prerequisite** (a record of firing) — and D-333's consolidate-before-delete precondition (§5 UD-7) must be verified implemented first | The consolidate job has a verified record of firing, plus UD-7 |
-| `F4-CRITERION6` | Criterion 6 was closed on an explicit user bypass; its reopen condition is live and **currently undetectable** because `RD-01` silences the instrument | A failure in any waived scheduled firing |
+| `WORK-23-RETENTION-JOB-GATING` | Parked by **D-333** (its consolidate-before-delete precondition is the parking condition, not yet verified); the checkpoint-retention job is genuinely unscheduled. Its stated prerequisite (a record of `session-consolidate` firing) was `RD-01`-blocked until 2026-08-21; the first record is obtainable from the first post-fix nightly run. D-333's consolidate-before-delete precondition (§5 UD-7) must still be verified implemented first | The consolidate job has a verified record of firing, plus UD-7 |
+| `F4-CRITERION6` | Criterion 6 was closed on an explicit user bypass; its reopen condition is live and was undetectable while `RD-01` silenced the instrument — the instrument was repaired 2026-08-21, so detectability begins with the first confirmed post-fix firing | A failure in any waived scheduled firing |
 | `SEC-17-GUARDDUTY` | GuardDuty is absent as an account fact, by costed decision D-125 | Production posture review, or staging ceasing to be synthetic |
 | `IMAGE-WORK-PARK` | Parked by **D-078** (feature deferred); SPEC §5.17's requirements have no subject in the codebase | The user reopens §5.17 — **both** preconditions (incidental-capture privacy with counsel; real-credential footing for scanning and encryption at rest) must be answered first |
 | `D342-PARKING` | All question-bank **quantity** coverage work is parked by standing user instruction. Non-quantity defects (wrong answer key, unservable path) remain defects | The user explicitly asks for new problems to be generated |
@@ -399,10 +397,13 @@ resolution step; three of them are cheap.
 
 Every item carries its register key. These are the headline live risks, not the full list.
 
-- **A permanently false alarm is training the operator to ignore the page mailbox.** `RD-01`'s four
-  nightly-heartbeat alarms have been in ALARM continuously **since 2026-08-16/17**, routed to the
-  page channel with actions enabled. This is a defect, not a decision, and it should be fixed
-  before UD-6 is even discussed.
+- **The four nightly-heartbeat alarms are still in ALARM, but the defect behind them is fixed.**
+  `RD-01`'s pattern fix was applied and live-verified 2026-08-21; the alarms have been in ALARM
+  since 2026-08-16/17 and **cannot clear until the first post-fix nightly firing publishes a
+  datapoint** (earliest 2026-08-22 ~19:00 UTC). Until ALARM → OK is observed, treat the page
+  mailbox's four standing ALARMs as expected residue, not new signal — and confirm the
+  transition promptly (§4.3), because every day they linger keeps training the operator to
+  ignore the page channel.
 - **The alert endpoint is one personal mailbox.** `ALERT-ENDPOINT` / UD-6: exactly two SNS topics,
   both unencrypted, both subscribed to the same personal address; 26 of 34 alarms page it (a
   pre-D-377 count — the register's own caveat; see `ALERT-ENDPOINT`), and
