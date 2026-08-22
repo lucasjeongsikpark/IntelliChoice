@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-22** (post-migration reconciliation + third Orca run: SEC-13-PURGE) |
-| Last product-code commit | **`b6fa067`** (2026-08-22) — the accepted SEC-13-PURGE fix landed by PR #364 (locator resume purged on cancel and exception paths, on its own committed session, with leak-demonstrating tests) |
+| Snapshot date | **2026-08-22** (post-migration reconciliation + fourth Orca run: COST-06-FLUSH) |
+| Last product-code commit | **`ba660e1`** (2026-08-22) — the accepted COST-06-FLUSH fix landed by PR #366 (a flush-time duplicate's paid spend now reaches the run total and the budget gate; `DuplicateTemplateIdError` carries the cost across the exception boundary) |
 | Deployed staging image (both ECS services) | **`gha-44a12dfc9549`** = commit `44a12dfc9549`, 2026-08-18 (D-415) |
 | Deployed task definitions | learning `:150` (2/2 running), chat `:148` (1/1 running) — one behind each family's latest (`:151`/`:149`), which are byte-identical no-ops; compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **15 product commits** (`44a12dfc9549` → `b6fa067`); any HEAD advance beyond `b6fa067` is docs-only reconciliation. Separately, the four nightly-job **metric-filter patterns were re-applied live on 2026-08-21** (control-plane `terraform apply`, no image change — see §3/§8) |
+| Repo-vs-deployed gap | **16 product commits** (`44a12dfc9549` → `ba660e1`); any HEAD advance beyond `ba660e1` is docs-only reconciliation. Separately, the four nightly-job **metric-filter patterns were re-applied live on 2026-08-21** (control-plane `terraform apply`, no image change — see §3/§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `b6fa067`, or if the deployed staging image tag no longer matches this
+commit lands after `ba660e1`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -84,21 +84,19 @@ conditional on staging still running `gha-44a12dfc9549`.
 
 ## 4. Active engineering work
 
-24 open engineering entries. Full evidence per entry:
+23 open engineering entries. Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
-lowercased key to the link above). `COST-06-FLUSH` is
-established **by code reading**; no executed test reproduces its defective path
-(`NO-NEW-TEST-CODE` — originally three such defects; REQ-27's and SEC-13's paths gained
-executed tests on 2026-08-21/22).
+lowercased key to the link above). The `NO-NEW-TEST-CODE` category is **closed**: all three
+defects the audit established by code reading only (REQ-27, SEC-13, COST-06) gained executed
+tests on 2026-08-21/22.
 
-### 4.1 ACTIVE_REMEDIATION (14) — something built is wrong or silently ineffective
+### 4.1 ACTIVE_REMEDIATION (13) — something built is wrong or silently ineffective
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
 | `RD-01` | Dead-man's switch pattern fix applied live 2026-08-21; parity test landed (`b06a5df`) | Confirmation only: after the first post-fix nightly firing (earliest 2026-08-22 ~19:00 UTC), read `JobCompletions` and confirm the four alarms transition ALARM → OK — see 4.3 | engineering |
-| `COST-06-FLUSH` | Duplicate-id flush branch loses paid spend from row, run total and budget gate | See 4.3 | engineering |
 | `WORK-40-TZ` | chat-web renders calendar-approval times in the viewer's browser locale — shares one prerequisite with `DRIFT-59-DATE-SHIFT` (export `buildDateLabelFormatter`); whichever lands first, update both rows | See 4.3 | engineering |
 | `D310-RESIDUALS` | Three follow-ups surviving the executed D-310 rotation | See 4.3 | user / engineering / docs |
 | `LANGSMITH-INGEST` | Trace ingestion failing at volume and flapping; nobody paged by design | Read app/ops log content for `langsmith.client` lines; classify 403 / quota / timeout. A quota or plan-limit cause escalates to a user call | engineering |
@@ -127,7 +125,7 @@ executed tests on 2026-08-21/22).
 | `M3-D370-SOLUTION-RUNG` | The solution terminal rung has no staging e2e coverage, under a roadmap-closing ✅ | Write the staging e2e coverage for the solution terminal rung | engineering + docs |
 | `BATCH-LOW-NARROW-COVERAGE` | Coverage narrower than the claim; three small code gaps | Add the synthesis-time status/effective-window predicate; widen or assert exhaustiveness on the reason sweep; **redact span events** in the trace-boundary redactor (highest value — a credential inside a span event is not redacted today) | engineering |
 
-### 4.3 The four items an agent should be able to act on from this file alone
+### 4.3 The three items an agent should be able to act on from this file alone
 
 **`RD-01` — confirmation only.** The fix landed 2026-08-21: the terraform-side pattern change
 (`replace(each.key, "-", "_")`, commit `b06a5df`) was applied to staging via a targeted
@@ -140,15 +138,6 @@ four alarms mathematically cannot leave ALARM until the first post-fix nightly f
 first firing (earliest 2026-08-22 ~19:00 UTC), read the metric and confirm ALARM → OK; then delete
 this row and start `C6-UNATTENDED`'s seven-day clock (§6.2). Job **success** stays unproven
 independently: the log streams prove invocation, not outcome.
-
-**`COST-06-FLUSH` — a real cost bug.** In `packages/curriculum/.../pipeline_cli.py`, `run_plan`'s
-flush-time `IntegrityError` branch rolls back and `continue`s **before** `spend += outcome.cost_cents`,
-so real spend reaches neither the row, nor `summary.total_cost_cents`, nor the run-budget total. No
-test forces it. Fix: write the test forcing an `IntegrityError` inside the flush (a fake gateway
-suffices — no paid run), then reorder so `spend +=` and `_settle` run before the `continue`. Verify
-the budget-overrun consequence rather than asserting it. The pipeline is parked by D-342 (§6.4
-`D342-PARKING`) — the register's reason this is MEDIUM, not HIGH; the fix is still owed because the
-next authorised run loses the spend silently.
 
 **`WORK-40-TZ` — a human-approval surface renders the wrong time.**
 `apps/chat-web/src/screens/CalendarActionModal.tsx` calls `date.toLocaleString()` with no `timeZone`
@@ -204,25 +193,24 @@ UD-constrained tails; every §4 key appears exactly once):**
 | # | Item(s) | Ordering evidence |
 |---|---|---|
 | 1 | `RD-01` (confirmation) | Time-blocked, not work-blocked: eligible only after the first post-fix nightly firing (earliest 2026-08-22 ~19:00 UTC). A free read-only CloudWatch check (§4.3); on ALARM → OK, delete the row and start `C6-UNATTENDED`'s clock. (Became row 1 on 2026-08-22 when `SEC-13-PURGE` landed at `b6fa067`; if a continue arrives before the firing, the eligibility gate skips to row 2 after reconciling this note) |
-| 2 | `COST-06-FLUSH` | Sole open member of the "fail-closed invariants have no pins" package (REQ-27 landed at `00f6886`→`a3f1511`, SEC-13 at `b6fa067`); a real cost bug; the test forces `IntegrityError` with a fake gateway |
-| 3 | `BATCH-LOW-NARROW-COVERAGE` + `REQ-44-REASON-SWEEP` | The span-event redaction member is a live security gap (a credential inside a span event is not redacted today); the reason-sweep member overlaps REQ-44, so both close together |
-| 4 | `DRIFT-59-DATE-SHIFT` + `WORK-40-TZ` (also closes `WORK-40`'s residual) | The documents' own shared prerequisite (export `buildDateLabelFormatter`; "whichever lands first, update both rows"); WORK-40-TZ is a rule-4 human-approval surface rendering wrong times |
-| 5 | `WORK-12-BANNER` | Untested condition carrying two live contradictory statuses; local (mock `useLearningSession`) |
-| 6 | `DRIFT-91-ORGTIME-IMPORT` | Seam hygiene; cheap and local |
-| 7 | `DRIFT-86-COST-RUNBOOK` | The runbook's lever does not move a live service and the scenario is live via `BUDGET-GROSS-SPEND` |
-| 8 | `WORK-44-DECIDED-NOT-BUILT` | Two cheap read-only verifications (react-router; `gh pr list`) |
-| 9 | `ARCH-17-COMMIT-SEAM`, then `WORK-24-DUPLICATE-GAIN` | WORK-24's stated hypothesis is the same root cause as ARCH-17; read the repair counter first — movement voids §7-R9 |
-| 10 | `D329-PHANTOM` | Detection gap for silently-swallowed background failures (generalises D-344/D-350) |
-| 11 | `D356-FAMILY` | Publisher enumeration, then one dated status correction (rides W-18) |
-| 12 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
-| 13 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
-| 14 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
-| 15 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
-| 16 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
-| 17 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
-| 18 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
-| 19 | `WORK-13-FIXTURES` | Explicitly "Order against UD-1 — a deploy changes the build under test"; the paid re-run stays with UD-2 |
-| 20 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
+| 2 | `BATCH-LOW-NARROW-COVERAGE` + `REQ-44-REASON-SWEEP` | The span-event redaction member is a live security gap (a credential inside a span event is not redacted today); the reason-sweep member overlaps REQ-44, so both close together |
+| 3 | `DRIFT-59-DATE-SHIFT` + `WORK-40-TZ` (also closes `WORK-40`'s residual) | The documents' own shared prerequisite (export `buildDateLabelFormatter`; "whichever lands first, update both rows"); WORK-40-TZ is a rule-4 human-approval surface rendering wrong times |
+| 4 | `WORK-12-BANNER` | Untested condition carrying two live contradictory statuses; local (mock `useLearningSession`) |
+| 5 | `DRIFT-91-ORGTIME-IMPORT` | Seam hygiene; cheap and local |
+| 6 | `DRIFT-86-COST-RUNBOOK` | The runbook's lever does not move a live service and the scenario is live via `BUDGET-GROSS-SPEND` |
+| 7 | `WORK-44-DECIDED-NOT-BUILT` | Two cheap read-only verifications (react-router; `gh pr list`) |
+| 8 | `ARCH-17-COMMIT-SEAM`, then `WORK-24-DUPLICATE-GAIN` | WORK-24's stated hypothesis is the same root cause as ARCH-17; read the repair counter first — movement voids §7-R9 |
+| 9 | `D329-PHANTOM` | Detection gap for silently-swallowed background failures (generalises D-344/D-350) |
+| 10 | `D356-FAMILY` | Publisher enumeration, then one dated status correction (rides W-18) |
+| 11 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
+| 12 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
+| 13 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
+| 14 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
+| 15 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
+| 16 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
+| 17 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
+| 18 | `WORK-13-FIXTURES` | Explicitly "Order against UD-1 — a deploy changes the build under test"; the paid re-run stays with UD-2 |
+| 19 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
 
 ---
 
