@@ -1,6 +1,16 @@
+from collections.abc import Callable
+
 import intellichoice_observability.tracing as tracing_module
-from intellichoice_observability.tracing import build_tracer_provider, traced_span
+from intellichoice_observability.tracing import (
+    RedactingSpanExporter,
+    build_tracer_provider,
+    traced_span,
+)
+from opentelemetry import trace
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import Tracer
 
 
 def _install_test_provider() -> InMemorySpanExporter:
@@ -109,3 +119,139 @@ def test_redaction_leaves_ordinary_attributes_untouched() -> None:
     assert span.attributes is not None
     assert span.attributes["table"] == "mastery"
     assert span.attributes["statement"] == "SELECT id FROM users"
+
+
+def _raw_span(record: Callable[[Tracer], None]) -> ReadableSpan:
+    """A finished span that has **not** been through `RedactingSpanExporter`, for the two
+    tests below that assert on the rebuild itself rather than on what a collector receives.
+    `build_tracer_provider` wraps both of its branches on purpose, so the redacted output is
+    all it can hand back - and "was this span rebuilt at all?" is not a question the redacted
+    output can answer.
+    """
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    record(provider.get_tracer("intellichoice"))
+    (span,) = exporter.get_finished_spans()
+    return span
+
+
+def test_credentials_inside_span_events_are_redacted_before_export() -> None:
+    """DRIFT-82. `_redacted` rebuilt the span's *attributes* and passed `events=span.events`
+    through untouched, so a credential recorded as an event left the process.
+
+    **The span's own attributes are deliberately clean**, which is the half of the defect that
+    a naive fix misses: the `cleaned == attributes` fast path returned the original span
+    *before* any events could be rebuilt, so the leak survived exactly on the spans that had
+    nothing else wrong with them.
+
+    All three `_REDACTIONS` patterns appear, because events are reached by a different code
+    path than attributes and "the regexes work" was never the open question.
+    """
+    exporter = _install_test_provider()
+    jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdHVkZW50LWV4dC0xIn0.sig-value"
+
+    with traced_span("bedrock.generate_structured"):
+        span = trace.get_current_span()
+        span.add_event("http.retry", {"http.url": f"https://x.test/stream?token={jwt}"})
+        span.add_event("auth.rejected", {"http.request.header.authorization": f"Bearer {jwt}"})
+        span.add_event(f"upstream refused Bearer {jwt}", {"attempt": 2})
+
+    (exported,) = exporter.get_finished_spans()
+    assert dict(exported.attributes or {}) == {}, (
+        "the span must carry no dirty attributes, or the early-return case is not covered"
+    )
+    events = list(exported.events)
+    assert len(events) == 3, "the events must survive the rebuild, not just be scrubbed away"
+    rendered = repr([(event.name, dict(event.attributes or {})) for event in events])
+    assert jwt not in rendered
+    assert "eyJ" not in rendered
+    assert "token=REDACTED" in rendered
+    assert "Bearer REDACTED" in rendered
+    # The event's own name is user-controlled text too, and it is exported.
+    assert events[2].name == "upstream refused Bearer REDACTED"
+    # The rest of each event must survive, or the trace stops being useful.
+    assert [event.name for event in events[:2]] == ["http.retry", "auth.rejected"]
+    assert events[2].attributes is not None
+    assert events[2].attributes["attempt"] == 2
+
+
+def test_a_recorded_exception_message_is_redacted() -> None:
+    """The shape the register nominates as the likely one: `Span.record_exception` writes the
+    message *and* the formatted stacktrace into an event, and an upstream 401 tends to quote
+    the credential it rejected. Driven through `record_exception` rather than `add_event`
+    because that is the API that puts an arbitrary upstream string into a span.
+    """
+    exporter = _install_test_provider()
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwYXJlbnQtZXh0LTIifQ.other-sig"
+
+    with traced_span("gateway.invoke"):
+        trace.get_current_span().record_exception(RuntimeError(f"401 from Bearer {jwt}"))
+
+    (exported,) = exporter.get_finished_spans()
+    (event,) = list(exported.events)
+    assert event.name == "exception"
+    assert event.attributes is not None
+    rendered = repr(dict(event.attributes))
+    assert jwt not in rendered
+    assert "eyJ" not in rendered
+    assert "Bearer REDACTED" in rendered
+    # `exception.type` is not a credential and must still identify the failure.
+    assert event.attributes["exception.type"] == "RuntimeError"
+
+
+def test_event_redaction_preserves_name_timestamp_and_ordinary_attributes() -> None:
+    """The negative arm for events, and the one that keeps the rebuild honest: an `Event` is
+    immutable, so a redacted event is a *new* object, and everything about it other than the
+    credential has to be carried across by hand.
+    """
+
+    def record(tracer: Tracer) -> None:
+        with tracer.start_as_current_span("db.query") as span:
+            span.add_event("statement", {"table": "mastery", "sql": "SELECT id FROM users"})
+            span.add_event("leaked", {"url": "https://x.test/s?token=abc123"})
+
+    raw = _raw_span(record)
+    redacted = RedactingSpanExporter._redacted(raw)
+
+    assert [event.name for event in redacted.events] == ["statement", "leaked"]
+    assert [event.timestamp for event in redacted.events] == [e.timestamp for e in raw.events]
+    clean, dirty = list(redacted.events)
+    assert clean.attributes is not None and dirty.attributes is not None
+    assert dict(clean.attributes) == {"table": "mastery", "sql": "SELECT id FROM users"}
+    assert dirty.attributes["url"] == "https://x.test/s?token=REDACTED"
+    # Everything the span carries besides events is unchanged by an events-only rebuild.
+    assert redacted.name == raw.name
+    assert redacted.start_time == raw.start_time
+    assert redacted.end_time == raw.end_time
+    assert redacted.get_span_context() == raw.get_span_context()
+
+
+def test_a_span_with_nothing_to_redact_is_not_rebuilt() -> None:
+    """The cost guard. `_redacted` short-circuits when nothing matched so the exporter does
+    not rebuild every span it sees; widening it to events must widen that fast path too,
+    rather than making every clean span pay for a copy.
+    """
+
+    def record(tracer: Tracer) -> None:
+        with tracer.start_as_current_span("db.query", attributes={"table": "mastery"}) as span:
+            span.add_event("statement", {"sql": "SELECT id FROM users"})
+
+    raw = _raw_span(record)
+    assert RedactingSpanExporter._redacted(raw) is raw
+
+
+def test_both_exporter_branches_are_wrapped_in_the_redactor() -> None:
+    """The events fix lives in `RedactingSpanExporter`, so it reaches production only for as
+    long as the *production* branch still goes through it. Every other redaction test here
+    drives the `span_exporter` branch, which is precisely the branch that cannot notice the
+    day the OTLP one stops being wrapped - the failure `build_tracer_provider`'s docstring
+    already names, asserted rather than only described.
+    """
+    for provider in (
+        build_tracer_provider(service_name="test-service", span_exporter=InMemorySpanExporter()),
+        build_tracer_provider(service_name="test-service", otlp_endpoint="http://localhost:4318"),
+    ):
+        (processor,) = provider._active_span_processor._span_processors
+        assert isinstance(getattr(processor, "span_exporter", None), RedactingSpanExporter)
+        provider.shutdown()

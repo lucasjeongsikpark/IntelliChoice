@@ -28,7 +28,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace import Event, ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import (
     BatchSpanProcessor,
     SimpleSpanProcessor,
@@ -61,16 +61,42 @@ _REDACTIONS = (
 )
 
 
-def _redact(value: object) -> object:
-    if not isinstance(value, str):
-        return value
+def _redact_text(value: str) -> str:
     for pattern, replacement in _REDACTIONS:
         value = pattern.sub(replacement, value)
     return value
 
 
+def _redact(value: object) -> object:
+    if not isinstance(value, str):
+        return value
+    return _redact_text(value)
+
+
+def _redacted_event(event: Event) -> Event:
+    """A copy of `event` with credentials stripped from its **name and attribute values**, or
+    `event` itself when nothing matched - so the caller can tell "no event changed" by
+    identity and leave the span alone (DRIFT-82).
+
+    Events carry credentials at least as readily as attributes do: `Span.record_exception`
+    writes an upstream failure's message and formatted stacktrace into one, and a 401 tends to
+    quote the token it rejected. An `Event`'s attributes are immutable, so a redacted event has
+    to be a new object with name, timestamp and every clean attribute carried across by hand.
+
+    Rebuilt as a plain `Event` even where the original was some other `EventBase` subclass:
+    name/timestamp/attributes is the whole recorded shape, and losing an unknown subclass's
+    extras is the right side of the trade against exporting a credential.
+    """
+    name = _redact_text(event.name)
+    attributes = dict(event.attributes or {})
+    cleaned = {key: _redact(value) for key, value in attributes.items()}
+    if name == event.name and cleaned == attributes:
+        return event
+    return Event(name=name, attributes=cleaned, timestamp=event.timestamp)  # type: ignore[arg-type]
+
+
 class RedactingSpanExporter(SpanExporter):
-    """Strips credentials from span attributes at the **export boundary**.
+    """Strips credentials from span attributes **and events** at the **export boundary**.
 
     Deliberately here rather than in a `server_request_hook`. A hook does work today -
     the instrumentation sets `http.url` before calling it, so an override wins - but that
@@ -92,7 +118,14 @@ class RedactingSpanExporter(SpanExporter):
     def _redacted(span: ReadableSpan) -> ReadableSpan:
         attributes = dict(span.attributes or {})
         cleaned = {key: _redact(value) for key, value in attributes.items()}
-        if cleaned == attributes:
+        events = tuple(span.events or ())
+        # Tuple equality falls through to identity per element, and `_redacted_event` returns
+        # its argument unchanged when nothing matched - so this is the same "rebuild nothing
+        # unless something actually leaked" fast path the attributes have, widened to cover
+        # both surfaces. Checking attributes alone is what let DRIFT-82 survive: a span with
+        # clean attributes and a credential-bearing event returned here, unredacted.
+        redacted_events = tuple(_redacted_event(event) for event in events)
+        if cleaned == attributes and redacted_events == events:
             return span
         return ReadableSpan(
             name=span.name,
@@ -100,7 +133,7 @@ class RedactingSpanExporter(SpanExporter):
             parent=span.parent,
             resource=span.resource,
             attributes=cleaned,  # type: ignore[arg-type]
-            events=span.events,
+            events=redacted_events,
             links=span.links,
             kind=span.kind,
             status=span.status,
