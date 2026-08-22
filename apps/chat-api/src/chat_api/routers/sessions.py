@@ -880,20 +880,42 @@ async def respond_to_interrupt(
         client_ip=request.client.host if request.client else None,
     )
     resumed_turn_id = snapshot_values.get("client_turn_id")
-    async with _reserved_turn(cost_ledger) as spent:
-        result, cancelled = await _run_turn(
-            graph,
-            Command(resume=resume_value),
-            chat_session_id=chat_session_id,
-            ctx=ctx,
-            cancellations=cancellations,
-            # The resumed turn's id comes off the checkpoint rather than the request: `/respond`
-            # carries a consent choice, not a turn id, and the turn being resumed is whichever
-            # one paused. Absent on an older checkpoint, which disables cancellation for that
-            # turn rather than cancelling the wrong one.
-            client_turn_id=resumed_turn_id if isinstance(resumed_turn_id, str) else None,
-        )
-        spent[0] = _turn_cost_cents(snapshot_values, result)
+    try:
+        async with _reserved_turn(cost_ledger) as spent:
+            result, cancelled = await _run_turn(
+                graph,
+                Command(resume=resume_value),
+                chat_session_id=chat_session_id,
+                ctx=ctx,
+                cancellations=cancellations,
+                # The resumed turn's id comes off the checkpoint rather than the request:
+                # `/respond` carries a consent choice, not a turn id, and the turn being resumed
+                # is whichever one paused. Absent on an older checkpoint, which disables
+                # cancellation for that turn rather than cancelling the wrong one.
+                client_turn_id=resumed_turn_id if isinstance(resumed_turn_id, str) else None,
+            )
+            spent[0] = _turn_cost_cents(snapshot_values, result)
+    finally:
+        # AUD-C-03: the resume payload above is the only place the caller's precise location
+        # exists, and the saver persisted it to `checkpoint_writes` (`__resume__`) the moment the
+        # resume was applied. The turn is over here whichever way it ended, so remove it - see
+        # `services/checkpoint_privacy.py` for the full reasoning, including why this runs on its
+        # own committed session rather than on `db`.
+        #
+        # **`finally` rather than the success path only** (SEC-13-PURGE). This sat below the
+        # `if cancelled: ... return` and after `_run_turn`, so it had exactly one trigger out of
+        # four: pressing Stop on a locator resume, or any failure inside the turn, kept the
+        # coordinates for the life of the thread - and nothing sweeps `__resume__` rows for a live
+        # thread. The promise SPEC §5.1.3 makes is not conditional on the turn succeeding.
+        #
+        # A raise from the purge is deliberately not swallowed: on the failure paths it would
+        # replace the turn's own exception (which Python keeps as `__context__`), and a purge that
+        # failed quietly is the leak this exists to close. `finally` is sufficient without
+        # `asyncio.shield` because uvicorn does not cancel this handler when the client
+        # disconnects - measured, not assumed (D-402, `_run_turn`'s docstring) - and `_run_turn`
+        # converts its own deadline into an `HTTPException` before returning here.
+        if isinstance(body, LocationConsentChoice):
+            await purge_resume_writes(request.app.state.db_session_factory, chat_session_id)
 
     if cancelled:
         cancelled_response = RespondResponse(
@@ -904,14 +926,6 @@ async def respond_to_interrupt(
         )
         _publish_snapshot(events, cancelled_response)
         return cancelled_response
-
-    if isinstance(body, LocationConsentChoice):
-        # AUD-C-03: the resume payload above is the only place the caller's precise
-        # location exists, and the saver has just persisted it to `checkpoint_writes`
-        # (`__resume__`). The node is done, so remove it - see
-        # `services/checkpoint_privacy.py` for the full reasoning. Committed with the
-        # rest of this request's session by `get_db_session`.
-        await purge_resume_writes(db, chat_session_id)
 
     next_pending = _result_interrupt(result)
     citations = [CitationResponse(**c) for c in result.get("citations") or []]
