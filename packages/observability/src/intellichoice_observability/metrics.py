@@ -14,6 +14,7 @@ from (S32's decision, D-004).
 
 import time
 from collections.abc import Awaitable, Callable
+from itertools import product
 
 from fastapi import FastAPI, Request, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
@@ -127,6 +128,61 @@ HTTP_REQUEST_DURATION = Histogram(
     "HTTP request duration",
     labelnames=("app", "method", "path"),
 )
+
+# --- Label pre-initialisation (COST-22) -------------------------------------------------
+#
+# **A labelled counter has no series until its first event, which is the moment an alarm on it
+# would have been useful.** `prometheus_client` creates a child on the first `.labels(...)` call
+# and the EMF exporter writes what it is given, so before this block `qa_service_degraded_total`
+# - built specifically so a Bedrock outage stops reading on a dashboard as a surge of off-topic
+# questions - was absent from the deployed namespace entirely. Nothing could alarm on it until
+# an outage created it, and "the metric does not exist" and "the metric is at zero" are the two
+# states a monitor most needs to tell apart.
+#
+# Touching every documented combination at import makes a first occurrence a **delta on an
+# existing series** rather than the birth of one, which is what a floor, a rate or an anomaly
+# detector needs. The label values are the enumerated call-site vocabulary, not a guess; a value
+# a call site can produce but this table omits is still lazily created, so this list is only as
+# good as its agreement with the call sites - which is what
+# `test_metrics_label_preinitialisation.py` holds in place.
+PREINITIALISED_LABEL_VALUES: tuple[tuple[Counter, dict[str, tuple[str, ...]]], ...] = (
+    (ATTENDANCE_CHECKS, {"result": ("present", "blocked", "unknown")}),
+    (EXAM_COMPLETIONS, {"phase": ("pre", "post")}),
+    (SUPPORT_USAGE, {"support_type": ("hint", "solution", "video")}),
+    (QA_ANSWERS, {"result": ("grounded", "no_answer")}),
+    # `qa_maps_calls_total` and `qa_calendar_calls_total` carry no documented vocabulary; these
+    # are every value their call sites can emit (`branch_locator.py:72/77`,
+    # `chat_api/graph/nodes.py:1042/1047`).
+    (QA_MAPS_CALLS, {"result": ("success", "failure")}),
+    (QA_CALENDAR_CALLS, {"result": ("success", "failure")}),
+    (
+        QA_SERVICE_DEGRADED,
+        {"stage": ("scope_guard", "document_qa_retrieval", "calendar_retrieval")},
+    ),
+    (SSE_RELAY_FAILURES, {"reason": ("notify_failed", "payload_too_large", "publish_failed")}),
+)
+
+# **Deliberately not pre-initialised, and this is the list a reviewer should argue with.** Both
+# carry label values that are only bounded by the route table and the HTTP status space, and
+# `path` is already the D-393/D-316 cardinality hazard: pre-initialising it would mean choosing a
+# cross product of every route, method and status per process, permanently, to make a series that
+# the first real request creates anyway. These two are also the only metrics here that no
+# low-traffic alarm depends on - the ALB reports request and error rate independently.
+UNBOUNDED_LABEL_EXEMPT: tuple[Counter | Histogram, ...] = (HTTP_REQUESTS, HTTP_REQUEST_DURATION)
+
+
+def _preinitialise_label_sets() -> None:
+    """Create every combination in `PREINITIALISED_LABEL_VALUES` at value 0.
+
+    A function rather than a module-scope loop so the loop variables do not leak into the
+    module namespace, which the completeness test walks looking for declared metrics.
+    """
+    for metric, label_values in PREINITIALISED_LABEL_VALUES:
+        for combination in product(*label_values.values()):
+            metric.labels(**dict(zip(label_values, combination, strict=True)))
+
+
+_preinitialise_label_sets()
 
 
 def install_http_metrics_middleware(app: FastAPI, *, service_name: str) -> None:
