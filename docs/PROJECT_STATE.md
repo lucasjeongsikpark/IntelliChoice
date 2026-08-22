@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-21** (post-migration reconciliation + second Orca run: RD-01/COST-22) |
-| Last product-code commit | **`bb75829`** (2026-08-21) — the accepted RD-01/COST-22 batch landed by PR #362 (`b06a5df` filter-parity fix + parity test, `4dbcc41` label pre-init + completeness test, `bb75829` comment correction) |
+| Snapshot date | **2026-08-22** (post-migration reconciliation + third Orca run: SEC-13-PURGE) |
+| Last product-code commit | **`b6fa067`** (2026-08-22) — the accepted SEC-13-PURGE fix landed by PR #364 (locator resume purged on cancel and exception paths, on its own committed session, with leak-demonstrating tests) |
 | Deployed staging image (both ECS services) | **`gha-44a12dfc9549`** = commit `44a12dfc9549`, 2026-08-18 (D-415) |
 | Deployed task definitions | learning `:150` (2/2 running), chat `:148` (1/1 running) — one behind each family's latest (`:151`/`:149`), which are byte-identical no-ops; compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **14 product commits** (`44a12dfc9549` → `bb75829`); any HEAD advance beyond `bb75829` is docs-only reconciliation. Separately, the four nightly-job **metric-filter patterns were re-applied live on 2026-08-21** (control-plane `terraform apply`, no image change — see §3/§8) |
+| Repo-vs-deployed gap | **15 product commits** (`44a12dfc9549` → `b6fa067`); any HEAD advance beyond `b6fa067` is docs-only reconciliation. Separately, the four nightly-job **metric-filter patterns were re-applied live on 2026-08-21** (control-plane `terraform apply`, no image change — see §3/§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `bb75829`, or if the deployed staging image tag no longer matches this
+commit lands after `b6fa067`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -84,20 +84,20 @@ conditional on staging still running `gha-44a12dfc9549`.
 
 ## 4. Active engineering work
 
-25 open engineering entries. Full evidence per entry:
+24 open engineering entries. Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
-lowercased key to the link above). `SEC-13-PURGE` and `COST-06-FLUSH` are
-established **by code reading**; no executed test reproduces the defective paths
-(`NO-NEW-TEST-CODE`).
+lowercased key to the link above). `COST-06-FLUSH` is
+established **by code reading**; no executed test reproduces its defective path
+(`NO-NEW-TEST-CODE` — originally three such defects; REQ-27's and SEC-13's paths gained
+executed tests on 2026-08-21/22).
 
-### 4.1 ACTIVE_REMEDIATION (15) — something built is wrong or silently ineffective
+### 4.1 ACTIVE_REMEDIATION (14) — something built is wrong or silently ineffective
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
 | `RD-01` | Dead-man's switch pattern fix applied live 2026-08-21; parity test landed (`b06a5df`) | Confirmation only: after the first post-fix nightly firing (earliest 2026-08-22 ~19:00 UTC), read `JobCompletions` and confirm the four alarms transition ALARM → OK — see 4.3 | engineering |
-| `SEC-13-PURGE` | Minors' location coordinates survive cancel and exception paths | See 4.3 | engineering |
 | `COST-06-FLUSH` | Duplicate-id flush branch loses paid spend from row, run total and budget gate | See 4.3 | engineering |
 | `WORK-40-TZ` | chat-web renders calendar-approval times in the viewer's browser locale — shares one prerequisite with `DRIFT-59-DATE-SHIFT` (export `buildDateLabelFormatter`); whichever lands first, update both rows | See 4.3 | engineering |
 | `D310-RESIDUALS` | Three follow-ups surviving the executed D-310 rotation | See 4.3 | user / engineering / docs |
@@ -127,7 +127,7 @@ established **by code reading**; no executed test reproduces the defective paths
 | `M3-D370-SOLUTION-RUNG` | The solution terminal rung has no staging e2e coverage, under a roadmap-closing ✅ | Write the staging e2e coverage for the solution terminal rung | engineering + docs |
 | `BATCH-LOW-NARROW-COVERAGE` | Coverage narrower than the claim; three small code gaps | Add the synthesis-time status/effective-window predicate; widen or assert exhaustiveness on the reason sweep; **redact span events** in the trace-boundary redactor (highest value — a credential inside a span event is not redacted today) | engineering |
 
-### 4.3 The five items an agent should be able to act on from this file alone
+### 4.3 The four items an agent should be able to act on from this file alone
 
 **`RD-01` — confirmation only.** The fix landed 2026-08-21: the terraform-side pattern change
 (`replace(each.key, "-", "_")`, commit `b06a5df`) was applied to staging via a targeted
@@ -140,20 +140,6 @@ four alarms mathematically cannot leave ALARM until the first post-fix nightly f
 first firing (earliest 2026-08-22 ~19:00 UTC), read the metric and confirm ALARM → OK; then delete
 this row and start `C6-UNATTENDED`'s seven-day clock (§6.2). Job **success** stays unproven
 independently: the log streams prove invocation, not outcome.
-
-**`SEC-13-PURGE` — minors' precise coordinates can survive a cancelled turn.**
-`purge_resume_writes` has exactly one trigger; a cancelled location-consent resume returns before
-the purge, and any exception inside `_run_turn` skips it, leaving precise coordinates in
-`checkpoint_writes.__resume__`. No test names `purge_resume_writes`, and **no test covers the cancel
-or exception path** — but the success path's effect *is* asserted, with a vacuity control, in
-`apps/chat-api/tests/test_chat_endpoints.py` (the locator-turn and parameterized `__resume__`
-assertions); deleting the call site would fail those two tests. The gap is the cancel/exception
-paths only (the Phase-4 "zero tests" claim was a symbol-grep, corrected here). Fix: (1) write the
-cancel-path test FIRST so the leak is demonstrable, (2) move the purge into a `finally` so cancel
-and exception paths are covered. Closable locally against dev fakes, no paid dependency. Ranked
-first of three new-test candidates. The leak is **durable**: no retention job covers
-`checkpoint_writes.__resume__` rows for live threads (`RETENTION-CLUSTER` / UD-7). Green
-branch-locator tests (REQ-28/SEC-12) must **not** be read as covering this.
 
 **`COST-06-FLUSH` — a real cost bug.** In `packages/curriculum/.../pipeline_cli.py`, `run_plan`'s
 flush-time `IntegrityError` branch rolls back and `continue`s **before** `spend += outcome.cost_cents`,
@@ -217,27 +203,26 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-| 1 | `SEC-13-PURGE` | Register: "ranked first of the three named new-test candidates"; minors' precise coordinates survive cancel/exception; cancel-path test first, then the `finally`. Local, no spend. (Moved to #1 on 2026-08-21: the former row-1 batch landed — `COST-22-LABEL-PREINIT` resolved, `RD-01` reduced to a time-blocked confirmation, below) |
-| 2 | `RD-01` (confirmation) | Time-blocked, not work-blocked: eligible only after the first post-fix nightly firing (earliest 2026-08-22 ~19:00 UTC). A free read-only CloudWatch check (§4.3); on ALARM → OK, delete the row and start `C6-UNATTENDED`'s clock |
-| 3 | `COST-06-FLUSH` | Last open member of the "fail-closed invariants have no pins" package (the REQ-27 half landed at `00f6886`); a real cost bug; the test forces `IntegrityError` with a fake gateway |
-| 4 | `BATCH-LOW-NARROW-COVERAGE` + `REQ-44-REASON-SWEEP` | The span-event redaction member is a live security gap (a credential inside a span event is not redacted today); the reason-sweep member overlaps REQ-44, so both close together |
-| 5 | `DRIFT-59-DATE-SHIFT` + `WORK-40-TZ` (also closes `WORK-40`'s residual) | The documents' own shared prerequisite (export `buildDateLabelFormatter`; "whichever lands first, update both rows"); WORK-40-TZ is a rule-4 human-approval surface rendering wrong times |
-| 6 | `WORK-12-BANNER` | Untested condition carrying two live contradictory statuses; local (mock `useLearningSession`) |
-| 7 | `DRIFT-91-ORGTIME-IMPORT` | Seam hygiene; cheap and local |
-| 8 | `DRIFT-86-COST-RUNBOOK` | The runbook's lever does not move a live service and the scenario is live via `BUDGET-GROSS-SPEND` |
-| 9 | `WORK-44-DECIDED-NOT-BUILT` | Two cheap read-only verifications (react-router; `gh pr list`) |
-| 10 | `ARCH-17-COMMIT-SEAM`, then `WORK-24-DUPLICATE-GAIN` | WORK-24's stated hypothesis is the same root cause as ARCH-17; read the repair counter first — movement voids §7-R9 |
-| 11 | `D329-PHANTOM` | Detection gap for silently-swallowed background failures (generalises D-344/D-350) |
-| 12 | `D356-FAMILY` | Publisher enumeration, then one dated status correction (rides W-18) |
-| 13 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
-| 14 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
-| 15 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
-| 16 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
-| 17 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
-| 18 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
-| 19 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
-| 20 | `WORK-13-FIXTURES` | Explicitly "Order against UD-1 — a deploy changes the build under test"; the paid re-run stays with UD-2 |
-| 21 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
+| 1 | `RD-01` (confirmation) | Time-blocked, not work-blocked: eligible only after the first post-fix nightly firing (earliest 2026-08-22 ~19:00 UTC). A free read-only CloudWatch check (§4.3); on ALARM → OK, delete the row and start `C6-UNATTENDED`'s clock. (Became row 1 on 2026-08-22 when `SEC-13-PURGE` landed at `b6fa067`; if a continue arrives before the firing, the eligibility gate skips to row 2 after reconciling this note) |
+| 2 | `COST-06-FLUSH` | Sole open member of the "fail-closed invariants have no pins" package (REQ-27 landed at `00f6886`→`a3f1511`, SEC-13 at `b6fa067`); a real cost bug; the test forces `IntegrityError` with a fake gateway |
+| 3 | `BATCH-LOW-NARROW-COVERAGE` + `REQ-44-REASON-SWEEP` | The span-event redaction member is a live security gap (a credential inside a span event is not redacted today); the reason-sweep member overlaps REQ-44, so both close together |
+| 4 | `DRIFT-59-DATE-SHIFT` + `WORK-40-TZ` (also closes `WORK-40`'s residual) | The documents' own shared prerequisite (export `buildDateLabelFormatter`; "whichever lands first, update both rows"); WORK-40-TZ is a rule-4 human-approval surface rendering wrong times |
+| 5 | `WORK-12-BANNER` | Untested condition carrying two live contradictory statuses; local (mock `useLearningSession`) |
+| 6 | `DRIFT-91-ORGTIME-IMPORT` | Seam hygiene; cheap and local |
+| 7 | `DRIFT-86-COST-RUNBOOK` | The runbook's lever does not move a live service and the scenario is live via `BUDGET-GROSS-SPEND` |
+| 8 | `WORK-44-DECIDED-NOT-BUILT` | Two cheap read-only verifications (react-router; `gh pr list`) |
+| 9 | `ARCH-17-COMMIT-SEAM`, then `WORK-24-DUPLICATE-GAIN` | WORK-24's stated hypothesis is the same root cause as ARCH-17; read the repair counter first — movement voids §7-R9 |
+| 10 | `D329-PHANTOM` | Detection gap for silently-swallowed background failures (generalises D-344/D-350) |
+| 11 | `D356-FAMILY` | Publisher enumeration, then one dated status correction (rides W-18) |
+| 12 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
+| 13 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
+| 14 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
+| 15 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
+| 16 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
+| 17 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
+| 18 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
+| 19 | `WORK-13-FIXTURES` | Explicitly "Order against UD-1 — a deploy changes the build under test"; the paid re-run stays with UD-2 |
+| 20 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
 
 ---
 

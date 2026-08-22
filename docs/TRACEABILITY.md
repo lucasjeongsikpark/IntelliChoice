@@ -474,11 +474,16 @@ way round to be wrong.
 ([branch_locator.py:15](../apps/chat-api/src/chat_api/services/branch_locator.py#L15)), the chat SPA
 gates on an explicit `LocationConsentModal.tsx`, a ZIP/city alternative exists (S37's e2e locator
 spec resumes with a zip), and AUD-C-03 closed the one remaining leak —
-[checkpoint_privacy.py:24](../apps/chat-api/src/chat_api/services/checkpoint_privacy.py#L24)
+[checkpoint_privacy.py:35](../apps/chat-api/src/chat_api/services/checkpoint_privacy.py#L35)
 purges LangGraph's `checkpoint_writes.__resume__` rows after a `location_consent` resume, which is
-where coordinates survived after every `QAState` field had been cleaned. Tests:
-`test_branch_locator.py`, `test_chat_endpoints.py`, plus D-113's regression test that decodes
-checkpoint blobs with LangGraph's own serializer.
+where coordinates survived after every `QAState` field had been cleaned. *(Strengthened
+2026-08-22, `b6fa067` — `SEC-13-PURGE`: until then the purge ran only on the success path, so a
+cancelled or failed resume kept the coordinates; it now runs in a `finally` on its own committed
+session, and the cancel/exception paths are pinned by two leak-demonstrating tests.)* Tests:
+`test_branch_locator.py`, `test_chat_endpoints.py` (success path plus
+`test_a_cancelled_locator_resume_still_purges_the_location` and
+`test_a_locator_resume_that_raises_still_purges_the_location`), plus D-113's regression test that
+decodes checkpoint blobs with LangGraph's own serializer.
 
 ### §5.1.5 — Prohibited data uses
 
