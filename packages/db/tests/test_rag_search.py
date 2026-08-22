@@ -445,3 +445,48 @@ def test_access_probe_candidates_respects_its_distance_ceiling() -> None:
             assert candidates == []
 
     asyncio.run(run())
+
+
+def test_get_chunks_by_ids_refuses_unapproved_and_out_of_window_rows() -> None:
+    """DRIFT-68 at the seam itself. This loader is the *second* time a chunk is read in one
+    turn - `hybrid_search` fuses ids, `chat_api.graph.nodes.synthesize_answer` re-loads the
+    bodies by id, because `QAState` checkpoints ids and never bodies - and it used to be a
+    bare `WHERE chunk_id IN (...)`. Non-negotiable rule 5 ("no RAG answer without an
+    approved, effective source") therefore rested entirely on a query that had already run.
+
+    A dropped chunk must be *absent* rather than an error: both callers already tolerate an
+    id with no row, and that is what makes the total-loss case degrade into the existing
+    zero-chunk refusal instead of a 500.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            now = datetime.now(UTC)
+            document = await _seed_document(session)
+
+            live = await _seed_chunk(session, document, chunk_text="approved and effective")
+            draft = await _seed_chunk(session, document, chunk_text="not approved", status="draft")
+            expired = await _seed_chunk(
+                session,
+                document,
+                chunk_text="approved but expired",
+                effective_to=now - timedelta(days=1),
+            )
+            future = await _seed_chunk(
+                session,
+                document,
+                chunk_text="approved but not yet",
+                effective_from=now + timedelta(days=1),
+            )
+
+            ids = [live.chunk_id, draft.chunk_id, expired.chunk_id, future.chunk_id]
+            found = await repo.get_chunks_by_ids(ids, as_of=now)
+            assert set(found) == {live.chunk_id}
+
+            # `as_of=None` is the ingestion-time shape `ChunkFilters` already documents: no
+            # "today" to compare against, so no window check - but `status` is never optional.
+            undated = await repo.get_chunks_by_ids(ids, as_of=None)
+            assert set(undated) == {live.chunk_id, expired.chunk_id, future.chunk_id}
+
+    asyncio.run(run())

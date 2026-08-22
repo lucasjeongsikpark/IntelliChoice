@@ -9,7 +9,7 @@ branch_manager chunks, and an unanswerable in-scope query refuses with escalatio
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from chat_api.graph.build import AskInput, QAGraph, build_graph
@@ -50,6 +50,7 @@ from intellichoice_shared.rate_limit import InMemoryRateLimiter
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
 from pydantic import BaseModel
+from sqlalchemy import update
 
 from .conftest import postgres_skip_reason, rollback_session
 from .escalation_stub import UnusedEscalationSends
@@ -168,12 +169,13 @@ async def _ask(
     graph: QAGraph | None = None,
     escalate: bool = False,
     rate_limiter: InMemoryRateLimiter | None = None,
+    rag_repo: RagRepository | None = None,
 ) -> dict:
     graph = graph or build_graph(InMemorySaver())
     ctx = TurnContext(
         claims=claims,
         profile_adapter=profile_adapter or FakeProfileAdapter(),
-        rag_repo=RagRepository(session),
+        rag_repo=rag_repo or RagRepository(session),
         bedrock_gateway=gateway or _gateway(),
         interrupt_repo=InterruptApprovalRepository(session),
         mcp_registry=McpToolRegistry(),
@@ -1059,5 +1061,110 @@ def test_a_degraded_turn_does_not_poison_the_next_turn_on_the_same_thread() -> N
             )
             assert recovered["answer"] != SERVICE_UNAVAILABLE_MESSAGE
             assert len(recovered["citations"]) >= 1
+
+    asyncio.run(run())
+
+
+# --- DRIFT-68: rule 5 re-asserted at synthesis ----------------------------------------
+# Approved/effective enforcement is pre-retrieval (`_apply_filters`: `status ==
+# "approved"` unconditionally, plus the effective window). `synthesize_answer` then
+# re-loads the chunk *bodies* by id, because `QAState` checkpoints ids and never bodies
+# - and that re-fetch used to apply no predicate at all, so the non-negotiable "no RAG
+# answer without an approved, effective source" rested entirely on a query that had
+# already run. The window is narrow (an approval or effective-window change *inside* one
+# turn) and it is exactly the window these two tests open.
+
+
+class _FlipsBetweenRetrievalAndSynthesis(RagRepository):
+    """Retrieval sees the chunk; synthesis must not.
+
+    The flip is hung off `hybrid_search` rather than off the re-fetch itself so the test
+    stays independent of *which* loader synthesis calls - the seam under test is "the state
+    changed after retrieval", not one method name.
+    """
+
+    def __init__(self, session, **values) -> None:
+        super().__init__(session)
+        self._values = values
+
+    async def hybrid_search(self, filters, query, query_embedding, *, candidate_limit=30):
+        chunks = await super().hybrid_search(
+            filters, query, query_embedding, candidate_limit=candidate_limit
+        )
+        await self._session.execute(update(RagChunk).values(**self._values))
+        await self._session.flush()
+        return chunks
+
+
+async def _ask_with_a_flip(session, *, thread_id: str, **values) -> dict:
+    await _seed_chunk(
+        session,
+        audience="public",
+        chunk_text=(
+            "Completing a zqxvchunk handbook procedure is required before their first shift."
+        ),
+    )
+    return await _ask(
+        session,
+        claims=None,
+        query="zqxvchunk handbook",
+        thread_id=thread_id,
+        rag_repo=_FlipsBetweenRetrievalAndSynthesis(session, **values),
+    )
+
+
+def test_approval_revoked_between_retrieval_and_synthesis_fails_closed() -> None:
+    """DRIFT-68, the status half. The same fixture answers with a citation in
+    `test_document_qa_happy_path_returns_grounded_citation`; the only difference here is that
+    the chunk stopped being approved after retrieval read it.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            result = await _ask_with_a_flip(session, thread_id="t-drift68-revoked", status="draft")
+
+            assert result["answer"] == qa.NO_SOURCE_MESSAGE
+            assert result["reason"] == TurnReason.NO_APPROVED_SOURCE
+            # AUD-C-11: a refusal that says no source exists must attach none.
+            assert result["citations"] == []
+
+    asyncio.run(run())
+
+
+def test_an_effective_window_that_closes_between_retrieval_and_synthesis_fails_closed() -> None:
+    """DRIFT-68, the window half - a separate predicate from `status`, and the one a
+    status-only fix would leave open. The chunk is still `approved`; it simply expired.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            result = await _ask_with_a_flip(
+                session,
+                thread_id="t-drift68-expired",
+                effective_to=datetime.now(UTC) - timedelta(days=1),
+            )
+
+            assert result["answer"] == qa.NO_SOURCE_MESSAGE
+            assert result["reason"] == TurnReason.NO_APPROVED_SOURCE
+            assert result["citations"] == []
+
+    asyncio.run(run())
+
+
+def test_a_chunk_still_approved_and_effective_at_synthesis_is_answered_from() -> None:
+    """The negative arm, and the one that keeps the two above from passing for the wrong
+    reason: run the identical flipping repository with a flip that changes nothing relevant,
+    and the turn must still produce a grounded citation. A predicate that dropped every chunk
+    would satisfy both tests above and break the product.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            result = await _ask_with_a_flip(
+                session, thread_id="t-drift68-still-valid", document_title="Renamed Document"
+            )
+
+            assert result["reason"] == TurnReason.ANSWER
+            assert len(result["citations"]) >= 1
 
     asyncio.run(run())
