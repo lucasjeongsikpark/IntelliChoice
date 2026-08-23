@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-23** (D-426 deploy executed; seventh Orca run: the D-324 date-zone pair) |
-| Last product-code commit | **`805e986`** (2026-08-23) — the D-324 date-zone pair landed by PR #375 (`8e82ba9` learning-web date-only fix + exported `orgDate.ts`, `805e986` chat-web event-zone rendering) |
+| Snapshot date | **2026-08-23** (eighth Orca run: DRIFT-91 seam hygiene; D-427 reconciled WORK-12-BANNER to D-417 §C7) |
+| Last product-code commit | **`1768c9d`** (2026-08-23) — DRIFT-91 landed by PR #377 (`0cadc94` `current_week_key` homed in shared `org_time`, `1768c9d` docstring/test follow the symbol) |
 | Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
 | Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **2 product commits** (`898e2fb` → `805e986`, the SPA date-zone pair — both defects are live on staging until the next deploy); any HEAD advance beyond `805e986` is docs-only reconciliation. The scheduled-job **metric filters (2026-08-21) and heartbeat alarm windows (2026-08-22)** were applied via control-plane `terraform apply` (§8) |
+| Repo-vs-deployed gap | **4 product commits** (`898e2fb` → `1768c9d`: the SPA date-zone pair — both defects live on staging until the next deploy — plus the behavior-identical DRIFT-91 relocation); any HEAD advance beyond `1768c9d` is docs-only reconciliation. The scheduled-job **metric filters (2026-08-21) and heartbeat alarm windows (2026-08-22)** were applied via control-plane `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `805e986`, or if the deployed staging image tag no longer matches this
+commit lands after `1768c9d`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -77,7 +77,7 @@ with the back-a-day edge until the next deploy.
 
 ## 4. Active engineering work
 
-18 open engineering entries. Full evidence per entry:
+16 open engineering entries. Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
@@ -85,7 +85,7 @@ lowercased key to the link above). The `NO-NEW-TEST-CODE` category is **closed**
 defects the audit established by code reading only (REQ-27, SEC-13, COST-06) gained executed
 tests on 2026-08-21/22.
 
-### 4.1 ACTIVE_REMEDIATION (11) — something built is wrong or silently ineffective
+### 4.1 ACTIVE_REMEDIATION (10) — something built is wrong or silently ineffective
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
@@ -98,17 +98,15 @@ tests on 2026-08-21/22.
 | `D356-FAMILY` | Erasure-guard family has no completeness claim; two entries both claim to be "the third place" | Enumerate every publisher writing the shared state and check each against the guard; then one dated status correction; fix the D-137/D-141/D-356 → D-357 wrong-id citation in both documents (rides W-18) | engineering + docs |
 | `TEST-05-DESCRIPTIVE-REREAD` | An owed human re-read of SPEC §5.3/§5.36 never fired across four qualifying changes — and both rows sit under the 37-of-37 criterion-1 claim | Perform the re-read, or replace the human habit with a definable trigger ("what counts as an architecture change" is undefined) | engineering + docs |
 | `DRIFT-86-COST-RUNBOOK` | The cost-anomaly runbook's `desired_count` lever does not move a live service | Correct the runbook to name `autoscaling_min_capacity`; the scenario is live via `BUDGET-GROSS-SPEND` | engineering |
-| `DRIFT-91-ORGTIME-IMPORT` | An app module imports `current_week_key` from the MySQL adapter instead of shared `org_time` | Move the import to shared `org_time`. Seam substance is intact — this is hygiene, not the seam defect CLAUDE.md defines; optionally add an adapter factory (both apps construct `MySQLProfileAdapter` directly in `main.py`) | engineering |
 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Three built controls nothing invokes — the PII log scanner (**one historical clean run, no continuous assurance**), `make image-check`, retention CLI job reporting. Batch of six; four members routed elsewhere | Wire `scan-logs` into CI or a schedule; wire `make image-check` into CI/deploy and document it; add `report_job_complete` to `checkpoint_retention_cli` | engineering |
 
-### 4.2 ACTIVE_IMPLEMENTATION (7) — decided or specified, not built
+### 4.2 ACTIVE_IMPLEMENTATION (6) — decided or specified, not built
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
 | `WORK-01-SCOPE-GUARD` | `scope_guard`/retrieval overlap is specified and measured (~22% median win) and not built | Build D-423 steps 1–3 as specified; verify the wasted-rerank trade-off is still acceptable first; and tell the user (acknowledgement, not a decision): the earlier approval rested on a ~2.5 s embedding estimate that D-423 measured at 124 ms | engineering |
 | `COST-10-INPUT-BOUND` | No input-token ceiling in the gateway; cost reserve hard-codes 2000 input tokens | In order: read whether settlement uses actual input tokens; add the input ceiling at the gateway/shared payload layer; stop pricing input at the flat constant | engineering |
 | `WORK-35-LEDGER` | U7 consolidation sizing gated on a free staging measurement nobody took | Take the free staging measurement, then hold the design review and size N against the existing 90/90/365 windows. D-420 added redacted visitor free text no retention job covers | engineering |
-| `WORK-12-BANNER` | learning-web disconnect-banner condition untested, and it carries two live contradictory statuses | Write the banner test by mocking `useLearningSession` (do not extract the JSX); reconcile the two status lines by reading D-417 §C7's scope and retracting the loser | engineering + docs |
 | `WORK-44-DECIDED-NOT-BUILT` | Two closed OPEN_DECISIONS items decided but unverified as built | Verify `react-router` is installed and routing (a named prerequisite for the §5.1.2 first-visit disclosures); run `gh pr list` for the 26-PR backlog | engineering |
 | `WORK-13-FIXTURES` | Single-spec e2e isolation is behaviourally resolved **on `gha-44a12dfc9549`** (a build no longer deployed — the D-426 deploy shipped `gha-898e2fb4270b`); the **17-spec cross-spec contention scope stays open** (never re-run) and the test-side fixture fix is owed | Land the fixture-isolation fix across the seventeen specs sharing `studentPresent` (prerequisite for UD-2's whole-directory arm — the paid re-run is `DRIFT-58`'s residual, reopened by UD-2); do not re-run the closed one-file scope. The UD-1 ordering constraint is discharged: the deploy happened 2026-08-23, so any re-run now tests the current build | engineering + docs |
 | `M3-D370-SOLUTION-RUNG` | The solution terminal rung has no staging e2e coverage, under a roadmap-closing ✅ | Write the staging e2e coverage for the solution terminal rung | engineering + docs |
@@ -178,22 +176,20 @@ UD-constrained tails; every §4 key appears exactly once):**
 | # | Item(s) | Ordering evidence |
 |---|---|---|
 | 1 | `RD-01` (Sunday confirmation) | Restated 2026-08-22 (evening): the weekly-window fix is built and applied live (`4a5ad20`, 7-day capped window); the only remaining step is time-blocked — after the Sunday **2026-08-24 18:30 UTC** run, a free read-only check that `JobCompletions{job=memory-consolidate}` publishes and the alarm goes ALARM → OK (§4.3). If a continue arrives before then, the eligibility gate skips to row 2 after reconciling this note |
-| 2 | `WORK-12-BANNER` | Untested condition carrying two live contradictory statuses; local (mock `useLearningSession`) |
-| 3 | `DRIFT-91-ORGTIME-IMPORT` | Seam hygiene; cheap and local |
-| 4 | `DRIFT-86-COST-RUNBOOK` | The runbook's lever does not move a live service and the scenario is live via `BUDGET-GROSS-SPEND` |
-| 5 | `WORK-44-DECIDED-NOT-BUILT` | Two cheap read-only verifications (react-router; `gh pr list`) |
-| 6 | `ARCH-17-COMMIT-SEAM`, then `WORK-24-DUPLICATE-GAIN` | WORK-24's stated hypothesis is the same root cause as ARCH-17; read the repair counter first — movement voids §7-R9 |
-| 7 | `D329-PHANTOM` | Detection gap for silently-swallowed background failures (generalises D-344/D-350) |
-| 8 | `D356-FAMILY` | Publisher enumeration, then one dated status correction (rides W-18) |
-| 9 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
-| 10 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
-| 11 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
-| 12 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
-| 13 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
-| 14 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
-| 15 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
-| 16 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
-| 17 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
+| 2 | `DRIFT-86-COST-RUNBOOK` | The runbook's lever does not move a live service and the scenario is live via `BUDGET-GROSS-SPEND` |
+| 3 | `WORK-44-DECIDED-NOT-BUILT` | Two cheap read-only verifications (react-router; `gh pr list`) |
+| 4 | `ARCH-17-COMMIT-SEAM`, then `WORK-24-DUPLICATE-GAIN` | WORK-24's stated hypothesis is the same root cause as ARCH-17; read the repair counter first — movement voids §7-R9 |
+| 5 | `D329-PHANTOM` | Detection gap for silently-swallowed background failures (generalises D-344/D-350) |
+| 6 | `D356-FAMILY` | Publisher enumeration, then one dated status correction (rides W-18) |
+| 7 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
+| 8 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
+| 9 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
+| 10 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
+| 11 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
+| 12 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
+| 13 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
+| 14 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
+| 15 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
 
 ---
 
@@ -296,7 +292,7 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | `ARCH-21-SCHEMA-SPLIT` | Whether to adopt SPEC §5.33.3's six-schema logical split (`learning`, `rag`, `memory`, `checkpoint_learning`, `checkpoint_chat`, `evaluation`) is **genuinely undecided** — no D-number owns it, and the only record that it is **undecided** is open question 5 of the 2026-07-21 projection (post-migration: `archive/2026-07-21-final-architecture-projection.md`; SPEC §5.33.3 still *prescribes* the split as a requirement). **Extraction into ARCHITECTURE.md's open-questions block must precede archival** | Production schema design |
 | `ARCH-33-CI-GATE` | Whether the deploy version gate ever fired, and whether the PR backlog cleared, are unread GitHub facts | n/a — run `gh run list` and `gh pr list` |
 | `COST-17-CLIENT-ERRORS` | The client-error alarm path is correctly deployed and never exercised end to end | The next live-probe session (one synthetic post) |
-| `PLAYWRIGHT-LANE` | The browser lane was not executed, so the one new implementation defect has no runnable guard | A serialized test window (never concurrent with `make test`) |
+| `PLAYWRIGHT-LANE` | The browser lane was not executed, so the one new implementation defect has no runnable guard. Also carries `WORK-12-BANNER`'s C7-consistent residual (D-427, 2026-08-23): write **and run** the learning-web disconnect-visible spec — positive direction only, mirroring chat-web's — in the next lane window; the mock-test route is retracted per D-417 §C7 | A serialized test window (never concurrent with `make test`) |
 | `PAID-RUNS-LANE` | Paid generation and measurement scripts were not invoked; no finding depends on them | UD-2 authorises spend |
 | `TEST-24-429` | A real HTTP 429 has never rendered and stays deliberately open | A funded load test |
 | `IRT-UPGRADE` | The IRT/Bayesian mastery upgrade has no trigger threshold and no owning session | Response volume sufficient for item-response modelling |

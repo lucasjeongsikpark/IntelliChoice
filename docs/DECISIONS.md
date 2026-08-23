@@ -29559,3 +29559,42 @@ drain (§7-R9 intact); COST-22's pre-initialised series live in the deployed cha
 `memory-consolidate`'s accurate ALARM). B4 is deployed but its live behaviour remains
 unobserved — the Option-A re-walk is follow-up work for a live-probe session. Session
 narration: `docs/log/2026-08-23-ud1-deploy.md`.
+
+## D-427 — WORK-12-BANNER reconciled: D-417 §C7 stands, the mock-test instruction is retracted (accepted, 2026-08-23)
+
+A documentation-conflict resolution under AUTHORITY_MODEL's Ladder A, performed because the
+PROJECT_STATE §4.4 queue put `WORK-12-BANNER` forward with the action "write the banner test by
+mocking `useLearningSession`" and the eligibility gate requires the conflict read the register
+entry itself mandates ("reconcile the two status lines by reading D-417/C7's scope"). **No new
+judgment is made here** — this entry applies an existing accepted decision and records the
+application so the question is not re-litigated a fourth time (D-414 → D-417 §C7 → the register's
+counter-adjudication → this read).
+
+**The read.** D-417 §C7 (user, 2026-08-18) is explicit, specific, and considered: *"Decided. No
+mock-heavy `useLearningSession` test for this one condition"*, with the honest boundary that
+*"the banner appears" is browser-testable and no learning-web spec asserts it today*, while
+*"and at no other time" is testable nowhere cheaply* (D-403's flaky-and-deleted control). D-414,
+same day, priced the mock route as carry-over; C7 is the user's answer to that carry-over. The
+register's `WORK-12-BANNER` justification ("the banner-condition test is owed regardless…
+the exclusion was scope drift rather than a considered decision") does not survive the read: C7
+names the exact mechanism it declines, for exactly this condition. And the register cannot
+override an accepted decision by its own charter — `USER_DECISION_QUEUE.md`'s header:
+*"This register is evidence, never authority for intent — `docs/DECISIONS.md` owns intent."*
+
+**Ruling applied (not new): C7 stands.** The `App.tsx:958-960` comment is accurate; the archived
+`PROGRESS.md:107-117` carry-over line is the retracted loser (the archive is historical and is
+not rewritten — this entry and the register annotation are the retraction). No mock-based unit
+test for the banner condition is owed, and re-filing it as missing coverage is the failure mode
+C7's in-code comment exists to stop.
+
+**The C7-consistent residual, re-homed.** The one gap C7 itself records — a browser spec
+asserting the **positive** direction ("the banner appears on a dead stream"), the learning-web
+mirror of chat-web's `stream-disconnect-visible.spec.ts` — is folded into `PLAYWRIGHT-LANE`
+(§6.3): write **and run** it in the next serialized browser-lane window (writing it earlier
+would create an unrun, coverage-shaped artifact). The negative direction stays untestable per
+C7/D-403 and is not owed anywhere.
+
+**Consequence for the queue.** The `WORK-12-BANNER` row is removed from §4 and §4.4 as
+conflicting-with-decision (not as done); the residual lives on the `PLAYWRIGHT-LANE` row. If the
+user ever wants the mock-test route after all, that is a reversal of C7 and needs an explicit
+new decision — do not infer it.
