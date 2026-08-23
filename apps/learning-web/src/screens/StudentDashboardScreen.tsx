@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import * as api from "../api/client";
 import { formatBlockedReason, formatIsoWeekLabel } from "../lib/attendanceLabels";
+import { UNKNOWN_TIME_ZONE, buildDateLabelFormatter } from "../lib/orgDate";
 import { friendlyError } from "../api/errors";
 import { ReportView } from "../components/ReportView";
 import { SkillFocusList } from "../components/SkillFocus";
@@ -48,37 +49,6 @@ interface Props {
 // that structurally without a broad `any`.
 function formatPercent(value: unknown): string {
   return `${Math.round(Number(value) * 100)}%`;
-}
-
-/**
- * The zone to display in when the server did not say (an older server, mid-deploy).
- *
- * `UTC`, matching `DashboardResponse.org_time_zone`'s own Pydantic default, and
- * deliberately **not** `America/Chicago`: a second copy of the org's zone in the client is
- * exactly the skew that serving the field removes, and it would go stale silently the day
- * `ORG_TIMEZONE` is confirmed to something else. UTC is an honest "not told".
- */
-const UNKNOWN_TIME_ZONE = "UTC";
-
-/**
- * Formats a UTC instant as the **organization's** calendar day (D-324).
- *
- * Every date on this screen came from `toLocaleDateString()` with no arguments, which reads
- * two things off the *viewer's* machine: the zone and the locale. Both were wrong to depend
- * on. A parent opening the same dashboard from another country saw the org's days shifted,
- * and any attempt after ~7pm Central - already tomorrow in UTC - could be drawn on a day
- * the student did not work. The zone is now served (`org_time_zone`, resolved from
- * `ORG_TIMEZONE` by `intellichoice_shared.org_time`), so client and server cannot disagree
- * about which day a number belongs to.
- *
- * The locale is pinned to `en-US` for the same reason rather than left to the browser: the
- * organization reads `M/D/YYYY`, and an axis that silently switches to `D/M/YYYY` for some
- * readers is a different label for the same day. It also makes the rendered form assertable
- * - `dashboard-chart-labels.spec.ts` matches on `\d{1,2}/\d{1,2}/\d{4}`.
- */
-function buildDateLabelFormatter(timeZone: string): (value: unknown) => string {
-  return (value) =>
-    typeof value === "string" ? new Date(value).toLocaleDateString("en-US", { timeZone }) : "";
 }
 
 // Skill names are curriculum-authored free text with no length cap - truncating to a
