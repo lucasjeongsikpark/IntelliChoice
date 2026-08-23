@@ -17,7 +17,7 @@ Clean up: uv run python load-tests/loadtest_fixtures.py --cleanup
 import argparse
 import asyncio
 
-from intellichoice_adapters.mysql_profile_adapter import current_week_key
+from intellichoice_shared.org_time import current_week_key
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine

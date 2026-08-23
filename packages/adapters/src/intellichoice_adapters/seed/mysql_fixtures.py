@@ -29,11 +29,10 @@ by *declining*, and the V2 walk answers it by *approving*. Sharing one student w
 whichever spec ran second found a gate the first had already spent.
 """
 
+from intellichoice_shared.org_time import current_week_key
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
-
-from intellichoice_adapters.mysql_profile_adapter import current_week_key
 
 PARENT_ONE_CHILD = "parent-ext-1"
 PARENT_TWO_CHILDREN = "parent-ext-2"

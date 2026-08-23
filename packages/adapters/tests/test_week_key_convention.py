@@ -8,11 +8,11 @@ reachable MySQL, and this behavior is pure — a skipped test is not a passing o
 
 from datetime import UTC, datetime
 
-from intellichoice_adapters.mysql_profile_adapter import current_week_key
 from intellichoice_shared.org_time import (
     CONVENTION_ENV,
     TIMEZONE_ENV,
     OrgTimeConvention,
+    current_week_key,
     resolve_org_time,
 )
 
