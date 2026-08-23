@@ -3050,6 +3050,20 @@ Nothing is omitted; the evidence citations are the load-bearing part.*
   two status lines by reading D-417/C7's scope and retracting the loser.
 - **Owner type:** engineering, with a documentation tail
 - **Reopen condition:** n/a · **PROJECT_STATE?** yes · **Historical/archive only?** no
+- **⚠️ RECONCILED 2026-08-23 (D-427) — the mandated C7 read was performed and this entry's own
+  adjudication loses.** D-417 §C7 is explicit, specific and considered (*"Decided. No mock-heavy
+  `useLearningSession` test for this one condition"*), made the same day as D-414's carry-over
+  pricing as the user's answer to it — not scope drift. This register cannot override an accepted
+  decision by its own charter (`USER_DECISION_QUEUE.md`: *"evidence, never authority for
+  intent"*), so **the mock-test remaining action is retracted**: the `App.tsx` in-code status is
+  the accurate one, and the archived `PROGRESS.md:107-117` carry-over line is the retracted
+  loser (archives are not rewritten; D-427 is the retraction). The C7-consistent residual — a
+  browser spec for the **positive** direction only, mirroring chat-web's
+  `stream-disconnect-visible.spec.ts` — is re-homed onto `PLAYWRIGHT-LANE` (write **and run** it
+  in the next serialized lane window; writing it earlier would be an unrun, coverage-shaped
+  artifact). The negative direction stays untestable per C7/D-403 and is owed nowhere.
+  Re-opening the mock route requires an explicit user reversal of C7 (D-427). Record: D-427,
+  `docs/log/2026-08-23-c7-reconciliation-and-drift91.md`.
 
 ### `WORK-44-DECIDED-NOT-BUILT` — two closed OPEN_DECISIONS items are decided but unverified as built
 
@@ -4759,6 +4773,18 @@ accumulation of readiness reopens it.*
 - **Remaining action:** move the import to shared `org_time`; optionally add an adapter factory.
 - **Owner type:** engineering · **Reopen condition:** n/a · **PROJECT_STATE?** yes
 - **Historical/archive only?** no
+- **⚠️ RESOLVED 2026-08-23 (`0cadc94` + `1768c9d`, PR #377).** `current_week_key` now lives in
+  `intellichoice_shared.org_time` (docstring history intact, its self-reference fixed), no
+  compatibility re-export; all six importers updated — including
+  `load-tests/loadtest_fixtures.py`, a real importer outside the entry's own enumeration that a
+  re-export would have masked. `test_week_key_convention.py` followed the symbol into
+  `packages/shared/tests/`. **The optional adapter factory was deliberately skipped**: both
+  `main.py`s already construct `MySQLProfileAdapter(settings.mysql_url)` symmetrically and a
+  wrapper would be an empty pass-through — the env-selection seam remains D-002's
+  integration-time work. Behavior byte-identical (full suite 1778 passed before and after, zero
+  delta); the acceptance grep shows only the `MySQLProfileAdapter` class imported from the
+  adapter module in `apps/` — the legitimate seam edge. No new judgment — no D-number;
+  git history and `docs/log/2026-08-23-c7-reconciliation-and-drift91.md` are the record.
 
 ### `DRIFT-85-I7-ALLOWLIST` — the I7 unknown-role metric is named as an invariant's evidence and specified nowhere
 
