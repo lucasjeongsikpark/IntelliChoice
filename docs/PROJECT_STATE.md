@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-22** (post-migration reconciliation; sixth Orca run: the narrow-coverage batch) |
+| Snapshot date | **2026-08-23** (UD-1 answered → D-426 deploy executed; gap closed) |
 | Last product-code commit | **`67cd708`** (2026-08-22) — the narrow-coverage batch landed by PR #372 (`fb74f38` span-event redaction, `fd6927d` synthesis-time approved/effective predicate, `67cd708` total reason-code sweep) |
-| Deployed staging image (both ECS services) | **`gha-44a12dfc9549`** = commit `44a12dfc9549`, 2026-08-18 (D-415) |
-| Deployed task definitions | learning `:150` (2/2 running), chat `:148` (1/1 running) — one behind each family's latest (`:151`/`:149`), which are byte-identical no-ops; compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **21 product commits** (`44a12dfc9549` → `67cd708`); any HEAD advance beyond `67cd708` is docs-only reconciliation. Separately, the scheduled-job **metric filters (2026-08-21) and heartbeat alarm windows (2026-08-22) were re-applied live** (control-plane `terraform apply`, no image change — see §3/§8) |
+| Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (docs HEAD carrying product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
+| Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
+| Repo-vs-deployed gap | **None** — staging runs HEAD as of 2026-08-23 (§3); any HEAD advance beyond `67cd708` is docs-only reconciliation until the next product-code commit. The scheduled-job **metric filters (2026-08-21) and heartbeat alarm windows (2026-08-22)** were applied via control-plane `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -41,45 +41,36 @@ never violate are in the repo-root `CLAUDE.md`.
 
 ---
 
-## 3. Repository vs deployed (the deploy gap)
+## 3. Repository vs deployed (gap closed 2026-08-23)
 
-Both layers are true in their own right. Neither is "the" current state on its own — all of §3 is
-conditional on staging still running `gha-44a12dfc9549`.
+**Staging runs HEAD.** The D-426 deploy (2026-08-23, run 32613654181) shipped
+`gha-898e2fb4270b` = commit `898e2fb` (product code `67cd708`) to both services; all workflow
+gates passed (deployed-version, `/dev/token` edge, canary bake — rollback skipped, smoke through
+CloudFront). Everything §4 describes at HEAD is therefore also the deployed behaviour, until the
+next product-code commit reopens a gap.
 
-**Undeployed at HEAD** (register `LB-05-DEPLOY-GAP`, user decision **UD-1**):
+**Facts that survive the gap's closure:**
 
-- The whole **B4 escalation series** — D-420 (escalation draft takes the visitor's note),
-  D-421 (the same question is not emailed to staff twice), D-422 (note field in the approval modal).
-- **C8** (a `ruff format` pass) and **D-423's documentation** (the RAG latency split). Four further
-  commits plus HEAD are docs/roadmap-only — the full ten are enumerated in UD-1's queue entry.
-- **The COST-22 label pre-initialisation (`4dbcc41`, 2026-08-21).** The pre-inited series appear
-  in the staging CloudWatch namespaces only after the next image deploy — an upper bound of
-  **34 new always-present custom-metric series** (17 × 2 services) once it ships
-  (as-built detail: ARCHITECTURE's observability lessons).
-- **B4 escalation behaviour has never been observed live**, on any build. There is zero live
-  evidence for it until a deploy happens.
-
-**Consequences that matter operationally:**
-
-- Migration **`8509c0486d8d`** (creating `chat_escalation_sends`) is in the repository and is the
-  single Alembic head — 37 migrations, base-to-head replay verified. **The table is absent from staging by
-  inference** (the creating commit is undeployed; the private RDS was not read —
-  `DB-CONTENT-VERIFY`, §6.2), so **D-421's duplicate-send guard is not protecting staging today.**
-- **LB-08's measured 10.55 s guest-QA latency is a pre-D-423 number.** Record it with
-  `44a12dfc9549` beside it or do not quote it. It is the only untouched pre-optimisation baseline
-  for `WORK-01-SCOPE-GUARD`'s ~22% win — a deploy destroys it, so capture it (with its SHA) before
-  any deploy.
-- `RD-01`'s fix landed on the **terraform side and reached staging on 2026-08-21** without a
-  deploy, and was **confirmed end-to-end on 2026-08-22** (first `JobCompletions` datapoints;
-  three nightly alarms ALARM → OK). The residual is the weekly job's mis-scaled heartbeat
-  period — see §4.3.
-- The deploy pipeline has **no artifact-freshness check** — no content-hash, ETag or digest
-  comparison anywhere in the workflow. Its own comment says the SPA curls "would pass against a
-  completely stale deployment, and they never touch the API". The documentation claiming a
-  content-hash gate is on the migration worklist (`DRIFT-24-ARTIFACT-FRESHNESS` — carried here for
-  the operational fact only).
-- The e2e instrument itself is not the variable: `journey-student.spec.ts` is byte-identical
-  between the deployed build and HEAD.
+- Migration **`8509c0486d8d`** (`chat_escalation_sends`) **applied 2026-08-23** — D-421's
+  duplicate-send guard now protects staging, and `WORK-03` is closed (the one DB-content claim
+  the deploy could settle; the rest stay with `DB-CONTENT-VERIFY`, §6.2).
+- **The B4 escalation series (D-420/421/422) is now deployed but still never observed live.**
+  Its evidence is CI plus this deploy's gates; a live re-walk (UD-1 Option A's second half)
+  remains available work for the next live-probe session.
+- **LB-08's 10.55 s pre-optimisation baseline is recorded durably in D-426** (measured on
+  `gha-44a12dfc9549`, now unreproducible). Post-optimisation comparisons for
+  `WORK-01-SCOPE-GUARD` cite D-426, not this file.
+- **COST-22's pre-initialised label series are live** (verified post-deploy:
+  `qa_service_degraded_total` exposes all three `stage` series in the deployed chat-api
+  namespace) — the ~34 always-present custom-metric series upper bound is now the account's
+  actual state (cost context: UD-3/COST-25).
+- The §7-R9 tripwire held through the deploy's task drain: `learning_checkpoint_repairs_total`
+  read 0.0 before and after (2026-08-23T03:1xZ) — the `ARCH-17-COMMIT-SEAM` acceptance is
+  intact.
+- The deploy pipeline still has **no artifact-freshness check for the SPAs** — no content-hash,
+  ETag or digest comparison; the SPA curls "would pass against a completely stale deployment"
+  (`DRIFT-24-ARTIFACT-FRESHNESS` — carried here for the operational fact only). The
+  deployed-version gate covers the API images, not the static assets.
 
 ---
 
@@ -121,7 +112,7 @@ tests on 2026-08-21/22.
 | `WORK-12-BANNER` | learning-web disconnect-banner condition untested, and it carries two live contradictory statuses | Write the banner test by mocking `useLearningSession` (do not extract the JSX); reconcile the two status lines by reading D-417 §C7's scope and retracting the loser | engineering + docs |
 | `WORK-44-DECIDED-NOT-BUILT` | Two closed OPEN_DECISIONS items decided but unverified as built | Verify `react-router` is installed and routing (a named prerequisite for the §5.1.2 first-visit disclosures); run `gh pr list` for the 26-PR backlog | engineering |
 | `DRIFT-59-DATE-SHIFT` | The date-only back-a-day shift is still armed under an "ALL DECIDED" heading | Fix the date-only shift; export or relocate `buildDateLabelFormatter` so it is unit-testable — the same move closes `WORK-40-TZ` | engineering |
-| `WORK-13-FIXTURES` | Single-spec e2e isolation is behaviourally resolved **on `gha-44a12dfc9549`**; the **17-spec cross-spec contention scope stays open** (never re-run) and the test-side fixture fix is owed | Land the fixture-isolation fix across the seventeen specs sharing `studentPresent` (prerequisite for UD-2's whole-directory arm — the paid re-run is `DRIFT-58`'s residual, reopened by UD-2); do not re-run the closed one-file scope. Order against UD-1 — a deploy changes the build under test | engineering + docs |
+| `WORK-13-FIXTURES` | Single-spec e2e isolation is behaviourally resolved **on `gha-44a12dfc9549`** (a build no longer deployed — the D-426 deploy shipped `gha-898e2fb4270b`); the **17-spec cross-spec contention scope stays open** (never re-run) and the test-side fixture fix is owed | Land the fixture-isolation fix across the seventeen specs sharing `studentPresent` (prerequisite for UD-2's whole-directory arm — the paid re-run is `DRIFT-58`'s residual, reopened by UD-2); do not re-run the closed one-file scope. The UD-1 ordering constraint is discharged: the deploy happened 2026-08-23, so any re-run now tests the current build | engineering + docs |
 | `M3-D370-SOLUTION-RUNG` | The solution terminal rung has no staging e2e coverage, under a roadmap-closing ✅ | Write the staging e2e coverage for the solution terminal rung | engineering + docs |
 
 ### 4.3 The three items an agent should be able to act on from this file alone
@@ -212,7 +203,7 @@ UD-constrained tails; every §4 key appears exactly once):**
 | 14 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
 | 15 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
 | 16 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
-| 17 | `WORK-13-FIXTURES` | Explicitly "Order against UD-1 — a deploy changes the build under test"; the paid re-run stays with UD-2 |
+| 17 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
 | 18 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
 
 ---
@@ -230,7 +221,6 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | UD | Register key | Question (one line) | Blocks? | Default safe action |
 |---|---|---|---|---|
-| **UD-1** | `LB-05-DEPLOY-GAP` | Deploy the 10 undeployed commits to staging now, before the next session, or after it? — no live verification of the B4 series is possible without it | **Yes, partially** | [agent may apply] Don't deploy; state the build SHA beside every live number and record LB-08's baseline now |
 | UD-2 | `SPEND-AUTHORIZATION` | Which deferred paid measurements (if any) are worth real spend, and is a time-boxed read-only staging DB session authorized? | No | [agent may apply] Authorize none; carry each claim as-documented with its `n` and date |
 | UD-3 | `BUDGET-GROSS-SPEND` | Is the $20 net monthly budget raised, accepted or re-scoped, and is a gross credit-excluding control wanted before credits run out? | No | [agent may apply] Leave both budgets in place and treat the console-created budget as **load-bearing** — do not delete it during cleanup |
 | UD-4 | `RDS-POSTURE` | Is 1-day backup retention / deletion protection off / single-AZ the accepted staging posture, and what does production require? | No | [USER ONLY — hold:] change nothing; add a dated note that the posture is undeclared and that the §2.6 gate criteria were measured on this environment. Recording it as "the deliberate staging answer" is the decision itself. |
@@ -252,12 +242,14 @@ internal NL2SQL pipeline still wanted, deferred, or dropped? (e) `REQ-39-ESTIMAT
 the "Current estimated level" wording stand? (f) `COMMITTED-ORG-DRAFTS` — are committed outbound
 drafts allowed at all, and which credential-mention policy governs a sent message?
 
-Four items hang off queue entries and must not be lost — **two labelled sub-questions** (UD-1's
-§2.6 criterion-6 gate-integrity question; UD-5's §7-R9 checkpoint-repair tripwire) plus **UD-7's
-REQ-18 invalid-output capture (queue option (viii))** and **UD-2's read-only DB-session rider**.
-They outlive their parent rows: when a UD is answered, re-home its item here or into the resulting
-D-xxx before deleting the row. The authoritative 16-entry↔12-question crosswalk is the register's
-§12.3.
+Three items hang off queue entries and must not be lost — **one labelled sub-question** (UD-5's
+§7-R9 checkpoint-repair tripwire) plus **UD-7's REQ-18 invalid-output capture (queue option
+(viii))** and **UD-2's read-only DB-session rider**. (UD-1's §2.6 criterion-6 gate-integrity
+sub-question was re-homed into **D-426** when UD-1 was answered 2026-08-23: the defensible
+reading — the week counts from the first real `JobCompletions` datapoint, earliest satisfaction
+2026-08-29 — is applied as the default pending any explicit relaxing ruling.) They outlive their
+parent rows: when a UD is answered, re-home its item here or into the resulting D-xxx before
+deleting the row. The authoritative 16-entry↔12-question crosswalk is the register's §12.3.
 
 ---
 
@@ -294,7 +286,7 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | Register key | One line | Reopen condition |
 |---|---|---|
 | `C6-UNATTENDED` | §2.6 criterion 6 arithmetically unsatisfiable yet, and job success unproven | First `JobCompletions` datapoints observed 2026-08-22 — the seven-day confirmed-firing clock for the nightly three runs from that date (earliest satisfiable 2026-08-29); the weekly job's instrument stays mis-specified until `RD-01`'s residual lands (§4.3) |
-| `DB-CONTENT-VERIFY` | Four DB-content claims unverifiable read-only; one needs a mutation | UD-2 authorizes a read-only session, or the UD-1 deploy closes WORK-03 by itself |
+| `DB-CONTENT-VERIFY` | Three DB-content claims unverifiable read-only; one needs a mutation (`WORK-03` closed 2026-08-23 — the D-426 deploy applied migration `8509c0486d8d`) | UD-2 authorizes a read-only session |
 | `LANGSMITH-RETENTION` | The retention setting has no in-repo expression and was never read (UD-11) | Open now — a two-minute user console read |
 | `ARCH-35-ORG-TIME` | `ORG_TIME_CONFIRMED = false` is deployed; anything time-of-day dependent runs on assumed hours | The org answers, or the user authorises building the D-153 §4 guard early — the guard is a **local** assertion and is buildable now |
 | `INT-29-FAQ` | Enrollment FAQ still `draft`; the sole launch gate on the guest journey's canonical question | The org **content owner** answers (do not bundle with operator-audience asks) |
