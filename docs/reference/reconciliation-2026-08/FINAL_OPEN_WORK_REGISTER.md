@@ -2000,6 +2000,21 @@ cross-referenced into the relevant domain section.
 - **Reopen condition:** n/a — open now, and re-opens with every subsequent commit
 - **PROJECT_STATE?** yes
 - **Historical/archive only?** no
+- **⚠️ UD-1 ANSWERED AND EXECUTED 2026-08-23 — D-426 (Option A, "let's deploy").** By then the
+  gap had grown to 21 product commits (`44a12dfc9549` → `67cd708`). Deploy run 32613654181
+  shipped `gha-898e2fb4270b` to both services with every gate green (migrations incl.
+  `8509c0486d8d` → **WORK-03 closed**; deployed-version gate; `/dev/token` edge gate; canary
+  bake, rollback skipped; CloudFront smoke). The carry-regardless items were discharged in
+  order: **LB-08's 10.55 s baseline is recorded durably in D-426 before the deploy**; the
+  gate-integrity sub-question is re-homed into D-426 with the defensible default (criterion-6
+  week counts from the first real datapoint, earliest 2026-08-29); RD-01's Python-side
+  asymmetry was already moot (terraform-side fix, 2026-08-21/22). §7-R9's tripwire held through
+  the task drain (repair counter 0.0 before and after). **Still open from this entry:** B4 is
+  deployed but never observed live (the Option-A re-walk is follow-up probe work), and the
+  **artifact-freshness half is untouched** — the SPA sync still has no content-hash/digest gate
+  (`DRIFT-24-ARTIFACT-FRESHNESS` and the derived mechanism question stay open). The entry's
+  "re-opens with every subsequent commit" clause stands: this annotation records the 2026-08-23
+  closure, not a permanent state. Record: D-426, `docs/log/2026-08-23-ud1-deploy.md`.
 
 ### `RDS-POSTURE` — 1-day backups, deletion protection off, both databases in one AZ, and no document records any of it as a decision
 

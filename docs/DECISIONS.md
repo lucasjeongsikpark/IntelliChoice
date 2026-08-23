@@ -29512,3 +29512,50 @@ the real one is `buildDateLabelFormatter`.
 document model, adversarial review and resolution; the two live registers stay at
 `docs/reference/reconciliation-2026-08/`. Session narration for this migration: the migration
 commits themselves (step 0a's clean-tree commit through this entry's commit).
+
+## D-426 — UD-1 answered: deploy HEAD to staging now (Option A) (accepted, 2026-08-23)
+
+**User decision, 2026-08-23** ("let's deploy"), answering `USER_DECISION_QUEUE.md` **UD-1** /
+register `LB-05-DEPLOY-GAP` with **Option A — deploy now**. Since UD-1 was written the gap has
+grown from 10 to **21 product commits** (`44a12dfc9549` → `67cd708`): the original ten (the B4
+escalation series D-420/421/422, C8, D-423's docs) plus the 2026-08-21/22 Orca-run batch
+(REQ-27-FROZENSET pins, RD-01 parity test, COST-22 label pre-init, SEC-13-PURGE cancel/exception
+purge, COST-06-FLUSH spend accounting, the RD-01 weekly-window cap, span-event redaction, the
+synthesis-time approved/effective predicate, the total reason sweep). The deploy is executed by
+the manual `deploy-staging.yml` (`workflow_dispatch` per D-417 §C9, which stands — the `push`
+trigger stays commented out) and runs the additive migration `8509c0486d8d`
+(`chat_escalation_sends`, D-421 — closing `WORK-03`), the curriculum/bank load, the MySQL
+dev-fake re-seed, the RAG re-embed, and the suggestion seed, then both service deploys behind
+the deployed-version gate, the `/dev/token` edge gate, and the canary bake with automatic
+rollback.
+
+**LB-08 baseline, recorded here before the deploy per UD-1's own carry-regardless list.** The
+pre-optimisation guest-QA latency control is **10.55 s measured on `gha-44a12dfc9549`** (LB-08;
+D-423's own recorded number on that build: 10.62 s). This deploy destroys the ability to
+re-measure that build, so this entry is the durable *before* number for
+`WORK-01-SCOPE-GUARD`'s expected ~22% overlap win. Any post-optimisation comparison cites this
+entry.
+
+**UD-1's gate-integrity sub-question — default applied, not decided.** Whether §2.6 criterion 6's
+"≥1 week unattended nightly firing" may be satisfied by an instrument repaired mid-window is
+still the user's call; pending an explicit ruling, the **defensible reading is applied as the
+default**: the week counts only from the first real `JobCompletions` datapoint (2026-08-22), so
+the earliest satisfaction is **2026-08-29**, not the schedule-creation arithmetic's 08-23. This
+default preserves optionality (it can only be relaxed, never tightened, by a later ruling).
+
+**Pre-deploy readings (2026-08-23T02:50Z, build `gha-44a12dfc9549`).** learning `:150` (2/2),
+chat `:148` (1/1); heartbeat alarms OK/OK/OK + `memory-consolidate` ALARM (accurate signal —
+weekly job, first counted run Sunday); `learning_checkpoint_repairs_total` **0.0, flat, 14 days**
+(the §7-R9 acceptance's tripwire — movement during the deploy's task drain voids it, so the
+post-deploy re-read is part of this decision's verification).
+
+**Post-deploy record (2026-08-23T03:05Z, run 32613654181, conclusion success).** All gates
+passed: Alembic migrations (including `8509c0486d8d` — `WORK-03` closed), the deployed-version
+gate, the `/dev/token` edge gate, the canary bake (rollback skipped), and the CloudFront smoke
+tests. Verified independently after the run: both services on `gha-898e2fb4270b` (learning
+`:152` 2/2, chat `:150` 1/1); `learning_checkpoint_repairs_total` still 0.0 through the task
+drain (§7-R9 intact); COST-22's pre-initialised series live in the deployed chat-api namespace
+(all three `qa_service_degraded_total{stage=…}`); heartbeat alarms unchanged (3 OK +
+`memory-consolidate`'s accurate ALARM). B4 is deployed but its live behaviour remains
+unobserved — the Option-A re-walk is follow-up work for a live-probe session. Session
+narration: `docs/log/2026-08-23-ud1-deploy.md`.
