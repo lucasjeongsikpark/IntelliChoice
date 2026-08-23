@@ -2,8 +2,12 @@
 behavior: it is the attendance gate's key and the fixture seeder's column value, so if it
 ignored the convention the env switch would be decoration.
 
-Separate from `test_mysql_profile_adapter.py` because that module skips entirely without a
-reachable MySQL, and this behavior is pure — a skipped test is not a passing one.
+Separate from `test_org_time.py`, which pins the configuration layer (`resolve_org_time` and
+the `OrgTimeConfig` methods): these tests pin the module-level function the attendance gate
+and the seeder actually call, including the no-argument path that has to resolve the
+environment on its own. It sits here rather than beside the MySQL adapter tests — where it
+used to live, back when the function did — because that module skips entirely without a
+reachable MySQL and this behavior is pure; a skipped test is not a passing one.
 """
 
 from datetime import UTC, datetime
