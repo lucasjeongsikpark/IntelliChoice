@@ -3432,6 +3432,17 @@ Nothing is omitted; the evidence citations are the load-bearing part.*
 - **Remaining action:** fix the date-only shift; export or relocate `buildDateLabelFormatter` so it is
   unit-testable, which closes both this untestability and the chat-web gap at once.
 - **Owner type:** engineering
+- **⚠️ RESOLVED 2026-08-23 (`8e82ba9`, PR #375).** `buildDateLabelFormatter` (+ `UNKNOWN_TIME_ZONE`,
+  D-324's comment record intact) relocated to the exported `apps/learning-web/src/lib/orgDate.ts`
+  with a date-only branch; test-first evidence recorded the shift (`2026-08-22` →
+  `8/21/2026` under `America/Chicago`, `2026-01-01` → `12/31/2025`), and the six instant-path
+  guards passing pre-fix proved the relocation behaviour-preserving. One nuance for the record:
+  **the shift was armed, not firing** — `learning_api.services.dashboard._accuracy_trend`
+  already serializes tz-aware deliberately, so no live chart was wrong; the formatter is now
+  correct for both shapes regardless. Also corrected: the remaining action's "closes the
+  chat-web gap at once" assumed one shared function — see `WORK-40-TZ`'s annotation. Repo-only,
+  deploy-gated (LB-05). No new judgment — no D-number; git history and
+  `docs/log/2026-08-23-date-zone-orca.md` are the record.
 - **Reopen condition:** n/a · **PROJECT_STATE?** yes · **Historical/archive only?** no
 
 ---
@@ -3480,6 +3491,25 @@ Nothing is omitted; the evidence citations are the load-bearing part.*
   `DRIFT-59-DATE-SHIFT`.
 - **Owner type:** engineering
 - **Reopen condition:** n/a · **PROJECT_STATE?** yes · **Historical/archive only?** no
+- **⚠️ RESOLVED 2026-08-23 (`805e986`, PR #375) — with one correction to the remaining action's
+  premise.** `CalendarActionModal` now renders through the exported
+  `apps/chat-web/src/lib/eventDateTime.ts` with a pinned `en-US` locale, and the wire shape was
+  pinned from primary evidence first: `CalendarEvent.start_datetime` is **mixed by path** —
+  `to_calendar_event` copies tz-aware `OrgEvent.starts_at` (offset-tagged instants, converted
+  *into* `event.timezone`), while `extract_calendar_event` builds naive wall-clock from
+  model-drafted text whose meaning `ics._to_utc` already settles as "in `event.timezone`"
+  (rendered as its own components, unconverted). Every failure path returns the value as
+  written — never a plausible-but-wrong conversion. Test-first evidence: under `TZ=Asia/Seoul` a
+  Chicago event rendered `11/2/2023, 2:00:00 AM (America/Chicago)` pre-fix; 18 new tests incl.
+  an in-test TZ-pin control. **The "shared module" premise is corrected:** the two apps' needs
+  are genuinely different functions (served-org-zone calendar-day labels vs event-zone
+  mixed-shape datetimes), so the fix is two mirrored app-local exported modules, not a shared
+  package — D-324's principles cross-referenced in both. The severity question (whether the
+  approval surface is reachable from other zones live) remains a deployed-build question.
+  Repo-only, deploy-gated (LB-05). No new judgment — no D-number; git history and
+  `docs/log/2026-08-23-date-zone-orca.md` are the record. `WORK-40`'s residual third build item
+  (§0.6) closes with this pair — the "formatDateLabel" it named was this formatter under a
+  phantom name.
 
 ### `WORK-01-SCOPE-GUARD` — the `scope_guard`/retrieval overlap is specified, measured and not built
 
