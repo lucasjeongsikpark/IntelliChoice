@@ -4,13 +4,13 @@
 
 from dataclasses import dataclass
 
-from intellichoice_adapters.mysql_profile_adapter import current_week_key
 from intellichoice_db.models.assessment import BlockedSession
 from intellichoice_db.repositories.assessment import AssessmentRepository
 from intellichoice_db.repositories.mcp import McpToolCallRepository
 from intellichoice_observability.tracing import traced_span
 from intellichoice_shared.email import EmailMessage
 from intellichoice_shared.mcp import McpToolError, McpToolRegistry
+from intellichoice_shared.org_time import current_week_key
 from intellichoice_shared.profiles import AttendanceStatus, ProfileAdapter
 
 # SPEC §5.6.3 - shown when attendance is explicitly marked *absent*. The "material they

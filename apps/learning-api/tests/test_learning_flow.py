@@ -7,7 +7,6 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 from intellichoice_adapters.fake_auth import FakeTokenIssuer
-from intellichoice_adapters.mysql_profile_adapter import current_week_key
 from intellichoice_adapters.seed.mysql_fixtures import (
     PARENT_TWO_CHILDREN,
     STUDENT_FIRST_CHILD,
@@ -33,6 +32,7 @@ from intellichoice_db.repositories.assessment import AssessmentRepository
 from intellichoice_db.repositories.hints import HintEventRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_shared.auth import Audience, Role
+from intellichoice_shared.org_time import current_week_key
 from learning_api.main import app
 from learning_api.services import study_plan, video_catalog
 from learning_api.services.attendance import BLOCKED_MESSAGE, UNKNOWN_MESSAGE

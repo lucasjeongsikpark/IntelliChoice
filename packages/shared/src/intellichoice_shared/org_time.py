@@ -173,6 +173,22 @@ def resolve_org_time(env: dict[str, str] | None = None) -> OrgTimeConfig:
     return OrgTimeConfig(convention=convention, timezone_name=timezone_name, confirmed=confirmed)
 
 
+def current_week_key(now: datetime | None = None, *, config: OrgTimeConfig | None = None) -> str:
+    """The attendance week key, in the organization's local calendar (SPEC §5.6.2).
+
+    This used to read the ISO week straight off UTC, which quietly put a Sunday-evening
+    session into the *following* week — Sunday 19:00 Central is Monday 00:00 UTC, and ISO
+    weeks start on Monday. The convention now comes from `intellichoice_shared.org_time`,
+    which is a placeholder with an env switch until the org confirms it: see that module,
+    and Message A in docs/S42_ORG_ASKS.md.
+
+    Read fresh rather than cached so an env change takes effect on redeploy without a
+    process-lifetime cache to reason about; this is called once per attendance check, not
+    per request.
+    """
+    return (config or resolve_org_time()).week_key(now)
+
+
 def log_org_time_convention(config: OrgTimeConfig | None = None) -> OrgTimeConfig:
     """Announce the convention once at startup; WARNING while it is still provisional.
 
