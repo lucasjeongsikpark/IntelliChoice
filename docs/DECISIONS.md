@@ -29634,3 +29634,42 @@ semantics, not executed** — running it stops a live service, which is exactly 
 correction must not do as a side effect. `make lint && make typecheck` green; docs-only change,
 nothing deployed. The audit-register mentions of `desired_count` (AUDIT_FINDINGS) are historical
 finding records, deliberately left unedited.
+
+## D-429 — WORK-44 verified closed: react-router is installed and routing; the 26-PR backlog is cleared down to the two python majors (accepted, 2026-08-23)
+
+Executes register `WORK-44-DECIDED-NOT-BUILT`'s remaining action — two read-only verifications
+of D-322's "decided, not built" items #3 and #9. Both verified 2026-08-23; the item closes.
+
+**#3 — react-router: VERIFIED installed and routing, learning-web.**
+- Installed: `react-router-dom` `^7.18.2` declared in `apps/learning-web/package.json:19`,
+  pinned to 7.18.2 in `package-lock.json`, present in `node_modules` at 7.18.2.
+- Routing: `BrowserRouter` mounted at `apps/learning-web/src/main.tsx:40`; screens are chosen
+  from `location.pathname` (`App.tsx:66-107` — session/dashboard/results paths), navigation goes
+  through `useNavigate`, and D-381's unknown-path normalisation is live in code. There is
+  **deliberately no `<Routes>` component** (the `App.tsx:94` comment records why, with a live
+  measurement); pathname-driven rendering is exactly the route awareness §5.1.2's first-visit
+  gate needs, so the prerequisite is met as built — do not re-file the missing `<Routes>` as a
+  gap.
+- Scope check: SPEC §5.1.2 binds the first-visit notice to `learning.intellichoice.org` only.
+  chat-web has no react-router anywhere, and that is **consistent**, not a defect.
+- The `DISCLOSURES-LEGAL` chain loses its fourth blocker; the remaining blockers are the UD-10
+  ruling, counsel, and the frozen S45 session — all user-side.
+
+**#9 — the dependency-PR backlog: read via `gh pr list` 2026-08-23.**
+- **14 PRs open.** The audited 26-PR backlog is cleared **except** its two 2026-07-24 majors:
+  python base image `3.12-slim → 3.14-slim` on both APIs (#1, #8). Under D-322 #8's standing
+  rule (patch/minor automatic, majors read individually) those two remaining open is
+  rule-consistent, not neglect — and the read must be individual: the stack pins Python 3.12,
+  so a 3.14 base image is a consequential runtime major.
+- **A fresh batch of 12 patch/minor dependabot PRs (all dated 2026-08-21)** has accumulated
+  (sqlalchemy, boto3, uvicorn, vite, @vitejs/plugin-react, oxlint, @types/*). These qualify for
+  the standing batch-merge rule.
+
+**Judgment: verify-only this session.** The batch merge is real work pre-decided by D-322 #8,
+but it mutates GitHub state and advances product HEAD (reopening the repo-vs-deployed gap
+beyond docs-only), so it is **not** folded into a verification task under the one-task-per-
+continue rule. It becomes new PROJECT_STATE row `DEP-PR-BATCH-2026-08-21` (queue row 2), homed
+in this entry — the first §4 key without a register anchor, which the §4 intro now states.
+`ARCH-33-CI-GATE`'s PR-backlog half is answered by this read; its `gh run list` half stays open.
+WORK-44 #2's shared anonymous rate-limit bucket stays where it already is: the §6.4 accepted-
+residual set, untouched by this closure.
