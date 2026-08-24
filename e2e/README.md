@@ -10,15 +10,21 @@ make e2e             # the suite; starts both APIs and both vite servers itself
 make e2e-typecheck
 ```
 
-Against real staging (same-origin CloudFront, so only the web URLs are needed):
+Against real staging (same-origin CloudFront, so only the web URLs are needed). **No secret
+export is needed or wanted** — since D-310, `config.ts` fetches each `/dev/token` secret from
+Secrets Manager by id, per run, on its own stdout pipe (the old exported-env shape put the
+values in npm/Playwright process titles, which is what forced the rotation). Just have an
+authenticated AWS profile with access:
 
 ```bash
-export STAGING_TOKEN_SECRET_LEARNING=...   # never echo these
-export STAGING_TOKEN_SECRET_CHAT=...
+AWS_PROFILE=<profile-with-secretsmanager-read> \
 LEARNING_WEB_URL=https://<d1>.cloudfront.net \
 CHAT_WEB_URL=https://<d2>.cloudfront.net \
 make e2e-staging
 ```
+
+(`STAGING_TOKEN_SECRET_LEARNING`/`_CHAT` still work as explicit overrides for CI or a one-off
+without AWS access — but never export them interactively; that is the pre-D-310 shape.)
 
 `/dev/token` is secret-gated on staging (D-097) and the frontends never send that header, so
 the harness mints tokens out of band and seeds `localStorage` before the app's first render.

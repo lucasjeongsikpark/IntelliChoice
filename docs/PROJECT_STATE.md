@@ -10,7 +10,7 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-24** (coordinator sessions: D-433 `D329-PHANTOM`, D-434 `D356-FAMILY`, D-435 `RD-01`, D-436 `LANGSMITH-INGEST` classified → UD-13; earlier 08-23/24: D-428..D-432) |
+| Snapshot date | **2026-08-24** (coordinator sessions: D-433..D-437 — `D329-PHANTOM`, `D356-FAMILY`, `RD-01`, `LANGSMITH-INGEST`→UD-13, and the D-310 `ps` measurement; earlier 08-23/24: D-428..D-432) |
 | Last product-code commit | **`5bbe08a`** (2026-08-24, PR #392) — hint-personalization outcome counter + real-HTTP SSE delivery proof (D-433); before it `710e977` (seam (b) heals, D-432) |
 | Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
 | Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
@@ -93,7 +93,7 @@ tests on 2026-08-21/22.
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
-| `D310-RESIDUALS` | Three follow-ups surviving the executed D-310 rotation | See 4.3 | user / engineering / docs |
+| `D310-RESIDUALS` | One follow-up surviving the executed D-310 rotation: stale dead secrets in operator-browser `localStorage` | See 4.3 — a user action on operator machines; the (b) `ps` measurement and (c) README fix landed 2026-08-24 (D-437) | user |
 | `TEST-05-DESCRIPTIVE-REREAD` | An owed human re-read of SPEC §5.3/§5.36 never fired across four qualifying changes — and both rows sit under the 37-of-37 criterion-1 claim | Perform the re-read, or replace the human habit with a definable trigger ("what counts as an architecture change" is undefined) | engineering + docs |
 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Three built controls nothing invokes — the PII log scanner (**one historical clean run, no continuous assurance**), `make image-check`, retention CLI job reporting. Batch of six; four members routed elsewhere | Wire `scan-logs` into CI or a schedule; wire `make image-check` into CI/deploy and document it; add `report_job_complete` to `checkpoint_retention_cli` | engineering |
 
@@ -109,12 +109,15 @@ tests on 2026-08-21/22.
 
 ### 4.3 The item an agent should be able to act on from this file alone
 
-**`D310-RESIDUALS` — three follow-ups outliving the executed rotation.** (a) **User action:**
+**`D310-RESIDUALS` — one follow-up outliving the executed rotation.** (a) **User action:**
 re-paste the current secret into any browser holding the dead one in `localStorage` — it now fails
 as an unexplained 404, and the stale copies are neither enumerable nor clearable from AWS or the
-repo. (b) **Engineering:** `make load-staging-learning`'s docker env pass-through was never
-re-measured for `ps` visibility — on that path the D-310 exposure class is **unmeasured, not
-cleared**. (c) **Documentation:** `e2e/README.md` still documents the pre-D-310 export shape.
+repo. This cannot be verified from the repository side; the row stays until the user says it is
+done or declares no such browser exists. Resolved 2026-08-24 (D-437): (b) the
+`make load-staging-learning` docker env pass-through is **measured clear** on the D-310 channel —
+zero argv/process-title occurrences across six in-flight samples of the exact mechanism, name-only
+`-e`; the residual same-user `ps -E` env visibility is inherent to env passing and is not the
+D-310 class. (c) `e2e/README.md` now documents the post-D-310 fetch-by-id shape.
 (d) **Accepted residual:** no standing rotation mechanism was added — a future rotation is again a
 manual targeted apply, accepted because the S44 plan deletes these secrets when real auth lands.
 D-310 itself is resolved history — see §9's standing framing and the register's `D310-ROTATION`.
@@ -154,14 +157,13 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-| 1 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
-| 2 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
-| 3 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
-| 4 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
-| 5 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
-| 6 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
-| 7 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
-| 8 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
+| 1 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
+| 2 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
+| 3 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
+| 4 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
+| 5 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
+| 6 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
+| 7 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
 
 ---
 
@@ -365,8 +367,10 @@ Every item carries its register key. These are the headline live risks, not the 
   **10.0/10.0 with a 16.32 forecast**, and X-Ray traces are **91% used** (forecast 148,599 against
   100,000). Any new alarm or trace volume now costs money (`COST-25-ALARM-COUNT`;
   spend-authorization context in `SPEND-AUTHORIZATION`).
-- **A D-310-class exposure is unmeasured on one path.** `D310-RESIDUALS` item (b): `ps` visibility
-  of the docker env pass-through was never re-measured. **Unmeasured, not cleared.**
+- **The last D-310-class exposure path is measured clear** (D-437, 2026-08-24):
+  `make load-staging-learning`'s docker env pass-through showed zero argv/process-title
+  occurrences across six in-flight samples of the exact mechanism (name-only `-e`); the
+  remaining stale-copy risk lives only in operator-browser `localStorage` (§4.3, user action).
 - **Method rule (carried forward): no automated drift detector exists.** `terraform apply` is absent
   from the deploy workflow and nothing compares deployed reality to the tracked tree
   (`F-03-DRIFT-DETECTOR`), which is why the gitignored-tfvars hazard in §7 has no mechanical guard.
@@ -392,7 +396,7 @@ rotation was executed on 2026-08-20. It is a closed incident record, never an ac
 text implying a live credential exposure is stale and is corrected on sight."** Evidence: the
 archived rotation record (`archive/reconciliation-2026-08/REMEDIATION_D310_ROTATION.md`) and
 register `D310-ROTATION` (execution timeline, fail-closed probe, CloudTrail access review — the
-detail is single-homed there, not here). The three live residuals are `D310-RESIDUALS` in §4.3.
+detail is single-homed there, not here). The one live residual is `D310-RESIDUALS` in §4.3.
 
 ---
 
