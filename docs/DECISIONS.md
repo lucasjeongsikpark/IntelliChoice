@@ -30009,3 +30009,49 @@ plan (paid), add trace sampling (engineering, reduces observability), disable st
 (strands the NAT's sole egress consumer), or accept the monthly blackout. No default is
 applied beyond carrying the classification, because every option is a spend or observability
 posture call.
+
+## D-437 — the last D-310 exposure path measured clear: the load-staging docker env pass-through leaks nothing into argv or process titles (accepted, 2026-08-24)
+
+Executes `D310-RESIDUALS` (b) and (c) (queue row 1). D-310's exposure class was environment
+values re-surfacing in the **process table** — measured then as "4 process-table lines carried
+an expanded secret" because npm's `exec` path and Playwright workers re-expose inherited env in
+their process *titles* (the record lives in `e2e/config.ts`'s comment). The
+`make load-staging-learning` path had never been measured for the same class.
+
+**(b) The measurement — a dummy-value replica of the exact mechanism, so no real secret ever
+entered this session.** The Makefile's shape was reproduced verbatim (shell variable → `export`
+by name → `docker run --rm -i -e STAGING_TOKEN_SECRET_LEARNING` name-only → `grafana/k6 run -`),
+with two substitutions that do not touch the measured channel: a random `D310PROBE-…` value in
+place of the Secrets Manager fetch, and a sleep-only k6 script on stdin in place of the staging
+load script — zero network traffic, zero spend. Method note recorded because the first two
+probes failed on it: the samplers dump `ps axww -o pid=,command=` and `ps axwwE` to files
+*during* the run and every grep runs *post-hoc* against the dumps, so the probe value cannot
+reach any sampler's own argv (probe 2's 6/6 "hits" were exactly that self-inflicted artifact).
+
+**Result, macOS host, Docker Desktop, 6 samples while the container ran:**
+- **argv/process-title lines containing the value: 0.** The live-captured docker CLI line is
+  the proof the mechanism was measured: `docker run --rm -i -e BASE_URL=… -e
+  STAGING_TOKEN_SECRET_LEARNING -e VUS=1 grafana/k6 run -` — the NAME in 6/6 samples, the value
+  in none. The D-310 class does **not** occur on this path: the npm/Playwright title
+  re-exposure has no analogue in the docker CLI.
+- **Same-user `ps -E` env display: the docker client process shows the value** (as any
+  env-passing scheme must somewhere) — visible only to the same user on macOS, `0400`-guarded
+  `/proc/<pid>/environ` on Linux. This is a categorically weaker channel than argv (which many
+  systems expose across users) and is not the class D-310 was about; recorded as the known
+  property of the mechanism, not a defect.
+- Platform boundary stated: on this host the k6 process runs inside the Docker Desktop VM and
+  is invisible to host `ps` entirely; on a Linux host it would appear with clean argv and
+  root/same-uid-guarded env. The aws-fetch half was not replicated and is clean statically:
+  its argv carries the secret **id**, and the value travels on a stdout pipe.
+- D-132's criticized claim ("never in argv, `ps`, or a shell history") is now precise for this
+  path: **true for argv and for `ps`'s command display; not true for same-user `ps -E` env
+  display** — which no env-based scheme can avoid.
+
+**(c) `e2e/README.md` corrected** to the post-D-310 shape: no interactive export; `config.ts`
+fetches by secret id per run under `AWS_PROFILE`; the env variables remain explicit overrides
+for CI or one-offs, documented with a warning that interactive export is the pre-D-310 shape.
+
+**What remains of D310-RESIDUALS:** only (a), the user action — re-paste the current secret
+into any operator browser whose `localStorage` holds the dead one — which the repository can
+neither perform nor verify; plus (d), the already-accepted no-standing-rotation residual. The
+row restates to user-only and leaves the execution queue.
