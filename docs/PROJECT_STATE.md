@@ -296,7 +296,7 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | `PAID-RUNS-LANE` | Paid generation and measurement scripts were not invoked; no finding depends on them | UD-2 authorises spend |
 | `TEST-24-429` | A real HTTP 429 has never rendered and stays deliberately open | A funded load test |
 | `IRT-UPGRADE` | The IRT/Bayesian mastery upgrade has no trigger threshold and no owning session | Response volume sufficient for item-response modelling |
-| `PY-314-MAJORS` | Dependabot PRs #1/#8 (`python:3.12-slim → 3.14-slim`, both APIs) stay open unmerged (D-430, read 2026-08-23): both fail their container-scan gate, and the whole stack pins 3.12 (`requires-python`, Dockerfiles, CI) — a runtime major is a deliberate upgrade session, not a bump. D-430 recommends the user either close them with a dependabot major-ignore for the two docker ecosystems, or schedule the upgrade | A deliberate runtime-upgrade decision by the user |
+| `PY-314-MAJORS` | The Python runtime line is pinned at 3.12 by decision (D-431, 2026-08-23): PRs #1/#8 closed, and dependabot now ignores the python base image in both docker ecosystems — so **nothing will resurface a runtime upgrade on its own; this row is the only reminder** | The user schedules a deliberate runtime-upgrade session (lock re-resolved, wheel availability checked, container scan green) |
 
 ### 6.4 PARKED_BY_DECISION (13) — a decision put these down
 
