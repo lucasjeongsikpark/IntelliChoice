@@ -29790,3 +29790,71 @@ race-closing unique constraint `uq_learning_gain_pre_post_cycle` (migration `ece
 which also executed the user-authorised cleanup), and D-336's own staging verification (10 rows
 → 9, earliest survived). WORK-24 closes: hypothesis refuted, cause fixed and constrained,
 duplicate cleaned.
+
+## D-433 — D329-PHANTOM closed: the ran-dead mode is instrumented (Prometheus-only), delivery is proven to the wire, and the phantom-ID action was already done (accepted, 2026-08-24)
+
+Executes `D329-PHANTOM` (queue row 2; `RD-01` still time-blocked at dispatch, 05:26 UTC).
+Delivered through the Orca coordinator/executor workflow: one persistent executor
+(claude/opus/high, launch receipt requested = effective), one correction round, coordinator
+review of the full diff plus an independent focused verification. The three register actions:
+
+**(1) The detection gap — what was actually still open, and what closed it.** The raising half
+was already watched: the deployed wildcard filter `{ $.event = "background_*_failed" }` feeds
+the alarmed `BackgroundTaskFailures` metric, so D-329's original 117-exceptions-in-48-hours
+shape pages today. What nothing watched was the run that ends **without** raising — every call
+falling back to the canonical rung, every publish guard-dropped — which reads exactly like a
+week when nobody clicked "Get a hint". Now:
+`learning_hint_personalization_outcomes_total{outcome}` — six outcomes (`published`,
+`fallback_canonical`, `dropped_stale`, `dropped_late`, `precondition_missing`, `failed`),
+pre-initialised so "flat at zero" is distinguishable from "absent", incremented **exactly once
+per task run structurally** (`_run` does the single `.inc()` on the typed `_Outcome` that
+`_personalize` returns — the invariant is the shape, not six call sites staying correct). The
+`background_hint_personalization_failed` log line is byte-identical; the alarm channel is
+untouched. Detection semantics, stated at both the metric and the scheduler:
+`learning_support_usage_total{support_type="hint"}` moving while `outcome="published"` stays
+flat is personalization running dead.
+
+**The honest boundary (executor drift finding, accepted):** the counter is **Prometheus-only**.
+EMF promotion is decided by the otel `filter/kpis` allowlist and `awsemf` `metric_declarations`
+in `terraform/modules/ecs-service/main.tf`, which this task's boundaries forbade touching — so
+the deployed CloudWatch series count and bill are unchanged, and **nothing in AWS can chart or
+alarm on this counter until a terraform allowlist edit promotes it** (+6 learning-api series).
+That promotion sits inside UD-5 (alarm/chart posture) and COST-25 (the free-tier wall) and is
+deliberately left with the user; the Frozen Spec's own "~34 → ~40 EMF series" premise was wrong
+and this entry corrects it.
+
+**(2) Delivery proven end-to-end, locally.** `test_stream_personalized_hint_over_http.py` runs
+the app under a **real uvicorn server on an ephemeral port** (the first such harness in the
+suite — `TestClient.stream()` hangs against a never-closing SSE endpoint, D-033/D-404), drives
+the full student journey over HTTP, holds the SSE stream open like a browser, and asserts the
+ordering the product promises: the click returns the *authored* rung (read independently from
+`question_templates`), the first pushed frame carries that canonical text, the next frame's
+`intervention.hint_text` equals the committed `hint_events.personalized_hint_text` and differs
+from the canonical, the pause survives the frame, and `outcome="published"` increments by
+exactly 1 on the one run where "published" is known true. Falsified by removing the scheduler
+injection (fails on the missing frame). What this deliberately does not claim: browser
+rendering, or anything on staging — staging still runs `gha-898e2fb4270b` and every claim here
+is local (LB-05). A staging walk of this path belongs to the next live-probe session.
+
+**(3) The phantom-ID action was already satisfied.** The register offered "write the missing
+D-329 entry, or record its absence at each citation site". Writing it is forbidden (H4: no body
+is reconstructed for a phantom id), and its absence **is already recorded** — H4's table has
+carried D-329 ("only `####` sub-headings — one inside D-330, one inside D-377; 9 sites here")
+since 2026-08-20. No further per-site annotation is proportionate; this entry is the record
+that (3) closes by citation to H4.
+
+**Correction round (one).** The executor's own drift finding #2: the metric shipped without the
+module's `learning_*`/`qa_*` domain prefix. Renamed to
+`learning_hint_personalization_outcomes_total` before anything landed — a one-line rename now,
+a metric-identity break forever after. The Python symbol stays `HINT_PERSONALIZATION_OUTCOMES`,
+matching how `SUPPORT_USAGE` names `learning_support_usage_total`.
+
+**Verification (executor, then coordinator-independent).** Executor: ruff clean, pyright 0,
+observability 63 passed, the two learning test files 10 passed / 0 skipped, full suite
+**1784 passed / 2 skipped / 1 xfailed** twice (467.72 s pre-rename, 474.73 s post-rename;
+baseline 1779 + exactly the 5 added tests). Coordinator: full diff read; rename grep-zero
+outside `tasks/`; 73 focused tests re-run green; lint/typecheck re-run green. A mid-task
+whole-suite slowdown scare (~3.5 h projected) did not survive the final runs; the executor's
+environment note records the likely cause as local dev-DB bloat (6.39M `checkpoint_writes`
+rows, 3.1 GB; autovacuum last 2026-08-15..18) — an environment observation, not a code finding,
+and local retention stays outside scope (D-333's precondition binds any checkpoint deletion).
