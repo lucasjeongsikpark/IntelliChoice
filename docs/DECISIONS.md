@@ -30055,3 +30055,41 @@ for CI or one-offs, documented with a warning that interactive export is the pre
 into any operator browser whose `localStorage` holds the dead one — which the repository can
 neither perform nor verify; plus (d), the already-accepted no-standing-rotation residual. The
 row restates to user-only and leaves the execution queue.
+
+## D-438 — the owed §5.3/§5.36 re-read performed, four changes late; "architecture change" is now defined so the habit cannot silently lapse again (accepted, 2026-08-24)
+
+Executes `TEST-05-DESCRIPTIVE-REREAD` (queue row 1). The two descriptive traceability rows were
+fenced on the condition that a human re-reads them "when the architecture changes" — and that
+habit demonstrably never fired: four qualifying change groups landed after tranche 6
+(D-334/D-335 and D-349, the SSE relay; D-406/W14, the NAT move; D-393/D-394, the logging pair)
+with no re-read record. Both halves of the register's remaining action are done — the re-read
+**and** the definable trigger, because a habit that already lapsed once is not worth re-arming
+unchanged.
+
+**The re-read (2026-08-24, HEAD `b2fc6a0`):**
+
+- **§5.3 (enterprise architecture): no new drift.** All four change groups sit below the
+  section's altitude — the diagram carries no SSE transport, no NAT, no log-field detail. It
+  remains the original enterprise sketch, divergent from the as-built runtime exactly as the
+  descriptive fence already records (EKS/Aurora/WAF vs ECS/RDS/no-WAF).
+- **§5.36 (technology placement): one growth and one miss.** The `PostgreSQL` placement grew a
+  use the table predates — the cross-replica SSE event relay over `LISTEN`/`NOTIFY` (D-334/
+  D-335 learning, D-349 chat). And the re-read independently caught a cell the 2026-08-20
+  amendment's "every other row stands" overlooked: **`Grafana` was decided otherwise** —
+  dashboards are CloudWatch (D-244); the Prometheus half is as built. Both are now carried by a
+  dated §5.36 amendment marker and the top-of-SPEC index.
+
+**The trigger (the convention this entry sets):** *"the architecture changes" means any edit to
+`docs/ARCHITECTURE.md`'s as-built content.* The same reconciliation that makes such an edit
+must either re-stamp TRACEABILITY's two descriptive rows (re-read performed) or append a dated
+skip note to them; an ARCHITECTURE-touching change with neither is an open defect in the
+instrument. Recorded in TRACEABILITY's method note beside the fence, where the next person
+arguing for a fifth verdict already has to look. This replaces an undefined human habit with a
+checkable rule bound to an artifact edit — the register's own lesson ("a descriptive verdict is
+only as good as the human habit substituting for a mechanism") applied.
+
+**Method honesty:** the re-read compared the two sections against ARCHITECTURE.md and the
+primary evidence already read in this session series (the relay code and tests, the metrics
+module, the terraform); it did not re-derive the whole §5.36 table cell by cell beyond the four
+change groups plus cells adjacent to them — the 2026-08-20 sweep remains the baseline for the
+rest.
