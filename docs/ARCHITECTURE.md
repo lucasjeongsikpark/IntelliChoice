@@ -410,20 +410,31 @@ to rot, because nothing fails when it does.)*
   emit `<job>_job_complete` with its counts, because "it ran" and "it did anything" are different
   questions and `print()` answers neither; and a heartbeat alarm on a scheduled job is the one
   place `treat_missing_data = "breaching"` is correct — the exit-code alarm cannot see a job that
-  never starts, so there the **absence of data is the incident**.
+  never starts, so there the **absence of data is the incident**. A fourth corollary since D-433:
+  the wildcard only sees the *raising* half. A background task that degrades **without** raising —
+  every hint-personalization call falling back to the canonical rung, every publish guard-dropped —
+  reads on every log and alarm exactly like a quiet week, which is how D-329 ran dead in
+  production. `learning_hint_personalization_outcomes_total{outcome}` names that shape (`hint`
+  usage moving while `outcome="published"` stays flat = personalization running dead); it is
+  Prometheus-only and alarmed nowhere (UD-5), and the delivery it counts is proven to the wire by
+  `test_stream_personalized_hint_over_http.py` — a real uvicorn server, the personalized frame
+  read off the socket.
 - **A labelled counter has no series until its first event, which is the moment an alarm on it
   would have been useful** (COST-22, fixed 2026-08-21 at `4dbcc41`). `prometheus_client` creates
   a child lazily on the first `.labels()` call, so `qa_service_degraded_total` — built so a
   Bedrock outage stops reading as a surge of off-topic questions — was absent from the deployed
-  namespace until an outage would have created it. All eight bounded labelled metrics (20 label
-  combinations) are now pre-initialised at import in `metrics.py`;
+  namespace until an outage would have created it. All nine bounded labelled metrics (26 label
+  combinations, `learning_hint_personalization_outcomes_total`'s six included since D-433) are
+  pre-initialised at import in `metrics.py`;
   `HTTP_REQUESTS`/`HTTP_REQUEST_DURATION` are explicitly exempt (route×status cardinality), and
   `test_metrics_label_preinitialisation.py` fails on any future labelled metric that is neither
-  pre-initialised nor exempted. Once an image deploy ships this (it is deploy-gated, UD-1), the
-  pre-inited series reach CloudWatch through the otel `filter/kpis` allowlist in **both** app
-  namespaces — an upper bound of **34 new always-present custom-metric series** (17 × 2 services;
-  `sse_relay_failures_total` is in neither the include list nor `metric_declarations`, so its
-  three series stay Prometheus-only — and it therefore cannot be alarmed on in AWS at all).
+  pre-initialised nor exempted. The pre-inited series reach CloudWatch through the otel
+  `filter/kpis` allowlist in **both** app namespaces — an upper bound of **34 always-present
+  custom-metric series** (17 × 2 services, unchanged by D-433: like `sse_relay_failures_total`,
+  `learning_hint_personalization_outcomes_total` is in neither the include list nor
+  `metric_declarations`, so its six series stay **Prometheus-only** — visible to tests and a
+  local scrape, chartable and alarmable in AWS not at all until a terraform allowlist edit
+  promotes it, which is UD-5/COST-25 territory and deliberately not done with the counter).
 - **A layout constraint about vertical fit must be queried on height, not width** (D-382).
   `.journey-stage-hint` carried the rule in words — *"must never push the bar tall enough to
   shove the question below the fold"* — and the only media query enforcing it was

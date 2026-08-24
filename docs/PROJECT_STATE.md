@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-24** (standalone sessions 08-23/24: D-428 `DRIFT-86` runbook fix, D-429 `WORK-44` closed, D-430/D-431 dependabot batch + python pin, D-432 seam (b) healed + `WORK-24` refuted) |
-| Last product-code commit | **`710e977`** (2026-08-24, PR #390) — the mid-interrupt checkpoint seam heals (D-432); before it `fb1ec87` (the 12 dependabot merges, D-430) |
+| Snapshot date | **2026-08-24** (ninth Orca run: D-433 `D329-PHANTOM` closed; earlier 08-23/24 standalone: D-428 `DRIFT-86`, D-429 `WORK-44`, D-430/D-431 dependabot batch + python pin, D-432 seam (b)) |
+| Last product-code commit | **`5bbe08a`** (2026-08-24, PR #392) — hint-personalization outcome counter + real-HTTP SSE delivery proof (D-433); before it `710e977` (seam (b) heals, D-432) |
 | Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
 | Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **17 product commits** (`898e2fb` → `710e977`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), and the seam-(b) healing (D-432) — so **staging's seam (b) is still a dead end until the next deploy**). The scheduled-job **metric filters (2026-08-21) and heartbeat alarm windows (2026-08-22)** were applied via control-plane `terraform apply` (§8) |
+| Repo-vs-deployed gap | **18 product commits** (`898e2fb` → `5bbe08a`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), the seam-(b) healing (D-432, **staging's seam (b) is still a dead end until the next deploy**), and the D-433 outcome counter — **staging's personalization ran-dead mode stays uninstrumented until then too**). The scheduled-job **metric filters (2026-08-21) and heartbeat alarm windows (2026-08-22)** were applied via control-plane `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `710e977`, or if the deployed staging image tag no longer matches this
+commit lands after `5bbe08a`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -79,7 +79,7 @@ the full local suite green on the merged HEAD; staging is unaffected until the n
 
 ## 4. Active engineering work
 
-12 open engineering entries. Full evidence per entry:
+11 open engineering entries. Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
@@ -89,14 +89,13 @@ by D-430). The `NO-NEW-TEST-CODE` category is **closed**: all three
 defects the audit established by code reading only (REQ-27, SEC-13, COST-06) gained executed
 tests on 2026-08-21/22.
 
-### 4.1 ACTIVE_REMEDIATION (7) — something built is wrong or silently ineffective
+### 4.1 ACTIVE_REMEDIATION (6) — something built is wrong or silently ineffective
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
 | `RD-01` | Dead-man's switch confirmed for the three nightly jobs 2026-08-22; the weekly job's window fix is **built and applied live** the same day (`4a5ad20`; period 604800 — CloudWatch's one-week maximum, so it pages after the *first* missed Sunday; the 2×-cadence ideal was refused by the API) | Confirmation only: after the **Sunday 2026-08-24 18:30 UTC** run, read `JobCompletions{job=memory-consolidate}` and confirm ALARM → OK; then delete this row (the last of RD-01) — see 4.3 | engineering |
 | `D310-RESIDUALS` | Three follow-ups surviving the executed D-310 rotation | See 4.3 | user / engineering / docs |
 | `LANGSMITH-INGEST` | Trace ingestion failing at volume and flapping; nobody paged by design | Read app/ops log content for `langsmith.client` lines; classify 403 / quota / timeout. A quota or plan-limit cause escalates to a user call | engineering |
-| `D329-PHANTOM` | Personalized hints ran dead in production; the detection gap is unchanged | Close the detection gap for silently-swallowed background failures (generalises to D-344/D-350); prove end-to-end that a student sees the personalized hint | engineering + docs |
 | `D356-FAMILY` | Erasure-guard family has no completeness claim; two entries both claim to be "the third place" | Enumerate every publisher writing the shared state and check each against the guard; then one dated status correction; fix the D-137/D-141/D-356 → D-357 wrong-id citation in both documents (rides W-18) | engineering + docs |
 | `TEST-05-DESCRIPTIVE-REREAD` | An owed human re-read of SPEC §5.3/§5.36 never fired across four qualifying changes — and both rows sit under the 37-of-37 criterion-1 claim | Perform the re-read, or replace the human habit with a definable trigger ("what counts as an architecture change" is undefined) | engineering + docs |
 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Three built controls nothing invokes — the PII log scanner (**one historical clean run, no continuous assurance**), `make image-check`, retention CLI job reporting. Batch of six; four members routed elsewhere | Wire `scan-logs` into CI or a schedule; wire `make image-check` into CI/deploy and document it; add `report_job_complete` to `checkpoint_retention_cli` | engineering |
@@ -176,17 +175,16 @@ UD-constrained tails; every §4 key appears exactly once):**
 | # | Item(s) | Ordering evidence |
 |---|---|---|
 | 1 | `RD-01` (Sunday confirmation) | Restated 2026-08-22 (evening): the weekly-window fix is built and applied live (`4a5ad20`, 7-day capped window); the only remaining step is time-blocked — after the Sunday **2026-08-24 18:30 UTC** run, a free read-only check that `JobCompletions{job=memory-consolidate}` publishes and the alarm goes ALARM → OK (§4.3). If a continue arrives before then, the eligibility gate skips to row 2 after reconciling this note |
-| 2 | `D329-PHANTOM` | Detection gap for silently-swallowed background failures (generalises D-344/D-350) |
-| 3 | `D356-FAMILY` | Publisher enumeration, then one dated status correction (rides W-18) |
-| 4 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
-| 5 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
-| 6 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
-| 7 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
-| 8 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
-| 9 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
-| 10 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
-| 11 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
-| 12 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
+| 2 | `D356-FAMILY` | Publisher enumeration, then one dated status correction (rides W-18) |
+| 3 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
+| 4 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
+| 5 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
+| 6 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
+| 7 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
+| 8 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
+| 9 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
+| 10 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
+| 11 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
 
 ---
 
@@ -224,8 +222,10 @@ internal NL2SQL pipeline still wanted, deferred, or dropped? (e) `REQ-39-ESTIMAT
 the "Current estimated level" wording stand? (f) `COMMITTED-ORG-DRAFTS` — are committed outbound
 drafts allowed at all, and which credential-mention policy governs a sent message?
 
-Three items hang off queue entries and must not be lost — **one labelled sub-question** (UD-5's
-§7-R9 checkpoint-repair tripwire) plus **UD-7's REQ-18 invalid-output capture (queue option
+Four items hang off queue entries and must not be lost — **two labelled sub-questions on UD-5**
+(the §7-R9 checkpoint-repair tripwire, and — since D-433 — whether
+`learning_hint_personalization_outcomes_total` is promoted into the otel EMF allowlist so AWS can
+chart/alarm it: +6 learning-api series, COST-25 context; until then it is Prometheus-only) plus **UD-7's REQ-18 invalid-output capture (queue option
 (viii))** and **UD-2's read-only DB-session rider**. (UD-1's §2.6 criterion-6 gate-integrity
 sub-question was re-homed into **D-426** when UD-1 was answered 2026-08-23: the defensible
 reading — the week counts from the first real `JobCompletions` datapoint, earliest satisfaction
