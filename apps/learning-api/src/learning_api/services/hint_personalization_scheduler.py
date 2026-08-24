@@ -45,7 +45,7 @@ already happened.
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.hints import HintEventRepository
@@ -53,6 +53,7 @@ from intellichoice_db.repositories.mastery import MasteryRepository
 from intellichoice_db.repositories.memory import MemoryRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_db.repositories.study import StudyRepository
+from intellichoice_observability.metrics import HINT_PERSONALIZATION_OUTCOMES
 from intellichoice_shared.bedrock import BedrockGateway
 from intellichoice_shared.profiles import ProfileAdapter
 from langchain_core.runnables import RunnableConfig
@@ -65,6 +66,31 @@ if TYPE_CHECKING:
     from learning_api.graph.build import LearningGraph
 
 logger = logging.getLogger(__name__)
+
+# **The vocabulary for D-329's other half.** Raised failures are watched - the
+# `logger.exception` below feeds a live CloudWatch metric filter and an alarm. Nothing watched
+# the runs that end *without* raising, and "every call falls back to canonical" is exactly such
+# a run: the original ran-dead-in-production mode, silent by construction.
+#
+# **What the counter makes detectable:** `learning_support_usage_total{support_type="hint"}`
+# moving while `learning_hint_personalization_outcomes_total{outcome="published"}` stays flat at
+# zero means hints are being served and none of them are being personalized. Whether that should
+# raise an alarm is UD-5's held user question, and this names the number rather than answering
+# it.
+#
+# Two groups. `precondition_missing` ends before the paid call, so nothing was spent and
+# nothing was owed; the other four end after it, with a durable `hint_events` row and - except
+# for `published` - nothing on the student's screen. `dropped_late` folds the empty-checkpoint
+# and no-snapshot returns in with the publish-time guard because all three are that same
+# terminal shape, and the log lines already tell them apart when one needs telling apart.
+_Outcome = Literal[
+    "published",
+    "fallback_canonical",
+    "dropped_stale",
+    "dropped_late",
+    "precondition_missing",
+    "failed",
+]
 
 
 def _hint_is_still_on_screen(values: dict, *, attempt_id: str, level: int) -> bool:
@@ -133,6 +159,16 @@ class BackgroundHintPersonalizationScheduler:
         task.add_done_callback(self._tasks.discard)
 
     async def _run(self, learning_session_id: str, marker: dict) -> None:
+        """One task run, exactly one outcome.
+
+        Counted here rather than at each of the six terminal points inside `_personalize`, so
+        "one outcome per run" is a property of the shape instead of six call sites staying
+        correct - the failure being instrumented is precisely a path that ends saying nothing.
+        """
+        outcome = await self._personalize(learning_session_id, marker)
+        HINT_PERSONALIZATION_OUTCOMES.labels(outcome=outcome).inc()
+
+    async def _personalize(self, learning_session_id: str, marker: dict) -> _Outcome:
         try:
             async with self._session_factory() as session:
                 study_repo = StudyRepository(session)
@@ -141,13 +177,13 @@ class BackgroundHintPersonalizationScheduler:
 
                 attempt = await study_repo.get_attempt(marker["attempt_id"])
                 if attempt is None:
-                    return
+                    return "precondition_missing"
                 variant = await question_repo.get_variant(attempt.question_variant_id)
                 if variant is None:
-                    return
+                    return "precondition_missing"
                 template = await question_repo.get_template(variant.question_template_id)
                 if template is None or not template.hint_ladder:
-                    return
+                    return "precondition_missing"
 
                 ladder = list(template.hint_ladder)
                 level = min(int(marker["level"]), len(ladder))
@@ -207,12 +243,12 @@ class BackgroundHintPersonalizationScheduler:
                 # Every rejection path returns the canonical text verbatim, which is already
                 # on the student's screen. Publishing would repaint the panel with identical
                 # content - motion for nothing.
-                return
+                return "fallback_canonical"
 
             config: RunnableConfig = {"configurable": {"thread_id": learning_session_id}}
             snapshot = await self._graph_getter().aget_state(config)
             if not snapshot.values:
-                return
+                return "dropped_late"
             if not _hint_is_still_on_screen(
                 snapshot.values, attempt_id=marker["attempt_id"], level=level
             ):
@@ -223,7 +259,7 @@ class BackgroundHintPersonalizationScheduler:
                     "hint_personalization_dropped_stale learning_session=%s",
                     learning_session_id,
                 )
-                return
+                return "dropped_stale"
 
             content = {
                 "type": "hint",
@@ -252,15 +288,25 @@ class BackgroundHintPersonalizationScheduler:
                     "hint_personalization_dropped_help_changed_late learning_session=%s",
                     learning_session_id,
                 )
-                return
-            if event is not None:
-                self._events.publish(learning_session_id, event)
+                return "dropped_late"
+            if event is None:
+                # The builder found no snapshot to send. Same terminal shape as the drop
+                # above - the rewrite is durable in `hint_events` and the screen never
+                # changed - so it counts as the same outcome.
+                return "dropped_late"
+            self._events.publish(learning_session_id, event)
+            return "published"
         except Exception:
             # Swallowed on purpose (same reasoning as the other two schedulers): nothing
             # awaits this, and an exception escaping a detached task only surfaces as "Task
             # exception was never retrieved" at GC time. The student keeps the canonical
             # hint, which is a complete, reviewed hint.
+            #
+            # Unchanged on purpose, and load-bearing: the deployed metric filter behind the
+            # `BackgroundTaskFailures` alarm matches `{ $.event = "background_*_failed" }`
+            # over this log group, so the message's shape is what keeps that alarm armed.
             logger.exception("background_hint_personalization_failed")
+            return "failed"
 
 
 async def _relevant_fact(
