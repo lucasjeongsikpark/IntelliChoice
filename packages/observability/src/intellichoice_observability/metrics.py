@@ -44,6 +44,33 @@ SUPPORT_USAGE = Counter(
     labelnames=("support_type",),  # "hint" | "solution" | "video"
 )
 RETRIES = Counter("learning_retry_total", "Study-ladder retry attempts")
+
+# D-329's other half, and the half the incident was actually about. 117 swallowed
+# personalization failures in 48 hours were invisible because *nothing said anything* - and only
+# the raising half of that is watched now (the scheduler's `logger.exception` feeds a metric
+# filter and the `BackgroundTaskFailures` alarm). Its silent terminal outcomes were not: a
+# fallback to the canonical rung, a stale drop, a missing precondition and an empty checkpoint
+# each returned normally and counted nothing, so a config regression that made *every* call fall
+# back raised nothing and read on every dashboard exactly like a week when nobody clicked
+# "Get a hint".
+#
+# **The shape this exists to make visible: `learning_support_usage_total{support_type="hint"}`
+# moving while `learning_hint_personalization_outcomes_total{outcome="published"}` stays flat at
+# zero is personalization running dead.** Whether that should raise an alarm is UD-5's held user
+# question - this is the number the question is about, not an answer to it.
+#
+# One dimension, because the EMF export is capped at one (see `graph/nodes.py`'s
+# `video_unavailable` comment); the six outcome values below are the whole vocabulary, and
+# `BackgroundHintPersonalizationScheduler._run` increments exactly one of them per task run.
+# Like every other metric here it reaches CloudWatch only once the collector's `filter/kpis`
+# allowlist names it (`terraform/modules/ecs-service/main.tf`), which is deliberately a separate
+# edit - and is not part of this change.
+HINT_PERSONALIZATION_OUTCOMES = Counter(
+    "learning_hint_personalization_outcomes_total",
+    "Terminal outcomes of the background hint-personalization task (D-272/D-329)",
+    labelnames=("outcome",),
+)
+
 # AUD-X-07: a session whose checkpoint referenced a domain row that did not exist, rolled
 # back so the student can continue. Should be flat at zero; any movement means requests are
 # dying between the checkpoint commit and the domain commit, which a deploy's task drain
@@ -149,6 +176,22 @@ PREINITIALISED_LABEL_VALUES: tuple[tuple[Counter, dict[str, tuple[str, ...]]], .
     (ATTENDANCE_CHECKS, {"result": ("present", "blocked", "unknown")}),
     (EXAM_COMPLETIONS, {"phase": ("pre", "post")}),
     (SUPPORT_USAGE, {"support_type": ("hint", "solution", "video")}),
+    # The detection shape above only works if `published` is a series before the first publish:
+    # "flat at zero" and "absent" have to be distinguishable, and this metric's whole purpose is
+    # to be read while it is zero.
+    (
+        HINT_PERSONALIZATION_OUTCOMES,
+        {
+            "outcome": (
+                "published",
+                "fallback_canonical",
+                "dropped_stale",
+                "dropped_late",
+                "precondition_missing",
+                "failed",
+            )
+        },
+    ),
     (QA_ANSWERS, {"result": ("grounded", "no_answer")}),
     # `qa_maps_calls_total` and `qa_calendar_calls_total` carry no documented vocabulary; these
     # are every value their call sites can emit (`branch_locator.py:72/77`,
