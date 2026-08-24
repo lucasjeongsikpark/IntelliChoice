@@ -29673,3 +29673,42 @@ in this entry — the first §4 key without a register anchor, which the §4 int
 `ARCH-33-CI-GATE`'s PR-backlog half is answered by this read; its `gh run list` half stays open.
 WORK-44 #2's shared anonymous rate-limit bucket stays where it already is: the §6.4 accepted-
 residual set, untouched by this closure.
+
+## D-430 — the 2026-08-21 dependabot batch merged under D-322 #8; the two python 3.14 majors read and declined for now (accepted, 2026-08-23)
+
+Executes `DEP-PR-BATCH-2026-08-21` (queue row 2; `RD-01` still time-blocked). **No new merge
+authority is claimed here**: D-322 #8 (user, 2026-08-14) decided dependency PRs are batch-merged
+with the standing rule *patch/minor automatic, majors read individually*. This entry records the
+execution and the two judgment calls inside it.
+
+**Executed.** All 12 patch/minor PRs merged (rebase-merge, matching the repo's PR convention),
+each with 9/9 CI checks green at merge time: python #358 (sqlalchemy ≥2.0.52), #357 (boto3
+1.43.73), #351 (uvicorn ≥0.52.3); learning-web #355, #354, #353, #350, #347; chat-web #356,
+#352, #349, #348. Landed 2026-08-24 UTC as `c8344f1..fb1ec87` — 12 product commits, widening
+the repo-vs-deployed gap to 16 (§1/§3 updated). Mechanics worth keeping: same-manifest lockfile
+PRs conflict after each sibling merge (the first learning-web merge conflicted the other four);
+`@dependabot rebase` cleared all of them in one round (~45 min, CI re-runs included), and
+dependabot *refreshed versions during rebase* (vite 8.2.1→8.2.2, oxlint 1.78→1.79), so the
+merged versions exceed the PR titles the register read on 2026-08-23 — the merged state, not the
+title, is truth. Verification on the merged HEAD, locally: `uv sync --all-packages`, `make lint`,
+`make typecheck` green; `make test` result recorded in the session log (`docs/log/`).
+
+**The majors, read individually (#1, #8: `python:3.12-slim → 3.14-slim`, one per API).**
+Declined for now — not merged, not closed:
+1. Both fail their container-scan check (`learning-api-container-scan` /
+   `chat-api-container-scan`), so neither satisfies the CI-green gate in any case.
+2. The entire stack pins 3.12: every `requires-python = ">=3.12"`, both Dockerfiles (builder and
+   runtime stages), CI images, and `uv.lock` resolved under 3.12. A runtime major means
+   re-resolving the lock, verifying cp314 wheels across the LangGraph/LlamaIndex/pydantic-core
+   chain, and a staging deploy — a deliberate upgrade session, not a dependabot one-liner.
+3. Closing the PRs outright, or adding `ignore: version-update:semver-major` to the two docker
+   ecosystems in `.github/dependabot.yml`, would stop the weekly re-noise — but whether to adopt
+   3.14 eventually or suppress the reminder is the user's platform call, so the PRs stay open
+   and the recommendation goes to the user (PROJECT_STATE §6.3 `PY-314-MAJORS`).
+   **Recommendation: close #1/#8 and add the major-ignore rule**; revisit the runtime version
+   deliberately (3.13 LTS-window or 3.14) in its own session with the lock re-resolved and the
+   container scan green.
+
+**Also recorded:** the merges advance origin/main; this session's docs commits remain local-only
+(pushing was not separately authorized), so origin's PROJECT_STATE lags HEAD's by three docs
+commits until the user pushes or asks for a push.
