@@ -10,7 +10,7 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-24** (coordinator sessions: D-433 `D329-PHANTOM` closed — ninth Orca run; D-434 `D356-FAMILY` closed by enumeration; earlier 08-23/24: D-428..D-432) |
+| Snapshot date | **2026-08-24** (coordinator sessions: D-433 `D329-PHANTOM`, D-434 `D356-FAMILY`, D-435 `RD-01` closed — the dead-man's switch is confirmed for all four jobs; earlier 08-23/24: D-428..D-432) |
 | Last product-code commit | **`5bbe08a`** (2026-08-24, PR #392) — hint-personalization outcome counter + real-HTTP SSE delivery proof (D-433); before it `710e977` (seam (b) heals, D-432) |
 | Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
 | Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
@@ -79,7 +79,7 @@ the full local suite green on the merged HEAD; staging is unaffected until the n
 
 ## 4. Active engineering work
 
-10 open engineering entries. Full evidence per entry:
+9 open engineering entries. Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
@@ -89,11 +89,10 @@ by D-430). The `NO-NEW-TEST-CODE` category is **closed**: all three
 defects the audit established by code reading only (REQ-27, SEC-13, COST-06) gained executed
 tests on 2026-08-21/22.
 
-### 4.1 ACTIVE_REMEDIATION (5) — something built is wrong or silently ineffective
+### 4.1 ACTIVE_REMEDIATION (4) — something built is wrong or silently ineffective
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
-| `RD-01` | Dead-man's switch confirmed for the three nightly jobs 2026-08-22; the weekly job's window fix is **built and applied live** the same day (`4a5ad20`; period 604800 — CloudWatch's one-week maximum, so it pages after the *first* missed Sunday; the 2×-cadence ideal was refused by the API) | Confirmation only: after the **Sunday 2026-08-24 18:30 UTC** run, read `JobCompletions{job=memory-consolidate}` and confirm ALARM → OK; then delete this row (the last of RD-01) — see 4.3 | engineering |
 | `D310-RESIDUALS` | Three follow-ups surviving the executed D-310 rotation | See 4.3 | user / engineering / docs |
 | `LANGSMITH-INGEST` | Trace ingestion failing at volume and flapping; nobody paged by design | Read app/ops log content for `langsmith.client` lines; classify 403 / quota / timeout. A quota or plan-limit cause escalates to a user call | engineering |
 | `TEST-05-DESCRIPTIVE-REREAD` | An owed human re-read of SPEC §5.3/§5.36 never fired across four qualifying changes — and both rows sit under the 37-of-37 criterion-1 claim | Perform the re-read, or replace the human habit with a definable trigger ("what counts as an architecture change" is undefined) | engineering + docs |
@@ -109,24 +108,7 @@ tests on 2026-08-21/22.
 | `WORK-13-FIXTURES` | Single-spec e2e isolation is behaviourally resolved **on `gha-44a12dfc9549`** (a build no longer deployed — the D-426 deploy shipped `gha-898e2fb4270b`); the **17-spec cross-spec contention scope stays open** (never re-run) and the test-side fixture fix is owed | Land the fixture-isolation fix across the seventeen specs sharing `studentPresent` (prerequisite for UD-2's whole-directory arm — the paid re-run is `DRIFT-58`'s residual, reopened by UD-2); do not re-run the closed one-file scope. The UD-1 ordering constraint is discharged: the deploy happened 2026-08-23, so any re-run now tests the current build | engineering + docs |
 | `M3-D370-SOLUTION-RUNG` | The solution terminal rung has no staging e2e coverage, under a roadmap-closing ✅ | Write the staging e2e coverage for the solution terminal rung | engineering + docs |
 
-### 4.3 The two items an agent should be able to act on from this file alone
-
-**`RD-01` — everything is built and applied; one Sunday confirmation remains.** The 2026-08-21
-pattern fix (`b06a5df`) was confirmed end-to-end on 2026-08-22: first-ever `JobCompletions`
-datapoints, three nightly alarms ALARM → OK (`chat-purge` 19:05:51Z, `retention-purge` 19:11:05Z,
-`session-consolidate` 19:42:40Z; long-period alarms evaluate ~1–1.7 h behind their datapoints).
-The weekly-job defect that confirmation surfaced (`memory-consolidate` under the uniform 2-day
-window = permanent weekly flapping) was fixed and applied the same day: the heartbeat window is
-now **per-job** — `min(2 × cadence, 604800)` (`4669ee2` + `4a5ad20`), because CloudWatch refused
-the 2×-weekly ideal at apply time (*"EvaluationPeriods * Period must be <= 604800 for alarms
-using period >= 3600"*, verbatim). The weekly alarm therefore runs a **7-day window** live
-(period 604800, read back 2026-08-22): no flapping, and it pages after the **first** missed
-Sunday — more sensitive than the ideal rule, the safe direction for a `retry_attempts = 0`
-paid-API job. `test_scheduled_job_heartbeat_cadence_parity.py` (D-385 class) pins the capped
-rule and cites the API error. **What remains:** after the Sunday **2026-08-24 18:30 UTC** run,
-confirm `JobCompletions{job=memory-consolidate}` publishes and the alarm goes ALARM → OK (its
-current ALARM is factually accurate: no completion in the trailing week). Job **success** stays
-unproven for all four: the events report completion, not correctness.
+### 4.3 The item an agent should be able to act on from this file alone
 
 **`D310-RESIDUALS` — three follow-ups outliving the executed rotation.** (a) **User action:**
 re-paste the current secret into any browser holding the dead one in `localStorage` — it now fails
@@ -173,16 +155,15 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-| 1 | `RD-01` (Sunday confirmation) | Restated 2026-08-22 (evening): the weekly-window fix is built and applied live (`4a5ad20`, 7-day capped window); the only remaining step is time-blocked — after the Sunday **2026-08-24 18:30 UTC** run, a free read-only check that `JobCompletions{job=memory-consolidate}` publishes and the alarm goes ALARM → OK (§4.3). If a continue arrives before then, the eligibility gate skips to row 2 after reconciling this note |
-| 2 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
-| 3 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
-| 4 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
-| 5 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
-| 6 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
-| 7 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
-| 8 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
-| 9 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
-| 10 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
+| 1 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
+| 2 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
+| 3 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
+| 4 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
+| 5 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
+| 6 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
+| 7 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
+| 8 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
+| 9 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
 
 ---
 
@@ -265,7 +246,7 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 
 | Register key | One line | Reopen condition |
 |---|---|---|
-| `C6-UNATTENDED` | §2.6 criterion 6 arithmetically unsatisfiable yet, and job success unproven | First `JobCompletions` datapoints observed 2026-08-22 — the seven-day confirmed-firing clock for the nightly three runs from that date (earliest satisfiable 2026-08-29); the weekly job's instrument stays mis-specified until `RD-01`'s residual lands (§4.3) |
+| `C6-UNATTENDED` | §2.6 criterion 6 arithmetically unsatisfiable yet, and job success unproven | First `JobCompletions` datapoints observed 2026-08-22 — the seven-day confirmed-firing clock for the nightly three runs from that date (earliest satisfiable 2026-08-29); the weekly instrument is now confirmed end-to-end too (D-435: first `memory-consolidate` completion Sunday 2026-08-23 18:30 UTC, ALARM → OK 19:32:55Z), so only the clock and job **success** remain open |
 | `DB-CONTENT-VERIFY` | Three DB-content claims unverifiable read-only; one needs a mutation (`WORK-03` closed 2026-08-23 — the D-426 deploy applied migration `8509c0486d8d`) | UD-2 authorizes a read-only session |
 | `LANGSMITH-RETENTION` | The retention setting has no in-repo expression and was never read (UD-11) | Open now — a two-minute user console read |
 | `ARCH-35-ORG-TIME` | `ORG_TIME_CONFIRMED = false` is deployed; anything time-of-day dependent runs on assumed hours | The org answers, or the user authorises building the D-153 §4 guard early — the guard is a **local** assertion and is buildable now |
@@ -304,7 +285,7 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | `INT-10-PEAK-CONCURRENCY` | Parked by **D-153 §3/§6** (purchase withdrawn — not deferred — and the ask held for integration); the 150-concurrent org ask sits behind an unsent message | Integration start; measure peak concurrency then |
 | `RD-12-INGRESS` | Parked by **D-152** (DNS records are added at integration time, D-153 §6); documented product hostnames are absent live; staging is reached through two `*.cloudfront.net` domains. **Procedural:** probe those, and a direct-ALB timeout is by design, not an outage | Integration, when the org adds DNS records |
 | `WORK-23-RETENTION-JOB-GATING` | Parked by **D-333** (its consolidate-before-delete precondition is the parking condition, not yet verified); the checkpoint-retention job is genuinely unscheduled. Its stated prerequisite is now **half met**: `session-consolidate` has a verified record of firing as of 2026-08-22 (`session_consolidate_job_complete`, threads 5623, written 0, plus its `JobCompletions` datapoint and ALARM → OK). D-333's consolidate-before-delete precondition (§5 UD-7) must still be verified implemented first | UD-7, plus verifying the D-333 precondition is implemented (the firing record now exists) |
-| `F4-CRITERION6` | Criterion 6 was closed on an explicit user bypass; its reopen condition is live and was undetectable while `RD-01` silenced the instrument — the instrument was repaired and confirmed 2026-08-22, so a waived-firing failure among the nightly three is detectable from that date (the weekly job's instrument stays mis-specified until `RD-01`'s residual lands) | A failure in any waived scheduled firing |
+| `F4-CRITERION6` | Criterion 6 was closed on an explicit user bypass; its reopen condition is live and was undetectable while `RD-01` silenced the instrument — the instrument was repaired and confirmed 2026-08-22 (nightly three) and 2026-08-23 (the weekly job, D-435), so a waived-firing failure in any of the four is now detectable | A failure in any waived scheduled firing |
 | `SEC-17-GUARDDUTY` | GuardDuty is absent as an account fact, by costed decision D-125 | Production posture review, or staging ceasing to be synthetic |
 | `IMAGE-WORK-PARK` | Parked by **D-078** (feature deferred); SPEC §5.17's requirements have no subject in the codebase | The user reopens §5.17 — **both** preconditions (incidental-capture privacy with counsel; real-credential footing for scanning and encryption at rest) must be answered first |
 | `D342-PARKING` | All question-bank **quantity** coverage work is parked by standing user instruction. Non-quantity defects (wrong answer key, unservable path) remain defects | The user explicitly asks for new problems to be generated |
@@ -351,14 +332,13 @@ resolution step; three of them are cheap.
 
 Every item carries its register key. These are the headline live risks, not the full list.
 
-- **Three of the four heartbeat alarms cleared on 2026-08-22** (`chat-purge` 19:05Z,
-  `retention-purge` 19:11Z, `session-consolidate` 19:42Z) — the dead-man's switch works
-  end-to-end for the first time since it was built. **`memory-consolidate`'s alarm is now
-  correctly specified** (7-day window applied 2026-08-22, `4a5ad20`; CloudWatch's one-week
-  evaluation maximum makes 2×-weekly impossible, so it pages after the *first* missed Sunday)
-  and its current ALARM is **accurate signal**: no completion in the trailing week. It should
-  clear after the Sunday 2026-08-24 18:30 UTC run (`RD-01`'s last step, §4.3); if it does not,
-  that is a real job failure, not instrument noise.
+- **All four heartbeat alarms are confirmed end-to-end** (RD-01 closed, D-435): the nightly
+  three cleared 2026-08-22 (`chat-purge` 19:05Z, `retention-purge` 19:11Z,
+  `session-consolidate` 19:42Z) and the weekly `memory-consolidate` cleared on its first
+  in-window run — Sunday **2026-08-23** 18:30 UTC datapoint, ALARM → OK 2026-08-23T19:32:55Z,
+  OK held since (read 2026-08-24 19:50 UTC). The dead-man's switch now works end-to-end for
+  all four jobs; job **success** (completion ≠ correctness) stays unproven and is C6's
+  remaining question.
 - **The alert endpoint is one personal mailbox.** `ALERT-ENDPOINT` / UD-6: exactly two SNS topics,
   both unencrypted, both subscribed to the same personal address; 26 of 34 alarms page it (a
   pre-D-377 count — the register's own caveat; see `ALERT-ENDPOINT`), and
@@ -428,7 +408,7 @@ detail is single-homed there, not here). The three live residuals are `D310-RESI
   deletes the item's §4.4 queue row, advancing the execution cursor — and only after acceptance
   and reconciliation, never before.
 - **Fan-out check before deleting.** Grep the register key across this whole file before removing
-  its row. Keys appearing in more than one section (today: `RD-01`, `UD-1`, `D310-RESIDUALS`,
+  its row. Keys appearing in more than one section (today: `UD-1`, `D310-RESIDUALS`,
   `LANGSMITH-RETENTION`) carry consequences in §3, §5, §6 and
   §8 that are **reversed, not deleted**.
 - **§7 is closed by reading.** Three of the five unknowns resolve with a targeted document read; if
