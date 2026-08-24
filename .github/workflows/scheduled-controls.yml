@@ -1,0 +1,113 @@
+name: Scheduled controls
+
+# BATCH-LOW-UNSCHEDULED-CONTROLS (DRIFT-54, DRIFT-80): the two read-only controls this
+# repository already had, on a cadence instead of on somebody's initiative.
+#
+# Both scripts were correct and invoked by nobody. `scripts/scan_logs_pii.py` had exactly one
+# historical clean run, so §2.6 criterion 9's *log* half was a snapshot rather than continuous
+# assurance - and D-104 §4's rule is that a PII floor is per-store and is not inherited, so a
+# scan from before authenticated traffic existed says nothing about today. DRIFT-80's value was
+# proven by its own absence: both services sat one task-definition revision behind and nothing
+# asked (RD-11). "Enforced" has to mean something other than "someone chooses to run it".
+#
+# Deliberately NOT in ci.yml. Neither control is about the code in a pull request - both read
+# live AWS state, so a red run here means "staging has a problem", never "this diff has a
+# problem", and folding them into the merge gate would attach that signal to whoever pushed
+# last (the same reason security-scan.yml is its own workflow).
+#
+# `make scan-logs` / `make image-check` are NOT used, and must not be: both hardcode
+# `aws configure export-credentials --profile jeongsik-staging-admin`, a local operator profile
+# that does not exist in CI. The scripts themselves take ambient credentials, which is what the
+# OIDC step below provides - `scan_logs_pii.py` branches on `AWS_ACCESS_KEY_ID` being set and
+# never reaches its `--profile` default here. The operator targets stay exactly as they are.
+
+on:
+  schedule:
+    # Mondays 07:17 UTC. Off the hour on purpose - GitHub's shared cron minute-0 queue is the
+    # one that gets delayed, and a control whose window is computed from "now" wants a start
+    # time that is roughly when it says it is.
+    - cron: "17 7 * * 1"
+  # The manual arm, and the one the first run uses: a scheduled workflow on a branch that has
+  # never been dispatched is a workflow nobody has ever seen the output of (the AUD-F-34
+  # lesson - a job whose first scheduled run is also its first run at all can fail, exit 0 and
+  # be read as evidence).
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # required for aws-actions/configure-aws-credentials' OIDC exchange
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  read-only-controls:
+    runs-on: ubuntu-latest
+    # A full 8-day scan at these slice settings measured 8m53s locally (288 slices, 319,732 log
+    # events, 2026-08-24), so this is an order of magnitude of headroom rather than a budget.
+    # The reason for any bound at all: `_run_query` polls Logs Insights in a `while True` with no
+    # per-query deadline, so a query that never reaches a terminal status would hang an
+    # unattended weekly job until the 6-hour default. A killed job is a red job, which is the
+    # right answer for a window that could not be read.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      # `--all-packages` (never bare `uv sync`, which prunes the venv - the root project is an
+      # empty non-package workspace). `scan_logs_pii.py` needs more than boto3: its needles come
+      # from `intellichoice_adapters.seed.mysql_fixtures`, which imports sqlalchemy at module
+      # scope. The needles are read from *source*, not from a database, so no dev containers are
+      # needed here - confirmed by the positive control printing 31/31 patterns fired.
+      # `--all-groups` is skipped: neither script needs the dev tooling.
+      - name: Install dependencies
+        run: uv sync --all-packages
+
+      - name: Configure AWS credentials (OIDC, no long-lived keys)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::320503430250:role/intellichoice-staging-github-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 8 days for a 7-day cadence: one day of overlap, so a run delayed by GitHub's scheduler
+      # (or a re-run the next morning) still covers the whole week rather than leaving an
+      # unscanned seam. Overlap is free here - the scanner is idempotent and read-only.
+      - name: Compute the trailing 8-day window
+        id: window
+        run: |
+          set -euo pipefail
+          echo "start=$(date -u -d '8 days ago' +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "end=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      # Exit 1 (PII found) and exit 3 (could not look) both fail this workflow, which is the
+      # scanner's own philosophy applied to its schedule: "I could not look" must not report as
+      # CLEAN, so an unanswerable window is a red run, not a quiet one. Its exit 3 arms are a
+      # missing log group, an unreadable slice, a slice truncated at Logs Insights' 10,000-record
+      # cap, and an empty window.
+      #
+      # `--slice-minutes 120` is measured, not guessed. Live on 2026-08-24 the three groups
+      # produced 1,620 events/hour combined, ~810 in each of the two API groups, so a 2-hour
+      # slice carries ~1,600 records per group - a 6x margin under the cap. The default 10-minute
+      # slice would need 3,456 Logs Insights queries for this window; a 24-hour slice truncates
+      # today (measured: two of three groups returned exactly 10,000). If traffic grows past the
+      # margin this goes red with the scanner's own "re-run with a smaller --slice-minutes",
+      # which is the correct outcome and a one-number edit here.
+      - name: Scan live logs for PII (SPEC §5.30, §2.6 criterion 9)
+        run: |
+          uv run python -u scripts/scan_logs_pii.py \
+            --start "${{ steps.window.outputs.start }}" \
+            --end "${{ steps.window.outputs.end }}" \
+            --slice-minutes 120
+
+      # `!cancelled()` rather than the default: these are two independent controls, and a PII
+      # scan that fails must not take the image answer down with it. The step still fails the
+      # workflow on its own non-zero exit (1 = the running and latest images disagree, 2 = the
+      # read itself failed, which is INVALID rather than a verdict).
+      - name: Verify every deployed image agrees (AUD-X-16 / D-417 A3)
+        if: ${{ !cancelled() }}
+        run: uv run python -u scripts/check_deployed_image_consistency.py

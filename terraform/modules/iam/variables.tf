@@ -13,7 +13,12 @@ variable "bedrock_model_arns" {
 }
 
 variable "log_group_arns" {
-  description = "CloudWatch Log Group ARNs the shared task execution role may write to."
+  description = <<-EOT
+    CloudWatch Log Group ARNs the shared task execution role may write to - and, since
+    DRIFT-54, the same groups the GitHub deploy role may run a Logs Insights PII scan over
+    (`LogsInsightsPiiScan`). One list on purpose: the scanner's job is to read exactly what
+    the tasks write, so a group added here must become scannable in the same edit.
+  EOT
   type        = list(string)
 }
 

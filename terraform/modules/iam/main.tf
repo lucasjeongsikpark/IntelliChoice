@@ -310,6 +310,37 @@ data "aws_iam_policy_document" "github_deploy_permissions" {
     actions   = ["cloudwatch:DescribeAlarms"]
     resources = ["*"]
   }
+
+  # DRIFT-54: the weekly `scheduled-controls.yml` workflow runs `scripts/scan_logs_pii.py`
+  # under this role, so criterion 9's log half stops depending on someone choosing to run it
+  # from a laptop. Read-only - Logs Insights `StartQuery`/`GetQueryResults` and the
+  # `DescribeLogGroups` listing the scanner uses to refuse a CLEAN verdict over a log group
+  # that has silently disappeared.
+  #
+  # `StartQuery` is the one action here that accepts a resource, so it is the one that is
+  # scoped: `var.log_group_arns` is exactly the right list, because the scanner reads precisely
+  # the groups the task execution role writes. The trailing `:*` is trimmed off rather than
+  # kept - IAM matches a `log-group:/ecs/<prefix>-*:*` pattern only against a resource that
+  # still has a segment after the group name, and `StartQuery`'s resource is the bare group
+  # ARN, so keeping it would authorize nothing at all. This is the same class of silent
+  # no-authorization the `EcsRunTask` comment above records finding live.
+  statement {
+    sid       = "LogsInsightsPiiScan"
+    actions   = ["logs:StartQuery"]
+    resources = [for arn in var.log_group_arns : trimsuffix(arn, ":*")]
+  }
+
+  # `GetQueryResults` takes a query id and `DescribeLogGroups` names no group at all, so
+  # neither accepts a resource-level scope - the same AWS limitation the Describe*-style
+  # statements above already carry `"*"` for.
+  statement {
+    sid = "LogsInsightsPiiScanUnscopable"
+    actions = [
+      "logs:GetQueryResults",
+      "logs:DescribeLogGroups",
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "github_deploy" {

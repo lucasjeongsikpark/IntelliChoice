@@ -75,6 +75,10 @@ from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_memory.consolidate_cli import _build_gateway as build_consolidation_gateway
 from intellichoice_memory.consolidation import consolidate_student_session
 from intellichoice_memory.settings import get_consolidation_settings
+from intellichoice_observability.scheduled_jobs import (
+    JOB_CHECKPOINT_RETENTION,
+    report_job_complete,
+)
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -383,7 +387,8 @@ async def run(*, apply: bool | None = None) -> RetentionCounts:
 
 def main() -> None:
     counts = asyncio.run(run())
-    mode = "APPLY" if apply_enabled() else "DRY-RUN (set CHECKPOINT_RETENTION_APPLY=true to delete)"
+    apply = apply_enabled()
+    mode = "APPLY" if apply else "DRY-RUN (set CHECKPOINT_RETENTION_APPLY=true to delete)"
     print(
         f"[{mode}] eligible={counts.eligible} deleted={counts.deleted} "
         f"already_consolidated={counts.already_consolidated} "
@@ -391,6 +396,22 @@ def main() -> None:
         f"retained_consolidation_failed={counts.retained_consolidation_failed} "
         f"skipped_budget={counts.skipped_budget} "
         f"spend_cents={counts.spend_cents:.4f} reasons={counts.reasons}"
+    )
+    # D-377: the same numbers, queryable. This job is the one where the print-only shape hurts
+    # most - it has no schedule (WORK-23/D-333), so `deleted=0` has two readings that matter and
+    # look identical in prose: nothing was eligible, or the run was a dry run. `apply` is
+    # reported for exactly that reason, alongside the counts.
+    report_job_complete(
+        JOB_CHECKPOINT_RETENTION,
+        apply=apply,
+        eligible=counts.eligible,
+        deleted=counts.deleted,
+        already_consolidated=counts.already_consolidated,
+        consolidated_now=counts.consolidated_now,
+        retained_consolidation_failed=counts.retained_consolidation_failed,
+        skipped_budget=counts.skipped_budget,
+        spend_cents=round(counts.spend_cents, 4),
+        reasons=counts.reasons,
     )
 
 
