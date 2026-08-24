@@ -69,7 +69,13 @@ So the verdict was added, but **fenced**: structural requires (a) a citable arti
 (b) something mechanical that fails if the artifact disappears — a CI job, a typecheck, a build.
 **No mechanism, no structural verdict; it is a gap.** Two sections (§5.3, §5.36) fail that test and
 are recorded as *descriptive* rather than quietly passed, which flags them for human re-reading when
-the architecture changes.
+the architecture changes. **The trigger is defined since 2026-08-24 (D-438), because the undefined
+version demonstrably never fired** (four qualifying change groups passed without a re-read,
+`TEST-05`): *"the architecture changes" means any edit to `docs/ARCHITECTURE.md`'s as-built
+content*, and the same reconciliation that makes such an edit must either re-stamp the two
+descriptive rows below (re-read performed) or append a dated skip note to them. An
+ARCHITECTURE-touching change with neither is an open defect in this instrument, not a judgment
+call.
 
 Adding a category to a method mid-way is exactly how a rubric gets softened, so the fence matters
 more than the category. It is recorded here rather than in a footnote precisely because the next
@@ -748,11 +754,11 @@ tail took minutes rather than the session it was budgeted.
 
 | section | artifact | what fails if it disappears |
 |---|---|---|
-| **§5.3** Enterprise architecture | `docs/ARCHITECTURE.md`, and the deployed topology itself | nothing mechanical — **descriptive**, and the honest verdict is that this section documents rather than requires |
+| **§5.3** Enterprise architecture | `docs/ARCHITECTURE.md`, and the deployed topology itself | nothing mechanical — **descriptive**, and the honest verdict is that this section documents rather than requires. **Re-read 2026-08-24 (D-438)** against the four post-tranche-6 change groups (D-334/D-335, D-349, D-406/W14, D-393/D-394): all four sit below this section's altitude (SSE relay, NAT, logging fields do not appear in it); no new drift — it remains the original enterprise sketch, divergent from the as-built runtime in the ways the fence already records |
 | **§5.27** Pydantic | **41** `extra="forbid"` models across `apps/`, `packages/` and `scripts/` — **41 of 184** non-test `BaseModel`/`BaseSettings` classes, i.e. **22%**, concentrated in four files with **35 of bedrock.py's 64** model classes carrying it *(count re-derived 2026-08-20, W-14/F-08; the row said **31**)* | `make typecheck` (pyright, 0 errors) in CI's `lint-typecheck-test`; the PII-floor tests additionally pin the strictness of every Bedrock payload model. **⚠️ Clause (b) is weaker than this row used to imply — see the note below** |
 | **§5.34** Docker / Terraform / GHA | `apps/*/Dockerfile`, `terraform/`, `.github/workflows/{ci,deploy-staging,security-scan}.yml` | CI's four jobs and the deploy workflow — a missing Dockerfile or module fails the build, not a review |
 | **§5.35** External accounts and identifiers | `.env.example` | app startup config validation; a missing required variable fails the container, not a checklist |
-| **§5.36** Final technology placement | the stack as built | nothing mechanical — **descriptive** |
+| **§5.36** Final technology placement | the stack as built | nothing mechanical — **descriptive**. **Re-read 2026-08-24 (D-438)**: of the four post-tranche-6 change groups, only the SSE relay touches it — the `PostgreSQL` placement grew a use the table predates (cross-replica event relay via `LISTEN`/`NOTIFY`, D-334/D-335/D-349) — and the re-read independently caught one pre-existing stale cell the 2026-08-20 "every other row stands" claim missed: `Grafana` (as-built dashboards are CloudWatch, D-244; the Prometheus half is as built). Both now carried by §5.36's amendment note |
 | **§5.2.1** Deployment units | two independently deployed apps + two SPAs | the deploy workflow deploys exactly these |
 
 **On §5.27's count and its mechanism, corrected 2026-08-20 (`DOC-TEST-CLAIM-WORDING` / F-08, W-14;
@@ -778,7 +784,9 @@ job does run; that is a different claim from the job being able to notice this a
 structural.** They describe the chosen architecture; there is nothing to falsify and nothing that
 breaks if the description drifts. Saying so is more useful than a green checkmark, because it tells
 a future reader those two sections need **re-reading by a human** when the architecture changes,
-rather than trusting a test to notice.
+rather than trusting a test to notice. *(That habit's first execution came 2026-08-24, four
+qualifying changes late — D-438 records the re-read and defines the trigger that replaces the
+habit; see the method note above the tranche-6 rows.)*
 
 **Sections swept: 36 of 36 launch-scope sections** — every one of §5.0–§5.36 carries a verdict, and
 §5.17 carries its exclusion's disposition on top of that (37 sections with a verdict, 36 in the

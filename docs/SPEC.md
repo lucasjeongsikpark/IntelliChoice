@@ -33,6 +33,12 @@ Markers added **2026-08-20 by explicit user sign-off** (the two sections previou
 Earlier markers, left as they stand: **§5.19.4** (amended 2026-08-15, D-351) and **§5.35**'s staging
 MySQL note (D-092).
 
+Marker added **2026-08-24** (the D-438 descriptive re-read, `TEST-05`):
+
+- **§5.36** — two further cells: `Grafana` was decided otherwise (dashboards are CloudWatch, D-244;
+  the Prometheus half is as built), and the `PostgreSQL` placement grew the cross-replica SSE event
+  relay (`LISTEN`/`NOTIFY`, D-334/D-335/D-349).
+
 # 5. Very Detailed Version
 
 ## 5.0 Document Purpose and Confirmed Design Principles
@@ -3634,6 +3640,13 @@ runtime that was decided otherwise: `Kubernetes → EKS runtime`, and the `EKS` 
 `Enterprise-Level Product`. The runtime is ECS Fargate with RDS PostgreSQL + pgvector. Every other
 row stands, with three carrying their own markers at their own sections — `LangSmith` (§5.32.1),
 `Multimodal` (§5.17) and `Guardrails` (§5.25.1).
+
+**Amended 2026-08-24 (D-438 — the `TEST-05` descriptive re-read, four qualifying changes late).**
+Two corrections to the paragraph above's "every other row stands": the `Grafana/Prometheus` row's
+Grafana half was decided otherwise — product and infrastructure dashboards are **CloudWatch**
+(D-244), while the Prometheus half is as built (`prometheus_client`, EMF-exported per the otel
+allowlist) — and the `PostgreSQL` placement row grew a use this table predates: the
+**cross-replica SSE event relay** over `LISTEN`/`NOTIFY` (D-334/D-335 learning, D-349 chat).
 
 | Technology | Placement |
 |---|---|
