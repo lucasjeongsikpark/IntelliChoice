@@ -41,6 +41,13 @@ JOB_CHAT_PURGE = "chat-purge"
 JOB_RETENTION_PURGE = "retention-purge"
 JOB_MEMORY_CONSOLIDATE = "memory-consolidate"
 JOB_YOUTUBE_SYNC = "youtube-sync"
+# The one key with no `locals.jobs` entry yet: the checkpoint-retention job is deliberately
+# unscheduled (WORK-23, parked by D-333; UD-7), and it still reports, because "has this ever run,
+# and did it delete anything" is exactly as unanswerable for a hand-run job as for a scheduled one
+# - more so, since nothing fires it on a cadence. Spelled hyphenated like the others so that
+# scheduling it later is a terraform edit against this verbatim key rather than a rename that
+# silently orphans every record already emitted under the old spelling.
+JOB_CHECKPOINT_RETENTION = "checkpoint-retention"
 
 
 def report_job_complete(job: str, **counts: Any) -> None:

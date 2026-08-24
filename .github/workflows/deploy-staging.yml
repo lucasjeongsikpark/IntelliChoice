@@ -641,6 +641,38 @@ jobs:
           echo "Rolled back to the pre-deploy task definitions - failing the workflow."
           exit 1
 
+      # Installed here rather than at the top of the job because only the step below needs it,
+      # and it needs almost nothing: `check_deployed_image_consistency.py` imports boto3 and the
+      # standard library, so it runs under `uv run --no-project --with boto3` in seconds instead
+      # of a `uv sync --all-packages` that would add minutes to every deploy for packages it
+      # never touches. Same reason `actions/setup-node` sits mid-job below.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      # DRIFT-80: "is what is running what we think is running", asked at the one moment it
+      # just changed. Placed after every gate above on purpose - it is the last word on the
+      # backend deploy, and the rollback step exits 1, so reaching this step already means the
+      # bake passed and no rollback happened (a rolled-back service would legitimately disagree
+      # with its family's latest revision, and this check would then be answering the wrong
+      # question).
+      #
+      # What it catches is not the tfvars pin (D-244 made Terraform adopt the deployed image;
+      # D-417 A3 removed the pin from the verdict) but a *service* and its family's *latest
+      # revision* disagreeing - which is what anything resolving a family by name would run.
+      # This workflow does that, and the EventBridge ops-task schedules run that family
+      # un-pinned: D-137's incident. Both services sat a revision behind with nothing asking
+      # (RD-11), which is the absence this step fills. Exit 1 is a real disagreement, exit 2 is
+      # INVALID (the read itself failed) - both fail the deploy rather than being reported.
+      #
+      # `make image-check` is deliberately not used: it pins the local `jeongsik-staging-admin`
+      # operator profile, which does not exist here. The script reads ambient credentials, which
+      # the OIDC step at the top of this job already provides.
+      - name: Verify every deployed image agrees (deployed-image consistency gate)
+        run: uv run --no-project --with 'boto3>=1.43.73' python -u scripts/check_deployed_image_consistency.py
+
       - uses: actions/setup-node@v7
         with:
           node-version: "22"

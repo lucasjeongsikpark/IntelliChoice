@@ -10,11 +10,16 @@ The database round trip and the "does anything actually break" question belong t
 durable record back.
 """
 
+import io
+import json
+import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from intellichoice_db.models.learning_session import LearningSession
+from intellichoice_observability.logging_config import JsonLogFormatter
+from intellichoice_observability.scheduled_jobs import JOB_CHECKPOINT_RETENTION
 from learning_api.services import checkpoint_retention_cli as cli
 
 NOW = datetime(2026, 8, 15, tzinfo=UTC)
@@ -196,3 +201,110 @@ def test_a_thread_with_no_student_is_treated_as_nothing_to_remember() -> None:
     assert allowed is True
     assert counts.already_consolidated == 1
     # And crucially it never reached the gateway, which was None - a call would have raised.
+
+
+def test_main_reports_the_job_completion_record_beside_its_print(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """DRIFT-87: the fifth `report_job_complete` caller, pinned the way the parity test pins it.
+
+    **Captured through the real emitter and the real formatter, not re-derived.** Asserting that
+    `main()` called a mock would pass just as happily if the record it produced were unreadable
+    to a metric filter, which is the failure `test_scheduled_job_event_parity.py` exists to
+    remember: for fourteen days the four scheduled jobs emitted records no filter could select
+    and every local test was green. So this reads the JSON a CloudWatch filter would see.
+
+    Both spellings are asserted because they are deliberately different: the `event` name is
+    underscored (it is what a filter pattern selects on) and `job` stays the hyphenated key a
+    future `locals.jobs` entry will use as the alarm's dimension.
+
+    `apply` is asserted too. It is the field that separates the job's two identical-looking
+    zero rows - "nothing was eligible" from "this was a dry run" - and this job has no schedule
+    (WORK-23/D-333), so every run of it is somebody's hand-run whose mode nothing else records.
+    """
+    counts = cli.RetentionCounts(
+        eligible=7,
+        consolidated_now=2,
+        already_consolidated=4,
+        deleted=6,
+        retained_consolidation_failed=1,
+        skipped_budget=0,
+        spend_cents=3.21987,
+    )
+    counts.note("would_delete")
+
+    async def _fake_run() -> cli.RetentionCounts:
+        return counts
+
+    monkeypatch.setattr(cli, "run", _fake_run)
+    monkeypatch.setenv("CHECKPOINT_RETENTION_APPLY", "true")
+
+    stream = io.StringIO()
+    logger = logging.getLogger("intellichoice_observability.scheduled_jobs")
+    handler = logging.StreamHandler(stream)
+    handler.setFormatter(JsonLogFormatter())
+    logger.addHandler(handler)
+    previous_level = logger.level
+    logger.setLevel(logging.INFO)
+    try:
+        cli.main()
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(previous_level)
+
+    written = stream.getvalue().strip()
+    assert written, "main() emitted no completion record at all"
+    record = json.loads(written)
+
+    assert record["event"] == "checkpoint_retention_job_complete"
+    assert record["job"] == JOB_CHECKPOINT_RETENTION == "checkpoint-retention"
+    assert record["apply"] is True
+    assert record["eligible"] == 7
+    assert record["deleted"] == 6
+    assert record["consolidated_now"] == 2
+    assert record["already_consolidated"] == 4
+    assert record["retained_consolidation_failed"] == 1
+    assert record["skipped_budget"] == 0
+    assert record["spend_cents"] == 3.2199
+    assert record["reasons"] == {"would_delete": 1}
+
+    # The `print()` is not replaced by the record - it is what a human running this by hand
+    # reads, and this job is only ever run by hand today.
+    printed = capsys.readouterr().out
+    assert "[APPLY]" in printed
+    assert "eligible=7 deleted=6" in printed
+
+
+def test_main_reports_the_dry_run_mode_as_a_field_not_only_as_prose(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The negative direction of the `apply` field (D-221): it must actually track the mode.
+
+    A hardcoded `apply=True` would satisfy the test above while making every dry run look like a
+    real deletion pass - the more dangerous of the two misreadings, since it would read as
+    "retention is running" when nothing has ever been deleted.
+    """
+
+    async def _fake_run() -> cli.RetentionCounts:
+        return cli.RetentionCounts()
+
+    monkeypatch.setattr(cli, "run", _fake_run)
+    monkeypatch.delenv("CHECKPOINT_RETENTION_APPLY", raising=False)
+
+    stream = io.StringIO()
+    logger = logging.getLogger("intellichoice_observability.scheduled_jobs")
+    handler = logging.StreamHandler(stream)
+    handler.setFormatter(JsonLogFormatter())
+    logger.addHandler(handler)
+    previous_level = logger.level
+    logger.setLevel(logging.INFO)
+    try:
+        cli.main()
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(previous_level)
+
+    record = json.loads(stream.getvalue().strip())
+    assert record["apply"] is False
+    assert record["deleted"] == 0
+    assert "DRY-RUN" in capsys.readouterr().out
