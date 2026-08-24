@@ -88,16 +88,18 @@ async def find_repair(
 
     # (b) mid-interrupt is NOT handled here, and the omission is deliberate rather than an
     # oversight. `submit_answer` writes a `study_attempts` row and pauses on `interrupt()`
-    # for the hint/solution/video choice; if the row is discarded, `/respond` 500s on
-    # `update_intervention_choice`'s assert and the interrupt never clears.
+    # for the hint/solution/video choice; if the row is discarded, the checkpoint promises
+    # an attempt that does not exist while the thread stays paused on a LangGraph task.
+    # This module cannot recover that: `_get_state_values` refuses any request while a
+    # task is pending, and clearing one means completing the paused node - `aupdate_state`
+    # edits channel values but cannot complete a task.
     #
-    # Detecting it is easy - the checkpoint's `last_study_attempt_id` names a row that is
-    # not in `study_repo.get_attempts`. Recovering is not: the session is paused on a
-    # LangGraph task, `_get_state_values` refuses any request while one is pending, and
-    # clearing it means completing the paused node rather than editing channel values. A
-    # detection branch that cannot act on what it finds would be code no test can watch
-    # mattering, which this session's other two fixes were each held to.
-    #
-    # So seam (b) stays open and AUD-X-07 stays open with it. See PROGRESS.md.
+    # Seam (b) therefore heals where recovery IS possible: inside `intervention_choice`
+    # itself (graph/nodes.py), on the resume that replays the node. The same rules apply
+    # there - roll backwards to what the database supports, never invent rows, count the
+    # repair on `learning_checkpoint_repairs_total` (§7-R9's tripwire). What stays open
+    # after both seams heal is the commit ordering itself (the saver sharing the request's
+    # connection), accepted under §7-R9 - expiry conditions single-homed at
+    # PROJECT_STATE §6.4.
 
     return None
