@@ -10,7 +10,7 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-23** (standalone session: `DRIFT-86-COST-RUNBOOK` resolved, D-428; earlier same day — eighth Orca run: DRIFT-91 seam hygiene, D-427) |
+| Snapshot date | **2026-08-23** (standalone sessions: `DRIFT-86-COST-RUNBOOK` resolved D-428, `WORK-44-DECIDED-NOT-BUILT` verified closed D-429; earlier same day — eighth Orca run: DRIFT-91 seam hygiene, D-427) |
 | Last product-code commit | **`1768c9d`** (2026-08-23) — DRIFT-91 landed by PR #377 (`0cadc94` `current_week_key` homed in shared `org_time`, `1768c9d` docstring/test follow the symbol) |
 | Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
 | Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
@@ -81,7 +81,8 @@ with the back-a-day edge until the next deploy.
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
-lowercased key to the link above). The `NO-NEW-TEST-CODE` category is **closed**: all three
+lowercased key to the link above), except post-migration discoveries, which name their evidence
+home inline (today: `DEP-PR-BATCH-2026-08-21` → D-429). The `NO-NEW-TEST-CODE` category is **closed**: all three
 defects the audit established by code reading only (REQ-27, SEC-13, COST-06) gained executed
 tests on 2026-08-21/22.
 
@@ -106,7 +107,7 @@ tests on 2026-08-21/22.
 | `WORK-01-SCOPE-GUARD` | `scope_guard`/retrieval overlap is specified and measured (~22% median win) and not built | Build D-423 steps 1–3 as specified; verify the wasted-rerank trade-off is still acceptable first; and tell the user (acknowledgement, not a decision): the earlier approval rested on a ~2.5 s embedding estimate that D-423 measured at 124 ms | engineering |
 | `COST-10-INPUT-BOUND` | No input-token ceiling in the gateway; cost reserve hard-codes 2000 input tokens | In order: read whether settlement uses actual input tokens; add the input ceiling at the gateway/shared payload layer; stop pricing input at the flat constant | engineering |
 | `WORK-35-LEDGER` | U7 consolidation sizing gated on a free staging measurement nobody took | Take the free staging measurement, then hold the design review and size N against the existing 90/90/365 windows. D-420 added redacted visitor free text no retention job covers | engineering |
-| `WORK-44-DECIDED-NOT-BUILT` | Two closed OPEN_DECISIONS items decided but unverified as built | Verify `react-router` is installed and routing (a named prerequisite for the §5.1.2 first-visit disclosures); run `gh pr list` for the 26-PR backlog | engineering |
+| `DEP-PR-BATCH-2026-08-21` | 14 dependabot PRs open (read 2026-08-23, D-429): 12 patch/minor from 2026-08-21 covered by D-322 #8's standing batch-merge rule, plus the two 2026-07-24 python 3.12→3.14 base-image majors | Batch-merge the 12 patch/minor PRs per the standing rule (CI green per PR); read the two majors individually — the stack pins Python 3.12, so a 3.14 base image is a consequential major, not a routine bump | engineering |
 | `WORK-13-FIXTURES` | Single-spec e2e isolation is behaviourally resolved **on `gha-44a12dfc9549`** (a build no longer deployed — the D-426 deploy shipped `gha-898e2fb4270b`); the **17-spec cross-spec contention scope stays open** (never re-run) and the test-side fixture fix is owed | Land the fixture-isolation fix across the seventeen specs sharing `studentPresent` (prerequisite for UD-2's whole-directory arm — the paid re-run is `DRIFT-58`'s residual, reopened by UD-2); do not re-run the closed one-file scope. The UD-1 ordering constraint is discharged: the deploy happened 2026-08-23, so any re-run now tests the current build | engineering + docs |
 | `M3-D370-SOLUTION-RUNG` | The solution terminal rung has no staging e2e coverage, under a roadmap-closing ✅ | Write the staging e2e coverage for the solution terminal rung | engineering + docs |
 
@@ -175,7 +176,7 @@ UD-constrained tails; every §4 key appears exactly once):**
 | # | Item(s) | Ordering evidence |
 |---|---|---|
 | 1 | `RD-01` (Sunday confirmation) | Restated 2026-08-22 (evening): the weekly-window fix is built and applied live (`4a5ad20`, 7-day capped window); the only remaining step is time-blocked — after the Sunday **2026-08-24 18:30 UTC** run, a free read-only check that `JobCompletions{job=memory-consolidate}` publishes and the alarm goes ALARM → OK (§4.3). If a continue arrives before then, the eligibility gate skips to row 2 after reconciling this note |
-| 2 | `WORK-44-DECIDED-NOT-BUILT` | Two cheap read-only verifications (react-router; `gh pr list`) |
+| 2 | `DEP-PR-BATCH-2026-08-21` | Inserted 2026-08-23 (D-429) when WORK-44's verification surfaced it: pre-decided by the D-322 #8 standing rule (patch/minor automatic), cheap, and supply-chain hygiene ahead of the heavier remediation below |
 | 3 | `ARCH-17-COMMIT-SEAM`, then `WORK-24-DUPLICATE-GAIN` | WORK-24's stated hypothesis is the same root cause as ARCH-17; read the repair counter first — movement voids §7-R9 |
 | 4 | `D329-PHANTOM` | Detection gap for silently-swallowed background failures (generalises D-344/D-350) |
 | 5 | `D356-FAMILY` | Publisher enumeration, then one dated status correction (rides W-18) |
@@ -288,7 +289,7 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | `F3-DEVTOKEN-S44` | The whole staging `/dev/token` path is scheduled for deletion at S44 | S44 opens |
 | `FIRST-VISIT-REVERIFY` | The notice's "True because" rows are dated code measurements | S45 start |
 | `ARCH-21-SCHEMA-SPLIT` | Whether to adopt SPEC §5.33.3's six-schema logical split (`learning`, `rag`, `memory`, `checkpoint_learning`, `checkpoint_chat`, `evaluation`) is **genuinely undecided** — no D-number owns it, and the only record that it is **undecided** is open question 5 of the 2026-07-21 projection (post-migration: `archive/2026-07-21-final-architecture-projection.md`; SPEC §5.33.3 still *prescribes* the split as a requirement). **Extraction into ARCHITECTURE.md's open-questions block must precede archival** | Production schema design |
-| `ARCH-33-CI-GATE` | Whether the deploy version gate ever fired, and whether the PR backlog cleared, are unread GitHub facts | n/a — run `gh run list` and `gh pr list` |
+| `ARCH-33-CI-GATE` | Whether the deploy version gate ever fired is an unread GitHub fact (the PR-backlog half was read 2026-08-23: the 26-PR backlog is cleared down to the two python majors — D-429) | n/a — run `gh run list` |
 | `COST-17-CLIENT-ERRORS` | The client-error alarm path is correctly deployed and never exercised end to end | The next live-probe session (one synthetic post) |
 | `PLAYWRIGHT-LANE` | The browser lane was not executed, so the one new implementation defect has no runnable guard. Also carries `WORK-12-BANNER`'s C7-consistent residual (D-427, 2026-08-23): write **and run** the learning-web disconnect-visible spec — positive direction only, mirroring chat-web's — in the next lane window; the mock-test route is retracted per D-417 §C7 | A serialized test window (never concurrent with `make test`) |
 | `PAID-RUNS-LANE` | Paid generation and measurement scripts were not invoked; no finding depends on them | UD-2 authorises spend |
