@@ -29932,3 +29932,35 @@ is the denominator, and future guard work cites it rather than a new ordinal.
   **archived** `docs/archive/PROGRESS.md:399` and is deliberately **not rewritten** — the
   archive is historical (D-427 precedent); this entry is the retraction of record for that
   copy: read D-357 there, not D-356.
+
+## D-435 — RD-01 closed: the dead-man's switch is confirmed end-to-end for all four scheduled jobs, and "Sunday 2026-08-24" was a mis-dated Sunday (accepted, 2026-08-24)
+
+Executes `RD-01`'s last step (queue row 1) — the free read-only confirmation that the weekly
+`memory-consolidate` heartbeat completes the instrument story the nightly three began on
+2026-08-22.
+
+**The confirmation (all read 2026-08-24 ~19:50 UTC, `jeongsik-staging-admin`):**
+- `JobCompletions{job=memory-consolidate}` published its **first-ever datapoint**: `Sum = 1.0`
+  in the 2026-08-23T18:00Z hourly bucket — the 18:30 UTC scheduled run, on time.
+- The alarm `intellichoice-staging-job-memory-consolidate-heartbeat` (period 604800, the
+  D-385-class capped 7-day window applied 2026-08-22) transitioned **ALARM → OK at
+  2026-08-23T19:32:55Z** — ~1 h behind its datapoint, matching the long-period evaluation lag
+  the nightly three showed — and its history holds exactly the two expected transitions
+  (INSUFFICIENT_DATA → ALARM 2026-08-16, ALARM → OK 2026-08-23). State has held OK since
+  (~24 h at read time).
+
+**The date correction, recorded because three sessions deferred on it:** PROJECT_STATE's gate
+said "after the Sunday **2026-08-24** 18:30 UTC run" — but 2026-08-24 is a **Monday**;
+Sunday was **2026-08-23**. The job ran on the real Sunday, and the confirmation this row
+waited for had in fact already happened before most of the 08-24 sessions that dutifully
+skipped past the row. Harmless (the skips took valid queue work), but it is the second
+mis-dated-gate class in the file's history — a gate that names a weekday and a date should be
+checked for agreement when written.
+
+**What this does and does not close.** RD-01 closes entirely: the pattern fix (`b06a5df`),
+the per-job window fix (`4669ee2` + `4a5ad20`), and now confirmed firing for **all four** jobs
+— the dead-man's switch works end-to-end. Deliberately NOT closed: job **success** (a
+completion event reports that the job ran, not that it did the right thing) — that stays
+`C6-UNATTENDED`'s question, along with its seven-day confirmed-firing clock (earliest
+2026-08-29 for the nightly three). `F4-CRITERION6`'s detectability caveat dissolves: a
+waived-firing failure in any of the four jobs is now detectable.
