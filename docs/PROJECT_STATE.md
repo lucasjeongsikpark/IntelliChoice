@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-24** (coordinator sessions: D-433..D-438 — five §4 items closed today plus the `TEST-05` re-read with its now-defined trigger; earlier 08-23/24: D-428..D-432) |
-| Last product-code commit | **`5bbe08a`** (2026-08-24, PR #392) — hint-personalization outcome counter + real-HTTP SSE delivery proof (D-433); before it `710e977` (seam (b) heals, D-432) |
+| Snapshot date | **2026-08-24** (coordinator sessions: D-433..D-439 — six §4 items closed today; the weekly controls instrument ran green on its first dispatch; earlier 08-23/24: D-428..D-432) |
+| Last product-code commit | **`b9a6011`** (2026-08-24, PR #399) — the three uninvoked controls wired + path-aware PII-scan allowlist (D-439); before it `5bbe08a` (D-433) |
 | Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
 | Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **18 product commits** (`898e2fb` → `5bbe08a`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), the seam-(b) healing (D-432, **staging's seam (b) is still a dead end until the next deploy**), and the D-433 outcome counter — **staging's personalization ran-dead mode stays uninstrumented until then too**). The scheduled-job **metric filters (2026-08-21) and heartbeat alarm windows (2026-08-22)** were applied via control-plane `terraform apply` (§8) |
+| Repo-vs-deployed gap | **19 product commits** (`898e2fb` → `b9a6011`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), the seam-(b) healing (D-432, **staging's seam (b) is still a dead end until the next deploy**), and the D-433 outcome counter — **staging's personalization ran-dead mode stays uninstrumented until then too**). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** were applied via control-plane targeted `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `5bbe08a`, or if the deployed staging image tag no longer matches this
+commit lands after `b9a6011`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -79,7 +79,7 @@ the full local suite green on the merged HEAD; staging is unaffected until the n
 
 ## 4. Active engineering work
 
-7 open engineering entries. Full evidence per entry:
+6 open engineering entries. Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
@@ -89,12 +89,11 @@ by D-430). The `NO-NEW-TEST-CODE` category is **closed**: all three
 defects the audit established by code reading only (REQ-27, SEC-13, COST-06) gained executed
 tests on 2026-08-21/22.
 
-### 4.1 ACTIVE_REMEDIATION (2) — something built is wrong or silently ineffective
+### 4.1 ACTIVE_REMEDIATION (1) — something built is wrong or silently ineffective
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
 | `D310-RESIDUALS` | One follow-up surviving the executed D-310 rotation: stale dead secrets in operator-browser `localStorage` | See 4.3 — a user action on operator machines; the (b) `ps` measurement and (c) README fix landed 2026-08-24 (D-437) | user |
-| `BATCH-LOW-UNSCHEDULED-CONTROLS` | Three built controls nothing invokes — the PII log scanner (**one historical clean run, no continuous assurance**), `make image-check`, retention CLI job reporting. Batch of six; four members routed elsewhere | Wire `scan-logs` into CI or a schedule; wire `make image-check` into CI/deploy and document it; add `report_job_complete` to `checkpoint_retention_cli` | engineering |
 
 ### 4.2 ACTIVE_IMPLEMENTATION (5) — decided or specified, not built
 
@@ -156,12 +155,11 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-| 1 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
-| 2 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
-| 3 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
-| 4 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
-| 5 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
-| 6 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
+| 1 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
+| 2 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
+| 3 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
+| 4 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
+| 5 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
 
 ---
 
@@ -369,9 +367,13 @@ Every item carries its register key. These are the headline live risks, not the 
   `make load-staging-learning`'s docker env pass-through showed zero argv/process-title
   occurrences across six in-flight samples of the exact mechanism (name-only `-e`); the
   remaining stale-copy risk lives only in operator-browser `localStorage` (§4.3, user action).
-- **Method rule (carried forward): no automated drift detector exists.** `terraform apply` is absent
-  from the deploy workflow and nothing compares deployed reality to the tracked tree
-  (`F-03-DRIFT-DETECTOR`), which is why the gitignored-tfvars hazard in §7 has no mechanical guard.
+- **Method rule (narrowed 2026-08-24, D-439): the image-agreement class of drift is now watched
+  mechanically** — a blocking post-deploy deployed-image consistency gate plus the weekly
+  `scheduled-controls.yml` run (first dispatch green: run 32783980237, `VERDICT: OK` on
+  `gha-898e2fb4270b`). What still has **no detector**: terraform-vs-deployed drift in general —
+  `terraform apply` is absent from the deploy workflow (`F-03-DRIFT-DETECTOR`) and the
+  gitignored-tfvars hazard in §7 keeps no mechanical guard (the image check deliberately excludes
+  the tfvars pin per D-417 A3).
 - **Child-safety screening is a ten-keyword substring screen on one of two minors-facing surfaces**,
   guarded by one test, with no escalation destination beyond a boolean and no Guardrails repo-wide —
   `REQ-32-SAFETY` / UD-9. Nothing else in the active tier will resurface this if UD-9's hold is

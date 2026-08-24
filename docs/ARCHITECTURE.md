@@ -410,7 +410,18 @@ to rot, because nothing fails when it does.)*
   emit `<job>_job_complete` with its counts, because "it ran" and "it did anything" are different
   questions and `print()` answers neither; and a heartbeat alarm on a scheduled job is the one
   place `treat_missing_data = "breaching"` is correct — the exit-code alarm cannot see a job that
-  never starts, so there the **absence of data is the incident**. A fourth corollary since D-433:
+  never starts, so there the **absence of data is the incident**. Since D-439 (2026-08-24) the
+  built-but-uninvoked controls are wired: **`scheduled-controls.yml` runs weekly** (OIDC deploy
+  role, trailing 8-day window) executing the PII log scanner — whose allowlist is now
+  **path-aware, converged on the trace scanner's `(pattern, path)` semantics** after three
+  measured false-positive classes — and the deployed-image consistency check, which **also runs
+  as a blocking post-deploy gate** in `deploy-staging.yml`; any non-zero exit, "could not look"
+  included, is a red run (first dispatch green: run 32783980237, CLEAN over 319k+ events,
+  `VERDICT: OK`). The fifth scheduled-job entrypoint (`checkpoint_retention_cli`, deliberately
+  unscheduled — WORK-23/D-333) now emits `checkpoint_retention_job_complete` beside its
+  `print()`, so scheduling it later is a terraform edit against an already-reporting job. The
+  deploy role carries two Logs Insights statements for the scanner (**applied 2026-08-24**,
+  targeted). A fourth corollary since D-433:
   the wildcard only sees the *raising* half. A background task that degrades **without** raising —
   every hint-personalization call falling back to the canonical rung, every publish guard-dropped —
   reads on every log and alarm exactly like a quiet week, which is how D-329 ran dead in
