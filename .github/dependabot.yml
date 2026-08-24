@@ -31,11 +31,21 @@ updates:
     directory: "/apps/learning-api"
     schedule:
       interval: "weekly"
+    ignore:
+      # D-431: the Python runtime line (3.12) is pinned deliberately - an upgrade is a
+      # scheduled session (lock re-resolved, container scan green), not a dependabot PR.
+      # Note dependabot reads 3.12->3.14 as semver-MINOR for docker tags, so an ignore
+      # must cover the image name, not just semver-major. OS-level patching inside the
+      # image is handled at build time (D-384 apt-get upgrade in the runtime stage).
+      - dependency-name: "python"
 
   - package-ecosystem: "docker"
     directory: "/apps/chat-api"
     schedule:
       interval: "weekly"
+    ignore:
+      # D-431: same as learning-api above.
+      - dependency-name: "python"
 
   - package-ecosystem: "github-actions"
     directory: "/"

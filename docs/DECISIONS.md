@@ -29712,3 +29712,29 @@ Declined for now — not merged, not closed:
 **Also recorded:** the merges advance origin/main; this session's docs commits remain local-only
 (pushing was not separately authorized), so origin's PROJECT_STATE lags HEAD's by three docs
 commits until the user pushes or asks for a push.
+
+## D-431 — the user accepted D-430's recommendation: Python stays on 3.12, the major PRs are closed, dependabot ignores the python base image (user, 2026-08-23)
+
+The user answered D-430's `PY-314-MAJORS` recommendation with "proceed" (2026-08-23, following
+the summary that stated the recommendation and its reason). Applied:
+
+1. **PRs #1 and #8 closed** with a comment naming this entry and the reopen path (a scheduled
+   runtime-upgrade session).
+2. **`.github/dependabot.yml`: both docker ecosystems now ignore `dependency-name: "python"`.**
+   One correction to D-430's wording discovered at implementation: dependabot classifies
+   `3.12 → 3.14` as a **semver-minor** docker update (major = 3), so the recommended
+   "major-ignore" would not have stopped these PRs — the ignore must cover the image name. The
+   trade accepted: no python base-image PRs at all, which is safe because the tag form
+   (`3.12-slim`) receives no patch-level PRs anyway and OS patching inside the image is D-384's
+   build-time `apt-get upgrade`.
+3. **The runtime-upgrade question stays visible**: PROJECT_STATE §6.3 `PY-314-MAJORS` is
+   restated (not deleted) because the ignore rule means *nothing will resurface the upgrade on
+   its own* — the row is now the only reminder. Reopen: the user schedules the upgrade session
+   (lock re-resolved under the new runtime, cp314-class wheel availability checked across the
+   LangGraph/LlamaIndex/pydantic-core chain, container scan green).
+4. The docs commits (D-428/D-429/D-430) and this change are pushed — "proceed" granted the push
+   this time only; pushing stays non-default. The dependabot ignore only takes effect once on
+   the default branch, so the push is functionally part of this decision, not a convenience.
+
+`.github/dependabot.yml` is CI configuration, not shipped product code: the repo-vs-deployed
+image gap stays 16 and the LB-05 staleness anchor stays `fb1ec87`.
