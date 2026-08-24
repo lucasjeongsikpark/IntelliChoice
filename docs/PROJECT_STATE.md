@@ -10,7 +10,7 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-24** (coordinator sessions: D-433 `D329-PHANTOM`, D-434 `D356-FAMILY`, D-435 `RD-01` closed — the dead-man's switch is confirmed for all four jobs; earlier 08-23/24: D-428..D-432) |
+| Snapshot date | **2026-08-24** (coordinator sessions: D-433 `D329-PHANTOM`, D-434 `D356-FAMILY`, D-435 `RD-01`, D-436 `LANGSMITH-INGEST` classified → UD-13; earlier 08-23/24: D-428..D-432) |
 | Last product-code commit | **`5bbe08a`** (2026-08-24, PR #392) — hint-personalization outcome counter + real-HTTP SSE delivery proof (D-433); before it `710e977` (seam (b) heals, D-432) |
 | Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
 | Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
@@ -79,7 +79,7 @@ the full local suite green on the merged HEAD; staging is unaffected until the n
 
 ## 4. Active engineering work
 
-9 open engineering entries. Full evidence per entry:
+8 open engineering entries. Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
@@ -89,12 +89,11 @@ by D-430). The `NO-NEW-TEST-CODE` category is **closed**: all three
 defects the audit established by code reading only (REQ-27, SEC-13, COST-06) gained executed
 tests on 2026-08-21/22.
 
-### 4.1 ACTIVE_REMEDIATION (4) — something built is wrong or silently ineffective
+### 4.1 ACTIVE_REMEDIATION (3) — something built is wrong or silently ineffective
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
 | `D310-RESIDUALS` | Three follow-ups surviving the executed D-310 rotation | See 4.3 | user / engineering / docs |
-| `LANGSMITH-INGEST` | Trace ingestion failing at volume and flapping; nobody paged by design | Read app/ops log content for `langsmith.client` lines; classify 403 / quota / timeout. A quota or plan-limit cause escalates to a user call | engineering |
 | `TEST-05-DESCRIPTIVE-REREAD` | An owed human re-read of SPEC §5.3/§5.36 never fired across four qualifying changes — and both rows sit under the 37-of-37 criterion-1 claim | Perform the re-read, or replace the human habit with a definable trigger ("what counts as an architecture change" is undefined) | engineering + docs |
 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Three built controls nothing invokes — the PII log scanner (**one historical clean run, no continuous assurance**), `make image-check`, retention CLI job reporting. Batch of six; four members routed elsewhere | Wire `scan-logs` into CI or a schedule; wire `make image-check` into CI/deploy and document it; add `report_job_complete` to `checkpoint_retention_cli` | engineering |
 
@@ -155,19 +154,18 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-| 1 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
-| 2 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
-| 3 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
-| 4 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
-| 5 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
-| 6 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
-| 7 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
-| 8 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
-| 9 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
+| 1 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
+| 2 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
+| 3 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
+| 4 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
+| 5 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
+| 6 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
+| 7 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
+| 8 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
 
 ---
 
-## 5. Open user decisions (UD-1 … UD-12)
+## 5. Open user decisions (UD-1 … UD-13)
 
 > **These are questions only the user can answer. They are NOT implementation tasks.**
 > Do not infer an answer from evidence, and **do not convert one into a D-xxx without the user.**
@@ -191,6 +189,7 @@ UD-constrained tails; every §4 key appears exactly once):**
 | UD-10 | `DISCLOSURES-LEGAL` | Does the first-visit notice ship 8 or 11 disclosures, is counsel engaged, and who owns the §6.1 legal track? — no code waits on it; it gates a launch requirement whose owning session must not start | No | [agent may apply] Record, with a date, that the ruling is outstanding and counsel is not engaged; add an owner field even if it is "user, unscheduled" |
 | UD-11 | `LANGSMITH-RETENTION` | What is the LangSmith run-retention setting, and is it acceptable for a product whose users are minors? | No | [agent may apply] Record it as an accepted unknown with a dated note, and take the two-minute console read at the next convenient moment |
 | UD-12 | `(six — see below)` | Bundle of **six one-line confirmations**: (a) `DIFFICULTY-TIERS-CONFLICT`, (b) `D141-TRIM`, (c) `PROSE-QUALITY`, (d) `DRIFT-66-NL2SQL`, (e) `REQ-39-ESTIMATED-LEVEL`, (f) `COMMITTED-ORG-DRAFTS` — none blocks current work | No | [USER ONLY for (a) — hold: continue following D-341 (what the code already does), annotate nothing, record no ruling; the conflict is between two explicit user decisions and no default can settle it.] (b)–(f): each has a stated safe default in the queue. |
+| UD-13 | `LANGSMITH-INGEST` | LangSmith's monthly unique-traces cap is exceeded (classified 2026-08-24, D-436 — every burst line is a 429 "Monthly unique traces usage limit exceeded"): upgrade the plan, add trace sampling, disable staging tracing (which strands the NAT's sole egress consumer, ~$33/mo), or accept a monthly tracing blackout from cap-hit to reset? | No | [agent may apply] Change nothing; carry the classification. Until answered, the tracing leg goes dark each month at the cap and nobody is paged (D-401 routing, by design) |
 
 UD-12's six one-line questions: (a) `DIFFICULTY-TIERS-CONFLICT` — does D-341 (keep
 `difficulty_tiers` unchanged) govern over D-322 §7 (edit them to match the judge)? Both are
@@ -353,12 +352,15 @@ Every item carries its register key. These are the headline live risks, not the 
   takes out both databases — default parameter groups, and no document records this as a choice.
   **The §2.6 gate criteria were measured on this environment** — that sentence is owed in writing
   regardless of which option the user picks.
-- **LangSmith ingest is failing at volume, and its retention is unknown.** `LANGSMITH-INGEST` +
-  `LANGSMITH-RETENTION`: `LangSmithIngestFailed` 14-day sums are **learning-api 2800 /
-  chat-api 1441**, each alarm records 10 state transitions in ~2 days (five OK→ALARM→OK cycles on
-  learning-api), and it routes to the quiet informational topic on the same single mailbox. The
-  cause is undetermined. Separately, the account's run retention for **minors' data** has never
-  been read.
+- **LangSmith ingest failed on a quota, and its retention is unknown.** UD-13 + `LANGSMITH-RETENTION`:
+  the flapping-alarm event is **classified** (D-436, read 2026-08-24): 4,264 `langsmith.client`
+  failures 08-16 → 08-20T04:00Z, **100% HTTP 429 "tenant exceeded usage limits: Monthly unique
+  traces usage limit exceeded"** — zero timeout/connection lines, so the NAT leg is exonerated;
+  plus one isolated ~1-minute 403 burst (8 lines) on 2026-08-10, self-resolved. Nothing logged
+  since 08-20T04Z: silence means little traced traffic, **not recovery** — the cap presumably
+  stands until the provider's monthly reset, the remedy fork is UD-13 (user), and the flap
+  routing to the quiet topic remains D-401's intended design. Separately, the account's run
+  retention for **minors' data** has never been read (UD-11).
 - **Free-tier observability is at the wall.** CloudWatch alarm/metric monitors are at
   **10.0/10.0 with a 16.32 forecast**, and X-Ray traces are **91% used** (forecast 148,599 against
   100,000). Any new alarm or trace volume now costs money (`COST-25-ALARM-COUNT`;

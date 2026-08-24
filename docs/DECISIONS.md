@@ -29964,3 +29964,48 @@ completion event reports that the job ran, not that it did the right thing) — 
 `C6-UNATTENDED`'s question, along with its seven-day confirmed-firing clock (earliest
 2026-08-29 for the nightly three). `F4-CRITERION6`'s detectability caveat dissolves: a
 waived-firing failure in any of the four jobs is now detectable.
+
+## D-436 — LANGSMITH-INGEST classified: a LangSmith monthly-quota exhaustion, not auth and not network; the remedy is the user's (accepted, 2026-08-24)
+
+Executes `LANGSMITH-INGEST`'s remaining action (queue row 1) — read the `langsmith.client` log
+content and classify 403 / quota / timeout. **The register's fork fires: the cause is a plan
+limit, so this entry records the classification and deliberately decides nothing** — the remedy
+is UD-13 (new, PROJECT_STATE §5).
+
+**Method.** CloudWatch Logs Insights over both app log groups
+(`/ecs/intellichoice-staging-{learning,chat}-api`), window 2026-08-10 → 2026-08-24 ~20:00 UTC,
+read 2026-08-24: newest-lines sample, per-day counts, and a per-day error-class breakdown
+(`strcontains` on RateLimitError / usage-limits / 403 / timeout / connection).
+
+**The classification:**
+
+1. **The flapping-alarm event is 100% quota.** 4,264 `langsmith.client` lines from 2026-08-16
+   through 2026-08-20T04:00:57Z (per day: 3,405 / 763 / 44 / 29 / 23), **every one**
+   `langsmith.utils.LangSmithRateLimitError` — HTTP 429 from
+   `https://api.smith.langchain.com/runs/multipart` with the tenant body verbatim:
+   *"Too many requests: tenant exceeded usage limits: **Monthly unique traces usage limit
+   exceeded**"*. (The small per-day "403" substring counts inside this window co-occur with
+   RateLimitError on the same lines — trace-id/URL substring noise, not HTTP 403s.)
+2. **One separate, tiny, self-resolved 403 event**: 8 lines on 2026-08-10 00:56:49–00:57:27Z
+   (~40 s), genuine `403 Forbidden` `{"error":"Forbidden"}` on the same endpoint. Isolated to
+   that minute; nothing similar before or since in the readable window.
+3. **Zero timeout- or connection-shaped lines anywhere.** The requests reach LangSmith and are
+   refused at the application layer, so **the NAT egress leg is exonerated** — the register's
+   "if the failures are network-shaped, this and the NAT are the same investigation" branch is
+   dead. (The ~$33/mo NAT-serves-only-LangSmith observation still matters, but as UD-13 option
+   context, not as a fault.)
+4. **Silence since 2026-08-20T04:00:57Z is not recovery.** A monthly unique-traces cap stays
+   exceeded until the provider's reset; no failures logged since then means little traced
+   traffic reached the client's batcher, not that ingestion works. What LangSmith actually
+   received or retains is external and unverifiable from here (UD-11's console read is still
+   the only way to know).
+
+**What this changes and what it does not.** The engineering half of `LANGSMITH-INGEST` (the
+classification) is done, so its §4 row resolves — but the *situation* is not fixed: from
+cap-hit to each monthly reset the tracing leg is dark, and the flap alarms route to the quiet
+`alerts-info` topic by D-401's deliberate design (working as intended, per the register: the
+routing is not the defect). The remedy fork is recorded as **UD-13**: upgrade the LangSmith
+plan (paid), add trace sampling (engineering, reduces observability), disable staging tracing
+(strands the NAT's sole egress consumer), or accept the monthly blackout. No default is
+applied beyond carrying the classification, because every option is a spend or observability
+posture call.
