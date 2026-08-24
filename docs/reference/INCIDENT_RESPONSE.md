@@ -206,7 +206,12 @@ If it's genuinely new, treat it as stop-and-fix-now.
 CLAUDE.md's own rule: cost bugs are real bugs. What's already built to catch this:
 
 - The AWS Budget alarm (`terraform/modules/observability`) - the first real signal,
-  emails when spend crosses the configured threshold.
+  emails when spend crosses the configured threshold. **Caveat: this budget measures
+  net-of-credits spend**, so while promotional credits absorb usage it stays quiet
+  against the real gross run rate (as of 2026-08-20: ~$250/mo gross against the $20 net
+  threshold — register `BUDGET-GROSS-SPEND`, UD-3). The only gross-spend control is a
+  **console-created $10 budget that terraform does not manage** - it is load-bearing;
+  never delete it during cleanup.
 - `ResilientBedrockGateway`'s per-session `session_budget_cents` cap and circuit breaker
   (`bedrock_circuit_failure_threshold`/`bedrock_circuit_cooldown_s`) - already limits
   any *single* session's runaway spend; a cost anomaly is more likely many sessions
@@ -215,10 +220,53 @@ CLAUDE.md's own rule: cost bugs are real bugs. What's already built to catch thi
   caveat).
 
 Steps: check the Budget alarm's linked Cost Explorer view for which service actually
-spiked, check CloudWatch Logs for `bedrock_call` entries clustering unusually (real
+spiked - and check the **gross** (credit-excluding) view, not just net, per the caveat
+above - check CloudWatch Logs for `bedrock_call` entries clustering unusually (real
 volume, or a retry storm from a single failing session), consider temporarily lowering
-`bedrock_session_budget_cents` or scaling `desired_count` to 0 if spend is actively
-runaway and the source isn't yet clear.
+`bedrock_session_budget_cents`, or stop the service outright (next section) if spend
+is actively runaway and the source isn't yet clear.
+
+### Stopping a live service: `desired_count` is NOT the lever
+
+Corrected 2026-08-23 (register `DRIFT-86-COST-RUNBOOK`): an earlier version of this
+playbook said "scale `desired_count` to 0", which does not move a live service.
+`desired_count` sits in `ignore_changes` on the ECS service
+(`terraform/modules/ecs-service/main.tf`) and Application Auto Scaling owns capacity
+once the service exists, so editing `desired_count` - in terraform or via
+`update-service` alone - is either silently ignored on apply or undone by the next
+scale-out. The staging comment names the real knob: *"it is `autoscaling_min_capacity`
+that actually moves a live service"* (`terraform/environments/staging/main.tf`, the
+criterion-7 block). In an active incident the two CLI calls below are faster than a
+`terraform apply`; run them per runaway service (cluster `intellichoice-staging`;
+services `intellichoice-staging-learning-api`, `intellichoice-staging-chat-api`):
+
+1. Pin autoscaling first, so a scale-out policy cannot undo step 2:
+
+   ```
+   aws application-autoscaling register-scalable-target \
+     --service-namespace ecs \
+     --resource-id service/intellichoice-staging/intellichoice-staging-learning-api \
+     --scalable-dimension ecs:service:DesiredCount \
+     --min-capacity 0 --max-capacity 0
+   ```
+
+2. Drain the tasks:
+
+   ```
+   aws ecs update-service --cluster intellichoice-staging \
+     --service intellichoice-staging-learning-api --desired-count 0
+   ```
+
+3. To restore after the incident: put the scalable target back
+   (learning-api min 2 / max 3, chat-api min 1 / max 3 - the tracked values as of
+   2026-08-23; the D-344 `max = 1` override was reverted, never applied) and set
+   `--desired-count` back to the minimum; or run `terraform apply`, which reconciles
+   the scalable target (min/max capacity are *not* in `ignore_changes`, only
+   `desired_count` and `task_definition` are).
+
+4. Either way, reconcile the control plane afterwards: `terraform apply` is not part of
+   `deploy-staging.yml` and **no drift detector exists** (`F-03-DRIFT-DETECTOR`), so a
+   hand-stopped service stays invisible to the tracked tree until someone reconciles it.
 
 ### "Which student or session ran it up?" — the queries, run rather than written (D-400)
 

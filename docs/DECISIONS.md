@@ -29598,3 +29598,39 @@ C7/D-403 and is not owed anywhere.
 conflicting-with-decision (not as done); the residual lives on the `PLAYWRIGHT-LANE` row. If the
 user ever wants the mock-test route after all, that is a reversal of C7 and needs an explicit
 new decision — do not infer it.
+
+## D-428 — DRIFT-86 closed: the cost-anomaly runbook names the lever that actually stops a live service (accepted, 2026-08-23)
+
+Executes register `DRIFT-86-COST-RUNBOOK`'s remaining action (queue row 2; row 1 `RD-01` is
+time-blocked until the Sunday 2026-08-24 18:30 UTC run, per its own §4.4 note). The defect: the
+cost-anomaly playbook in `docs/reference/INCIDENT_RESPONSE.md` said "scale `desired_count` to 0",
+but `desired_count` is inside `ignore_changes` on `aws_ecs_service`
+(`terraform/modules/ecs-service/main.tf:370`) and Application Auto Scaling owns capacity once the
+service exists — the staging comment (`terraform/environments/staging/main.tf:443-445`) already
+said the operative knob is `autoscaling_min_capacity`. An incident runbook naming a dead lever,
+while `BUDGET-GROSS-SPEND` shows the cost scenario is live, is an operational defect.
+
+**The choices worth recording (the correction itself was mandated, its shape was not):**
+
+1. **CLI-first, terraform-second.** The written stop sequence is two AWS CLI calls
+   (`register-scalable-target --min-capacity 0 --max-capacity 0`, then
+   `update-service --desired-count 0`), with `terraform apply` relegated to post-incident
+   reconciliation. Reason: `terraform apply` is not part of `deploy-staging.yml`, is slower
+   mid-incident, and the gitignored-tfvars hazard (§7 `ARCH-34`) makes an emergency apply riskier
+   than two targeted API calls.
+2. **Both min AND max pinned to 0**, not min alone. Lowering only the floor leaves the two
+   StepScaling policies able to scale back out between the two calls; pinning max closes that
+   window. This is why the runbook orders the scalable-target call *before* `update-service`.
+3. **Restore values are stated with their as-of date** (learning-api min 2 / max 3, chat-api
+   min 1 / max 3, tracked values as of 2026-08-23) and carry the D-344 caveat: the `max = 1`
+   stopgap was authored but never applied, so the module default of 3 is live truth.
+4. **The `BUDGET-GROSS-SPEND` cross-reference is a caveat on the budget alarm itself**, in the
+   "what's already built" list — the terraform budget measures net-of-credits spend and is
+   currently blind to a ~$250/mo gross run rate (as of 2026-08-20), and the console-created $10
+   gross budget is named load-bearing in the runbook, not only in PROJECT_STATE §8.
+
+**Verification honesty.** The sequence was **derived from the terraform source and AWS API
+semantics, not executed** — running it stops a live service, which is exactly what a runbook
+correction must not do as a side effect. `make lint && make typecheck` green; docs-only change,
+nothing deployed. The audit-register mentions of `desired_count` (AUDIT_FINDINGS) are historical
+finding records, deliberately left unedited.
