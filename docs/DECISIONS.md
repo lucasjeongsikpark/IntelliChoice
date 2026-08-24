@@ -25865,6 +25865,14 @@ an assertion that holds while checking nothing.
 > D-366's attempt table also lists D-356 as what stopped accumulation attempt 1, and D-370 later
 > closed the clause — see the annotations there.
 
+> **⚠️ Status corrected, 2026-08-24 (D-434) — the scoped correction the W-16 annotation above
+> deferred.** Fixed **for the narrative scheduler** by D-358's pairing signal plus D-369's
+> publish-time re-read; the same guard design reached the hint-personalization scheduler (D-373)
+> and `_initial_snapshot` (D-381). **Family completeness is now established by enumeration**
+> (D-434): exactly two asynchronously-built-frame publishers exist and both are guarded; no fifth
+> site. The one boundary both guards state themselves: a commit from another replica landing in
+> the final pre-publish gap remains possible in principle and is not claimed closed.
+
 #### The measurement, which is what makes this a defect rather than a flake
 
 `video-intervention.spec.ts` failed in the first staging run of the session. Re-run twice with
@@ -29858,3 +29866,69 @@ whole-suite slowdown scare (~3.5 h projected) did not survive the final runs; th
 environment note records the likely cause as local dev-DB bloat (6.39M `checkpoint_writes`
 rows, 3.1 GB; autovacuum last 2026-08-15..18) — an environment observation, not a code finding,
 and local retention stays outside scope (D-333's precondition binds any checkpoint deletion).
+
+## D-434 — the D-356 family closed by enumeration: exactly two asynchronously-built publishers exist, both guarded; the "third place" conflict was two counting bases (accepted, 2026-08-24)
+
+Executes `D356-FAMILY` (queue row 2; `RD-01` still time-blocked at dispatch, 06:51 UTC). Four
+sites were patched reactively, one at a time, and no entry ever stated the denominator — D-373
+counted "seven fixes gone one direction" while D-381 found "the third place [the family] lives",
+and whether a fifth site existed was unaddressed. The register's own words: **nobody is
+counting.** This entry is the count. **Coordinator-performed under the Orca workflow's own
+boundary: the sweep is read-only investigation and its outcome is documentation — no product
+code changed, so no executor was dispatched.**
+
+**Method.** `grep -rn "\.publish(\|_publish_snapshot(" apps/*/src --include="*.py"` at HEAD
+`a88704f` (2026-08-24), each hit read in context, plus the SSE transport and initial-frame
+paths that a publish-grep alone would miss.
+
+**The shared state being protected:** the learning client's whole-snapshot SSE frames — every
+frame **replaces** the screen, so a frame built from stale state erases what the student chose
+(D-356's defect).
+
+**The enumeration (learning-api):**
+
+1. **Eleven route-level `_publish_snapshot(events, response)` sites** (`routers/sessions.py`
+   966, 972, 1103, 1161, 1170, 1339, 1365, 1731, 1950, 2008, 2049 at this SHA). Each publishes
+   the typed response its own request just computed — same-turn content. The D-356 risk (a
+   frame computed *before* the student's latest action, published *after* it) cannot arise by
+   construction: the frame IS the reaction to the student's action, and route turns are
+   serialized per session by the D-376 turn claim. Guard not applicable, correctly absent.
+2. **Two background publishers — the entire D-356 risk class:**
+   - `stage_narrative_scheduler.py:226` — guarded: `help_is_on_screen` before the snapshot
+     build **and** D-369's re-read immediately before the synchronous publish (verified by
+     reading at this SHA).
+   - `hint_personalization_scheduler.py:297` — guarded: `_hint_is_still_on_screen` evaluated
+     twice at the same two points (D-373; re-verified both by reading and by the D-433 test
+     suite, including the real-HTTP delivery test).
+3. **One initial-frame renderer** — `_initial_snapshot` (the `/stream` route's first frame).
+   Not a bus publisher and cannot erase (the client has nothing yet); its help gating is
+   D-381's fix, now sharing the `help_is_on_screen` predicate.
+4. **One transport** — `SessionEventRelay` (cross-replica `LISTEN`/`NOTIFY`). Forwards frames
+   unchanged; content is decided at the origin publish, so the guard question does not
+   transfer to it.
+
+**chat-api:** exactly one publish site (`routers/sessions.py:317`), route-level and same-turn;
+**no background publisher exists in chat-api at all**, so the family has no chat member.
+
+**The completeness claim, stated as the register asked:** the number of
+asynchronously-built-frame publishers is **exactly two**, both carry the full guard design
+(D-358 pairing + D-369 evaluate-immediately-before-publish), and **no fifth site exists**.
+D-381's open question closes at that denominator. The one boundary carried, not closed — both
+guards' own comments state it: a commit from **another replica** landing between the final
+re-read and the publish remains possible in principle.
+
+**The "third place" conflict, resolved as two counting bases rather than an error:** D-373's
+"seventh fix" counts *one-direction fixes across both apps* (D-347's symmetry finding); D-381's
+"third place" counts *places the D-356 family lives* (narrative scheduler → hint scheduler →
+`_initial_snapshot`). Both are internally correct; neither was a denominator. This enumeration
+is the denominator, and future guard work cites it rather than a new ordinal.
+
+**The two documentation corrections (register actions 2 and 3):**
+- The scoped status correction is appended in place under D-356's heading (dated, marked,
+  original text kept — the H1 convention), superseding the W-16 annotation's deliberate
+  ambiguity now that completeness is established.
+- The D-137/D-141/**D-356** → **D-357** wrong-id citation: the DECISIONS copy (inside D-406)
+  was already annotated in place on 2026-08-20 (W-18). The second copy lives in
+  **archived** `docs/archive/PROGRESS.md:399` and is deliberately **not rewritten** — the
+  archive is historical (D-427 precedent); this entry is the retraction of record for that
+  copy: read D-357 there, not D-356.
