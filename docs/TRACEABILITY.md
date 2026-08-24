@@ -214,6 +214,14 @@ another.
   (`make scan-logs`) now scans live log events with the **same patterns and the same matcher** as the
   trace scanner, and fails on truncation, on an unreadable window, and on zero events. First run over
   authenticated traffic: **CLEAN, 20/20 control** (D-129).
+  **Upgraded from a snapshot to an instrument, 2026-08-24 (D-439):** the scanner now runs weekly in
+  CI (`scheduled-controls.yml`, OIDC, trailing 8-day window, `--slice-minutes 120`; any non-zero
+  exit — "could not look" included — is a red run). First dispatched run green on GitHub: run
+  32783980237, **positive control 31/31, 133 allowlisted as infrastructure (`LOG_ALLOWLIST`, three
+  path/value-scoped excuses, each pinned in both directions), CLEAN over the trailing 8 days**.
+  The earlier "one historical clean run" evidence is superseded in the strong direction — and that
+  run's own 2,774-event window is now measured as having been too small to mean what its comment
+  claimed (D-439 records the three false-positive classes only the full window surfaced).
 
 ### 2. Deterministic core — grading, gating, authorization, scoring, SQL (§5.0, §5.26)
 
@@ -754,11 +762,11 @@ tail took minutes rather than the session it was budgeted.
 
 | section | artifact | what fails if it disappears |
 |---|---|---|
-| **§5.3** Enterprise architecture | `docs/ARCHITECTURE.md`, and the deployed topology itself | nothing mechanical — **descriptive**, and the honest verdict is that this section documents rather than requires. **Re-read 2026-08-24 (D-438)** against the four post-tranche-6 change groups (D-334/D-335, D-349, D-406/W14, D-393/D-394): all four sit below this section's altitude (SSE relay, NAT, logging fields do not appear in it); no new drift — it remains the original enterprise sketch, divergent from the as-built runtime in the ways the fence already records |
+| **§5.3** Enterprise architecture | `docs/ARCHITECTURE.md`, and the deployed topology itself | nothing mechanical — **descriptive**, and the honest verdict is that this section documents rather than requires. **Re-read 2026-08-24 (D-438)** against the four post-tranche-6 change groups (D-334/D-335, D-349, D-406/W14, D-393/D-394): all four sit below this section's altitude (SSE relay, NAT, logging fields do not appear in it); no new drift — it remains the original enterprise sketch, divergent from the as-built runtime in the ways the fence already records. **Trigger fired 2026-08-24 (D-439, the trigger's first firing since D-438 defined it):** the ARCHITECTURE edit adds CI enforcement points, below this section's altitude — skip-noted, no re-read owed |
 | **§5.27** Pydantic | **41** `extra="forbid"` models across `apps/`, `packages/` and `scripts/` — **41 of 184** non-test `BaseModel`/`BaseSettings` classes, i.e. **22%**, concentrated in four files with **35 of bedrock.py's 64** model classes carrying it *(count re-derived 2026-08-20, W-14/F-08; the row said **31**)* | `make typecheck` (pyright, 0 errors) in CI's `lint-typecheck-test`; the PII-floor tests additionally pin the strictness of every Bedrock payload model. **⚠️ Clause (b) is weaker than this row used to imply — see the note below** |
 | **§5.34** Docker / Terraform / GHA | `apps/*/Dockerfile`, `terraform/`, `.github/workflows/{ci,deploy-staging,security-scan}.yml` | CI's four jobs and the deploy workflow — a missing Dockerfile or module fails the build, not a review |
 | **§5.35** External accounts and identifiers | `.env.example` | app startup config validation; a missing required variable fails the container, not a checklist |
-| **§5.36** Final technology placement | the stack as built | nothing mechanical — **descriptive**. **Re-read 2026-08-24 (D-438)**: of the four post-tranche-6 change groups, only the SSE relay touches it — the `PostgreSQL` placement grew a use the table predates (cross-replica event relay via `LISTEN`/`NOTIFY`, D-334/D-335/D-349) — and the re-read independently caught one pre-existing stale cell the 2026-08-20 "every other row stands" claim missed: `Grafana` (as-built dashboards are CloudWatch, D-244; the Prometheus half is as built). Both now carried by §5.36's amendment note |
+| **§5.36** Final technology placement | the stack as built | nothing mechanical — **descriptive**. **Re-read 2026-08-24 (D-438)**: of the four post-tranche-6 change groups, only the SSE relay touches it — the `PostgreSQL` placement grew a use the table predates (cross-replica event relay via `LISTEN`/`NOTIFY`, D-334/D-335/D-349) — and the re-read independently caught one pre-existing stale cell the 2026-08-20 "every other row stands" claim missed: `Grafana` (as-built dashboards are CloudWatch, D-244; the Prometheus half is as built). Both now carried by §5.36's amendment note. **Trigger fired 2026-08-24 (D-439):** the new CI controls sit inside the table's existing "GitHub Actions / CI/CD — Testing, evaluation, deployment" placement — skip-noted, no drift |
 | **§5.2.1** Deployment units | two independently deployed apps + two SPAs | the deploy workflow deploys exactly these |
 
 **On §5.27's count and its mechanism, corrected 2026-08-20 (`DOC-TEST-CLAIM-WORDING` / F-08, W-14;

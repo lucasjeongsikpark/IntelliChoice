@@ -30093,3 +30093,81 @@ primary evidence already read in this session series (the relay code and tests, 
 module, the terraform); it did not re-derive the whole §5.36 table cell by cell beyond the four
 change groups plus cells adjacent to them — the 2026-08-20 sweep remains the baseline for the
 rest.
+
+## D-439 — the three uninvoked controls wired, and the PII scanner survived meeting its own real window: three false-positive classes, a path-aware allowlist, and a green first run (accepted, 2026-08-24)
+
+Executes `BATCH-LOW-UNSCHEDULED-CONTROLS`'s three live members (queue row 1; DRIFT-54/80/87 —
+the batch's other three members are exceptions routed to `LANGSMITH-RETENTION`,
+`D310-ROTATION`, and `ALERT-ENDPOINT`/UD-6, untouched). Orca workflow: Frozen Spec → one
+persistent executor (claude/opus/high, receipt requested = effective) → **three mid-run
+escalations, each answered by the coordinator** → one naming-correction round → independent
+review → acceptance → this reconciliation. Landed as `b9a6011` (PR #399, suite 1806/2/1).
+
+**1. What is wired.**
+- **`scheduled-controls.yml`** — weekly (Mon 07:17 UTC) + `workflow_dispatch`; OIDC on the
+  existing deploy role; computes a trailing 8-day window (one day of overlap on a 7-day
+  cadence); runs the PII log scanner (`--slice-minutes 120`, measured 6× margin under the
+  Insights cap) and the deployed-image consistency check; **any non-zero exit fails the run,
+  the scanner's exit 3 ("could not look") included** — the scanner's fail-closed philosophy
+  applied to its own schedule. Deliberately not in `ci.yml`: both controls read live AWS
+  state, so a red run means "staging has a problem", never "this diff does".
+- **`deploy-staging.yml`** — a blocking deployed-image consistency gate after every existing
+  gate; reaching it means the bake passed and no rollback ran, so a disagreement is a real one.
+- **`checkpoint_retention_cli`** — emits `checkpoint_retention_job_complete` (job key
+  `checkpoint-retention`, hyphenated so a future schedule is a terraform edit against the
+  verbatim key) beside its retained `print()`, reporting `apply` as a field because
+  `deleted=0` has two readings that look identical in prose. **No schedule and no alarm were
+  added** — WORK-23/D-333/UD-7 own those; the D-385 parity tests iterate the *terraform* key
+  list, verified unaffected.
+
+**2. The scanner met its real window, and the window won three times.** The weekly control's
+own dress rehearsal (the exact 8-day window it runs) exited 1 on 131 hits — **none of them
+PII**: ISO-timestamp seconds matching the fixture latitude's 2-decimal pattern (78), the OTel
+collector's own `"address": "localhost:8888"` bind line (45), and the access log's own
+`"duration_ms": 39.85` (8). Each class was escalated before the scanner was touched:
+- Excused **by value, never by prose**: the timestamp shape requires the full ISO time context
+  (`THH:MM:` prefix and a timezone suffix); the bind-address shape requires the value to be
+  loopback, so a collector binding `0.0.0.0` goes red and a further entry is a human decision.
+- The third class forced a **mechanism** change: `LOG_ALLOWLIST` matched on excerpt only, and
+  the JSON-walked duration hit's excerpt is the bare string `39.85` — character-identical to a
+  genuine leaked latitude on that path, so no excerpt rule can separate them. Ruled: **converge
+  on the trace scanner's `(pattern, path)` semantics** (the divergence between the two
+  scanners' allowlist mechanisms was itself the latent defect); the duration excuse is
+  path-anchored to `\.duration_ms$` and cannot reach `.latitude`. A **precision floor** on the
+  fixture patterns was proposed and rejected on the record: it misses the timestamp class and
+  loses the likeliest real leak (the exact value `39.85`). All three excuses are pinned in both
+  directions by 20 tests with mutation-scored non-vacuity (D-221); the leaked-latitude control
+  (`{"latitude": 39.85}` a hit on **both** paths) is the one the mechanism exists for.
+- **Root cause, measured:** `str(39.8500) == "39.85"` — a 2-decimal fixture coordinate is an
+  ordinary number. The named-not-taken durable remedy if a fourth class appears: four decimals
+  for that fixture latitude, like its sibling (zero false positives across 319,726 events) — a
+  separate decision, because fixture values are load-bearing.
+- The executor **corrected its own earlier claim** (all 86 latitude hits were timestamps — 78
+  were; 8 were durations, hidden behind the common case) by complete enumeration with paths,
+  and `LOG_ALLOWLIST`'s original "no pattern fired at all / the expected exception proved
+  unnecessary" comment is corrected in place: both halves were window size, not evidence. One
+  invalid negative control was also found and recorded as its own test
+  (`branch_address` never matched — the shared pattern's `\b` cannot follow `_`; left unfixed
+  deliberately: the shared matcher is criterion 9's trace evidence too).
+
+**3. IAM, applied.** Two additive statements on the deploy role (`LogsInsightsPiiScan`:
+`logs:StartQuery` on the **trimmed** log-group ARNs — the `:*` suffix would have authorized
+nothing, the EcsRunTask comment's silent-no-authorization class; `LogsInsightsPiiScanUnscopable`:
+`GetQueryResults`/`DescribeLogGroups` on `*`, the same precedent the existing Describe
+statements carry). Targeted plan showed exactly `0 add / 1 change / 0 destroy`; **applied
+2026-08-24** (the precedented targeted-apply class); post-apply plan: "No changes".
+`logs:StopQuery` deliberately not granted.
+
+**4. Proven end to end, not predicted.** First `workflow_dispatch` run on GitHub — the watched
+first run the AUD-F-34 lesson requires — **green**: run 32783980237, positive control 31/31,
+`allowlisted: 133 (infra, not data)`, `CLEAN`, and `VERDICT: OK — every deployed image agrees:
+gha-898e2fb4270b`. The executor's honest "IAM unverified against AWS" residual is closed by
+that run. Criterion 9's log half is upgraded from one historical snapshot to a weekly
+instrument (TRACEABILITY updated). Carried residuals, verbatim from the report: a fourth
+2-decimal collision class is possible in a later window; `--slice-minutes 120` goes red (with
+the correct self-diagnosis) if traffic outgrows its ~6× margin; the retention reporter is
+pinned at `main()`, not end-to-end (that is `test_checkpoint_deletion_restore.py`'s subject).
+
+**5. D-438's trigger fired for the first time** (this entry's ARCHITECTURE edit): the CI
+enforcement points sit below §5.3's altitude and inside §5.36's existing GitHub Actions
+placement — skip-noted on both descriptive rows, dated.
