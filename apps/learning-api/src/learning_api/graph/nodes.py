@@ -38,6 +38,7 @@ from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_db.repositories.youtube import YoutubeRepository
 from intellichoice_observability.metrics import (
     ATTENDANCE_CHECKS,
+    CHECKPOINT_REPAIRS,
     EXAM_COMPLETIONS,
     LEARNING_GAIN,
     SESSION_COST_CENTS,
@@ -1173,7 +1174,48 @@ async def intervention_choice(state: LearningState, runtime: Runtime[TurnContext
     # unavailable video was recorded as used. The write now happens once the content is
     # known, at `served_choice` below.
     attempt = await ctx.study_repo.get_attempt(state.last_study_attempt_id)
-    assert attempt is not None
+    if attempt is None:
+        # AUD-X-07 seam (b), the mid-interrupt half. The checkpoint committed past
+        # `submit_answer` (this attempt id, plus the pause we just resumed) but the request
+        # died before the domain transaction committed, so the row this pause is about was
+        # never inserted - ECS enters that window on every deploy's task drain. This used
+        # to be a bare assert: /respond 500'd on every retry while the pending interrupt
+        # 409-blocked every other route - a dead end only operator surgery could clear.
+        #
+        # Healed here rather than in `checkpoint_reconcile.find_repair`, because this is
+        # the one place recovery is possible: the thread is paused on THIS task, and
+        # completing the resumed node is what clears it - `aupdate_state` edits channel
+        # values but cannot complete a pending task. Same rule as that module, though:
+        # roll *backwards* to what the database supports, never invent a row to match the
+        # checkpoint. The answer never happened; re-serve it. `last_items` still holds the
+        # in-progress question (the S23 rule in `submit_answer` preserves it through the
+        # pause), so clearing the pause is sufficient - the student answers again and
+        # `record_attempt` inserts freshly (the unique constraint cannot fire: this branch
+        # exists precisely because the first insert never committed).
+        #
+        # Counted on the same counter as seam (a): `learning_checkpoint_repairs_total` is
+        # §7-R9's tripwire, and a live hit of either seam is exactly the movement that
+        # voids the acceptance. Runs before any Bedrock call, so a repair spends nothing.
+        logger.warning(
+            "checkpoint referenced study_attempt %s, which does not exist; the answer "
+            "turn was lost between the checkpoint and domain commits - clearing the "
+            "intervention pause and re-serving the question",
+            state.last_study_attempt_id,
+        )
+        CHECKPOINT_REPAIRS.inc()
+        return {
+            "last_study_attempt_id": None,
+            "hint_ladder_awaiting_choice": False,
+            "last_intervention": None,
+            "last_intervention_attempt_id": None,
+            "last_is_correct": None,
+            "last_message": (
+                "That answer didn't get saved, so this question is back on screen. "
+                "Give it another try - you've got this."
+            ),
+            "pending_study_narrative": None,
+            "pending_hint_personalization": None,
+        }
 
     last_intervention: dict | None = None
     bedrock_spend_cents = state.bedrock_spend_cents
