@@ -712,11 +712,16 @@ to rot, because nothing fails when it does.)*
   the LangGraph saver commits at the end of each superstep on its own psycopg pool; domain rows
   commit at dependency teardown. Anything failing in between keeps the checkpoint and discards the
   rows, and **a task stop enters that window with no bug required — ECS drains tasks on every
-  deploy** (AUD-X-07). `services/checkpoint_reconcile.py` checks a checkpointed row id against the
-  row it names and rolls the checkpoint *backwards* to what the database supports, never forwards by
-  inventing rows; `learning_checkpoint_repairs_total` counts it, so a flat zero is the evidence the
-  unfixed ordering is not being hit. **Partial: only the mid-finalize seam. The mid-interrupt seam
-  and the commit ordering itself are still open** (S42, D-110 §3).
+  deploy** (AUD-X-07). Both seams now heal, each at the one point recovery is possible:
+  `services/checkpoint_reconcile.py` handles the **mid-finalize** seam (checks a checkpointed row id
+  against the row it names, from the request path, before routing reads the phase), and the
+  **mid-interrupt** seam heals inside the resumed `intervention_choice` node itself (D-432,
+  2026-08-23) — a paused LangGraph task can only be cleared by completing the paused node, so the
+  reconcile module structurally cannot reach it. Both roll the checkpoint *backwards* to what the
+  database supports, never forwards by inventing rows, and both count on
+  `learning_checkpoint_repairs_total`, so a flat zero is the evidence the unfixed ordering is not
+  being hit. **What stays open is the commit ordering itself** (the saver sharing the request's
+  connection — S42, D-110 §3).
   **Leaving them open is accepted risk §7-R9, and the acceptance has an expiry: expiry conditions
   are single-homed at [PROJECT_STATE §6.4](PROJECT_STATE.md) (`ARCH-17-COMMIT-SEAM`) — R8 expires at
   first real traffic; R9 is voided by any movement.** The flat zero above *is* the acceptance's

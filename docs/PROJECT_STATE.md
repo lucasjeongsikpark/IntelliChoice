@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-23** (standalone sessions: D-428 `DRIFT-86` runbook fix, D-429 `WORK-44` verified closed, D-430 `DEP-PR-BATCH-2026-08-21` merged; earlier same day — eighth Orca run: DRIFT-91, D-427) |
-| Last product-code commit | **`fb1ec87`** (2026-08-24 UTC) — the 12 dependabot patch/minor merges (D-430); before them `1768c9d` (DRIFT-91, PR #377) |
+| Snapshot date | **2026-08-24** (standalone sessions 08-23/24: D-428 `DRIFT-86` runbook fix, D-429 `WORK-44` closed, D-430/D-431 dependabot batch + python pin, D-432 seam (b) healed + `WORK-24` refuted) |
+| Last product-code commit | **`710e977`** (2026-08-24, PR #390) — the mid-interrupt checkpoint seam heals (D-432); before it `fb1ec87` (the 12 dependabot merges, D-430) |
 | Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
 | Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **16 product commits** (`898e2fb` → `fb1ec87`: the SPA date-zone pair — both defects live on staging until the next deploy — the behavior-identical DRIFT-91 relocation, and the 12 dependabot patch/minor bumps, D-430). The scheduled-job **metric filters (2026-08-21) and heartbeat alarm windows (2026-08-22)** were applied via control-plane `terraform apply` (§8) |
+| Repo-vs-deployed gap | **17 product commits** (`898e2fb` → `710e977`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), and the seam-(b) healing (D-432) — so **staging's seam (b) is still a dead end until the next deploy**). The scheduled-job **metric filters (2026-08-21) and heartbeat alarm windows (2026-08-22)** were applied via control-plane `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `fb1ec87`, or if the deployed staging image tag no longer matches this
+commit lands after `710e977`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -79,7 +79,7 @@ the full local suite green on the merged HEAD; staging is unaffected until the n
 
 ## 4. Active engineering work
 
-14 open engineering entries. Full evidence per entry:
+12 open engineering entries. Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
@@ -89,15 +89,13 @@ by D-430). The `NO-NEW-TEST-CODE` category is **closed**: all three
 defects the audit established by code reading only (REQ-27, SEC-13, COST-06) gained executed
 tests on 2026-08-21/22.
 
-### 4.1 ACTIVE_REMEDIATION (9) — something built is wrong or silently ineffective
+### 4.1 ACTIVE_REMEDIATION (7) — something built is wrong or silently ineffective
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
 | `RD-01` | Dead-man's switch confirmed for the three nightly jobs 2026-08-22; the weekly job's window fix is **built and applied live** the same day (`4a5ad20`; period 604800 — CloudWatch's one-week maximum, so it pages after the *first* missed Sunday; the 2×-cadence ideal was refused by the API) | Confirmation only: after the **Sunday 2026-08-24 18:30 UTC** run, read `JobCompletions{job=memory-consolidate}` and confirm ALARM → OK; then delete this row (the last of RD-01) — see 4.3 | engineering |
 | `D310-RESIDUALS` | Three follow-ups surviving the executed D-310 rotation | See 4.3 | user / engineering / docs |
 | `LANGSMITH-INGEST` | Trace ingestion failing at volume and flapping; nobody paged by design | Read app/ops log content for `langsmith.client` lines; classify 403 / quota / timeout. A quota or plan-limit cause escalates to a user call | engineering |
-| `ARCH-17-COMMIT-SEAM` | Checkpoint/domain commit seam is entered by every routine deploy; one seam still open | Fix commit ordering and the mid-interrupt seam, or re-accept with a trippable expiry; read the repair counter's current value first (movement voids the §7-R9 acceptance — see the accepted-risk expiries block in §6.4) | engineering |
-| `WORK-24-DUPLICATE-GAIN` | One completed staging thread has two `learning_gain` rows; never investigated | Test the re-entered-finalize hypothesis (same root cause as `ARCH-17-COMMIT-SEAM`), then confirm D-336's fix covers it | engineering |
 | `D329-PHANTOM` | Personalized hints ran dead in production; the detection gap is unchanged | Close the detection gap for silently-swallowed background failures (generalises to D-344/D-350); prove end-to-end that a student sees the personalized hint | engineering + docs |
 | `D356-FAMILY` | Erasure-guard family has no completeness claim; two entries both claim to be "the third place" | Enumerate every publisher writing the shared state and check each against the guard; then one dated status correction; fix the D-137/D-141/D-356 → D-357 wrong-id citation in both documents (rides W-18) | engineering + docs |
 | `TEST-05-DESCRIPTIVE-REREAD` | An owed human re-read of SPEC §5.3/§5.36 never fired across four qualifying changes — and both rows sit under the 37-of-37 criterion-1 claim | Perform the re-read, or replace the human habit with a definable trigger ("what counts as an architecture change" is undefined) | engineering + docs |
@@ -178,18 +176,17 @@ UD-constrained tails; every §4 key appears exactly once):**
 | # | Item(s) | Ordering evidence |
 |---|---|---|
 | 1 | `RD-01` (Sunday confirmation) | Restated 2026-08-22 (evening): the weekly-window fix is built and applied live (`4a5ad20`, 7-day capped window); the only remaining step is time-blocked — after the Sunday **2026-08-24 18:30 UTC** run, a free read-only check that `JobCompletions{job=memory-consolidate}` publishes and the alarm goes ALARM → OK (§4.3). If a continue arrives before then, the eligibility gate skips to row 2 after reconciling this note |
-| 2 | `ARCH-17-COMMIT-SEAM`, then `WORK-24-DUPLICATE-GAIN` | WORK-24's stated hypothesis is the same root cause as ARCH-17; read the repair counter first — movement voids §7-R9 |
-| 3 | `D329-PHANTOM` | Detection gap for silently-swallowed background failures (generalises D-344/D-350) |
-| 4 | `D356-FAMILY` | Publisher enumeration, then one dated status correction (rides W-18) |
-| 5 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
-| 6 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
-| 7 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
-| 8 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
-| 9 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
-| 10 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
-| 11 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
-| 12 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
-| 13 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
+| 2 | `D329-PHANTOM` | Detection gap for silently-swallowed background failures (generalises D-344/D-350) |
+| 3 | `D356-FAMILY` | Publisher enumeration, then one dated status correction (rides W-18) |
+| 4 | `LANGSMITH-INGEST` | Diagnostic read/classification; a quota or plan-limit cause escalates to a user call — that boundary is why it sits below the purely local fixes |
+| 5 | `D310-RESIDUALS` (engineering half (b) only) | Re-measure `ps` visibility of the docker env pass-through; (a) is user action, (c)/(d) are docs/accepted |
+| 6 | `TEST-05-DESCRIPTIVE-REREAD` | Perform the owed re-read, or replace the habit with a definable trigger |
+| 7 | `BATCH-LOW-UNSCHEDULED-CONTROLS` | Wire the three built-but-uninvoked controls |
+| 8 | `COST-10-INPUT-BOUND` | Internally ordered: read whether settlement uses actual input tokens first, then the ceiling |
+| 9 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
+| 10 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
+| 11 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
+| 12 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
 
 ---
 
@@ -317,9 +314,14 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | `DRIFT-70-CONSENT-GATE` | Parked by **D-152** (the notice half belongs to frozen session S45, the issuer half to S44); consent **verification** is enforced and fails closed (empty age-band frozenset); the **notice** half is unbuilt. The former carve-out (the frozenset had no pin) resolved 2026-08-21: `packages/shared/tests/test_auth_consent_gate.py` pins the frozenset empty and pins the exemption semantics (mutation-checked) | Notice half at S45; issuer half at S44 |
 
 **Accepted-risk expiries (single-homed here per W-22).** §7-R8: carried in the `R8-READ-SCOPE` row
-above. **§7-R9 (checkpoint-repair acceptance, `ARCH-17-COMMIT-SEAM`):** the repair counter is
+above. **§7-R9 (checkpoint-repair acceptance, `ARCH-17-COMMIT-SEAM` — narrowed 2026-08-23,
+D-432):** the acceptance's subject is now the **commit ordering only** (the saver sharing the
+request's connection, D-110 §3): both seams heal and count as of D-432 — mid-finalize in
+`checkpoint_reconcile.py`, mid-interrupt inside the resumed `intervention_choice` node — so a
+live hit degrades to a re-answer/re-finalize, not a dead end. Unchanged terms: the counter is
 charted and **alarmed nowhere**; **any movement in `learning_checkpoint_repairs_total` voids the
-acceptance**. Whether to alarm it or accept the dashboard cadence is UD-5's sub-question.
+acceptance** (read 0.0 lifetime as of 2026-08-24 UTC, build `gha-898e2fb4270b`). Whether to
+alarm it or accept the dashboard cadence is UD-5's sub-question.
 
 Two further accepted residuals belong in this launch-readiness set (W-22; minors-primary product,
 same insufficient-stopgap shape as `SEC-18-WAF`):

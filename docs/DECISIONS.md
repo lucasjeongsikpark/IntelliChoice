@@ -29738,3 +29738,55 @@ the summary that stated the recommendation and its reason). Applied:
 
 `.github/dependabot.yml` is CI configuration, not shipped product code: the repo-vs-deployed
 image gap stays 16 and the LB-05 staleness anchor stays `fb1ec87`.
+
+## D-432 — the mid-interrupt checkpoint seam heals; §7-R9 narrows to the commit ordering; WORK-24's seam hypothesis refuted (accepted, 2026-08-23)
+
+Executes `ARCH-17-COMMIT-SEAM` + `WORK-24-DUPLICATE-GAIN` (queue row 2, taken as the pair the
+row couples). Three parts: the mandated counter read, the seam fix, and the WORK-24 hypothesis
+test.
+
+**1. The counter read (mandated first — movement voids R9).**
+`learning_checkpoint_repairs_total`, read 2026-08-24 UTC against staging build
+`gha-898e2fb4270b`: **0.0 for every daily datapoint 2026-08-10 → 2026-08-24** (both
+namespaces), and **zero datapoints before 2026-08-10** — the metric only published on increment
+until COST-22's pre-initialisation, so absent series = zero increments over the metric's whole
+life. §7-R9's acceptance is intact by its own terms.
+
+**2. Seam (b) — the mid-interrupt half of AUD-X-07 — now heals.** The dead end: a wrong study
+answer writes its `study_attempts` row, pauses on `interrupt()`, the checkpoint commits; a task
+drain before the domain commit discards the row; every `/respond` then replayed
+`intervention_choice` into `assert attempt is not None` (500, forever) while the pending
+interrupt 409-blocked every graph-invoking route. The fix lives **inside the resumed node** —
+the one place recovery is possible, because a paused LangGraph task is only cleared by
+completing the paused node (`aupdate_state` edits channels; it cannot complete a task, which is
+why `checkpoint_reconcile.find_repair` structurally could not carry this). The repair follows
+that module's rules: **roll backwards to what the database supports, never invent rows** — the
+pause clears, the promised attempt id clears, the student is told the answer didn't save and
+re-answers the question `last_items` still holds (the S23 preservation rule). It runs before any
+Bedrock call (a repair spends nothing) and counts on the **same** `learning_checkpoint_repairs_total`
+counter: either seam's live hit is exactly the movement that voids R9.
+Test: `test_checkpoint_reconcile.py::test_b_…` mirrors test_a's real induction point
+(`_publish_snapshot` raising between the two commits) and asserts the 409-blocked dead-end
+shape, the healing `/respond`, the counter increment, and a successful fresh re-answer.
+One deliberate boundary: `/resume` 200s during the pause **by design** (it re-renders without
+invoking) — the test documents that too.
+
+**3. What stays open, and under what.** The commit ordering itself (the saver sharing the
+request's connection — D-110 §3's deferral) remains open under the **pre-existing** §7-R9
+acceptance, unchanged terms: any counter movement voids it. This entry narrows R9's subject —
+both seams now heal and count, so a live hit degrades to "the student re-answers / re-finalizes"
+rather than a dead end — **it does not re-decide the acceptance, and it does not touch the
+pageability gap**: the counter is still alarmed nowhere, and whether to alarm it is UD-5's
+sub-question, deliberately left with the user.
+
+**4. WORK-24's hypothesis, tested and refuted.** The hypothesis ("the duplicate `learning_gain`
+row is the seam's re-entered finalize") fails on mechanism: **the seam discards the domain half
+of a turn — it cannot double-commit one.** A duplicate row requires two *committed* domain
+transactions, which is exactly D-336's diagnosed cause (a `POST /exam/finalize` retry with no
+`Idempotency-Key`, two byte-identical rows 46 s apart). The counter corroborates (§1: no
+movement ever). And D-336's fix is verified present, not assumed: the read-guard in
+`MasteryRepository.record_learning_gain` (returns the existing `(pre, post)` row), the
+race-closing unique constraint `uq_learning_gain_pre_post_cycle` (migration `ecee04921753`,
+which also executed the user-authorised cleanup), and D-336's own staging verification (10 rows
+→ 9, earliest survived). WORK-24 closes: hypothesis refuted, cause fixed and constrained,
+duplicate cleaned.
