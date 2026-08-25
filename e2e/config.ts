@@ -229,6 +229,19 @@ export const FIXTURES = {
    * after the swap. It now walks to the study phase itself before reading the charts.
    */
   studentDashboard: { role: "student", sub: "student-ext-27" },
+  /**
+   * `solution-terminal-rung.spec.ts`'s own (M3-D370-SOLUTION-RUNG), same grade-3 /
+   * present / unlinked shape as the thirteen above.
+   *
+   * **Its own rather than `studentAssistance`'s, even though both click "Show the
+   * solution".** That spec is a screenshot probe: it stops at the panel. This one closes
+   * the pause, answers the retry, and then reads the dashboard's own independence figure -
+   * so sharing one account would make each walk's precondition the other's leftovers, which
+   * is the isolation finding `studentJourney` names. Sharing `studentHint` fails the same
+   * way from the other side: a resumed session can arrive with the ladder already part-spent
+   * on a *hint*, which is a different rung and a different outcome label.
+   */
+  studentSolution: { role: "student", sub: "student-ext-28" },
   /** One linked child - exercises the auto-select path. */
   parentOneChild: { role: "parent", sub: "parent-ext-1" },
   /** Two linked children - exercises the child_selection interrupt. */

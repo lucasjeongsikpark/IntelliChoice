@@ -1,6 +1,6 @@
 """Fixture data for the dev-fake MySQL (SPEC §5.4.1 tables).
 
-4 parents (1-child, 2-child, and one each for the two full walks) + 27 students, 2
+4 parents (1-child, 2-child, and one each for the two full walks) + 28 students, 2
 branches, and attendance covering present / absent / unknown (no row).
 
 Students 1-4 cover the *gate* cases (present/absent/unknown/unlinked). Students 5-9 exist
@@ -44,6 +44,15 @@ path, and a parent apiece would add thirteen more accounts, thirteen more login-
 and thirteen more PII needles for no coverage. `STUDENT_JOURNEY` and `STUDENT_TERMINAL` have
 parents because their walks end in a parent report; these do not. The band students and
 `STUDENT_RESUME` are the precedent: unlinked students walk exams fine.
+
+Student 28 is the solution-rung walk's own (M3-D370-SOLUTION-RUNG), and it is the same
+grade-3/present/unlinked shape as 14-27 for the same reason: only the sharing is meant to
+change. It is its own rather than shared with `STUDENT_ASSISTANCE` - which also clicks
+"Show the solution" - because that one is a *visual probe* that stops at the screenshot,
+while this walk goes on to answer the retry and then reads the dashboard, and the two would
+be answering each other's questions if they shared an account. Sharing `STUDENT_HINT` fails
+the same way from the other side: a resumed session can arrive with the ladder already
+part-spent on a *hint*, which is a different rung and a different outcome label.
 """
 
 from intellichoice_shared.org_time import current_week_key
@@ -122,6 +131,12 @@ STUDENT_DOUBLE_SUBMIT = "student-ext-26"  # grade 3, present - last-question-dou
 # e2e run and never outlived one. Isolating the sharers removed the supplier and the spec
 # started skipping itself, which is a pass that examined nothing. It now builds its own.
 STUDENT_DASHBOARD = "student-ext-27"  # grade 3, present - dashboard-chart-labels.spec.ts
+# The solution-rung walk's own (M3-D370-SOLUTION-RUNG). Grade 3, present, unlinked - the
+# same shape as 14-27, so nothing but the sharing distinguishes it. Its own rather than
+# `STUDENT_ASSISTANCE`'s: both take the solution, but that spec is a screenshot probe and
+# this one carries on to the retry answer and the dashboard read, so sharing would make each
+# walk's precondition the other's leftovers.
+STUDENT_SOLUTION = "student-ext-28"  # grade 3, present - solution-terminal-rung.spec.ts
 
 
 BRANCH_MAIN = "branch-ext-1"
@@ -347,6 +362,13 @@ _USERS = [
         "grade": "3",
         "branch_external_id": BRANCH_MAIN,
     },
+    {
+        "external_id": STUDENT_SOLUTION,
+        "role": "student",
+        "display_name": "Bram Solution",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
 ]
 
 _PARENT_CHILD_LINKS = [
@@ -420,6 +442,7 @@ _ATTENDANCE = [
     {"student_external_id": STUDENT_VIDEO, "status": "present"},
     {"student_external_id": STUDENT_DOUBLE_SUBMIT, "status": "present"},
     {"student_external_id": STUDENT_DASHBOARD, "status": "present"},
+    {"student_external_id": STUDENT_SOLUTION, "status": "present"},
 ]
 
 
