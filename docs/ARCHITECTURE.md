@@ -663,8 +663,15 @@ to rot, because nothing fails when it does.)*
   always bounded output tokens, per-call timeouts, retries, the circuit breaker and per-session spend.
   Nothing bounded how much went *in*, so `memory-consolidate` built a 215,355-token prompt from
   13,865 `learning_events` against a 200,000-token context and failed **every** call for its entire
-  existence — while exiting 0, because it caught its own errors and printed a summary. Two rules came
-  out of fixing it, and both generalise past this job:
+  existence — while exiting 0, because it caught its own errors and printed a summary. **The seam
+  itself is bounded since D-440 (2026-08-24):** `_HARD_MAX_INPUT_TOKENS = 32_000` (estimated by the
+  shared `estimate_input_tokens`, chars/3 pessimistic, over everything actually sent — system prompt,
+  payload, inlined schema, tools) refuses fail-closed with a typed `InputBudgetExceededError` before
+  any spend, the in-gateway session-budget check prices that same estimate instead of a flat 2000,
+  and the embeddings path carries a per-text 8,000 ceiling against Titan V2's real 8,192 maximum —
+  so a *new* paid caller now inherits the bound instead of the incident. D-141's caller-side batch
+  bound stays as defense in depth. Two rules came
+  out of fixing the original incident, and both generalise past this job:
   1. **Any payload assembled from an unbounded row count needs a batch bound**, expressed in the same
      serialisation the gateway sends (`model_dump_json`) so the estimate cannot drift from the payload,
      plus a **cap on calls per subject** — otherwise the fix converts one failing call into an

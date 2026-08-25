@@ -30171,3 +30171,76 @@ pinned at `main()`, not end-to-end (that is `test_checkpoint_deletion_restore.py
 **5. D-438's trigger fired for the first time** (this entry's ARCHITECTURE edit): the CI
 enforcement points sit below §5.3's altitude and inside §5.36's existing GitHub Actions
 placement — skip-noted on both descriptive rows, dated.
+
+## D-440 — the gateway input ceiling: the AUD-F-34 seam is closed fail-closed, admission prices the real payload, and two latent oversize paths are recorded rather than accommodated (accepted, 2026-08-24)
+
+Executes `COST-10-INPUT-BOUND` (queue row 1). Orca workflow: coordinator investigation
+(including the register's mandated pre-question) → Frozen Spec → one persistent executor
+(claude/opus/high, receipt requested = effective) → one mid-run escalation, answered → review →
+acceptance. Suite 1814 passed / 2 skipped / 1 xfailed (+8, all new; no existing test modified).
+
+**0. The register's question (1), answered by coordinator read before the spec was written:**
+settlement uses actual tokens end to end — the result's `cost_cents` comes from accumulated real
+usage (`gateway.py` totals from `raw.input_tokens`), session spend accumulates that number, and
+the per-day ledger's `settle` replaces the reserve estimate with the real cost. **Exposure was
+therefore admission-window only**: the flat 2000 could admit a call whose true worst case busts
+the session budget, and nothing refused an oversized prompt at all.
+
+**1. What shipped.**
+- `_HARD_MAX_INPUT_TOKENS = 32_000` (estimated), enforced in `generate_structured` before the
+  budget check and before any provider call, over everything actually sent — system prompt,
+  serialised payload, the D-243-inlined schema, tools. Typed `InputBudgetExceededError` beside
+  `CostBudgetExceededError` in the shared Protocol layer; **refuse, never truncate or chunk**
+  (truncation asks the model a different question; chunking is caller-owned — consolidation
+  keeps its own layer's batching as defense in depth).
+- One shared estimator, `estimate_input_tokens` (chars/3, pessimistic — D-141's own constant
+  lifted to `intellichoice_shared.bedrock`), produces the number the ceiling and the
+  session-budget check both use — the "two ceilings cannot disagree" property now held by a
+  shared computation over the real strings instead of a shared literal.
+- The reserve constant is named (`_RESERVE_INPUT_TOKENS = 2000`) and documented as a reserve
+  heuristic only — `worst_case_cost_cents` takes an optional `estimated_input_tokens`, and its
+  docstring now says plainly that the reserve and the admission number are allowed to differ
+  because `settle` replaces reservations with real usage and over-reserving costs only per-day
+  concurrency.
+- **The embeddings path had no bound at all and gained one** (executor finding — the spec said
+  verify-and-pin, the honest answer was "nothing to pin"): per-text 8,000 against Titan V2's
+  real 8,192 input maximum, per text because `TitanEmbeddingProvider` sends one `invoke_model`
+  per text. The refusal logs an index and counts, **never the text** (SPEC §5.30). In passing,
+  the embed path's old `len(text) // 4` estimate — under-counting, the one direction a spend
+  guard must not err — was replaced by the shared pessimistic estimator.
+
+**2. The 32k value, measured before it was kept (executor escalation, ruled by coordinator).**
+Every *bounded* axis clears it: consolidation's declared 20k batch measures 23,684 estimated
+tokens at its own `MAX_SAFE_EXISTING_FACTS = 21`, with real headroom. The only crossing path is
+`existing_facts`, which nothing bounds (an unbounded `String` column) and which consolidation
+already declares out of contract above 21 facts with its `memory_consolidation_payload_oversized`
+log — crossover at ~100 facts (250-char facts) to ~120 (realistic 120-char). Ruled: **32k
+stands** — raising a ceiling to fit an unbounded input is the AUD-F-34 mistake by definition,
+and above the crossover the refusal converts an already-degraded, already-logged call into a
+typed, *visible* failure. **Visibility chain, as corrected by the executor against my own
+instruction:** `InputBudgetExceededError` subclasses `BedrockGatewayError`, so consolidation's
+existing except arm catches it — `background_consolidation_failed` does **not** fire; the
+visible path is `calls_failed` → the CLI's non-zero exit → the ops-task-failed rule (AUD-F-34's
+own guard). I had asserted the alarm path; the executor measured the class hierarchy and
+declined to write my inaccurate sentence. The which-facts-to-drop behavior decision stays
+deliberately unmade and is filed on `WORK-35-LEDGER`'s design review. Second latent path,
+recorded untouched: rerank at 30 × 3k-char chunks estimates 30,736 tokens against an unbounded
+`chunk_markdown` (today's whole corpus: 46,698 chars — nowhere near).
+
+**3. The AREAS correction found the register's own citation broken.** The quoted phrase ("an
+input-token bound in gateway code") exists nowhere under `docs/reference/audits/` — only in the
+**archived** `REPOSITORY_DRIFT_REGISTER.md:243`. The live text that actually needed correcting
+is `AUDIT_FINDINGS.md:1304-1310` (S36's "bounded overshoots of a ceiling rather than absent
+ceilings" — wrong when written for the input side: the ceiling was absent, and the
+mischaracterisation let the gap read as considered-and-accepted from S36 through AUD-F-34's own
+incident six days later). Annotated in place, dated, W-18 style, distinguishing made-false-by-
+this-change from wrong-when-written. Per the D-427 precedent the archive stays unrewritten;
+**this entry is the retraction of record for the archived copy.**
+
+**4. Verification.** Executor: ruff/pyright clean; full suite 1814/2/1 (+8: ceiling boundary
+pair, never-invoked-provider assertion on a ~215k prompt, the discriminating admission test
+mutation-checked against the restored 2000 literal, `worst_case` default/override pins, embed
+per-text pins). Coordinator: full diff read; 220 adapter/shared tests, lint, typecheck re-run
+green; confirmed the only remaining `2000` is the named constant plus an unrelated D-233
+output-size comment. Nothing deployed (LB-05): staging still runs `gha-898e2fb4270b` with no
+input ceiling until the next deploy.
