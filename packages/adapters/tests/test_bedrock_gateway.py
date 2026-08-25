@@ -1,15 +1,23 @@
 import asyncio
+import json
 import logging
 
 import pytest
-from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
+from intellichoice_adapters.bedrock.gateway import (
+    _HARD_MAX_EMBEDDING_INPUT_TOKENS_PER_TEXT,
+    _HARD_MAX_INPUT_TOKENS,
+    _RESERVE_INPUT_TOKENS,
+    ResilientBedrockGateway,
+)
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
 from intellichoice_adapters.bedrock.provider import ProviderCallError, RawEmbedding, RawGeneration
 from intellichoice_shared.bedrock import (
+    CHARS_PER_TOKEN,
     AlignmentReviewPayload,
     AlignmentReviewResponse,
     AmbiguityReviewPayload,
     AmbiguityReviewResponse,
+    BedrockGatewayError,
     BedrockTask,
     BedrockTimeoutError,
     BedrockTutorPayload,
@@ -20,9 +28,11 @@ from intellichoice_shared.bedrock import (
     GeneratedTemplateResponse,
     GeneratorPayload,
     HintResponse,
+    InputBudgetExceededError,
     SolverPayload,
     SolverResponse,
     StructuredOutputError,
+    inline_schema_refs,
 )
 from pydantic import BaseModel
 
@@ -865,5 +875,310 @@ def test_repair_keeps_the_system_prompt_so_the_cache_point_survives() -> None:
         assert "did not match the required JSON schema" in repair_user
         # And the cache-read tokens from the (successful) call surface on the result.
         assert result.cache_read_tokens == 4185
+
+    asyncio.run(run())
+
+
+# --- The input ceiling (COST-10) -------------------------------------------------------
+#
+# The gateway bounded output, spend, latency and provider health, and bounded input
+# nowhere - so AUD-F-34's shape (an unbounded payload, every call failing on prompt
+# length, the process exiting 0) was available to every future paid caller and pinned by
+# no test at all. These pin the seam.
+
+
+def _sized_payload(estimated_tokens: int, *, system_prompt: str) -> BedrockTutorPayload:
+    """A real payload whose gateway-side input estimate is exactly `estimated_tokens`.
+
+    Sized from the *serialisations the gateway measures* - the system prompt, the payload's
+    own `model_dump_json`, and the inlined response schema - rather than from a magic
+    character count, because the overhead moves whenever `HintResponse` or the payload model
+    gains a field, and a boundary test that drifts off its boundary silently stops testing
+    one. `question` takes the padding: it is a plain-ASCII field, so one added character is
+    one added serialised character.
+    """
+    schema = inline_schema_refs(HintResponse.model_json_schema())
+    schema.setdefault("title", HintResponse.__name__)
+    base = _payload().model_copy(update={"question": ""})
+    overhead_chars = (
+        len(system_prompt)
+        + len(base.model_dump_json())
+        + len(json.dumps(schema, separators=(",", ":")))
+    )
+    padding = int(estimated_tokens * CHARS_PER_TOKEN) - overhead_chars
+    assert padding > 0, "target size is below the fixed per-call overhead"
+    return base.model_copy(update={"question": "x" * padding})
+
+
+def test_an_aud_f_34_sized_prompt_is_refused_before_any_provider_call() -> None:
+    """The incident, replayed at the seam that now has to stop it.
+
+    215,355 tokens against a 200,000-token context, every call failing, exit 0 (D-141).
+    The assertions that matter are `provider.calls == 0` and a zero cost: refusing late -
+    after paying for three attempts and tripping the circuit breaker - is the failure mode,
+    not the fix.
+    """
+
+    async def run() -> None:
+        provider = _ScriptedProvider([])
+        gateway = ResilientBedrockGateway(
+            provider=provider, model_registry={BedrockTask.TUTOR: MODEL_ID}
+        )
+        with pytest.raises(InputBudgetExceededError) as exc_info:
+            await gateway.generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt="system",
+                payload=_sized_payload(215_355, system_prompt="system"),
+                response_model=HintResponse,
+                max_output_tokens=200,
+                session_spend_cents=0.0,
+            )
+        assert provider.calls == 0
+        assert exc_info.value.cost_cents == 0.0
+        # Catchable as the shared Protocol layer's generic failure, like every other
+        # gateway refusal - a caller with a deterministic fallback needs no new arm.
+        assert isinstance(exc_info.value, BedrockGatewayError)
+        assert "215355" in str(exc_info.value)
+
+    asyncio.run(run())
+
+
+def test_the_input_ceiling_admits_just_under_and_refuses_just_over() -> None:
+    """Pinned at the boundary in both directions, because only one of them is the bug.
+
+    A ceiling nothing crosses is indistinguishable from a ceiling that refuses everything,
+    and the second failure would take the whole product down quietly.
+    """
+
+    async def run() -> None:
+        under = _ScriptedProvider(["valid"])
+        gateway = ResilientBedrockGateway(
+            provider=under, model_registry={BedrockTask.TUTOR: MODEL_ID}
+        )
+        result = await gateway.generate_structured(
+            task=BedrockTask.TUTOR,
+            system_prompt="system",
+            payload=_sized_payload(_HARD_MAX_INPUT_TOKENS, system_prompt="system"),
+            response_model=HintResponse,
+            max_output_tokens=200,
+            session_spend_cents=0.0,
+        )
+        assert isinstance(result.value, HintResponse)
+        assert under.calls == 1
+
+        over = _ScriptedProvider([])
+        gateway = ResilientBedrockGateway(
+            provider=over, model_registry={BedrockTask.TUTOR: MODEL_ID}
+        )
+        with pytest.raises(InputBudgetExceededError):
+            await gateway.generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt="system",
+                payload=_sized_payload(_HARD_MAX_INPUT_TOKENS + 1, system_prompt="system"),
+                response_model=HintResponse,
+                max_output_tokens=200,
+                session_spend_cents=0.0,
+            )
+        assert over.calls == 0
+
+    asyncio.run(run())
+
+
+def test_the_input_estimate_counts_the_system_prompt_and_the_tools_too() -> None:
+    """Everything that goes on the wire is counted, not just the payload.
+
+    The same payload passes under a short system prompt and is refused once a long one -
+    or a tool block - is added beside it. An estimate that measured only `payload` would
+    under-count exactly the calls most worth refusing: the tool-carrying ones, whose
+    schema and tool definitions are sent on every attempt.
+    """
+
+    async def run() -> None:
+        payload = _sized_payload(_HARD_MAX_INPUT_TOKENS - 1_000, system_prompt="system")
+
+        ok = _ScriptedProvider(["valid"])
+        await ResilientBedrockGateway(
+            provider=ok, model_registry={BedrockTask.TUTOR: MODEL_ID}
+        ).generate_structured(
+            task=BedrockTask.TUTOR,
+            system_prompt="system",
+            payload=payload,
+            response_model=HintResponse,
+            max_output_tokens=200,
+            session_spend_cents=0.0,
+        )
+        assert ok.calls == 1
+
+        long_system = "s" * int(1_100 * CHARS_PER_TOKEN)
+        refused_by_system = _ScriptedProvider([])
+        with pytest.raises(InputBudgetExceededError):
+            await ResilientBedrockGateway(
+                provider=refused_by_system, model_registry={BedrockTask.TUTOR: MODEL_ID}
+            ).generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt=long_system,
+                payload=payload,
+                response_model=HintResponse,
+                max_output_tokens=200,
+                session_spend_cents=0.0,
+            )
+        assert refused_by_system.calls == 0
+
+        big_tools = [{"name": "t", "description": "d" * int(1_100 * CHARS_PER_TOKEN)}]
+        refused_by_tools = _ScriptedProvider([])
+        with pytest.raises(InputBudgetExceededError):
+            await ResilientBedrockGateway(
+                provider=refused_by_tools, model_registry={BedrockTask.TUTOR: MODEL_ID}
+            ).generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt="system",
+                payload=payload,
+                response_model=HintResponse,
+                max_output_tokens=200,
+                session_spend_cents=0.0,
+                tools=big_tools,
+                tool_executor=lambda name, args: {},
+            )
+        assert refused_by_tools.calls == 0
+
+    asyncio.run(run())
+
+
+def test_the_refusal_logs_once_with_the_estimate_and_the_ceiling(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """D-115's rule applies to the new exit too: every failure exit logs exactly once.
+
+    A refusal that logs nothing turns "the payload is too big" into "the feature quietly
+    stopped working", which is AUD-F-34's actual damage rather than the prompt length. The
+    two numbers are in the line because the first question asked of a refusal is "by how
+    much", and answering it from a stack trace means reproducing the payload.
+    """
+
+    async def run() -> None:
+        gateway = ResilientBedrockGateway(
+            provider=_ScriptedProvider([]), model_registry={BedrockTask.TUTOR: MODEL_ID}
+        )
+        with (
+            caplog.at_level(logging.WARNING, logger="intellichoice_adapters.bedrock.gateway"),
+            pytest.raises(InputBudgetExceededError),
+        ):
+            await gateway.generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt="system",
+                payload=_sized_payload(_HARD_MAX_INPUT_TOKENS + 5_000, system_prompt="system"),
+                response_model=HintResponse,
+                max_output_tokens=200,
+                session_spend_cents=0.0,
+            )
+        failures = [r for r in caplog.records if r.message == "bedrock_call_failed"]
+        assert len(failures) == 1
+        assert failures[0].reason == "input_too_large"  # type: ignore[attr-defined]
+        assert str(_HARD_MAX_INPUT_TOKENS) in failures[0].detail  # type: ignore[attr-defined]
+        assert str(_HARD_MAX_INPUT_TOKENS + 5_000) in failures[0].detail  # type: ignore[attr-defined]
+
+    asyncio.run(run())
+
+
+def test_the_session_budget_check_prices_the_payload_it_is_about_to_send() -> None:
+    """The discriminating test: this call is admitted under the old flat 2000-token
+    assumption and refused under the real estimate, so it fails if the constant comes back.
+
+    The old admission arithmetic is not restated here - it is read off
+    `worst_case_cost_cents(...)`, which still carries the reserve heuristic - so the
+    "would have passed before" half is asserted rather than assumed.
+    """
+
+    async def run() -> None:
+        provider = _ScriptedProvider([])
+        budget_cents = 5.0
+        gateway = ResilientBedrockGateway(
+            provider=provider,
+            model_registry={BedrockTask.TUTOR: MODEL_ID},
+            session_budget_cents=budget_cents,
+        )
+        # Under the flat reserve estimate this call is comfortably affordable...
+        assert gateway.worst_case_cost_cents(BedrockTask.TUTOR, 200) < budget_cents
+        # ...and priced at what it actually sends, it is not.
+        assert (
+            gateway.worst_case_cost_cents(
+                BedrockTask.TUTOR, 200, estimated_input_tokens=_HARD_MAX_INPUT_TOKENS - 2_000
+            )
+            > budget_cents
+        )
+        with pytest.raises(CostBudgetExceededError):
+            await gateway.generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt="system",
+                payload=_sized_payload(_HARD_MAX_INPUT_TOKENS - 2_000, system_prompt="system"),
+                response_model=HintResponse,
+                max_output_tokens=200,
+                session_spend_cents=0.0,
+            )
+        assert provider.calls == 0
+
+    asyncio.run(run())
+
+
+def test_worst_case_cost_cents_defaults_to_the_reserve_constant_and_accepts_an_estimate() -> None:
+    """The reserve heuristic stays a reserve heuristic - `settle` replaces it with real
+    usage - but it is now named, and a caller that knows its own payload can say so.
+    """
+    gateway = ResilientBedrockGateway(
+        provider=MockBedrockProvider(), model_registry={BedrockTask.TUTOR: MODEL_ID}
+    )
+    default = gateway.worst_case_cost_cents(BedrockTask.TUTOR, 200)
+    explicit = gateway.worst_case_cost_cents(
+        BedrockTask.TUTOR, 200, estimated_input_tokens=_RESERVE_INPUT_TOKENS
+    )
+    assert default == explicit
+    # A bigger declared input costs more; the output ceiling still clamps independently.
+    assert gateway.worst_case_cost_cents(BedrockTask.TUTOR, 200, 20_000) > default
+    assert gateway.worst_case_cost_cents(
+        BedrockTask.TUTOR, 999_999
+    ) == gateway.worst_case_cost_cents(BedrockTask.TUTOR, 4000)
+
+
+def test_create_embedding_refuses_a_text_over_the_per_text_ceiling() -> None:
+    """`TitanEmbeddingProvider` sends one `invoke_model` per text, so the bound that
+    matters is per text: an oversized chunk is a `ValidationException` per attempt, three
+    attempts, and a circuit breaker that takes the rest of the ingest with it.
+    """
+
+    async def run() -> None:
+        provider = _ScriptedEmbeddingProvider([])
+        gateway = ResilientBedrockGateway(
+            provider=MockBedrockProvider(),
+            embedding_provider=provider,
+            model_registry={BedrockTask.EMBEDDING: EMBEDDING_MODEL_ID},
+        )
+        over = "x" * int((_HARD_MAX_EMBEDDING_INPUT_TOKENS_PER_TEXT + 1) * CHARS_PER_TOKEN)
+        with pytest.raises(InputBudgetExceededError) as exc_info:
+            await gateway.create_embedding(texts=["fine", over], session_spend_cents=0.0)
+        assert provider.calls == 0
+        # The index, not the text: an org document's chunk never reaches a log or an
+        # exception message (SPEC §5.30).
+        assert "index 1" in str(exc_info.value)
+        assert over not in str(exc_info.value)
+
+    asyncio.run(run())
+
+
+def test_create_embedding_admits_a_text_at_the_per_text_ceiling() -> None:
+    """The other direction, for the same reason as the generate path's boundary test: a
+    bound that refuses everything is not a bound, it is an outage.
+    """
+
+    async def run() -> None:
+        provider = _ScriptedEmbeddingProvider(["valid"])
+        gateway = ResilientBedrockGateway(
+            provider=MockBedrockProvider(),
+            embedding_provider=provider,
+            model_registry={BedrockTask.EMBEDDING: EMBEDDING_MODEL_ID},
+        )
+        at_ceiling = "x" * int(_HARD_MAX_EMBEDDING_INPUT_TOKENS_PER_TEXT * CHARS_PER_TOKEN)
+        result = await gateway.create_embedding(texts=[at_ceiling], session_spend_cents=0.0)
+        assert provider.calls == 1
+        assert len(result.vectors) == 1
 
     asyncio.run(run())
