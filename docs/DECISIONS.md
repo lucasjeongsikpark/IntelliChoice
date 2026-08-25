@@ -26485,6 +26485,13 @@ spec that clicks "Show the solution" and it is `@probe`-tagged, so it skips in a
 unit test covers the mechanism for every terminal rung (the guard does not discriminate by
 intervention type), so this is a coverage gap rather than an untested defect. Carry-over.
 
+> **⚠️ Carry-over closed 2026-08-25 (D-444).** `solution-terminal-rung.spec.ts` asserts the
+> rung's four-point contract and runs in the standard suite (not `@probe`-tagged), verified
+> green in the local lane; the **staging** execution of the same file rides UD-2's lane
+> authorization. The D-366 ⏸ / this entry's ✅ tension is thereby resolved in the ✅ direction
+> with the evidence the ⏸ was waiting on — see D-366's own 2026-08-20 annotation for the
+> cross-link back.
+
 ---
 
 ### D-371 — The probe re-swept against the cases it was missing, and the shipped rule is still the answer
@@ -30366,3 +30373,53 @@ entries** (the D-439/D-440 collision classes were checked when choosing fixture 
 **4. What this unblocks, and what it does not.** This was the test-side prerequisite for
 UD-2's whole-directory staging re-run (`DRIFT-58`'s residual). The re-run itself is paid and
 stays with the user; nothing was run against staging here.
+
+## D-444 — the solution terminal rung's contract is asserted and run; the roadmap's last coverage carry-over closes, and the execution queue reaches empty (accepted, 2026-08-25)
+
+Executes `M3-D370-SOLUTION-RUNG` (the last unblocked queue item). Orca workflow: Frozen Spec →
+one persistent executor (claude/opus/high, receipt requested = effective, liveness-probed) →
+worker_done → coordinator review including two independent full e2e runs → acceptance. Landed
+as `3992e45` (PR #407).
+
+**1. The gate resolution that made this startable.** The row's own note priced its staging e2e
+as a paid measurement (UD-2). The register's repository-evidence line says the opposite for the
+*write* ("nothing prevents writing the spec"), and D-207 dissolves the D-427 unrun-artifact
+concern: solutions serve the **authored** `canonical_solution` — no model call — so the rung is
+deterministic in both lanes and the spec is dual-lane by construction: asserted and RUN in the
+free local lane at birth, staging-compatible unchanged for whenever UD-2 authorizes the lane.
+
+**2. The contract, asserted (SPEC §5.11.3–§5.11.7, D-207, D-358).** The authored solution
+renders; the pause is CLOSED (terminal rung — help stays on screen while the ladder is shut);
+the walk continues (retry served, answer graded, no 409/500, no re-pause); and the attempt
+stops counting as independent **where a student can see it** — the dashboard's "Solved without
+help" share excludes the solution-assisted attempt, with the spec stating what that read can
+and cannot prove (the walk takes no hint or video, so the solution is the only mover). The
+fixture student follows the D-443 convention end to end (`student-ext-28`).
+
+**3. An executor judgment better than the spec's, kept on the record.** The Frozen Spec
+suggested "step-count > placeholder" as the authored-content minimum. Measured over the served
+bank: 1 of 73 authored `linear_equations` templates has exactly two steps — and one full run
+actually served it — so the threshold would flake at ~1.4% with no defect behind it. The spec
+instead discriminates on the mock placeholder's **own signature**, whose stronger arm
+(`final_answer` must not equal the wrong option the student just picked) is a defect in either
+lane; the step count is recorded as a measurement, not thresholded (D-100's posture).
+
+**4. Verification, with one honest wrinkle.** Six full local e2e runs on the final tree:
+executor ×4 and coordinator ×2, **five at 128 passed / 2 skipped** (+1 over the 127/2
+baseline = the new spec, running in every run) and **one coordinator run at 127/3 whose extra
+skip's identity was destroyed by the coordinator's own tail-only capture** — re-run in full,
+128/2, matching. Recorded as a residual: if a third skip reappears in a future full run,
+capture the listing (and the capture lesson is the coordinator's, not the executor's). Pytest
+at the exact 1867/2/1 baseline (delta 0); e2e-typecheck, lint, pyright, learning-web `tsc`
+clean; scanner positive controls 46/46, zero new allowlist entries.
+
+**5. The documentation tail.** D-370's "What did not close" carry-over now carries a dated
+closure note pointing here; D-366's 2026-08-20 annotation already cross-links forward — the
+⏸/✅ contradiction resolves in the ✅ direction with the evidence the ⏸ was waiting on.
+
+**6. The queue's state after this entry: EMPTY of unblocked items.** Everything left in §4
+waits on the user: `D310-RESIDUALS` (a) (the `localStorage` re-paste), `WORK-35-LEDGER`
+(UD-2's read-only session), and the staging executions (this spec + the whole directory)
+riding the same UD-2. Staging still runs `898e2fb` — 23 product commits behind — and a deploy
+plus one authorized lane window would convert most of the accumulated local evidence into
+deployed evidence in a single session.
