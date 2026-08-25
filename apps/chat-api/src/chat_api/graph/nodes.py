@@ -259,16 +259,13 @@ class TurnContext:
     client_ip: str | None = None
 
 
-def _degraded(stage: str, exc: BedrockGatewayError, state: QAState) -> dict:
-    """The state update every AUD-C-07/AUD-C-08 fallback returns: mark the turn degraded
-    so its router sends it to `service_unavailable`, count it under its own metric, and
-    still settle whatever the failed call cost (a call that failed after being billed is
-    exactly the kind of spend a budget must not lose track of).
-
-    One helper rather than three copies, because the failure is the same event at three
-    call sites and an operator correlating a spike wants one log name to grep for.
+def _log_gateway_failure(stage: str, exc: BedrockGatewayError) -> None:
+    """The `qa_service_degraded` warning, on its own so the one call site that cannot yet
+    know whether the *turn* degrades can still log the failure where the exception is
+    (D-423/WORK-01 - `retrieve_context` runs concurrently with `scope_guard`, so nothing in
+    that node knows what this turn was waiting on). Same event name, same fields as before
+    the split: an operator correlating a Bedrock spike greps one name.
     """
-    QA_SERVICE_DEGRADED.labels(stage=stage).inc()
     logger.warning(
         "qa_service_degraded",
         extra={
@@ -278,6 +275,21 @@ def _degraded(stage: str, exc: BedrockGatewayError, state: QAState) -> dict:
             "cost_cents": exc.cost_cents,
         },
     )
+
+
+def _degraded(stage: str, exc: BedrockGatewayError, state: QAState) -> dict:
+    """The state update every AUD-C-07/AUD-C-08 fallback returns: mark the turn degraded
+    so its router sends it to `service_unavailable`, count it under its own metric, and
+    still settle whatever the failed call cost (a call that failed after being billed is
+    exactly the kind of spend a budget must not lose track of).
+
+    One helper rather than three copies, because the failure is the same event at three
+    call sites and an operator correlating a spike wants one log name to grep for. Two of
+    those three still call it directly; the retrieval one is now split across a superstep
+    boundary - see `retrieve_context` and `join_scope_and_retrieval`.
+    """
+    QA_SERVICE_DEGRADED.labels(stage=stage).inc()
+    _log_gateway_failure(stage, exc)
     return {
         "service_degraded": True,
         "bedrock_spend_cents": state.bedrock_spend_cents + exc.cost_cents,
@@ -338,6 +350,13 @@ async def resolve_role(state: QAState, runtime: Runtime[TurnContext]) -> dict:
         "ics_content": None,
         "retrieved_chunk_ids": None,
         "event_listing": None,
+        # D-423/WORK-01: retrieval's three per-turn channels. `retrieval_spend_cents` in
+        # particular must be zeroed here as well as at the join - a stale non-zero value
+        # would be folded into the running total a second time on the next turn, which is
+        # the AUD-C-04 class applied to money rather than to an answer.
+        "retrieval_spend_cents": 0.0,
+        "retrieval_failed": False,
+        "retrieval_unexpected_error": None,
         # AUD-C-07/AUD-C-08: same reasoning, one turn later. A `service_degraded` left
         # set by a failed turn would answer "temporarily unavailable" on this thread
         # forever, long after Bedrock recovered.
@@ -460,11 +479,52 @@ async def unavailable_intent(state: QAState, runtime: Runtime[TurnContext]) -> d
     }
 
 
-async def answer_document_qa(state: QAState, runtime: Runtime[TurnContext]) -> dict:
+def retrieval_is_needed(state: QAState) -> bool:
+    """Whether *this* turn is actually waiting on the retrieval that ran alongside
+    `scope_guard` (D-423). The single definition of that condition, called by
+    `join_scope_and_retrieval` below rather than re-expressed there, because
+    `build._route_after_scope_guard` decides the same thing from the same three fields and
+    the two must not drift - they are pinned against each other over the whole verdict
+    matrix by `test_the_join_and_the_router_agree_on_who_needs_retrieval`.
+    """
+    return (
+        not state.service_degraded and state.scope == "in_scope" and state.intent == "document_qa"
+    )
+
+
+async def retrieve_context(state: QAState, runtime: Runtime[TurnContext]) -> dict:
     """SPEC §5.21.3-§5.21.7: role-filtered hybrid search + rerank. Retrieval only - split
     from synthesis (`synthesize_answer`) so an empty result can route to `explain_access`
     (SPEC §18-C3) instead of paying for an LLM synthesis call that would just produce the
     generic no-source message anyway.
+
+    **D-423/WORK-01: this runs concurrently with `scope_guard`, not after it, and that is
+    the whole optimisation.** A grounded turn made four sequential Bedrock round trips;
+    measured on staging, `scope_guard` was 2129 ms and this node 3411 ms, and nothing here
+    reads anything `scope_guard` writes - retrieval's only input, `standalone_query`, is
+    written by `resolve_role`, a superstep earlier. So the turn now pays the larger of the
+    two instead of their sum (median ~9.6 s → ~7.5 s) with no prompt, model, threshold or
+    filter changed anywhere, which is why there is no quality delta to measure.
+
+    Two consequences of speculating, both deliberate:
+
+    - **Rule 3 still holds structurally.** The role/branch filter is still built here, from
+      `user_role`/`branch_external_id` that `resolve_role` resolved server-side, and still
+      goes into the query before any chunk is read (`role_access.role_access_filter` →
+      `RagRepository._apply_filters`). Moving retrieval earlier moved it *after
+      `resolve_role`*, which is the node that supplies the role - not before it. Nothing
+      about authorization became concurrent with anything.
+    - **Every non-`document_qa` turn now pays one wasted embedding + rerank** (D-423
+      constraint 3, accepted under D-417 §B6's trade-off criterion: a fraction of a cent).
+      `services.turn_cost.WORST_CASE_CALLS` already priced both on every turn, so the
+      per-day admission ceiling is unchanged.
+
+    **Why this node holds no DB/Bedrock ordering assumption with its co-runner.**
+    `scope_guard` makes exactly one Bedrock call and touches no database, and this node is
+    the only DB user in the superstep - which matters because `ctx.rag_repo` wraps a single
+    `AsyncSession` and an `AsyncSession` is not safe to use from two coroutines at once.
+    Adding a query to `scope_guard` would break that, so it is stated here rather than left
+    to be rediscovered.
     """
     ctx = _ctx(runtime)
     assert state.standalone_query is not None
@@ -475,6 +535,11 @@ async def answer_document_qa(state: QAState, runtime: Runtime[TurnContext]) -> d
             ctx.bedrock_gateway,
             query=state.standalone_query,
             filters=filters,
+            # One superstep earlier than before, so this sees the session total *without*
+            # `scope_guard`'s own cost, which is now being billed concurrently. Inherent to
+            # running two calls at once and not a threshold change: both check the same
+            # ceiling against the same base, and the join settles both. The overstatement is
+            # bounded by one `SCOPE_AND_INTENT` call.
             session_spend_cents=state.bedrock_spend_cents,
             candidate_limit=ctx.candidate_limit,
             top_k=ctx.top_k,
@@ -491,12 +556,99 @@ async def answer_document_qa(state: QAState, runtime: Runtime[TurnContext]) -> d
         # would send this to `explain_access` and answer with a no-source refusal or an
         # access hint. Both are statements about the corpus, and the corpus was never
         # searched.
-        return _degraded("document_qa_retrieval", exc, state)
+        #
+        # That routing is unchanged; *where it is decided* moved. This node cannot know
+        # whether the turn needed the result - `scope_guard` is still running - so it
+        # records the failure and `join_scope_and_retrieval` interprets it. The log and its
+        # `stage` label are the existing ones; the metric moved to the join, which is where
+        # a turn is actually known to have degraded (which is what its help string claims).
+        _log_gateway_failure("document_qa_retrieval", exc)
+        return {"retrieval_failed": True, "retrieval_spend_cents": exc.cost_cents}
+    except Exception as exc:
+        # Broad on purpose, and only because this node is now speculative. In the sequential
+        # graph a non-gateway failure here (a statement timeout, a dropped connection) could
+        # only ever hit a turn that had already asked for retrieval. Now it can hit a
+        # calendar or admin-contact turn that never needed it, and an exception raised in a
+        # parallel superstep fails the *whole* superstep - so letting it out here would let a
+        # transient DB error take down turns the sequential graph would have answered.
+        # Caught, logged with its traceback (exactly what an unhandled 500 logs today), and
+        # re-raised by the join if - and only if - the turn was waiting on it.
+        #
+        # `Exception`, deliberately not `BaseException`: D-346's per-request deadline and
+        # D-402's stop both work by cancelling the task, and `asyncio.CancelledError` is a
+        # `BaseException`, so it still propagates and still stops the turn.
+        logger.exception("qa_retrieval_unexpected_error", extra={"reason": type(exc).__name__})
+        return {"retrieval_failed": True, "retrieval_unexpected_error": type(exc).__name__}
 
     return {
         "retrieved_chunk_ids": [chunk.chunk_id for chunk in retrieval.chunks],
-        "bedrock_spend_cents": state.bedrock_spend_cents + retrieval.cost_cents,
+        "retrieval_spend_cents": retrieval.cost_cents,
     }
+
+
+async def join_scope_and_retrieval(state: QAState, runtime: Runtime[TurnContext]) -> dict:
+    """The fan-in for D-423's overlap: the first point at which both `scope_guard`'s verdict
+    and `retrieve_context`'s result exist. No I/O, no model call - it exists because three
+    things can only be decided once both halves have landed.
+
+    1. **Settle retrieval's spend into the running total.** Both branches would otherwise
+       write `bedrock_spend_cents` in the same superstep, which LangGraph rejects outright -
+       see `QAState.retrieval_spend_cents`. Settled on every path, including the discarded
+       one: a rerank that was billed is spend the budget must not lose.
+    2. **Interpret a retrieval failure against the verdict.** `document_qa` needed it, so it
+       fails closed exactly as `answer_document_qa` did (`service_degraded` →
+       `service_unavailable`). Nothing else was waiting on it, so the failure is logged and
+       dropped - inventing an outage for a caller whose calendar or escalation path is
+       perfectly healthy would be a worse answer than the one they can still have.
+    3. **Drop a result nobody asked for.** On a non-`document_qa` turn the chunk ids are
+       discarded rather than checkpointed, so the stored state of a refusal, calendar or
+       escalation turn is byte-for-byte what it was before this change.
+
+    Routing itself stays in `build._route_after_scope_and_retrieval`, which applies
+    `_route_after_scope_guard`'s decision unchanged.
+    """
+    del runtime
+    settled: dict = {
+        "bedrock_spend_cents": state.bedrock_spend_cents + state.retrieval_spend_cents,
+        "retrieval_spend_cents": 0.0,
+    }
+
+    if not retrieval_is_needed(state):
+        if state.retrieval_failed:
+            # Fail quiet. INFO, not WARNING, and no `QA_SERVICE_DEGRADED` increment: no turn
+            # degraded, and counting one here would turn "turns answered with the
+            # temporarily-unavailable message" into something else. The failure detail was
+            # already logged by `retrieve_context`; this line is what tells an operator the
+            # failure was discarded rather than served.
+            logger.info(
+                "qa_speculative_retrieval_discarded",
+                extra={
+                    "scope": state.scope,
+                    "intent": state.intent,
+                    "reason": state.retrieval_unexpected_error or BedrockGatewayError.__name__,
+                },
+            )
+        return {
+            **settled,
+            "retrieved_chunk_ids": None,
+            "retrieval_failed": False,
+            "retrieval_unexpected_error": None,
+        }
+
+    if not state.retrieval_failed:
+        return settled
+
+    if state.retrieval_unexpected_error is not None:
+        # Never a gateway failure, so it never had a fallback: the sequential graph let this
+        # out of the node as a 500 and so does this. Raised here rather than in
+        # `retrieve_context` because only here is it known that the turn was waiting on it -
+        # the traceback is already in the log line that node wrote.
+        raise RuntimeError(
+            f"retrieval failed on a document_qa turn: {state.retrieval_unexpected_error}"
+        )
+
+    QA_SERVICE_DEGRADED.labels(stage="document_qa_retrieval").inc()
+    return {**settled, "service_degraded": True}
 
 
 def _reason_for_qa_answer(answer: str) -> TurnReason:
@@ -518,9 +670,16 @@ def _reason_for_qa_answer(answer: str) -> TurnReason:
 
 async def synthesize_answer(state: QAState, runtime: Runtime[TurnContext]) -> dict:
     """SPEC §5.21.8: citation-grounded synthesis + verification, over the chunks
-    `answer_document_qa` already retrieved (re-loaded by id - `QAState` checkpoints ids
+    `retrieve_context` already retrieved (re-loaded by id - `QAState` checkpoints ids
     only, never full chunk bodies, mirroring `retrieved_chunk_ids`'s own docstring).
-    Only reached when retrieval was non-empty (see `_route_after_answer_document_qa`).
+    Only reached when retrieval was non-empty (see
+    `build._route_after_scope_and_retrieval`).
+
+    D-423 constraint 2 is why the re-fetch survived the overlap unchanged: retrieval now
+    completes a superstep earlier, and the cheap way to hand its output to synthesis would
+    have been to checkpoint the chunk bodies. That would have bought ~22% of the turn by
+    putting document text into every checkpoint, so the id list plus this one indexed read
+    stayed exactly as it was.
     """
     ctx = _ctx(runtime)
     assert state.standalone_query is not None
@@ -577,7 +736,7 @@ async def explain_access(state: QAState, runtime: Runtime[TurnContext]) -> dict:
 
     Reached whenever this turn is about to tell the user there is no approved source -
     either because role-filtered retrieval came back completely empty
-    (`answer_document_qa`), or because retrieval found chunks and synthesis still refused
+    (`retrieve_context`), or because retrieval found chunks and synthesis still refused
     on them (`synthesize_answer`, via `QAState.no_source_refusal`).
 
     **The second entry path is AUD-C-06's fix, and it is the one that made the feature
@@ -627,7 +786,7 @@ async def explain_access(state: QAState, runtime: Runtime[TurnContext]) -> dict:
     # AUD-C-20/D-165: the probe needs a semantic signal, because keyword matching ANDs every
     # content word of the question and a caller does not use the document's vocabulary
     # (measured: 3 of 43 vs 25 of 43). The embedding is taken here rather than threaded down
-    # from `answer_document_qa` deliberately - `QAState` is checkpointed, and 1024 floats per
+    # from `retrieve_context` deliberately - `QAState` is checkpointed, and 1024 floats per
     # turn in every checkpoint is a real cost to avoid a call that costs a fraction of a cent.
     #
     # **It must not raise.** This node runs *because* the turn already failed to answer; a
@@ -917,7 +1076,7 @@ async def calendar_extract(state: QAState, runtime: Runtime[TurnContext]) -> dic
     except BedrockGatewayError as exc:
         # AUD-C-07's second call site, reached only when the deterministic `org_events`
         # lookup above found nothing - the RAG fallback for calendar content not yet
-        # migrated into the structured table. Guarding only `answer_document_qa` would
+        # migrated into the structured table. Guarding only `retrieve_context` would
         # have left the same unhandled 500 one calendar question away.
         return _degraded("calendar_retrieval", exc, state)
 

@@ -5,6 +5,13 @@ no `entry_action` dispatch - every turn enters at `resolve_role`. Three intents 
 via `interrupt()` (`admin_escalation`/`calendar_action`, S14; `branch_locator_consent`,
 S15) - resumed the same way learning-api's graph is, via `Command(resume=...)` on the
 same thread id.
+
+**One parallel superstep (D-423).** Every other edge here is one-successor-per-turn;
+`resolve_role` is the exception - on the non-escalation path it fans out to `scope_guard`
+and `retrieve_context` together and they rejoin at `join_scope_and_retrieval`. That is the
+whole of B6 part 2: the two make independent Bedrock round trips (2.1 s and 3.4 s measured
+on staging) over inputs `resolve_role` had already written, so a grounded turn's model chain
+goes from four sequential calls to three - max(scope, retrieval) then synthesis.
 """
 
 from intellichoice_observability.tracing import traced_node
@@ -39,6 +46,17 @@ QAGraph = CompiledStateGraph[QAState, nodes.TurnContext, AskInput, QAState]
 
 
 def _route_after_scope_guard(state: QAState) -> str:
+    """`scope_guard`'s decision, unchanged from before D-423's overlap - every branch, in
+    the same order, on the same fields.
+
+    It is no longer wired as a conditional edge, because `scope_guard` no longer decides
+    where the turn goes on its own: it runs concurrently with `retrieve_context` and the
+    two join first. So this returns a *verdict token* that
+    `_route_after_scope_and_retrieval` consumes, and `"answer_document_qa"` names the
+    verdict rather than a node - the node of that name is gone, its retrieval half now
+    running a superstep earlier as `retrieve_context`. Kept as its own function precisely
+    so the overlap can be reviewed against "the scope decision is untouched".
+    """
     # AUD-C-08: checked before the scope decision, because when the classifier itself
     # failed there *is* no scope decision - `refuse` would be making one up.
     if state.service_degraded:
@@ -56,21 +74,33 @@ def _route_after_scope_guard(state: QAState) -> str:
     return "unavailable_intent"
 
 
-def _route_after_answer_document_qa(state: QAState) -> str:
-    """SPEC §18-C3: an empty role-filtered retrieval routes to `explain_access` (the
-    metadata-only access probe) instead of paying for an LLM synthesis call that has no
-    chunks to work with anyway.
+def _route_after_scope_and_retrieval(state: QAState) -> str:
+    """The one router the overlapped pair feeds (D-423). Two decisions, in the order they
+    were made before the overlap and with nothing added between them.
 
-    AUD-C-07: "retrieval failed" and "retrieval found nothing" are both empty and must
-    not share a branch - the second is a fact about the corpus, the first is a fact
-    about us.
+    First, `scope_guard`'s verdict, applied exactly as it was when it owned its own
+    conditional edge. Every intent that is not `document_qa` goes to the same node it
+    always did and the retrieval result is simply discarded - `nodes.
+    join_scope_and_retrieval` has already dropped its chunk ids and settled its cost.
+
+    Then, for `document_qa` only, what used to be `_route_after_answer_document_qa`:
+
+    - SPEC §18-C3: an empty role-filtered retrieval routes to `explain_access` (the
+      metadata-only access probe) instead of paying for an LLM synthesis call that has no
+      chunks to work with anyway.
+    - AUD-C-07: "retrieval failed" and "retrieval found nothing" are both empty and must
+      not share a branch - the second is a fact about the corpus, the first is a fact about
+      us. A retrieval failure that this turn *needed* has already been turned into
+      `service_degraded` by the join, so it is caught by the first check below and never
+      reaches the empty-retrieval branch.
     """
-    if state.service_degraded:
-        return "service_unavailable"
+    verdict = _route_after_scope_guard(state)
+    if verdict != "answer_document_qa":
+        return verdict
     return "explain_access" if not state.retrieved_chunk_ids else "synthesize_answer"
 
 
-def _route_after_resolve_role(state: QAState) -> str:
+def _route_after_resolve_role(state: QAState) -> list[str]:
     """D-164: an escalation is a forward, not a question, so it skips `scope_guard`.
 
     **What this bypasses, and why that is safe.** `scope_guard` exists to refuse
@@ -86,7 +116,14 @@ def _route_after_resolve_role(state: QAState) -> str:
     approval before any send (CLAUDE.md #4), and the `mcp_tool_calls` audit row. The draft
     stays the deterministic template, so no model ever writes what an administrator reads.
     """
-    return "prepare_admin_escalation" if state.escalate else "scope_guard"
+    if state.escalate:
+        return ["prepare_admin_escalation"]
+    # D-423's fan-out. A list, so LangGraph schedules both in one superstep: `scope_guard`
+    # (one Bedrock classification, ~2.1 s measured) and `retrieve_context` (embedding +
+    # hybrid search + rerank, ~3.4 s measured) share no input and no output channel, so the
+    # turn pays the larger instead of the sum. The escalate path above is unchanged and
+    # still makes no model call at all.
+    return ["scope_guard", "retrieve_context"]
 
 
 def _route_after_synthesize_answer(state: QAState) -> str:
@@ -137,9 +174,21 @@ def build_graph(checkpointer: BaseCheckpointSaver) -> QAGraph:
     graph.add_node(
         "unavailable_intent", traced_node("langgraph.unavailable_intent")(nodes.unavailable_intent)
     )
+    # D-423: the retrieval half of the old `answer_document_qa`, now its own node so it can
+    # run in the same superstep as `scope_guard`. Renamed rather than kept, because the name
+    # would be a lie: it runs on every turn that is not an escalation, and it answers
+    # nothing. The old->new span mapping matters for comparing against D-423's staging
+    # baseline, so it is written down: `langgraph.answer_document_qa` (embedding + rerank +
+    # SQL, median 3411 ms) -> `langgraph.retrieve_context`, same work; `langgraph.scope_guard`
+    # unchanged in name and content but now a sibling rather than a predecessor;
+    # `langgraph.join_scope_and_retrieval` new, pure state arithmetic, no I/O.
     graph.add_node(
-        "answer_document_qa",
-        traced_node("langgraph.answer_document_qa")(nodes.answer_document_qa),
+        "retrieve_context",
+        traced_node("langgraph.retrieve_context")(nodes.retrieve_context),
+    )
+    graph.add_node(
+        "join_scope_and_retrieval",
+        traced_node("langgraph.join_scope_and_retrieval")(nodes.join_scope_and_retrieval),
     )
     graph.add_node(
         "synthesize_answer", traced_node("langgraph.synthesize_answer")(nodes.synthesize_answer)
@@ -180,29 +229,31 @@ def build_graph(checkpointer: BaseCheckpointSaver) -> QAGraph:
         _route_after_resolve_role,
         {
             "scope_guard": "scope_guard",
+            "retrieve_context": "retrieve_context",
             "prepare_admin_escalation": "prepare_admin_escalation",
         },
     )
+    # The fan-in. Two plain edges into one node, which is LangGraph's own barrier: both
+    # writers update their channels in the same superstep, so the join is scheduled exactly
+    # once, in the next one, with both results in state. Verified rather than assumed - see
+    # `test_scope_guard_and_retrieval_run_in_one_superstep`, which asserts both nodes are
+    # *entered* before either returns, and
+    # `test_a_grounded_turn_runs_three_model_calls_deep_and_joins_once`, which asserts the
+    # fan-in fires exactly once.
+    graph.add_edge("scope_guard", "join_scope_and_retrieval")
+    graph.add_edge("retrieve_context", "join_scope_and_retrieval")
     graph.add_conditional_edges(
-        "scope_guard",
-        _route_after_scope_guard,
+        "join_scope_and_retrieval",
+        _route_after_scope_and_retrieval,
         {
             "refuse": "refuse",
             "service_unavailable": "service_unavailable",
             "unavailable_intent": "unavailable_intent",
-            "answer_document_qa": "answer_document_qa",
+            "synthesize_answer": "synthesize_answer",
+            "explain_access": "explain_access",
             "prepare_admin_escalation": "prepare_admin_escalation",
             "calendar_extract": "calendar_extract",
             "branch_locator_consent": "branch_locator_consent",
-        },
-    )
-    graph.add_conditional_edges(
-        "answer_document_qa",
-        _route_after_answer_document_qa,
-        {
-            "synthesize_answer": "synthesize_answer",
-            "explain_access": "explain_access",
-            "service_unavailable": "service_unavailable",
         },
     )
     graph.add_conditional_edges(

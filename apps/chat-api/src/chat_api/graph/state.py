@@ -65,8 +65,40 @@ class QAState(BaseModel):
     service_degraded: bool = False
 
     # External chunk ids only, not full chunk bodies - the citations below already carry
-    # every field a caller needs to display (SPEC §5.21.8's `Citation` schema).
+    # every field a caller needs to display (SPEC §5.21.8's `Citation` schema). D-423
+    # constraint 2 turns on this: retrieval now runs a superstep earlier than synthesis, and
+    # the whole point of re-fetching bodies by id in `synthesize_answer` is that moving
+    # retrieval earlier must not buy latency by putting chunk text into the checkpoint.
     retrieved_chunk_ids: list[str] | None = None
+
+    # D-423/WORK-01: what retrieval's Bedrock calls cost, in its own channel rather than
+    # added straight into `bedrock_spend_cents`. `scope_guard` and `retrieve_context` run in
+    # the *same* superstep now, and every node here writes the spend field as an absolute
+    # running total - so two writers in one step is a LangGraph `InvalidUpdateError`
+    # (measured, not assumed: `LastValue.update` raises "can receive only one value per
+    # step"), and an additive reducer would be the wrong fix because it would sum two
+    # totals rather than two deltas. `join_scope_and_retrieval` folds this into the running
+    # total one superstep later, where it is again the only writer, and zeroes it.
+    retrieval_spend_cents: float = 0.0
+
+    # D-423/WORK-01: the concurrent retrieval failed. Deliberately NOT `service_degraded`:
+    # only a `document_qa` turn is waiting on that result, and the verdict that decides it is
+    # produced by `scope_guard` in the same superstep, so the failure cannot be interpreted
+    # until both halves have finished. `join_scope_and_retrieval` promotes it to
+    # `service_degraded` on a `document_qa` turn (unchanged fail-closed behaviour) and drops
+    # it with a log line on every other intent - fail closed for the work the turn needed,
+    # fail quiet for the work nothing was waiting on. Per-turn; cleared by `resolve_role`.
+    retrieval_failed: bool = False
+
+    # D-423/WORK-01: the exception *class name* when that failure was not a
+    # `BedrockGatewayError` - a statement timeout or a dropped Postgres connection, say,
+    # which the sequential graph never had to consider on a calendar or admin-contact turn
+    # because retrieval did not run there. The class name only, never the message: this field
+    # is checkpointed and a DB error's message can quote the statement's parameters, which
+    # include the caller's own question (SPEC §5.30). `join_scope_and_retrieval` re-raises on
+    # a `document_qa` turn - an unexpected error is still a 500, exactly as today - and
+    # logs-and-drops it on every other intent.
+    retrieval_unexpected_error: str | None = None
 
     answer: str | None = None
     citations: list[dict] | None = None
