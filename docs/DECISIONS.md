@@ -30305,3 +30305,64 @@ the fan-out/join topology; `AUDIT_FINDINGS`' AUD-C-07 row names `answer_document
 history and is left as history. D-438's trigger fired (third time) — the topology sits below
 §5.3's altitude and inside §5.36's existing routing/orchestration placements; skip-noted.
 Staging still runs the sequential graph until the next deploy (LB-05).
+
+## D-442 — eligibility-gate finding: WORK-35's "free staging measurement" is UD-2-gated, and the register said both things (accepted, 2026-08-25)
+
+A §4.4 gate execution, recorded because the gate's own protocol requires reconciliation
+rather than a silent skip. `WORK-35-LEDGER` reached the queue front; its first step reads
+"take the staging measurement (**free**)" — and the same register entry's evidence line says
+"the staging *sizing* numbers have never been read — **that read needs a database session
+(`DB-CONTENT-VERIFY`)**", and `DB-CONTENT-VERIFY` homes that session on **UD-2's rider**
+("add … `WORK-35-LEDGER`'s staging sizing read to the same session"). The two sentences
+coexist because *free* meant dollars: the read costs nothing, but a read-only session into
+the staging database — a minors-adjacent store the control plane deliberately cannot reach —
+is exactly what UD-2 exists to gate. Running the query through a side door (an ad-hoc ECS
+run-task inside the VPC) would be a workaround of a user boundary and was considered and
+rejected by name.
+
+**Applied:** the `WORK-35-LEDGER` row is restated as **blocked on UD-2** and removed from the
+execution queue (blocked items never enter it); UD-2's "Blocks?" cell turns **Yes** — the
+read-only-session half now holds the front of the queue's remaining tail, alongside the
+`G2-LOCATOR-PURGE` `__resume__` query that rides the same session. The design review's two
+carried inputs (D-420's redacted visitor free text; D-440's `existing_facts` crossover) stay
+on the row. Nothing else about the item changed — option D and "staging numbers before
+sizing" stand exactly as the user decided them.
+
+## D-443 — WORK-13 closed: every session-creating e2e spec owns its student, and isolation exposed one vacuously-passing spec (accepted, 2026-08-25)
+
+Executes `WORK-13-FIXTURES` (the post-D-442 queue front). Orca workflow: Frozen Spec → one
+persistent executor (claude/opus/high, receipt requested = effective, liveness-probed per the
+D-441 convention) → worker_done → coordinator review including an **independent third full
+e2e run** — the browser lane is the one lane CI cannot verify, so the coordinator ran it
+first-hand. Landed as `80791f3` (PR #405).
+
+**1. The enumeration governs, not the register's count.** Twenty-one spec files referenced
+`studentPresent` (the register said seventeen). Verdicts: **13 create learning sessions** and
+now own seeded students (`student-ext-14..26` — grade 3, present, **deliberately unlinked**:
+none drives a parent-facing path, and a parent apiece would be thirteen accounts, thirteen
+login-screen rows and thirteen PII needles for no coverage); **7 mint tokens, read dashboards
+or probe authorization**, create no session state, and keep sharing with a one-line
+why-safe comment each; **1 moved for the opposite reason** — see §2. `studentPresent`'s own
+comment now says what it still is (the shared read-only identity and
+`deployed-authorization`'s one-parent control) and forbids new session-creating sharers.
+DevLoginScreen mirrors the additions per the FIXTURES contract.
+
+**2. The finding: isolation made `dashboard-chart-labels.spec.ts` honest.** It read charts
+off mastery rows that *some other sharer* had written before it — a spec that could only pass
+in company, i.e. vacuous in isolation. It now owns `student-ext-27` and builds its own
+history before reading, with **no assertion changed**. This is the isolation class's second
+face: shared identities don't only make specs fail together, they let specs pass on each
+other's leftovers.
+
+**3. Verification.** Three consecutive green full local e2e runs on the final tree — executor
+runs A and B (127 passed / 2 skipped, 6:20.85 and 6:18.32) plus the coordinator's independent
+run (127 / 2, 6.4 m) — against a pre-edit baseline run proving green-before-change; the same
+two staging-only skips in every run. `make lint`/`typecheck`/`test` at the exact 1867/2/1
+baseline (delta 0), `make e2e-typecheck` and learning-web's own `tsc`/`oxlint` clean, and
+both PII scanners' positive controls grew **31/31 → 45/45** with **zero new allowlist
+entries** (the D-439/D-440 collision classes were checked when choosing fixture values).
+`make e2e` and `make test` were never run concurrently.
+
+**4. What this unblocks, and what it does not.** This was the test-side prerequisite for
+UD-2's whole-directory staging re-run (`DRIFT-58`'s residual). The re-run itself is paid and
+stays with the user; nothing was run against staging here.
