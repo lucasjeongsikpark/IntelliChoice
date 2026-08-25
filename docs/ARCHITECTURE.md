@@ -1331,7 +1331,15 @@ to rot, because nothing fails when it does.)*
   overlap is `scope_guard` ∥ *retrieval* (retrieval's only input, `standalone_query`, is written by
   `resolve_role` *before* the classification runs). **`QAState` holds chunk ids, not bodies**, and that
   invariant constrains the fix: the answer node must re-fetch by id rather than checkpoint the retrieved
-  text, which costs one indexed read and keeps the checkpoint small.
+  text, which costs one indexed read and keeps the checkpoint small. **Built as of D-441
+  (2026-08-24, HEAD only until the next deploy):** `resolve_role` fans out to `scope_guard` ∥
+  `retrieve_context` in one superstep, rejoined at `join_scope_and_retrieval`, which settles
+  retrieval's spend (channels split, not reducer-ed — every node writes spend as an absolute total),
+  applies the unchanged scope verdict, fails closed for `document_qa` and logs-and-drops a wasted
+  branch's failure. Two facts a future reader needs: **summing `langgraph.*` span durations now
+  double-counts the concurrent pair** (compare as `max(scope, retrieve) + join + synthesize`), and
+  `retrieve_context` is deliberately the only DB user in its superstep (`ctx.rag_repo` wraps one
+  `AsyncSession`) — adding a query to `scope_guard` would break that.
 
 - **The end states a client can show must be mutually exclusive, and each must claim only what
   happened** (D-413, and both halves have their own past defect). A turn in chat-web can end five
@@ -1862,24 +1870,30 @@ answer, but it makes no claim about the user's question, the corpus, or the cale
 flowchart TB
     START([HTTP request → AskInput]) --> RR["resolve_role (S13)<br/>claims → user_role/branch<br/>(anonymous → \"public\")"]
     RR -->|"escalate=true<br/>(D-164)"| PREP
-    RR -->|"else"| SG["scope_guard (S13)<br/>one combined Bedrock call:<br/>BedrockTask.SCOPE_AND_INTENT"]
+    RR -->|"else: fan-out,<br/>one superstep (D-441)"| SG["scope_guard (S13)<br/>one combined Bedrock call:<br/>BedrockTask.SCOPE_AND_INTENT"]
+    RR -->|"else: fan-out,<br/>one superstep (D-441)"| DOCQA
 
-    SG -->|"out_of_scope"| REFUSE["refuse (S13)<br/>§5.19.4 verbatim message"]
-    SG -->|"in_scope,<br/>intent=clarification"| UNAVAIL["unavailable_intent (S13)<br/>generic rephrase message"]
-    SG -->|"in_scope,<br/>intent=document_qa"| DOCQA["answer_document_qa (S13)"]
-    SG -->|"in_scope,<br/>intent=admin_contact"| PREP["prepare_admin_escalation (S14)<br/>rate limit (shared counter,<br/>AUD-C-27) + deterministic<br/>draft (no LLM call)"]
-    SG -->|"in_scope,<br/>intent=calendar"| CEXT["calendar_extract (S14)<br/>retrieve() + BedrockTask.<br/>CALENDAR_EXTRACTION"]
-    SG -->|"in_scope,<br/>intent=branch_locator"| BLC{{"branch_locator_consent<br/>interrupt() (S15)<br/>§5.1.3 notice, no location<br/>read yet"}}
-    SG -->|"BedrockGatewayError<br/>(D-155, AUD-C-08)"| SVCDOWN["service_unavailable (D-155)<br/>§5.29 user-safe message<br/>— fail-closed like refuse,<br/>but claims nothing about<br/>the question/corpus/calendar"]
+    SG --> JSR["join_scope_and_retrieval (D-441)<br/>settles retrieval spend;<br/>needed failure → degraded (fail closed),<br/>wasted failure → log + drop;<br/>non-QA turn: chunk ids discarded"]
+    DOCQA --> JSR
 
-    DOCQA["answer_document_qa (S13)<br/>retrieval only (S19 split)"] --> FILTER["role_access_filter (S13)<br/>audiences=[public,role]<br/>+ branch + as_of<br/>— applied BEFORE search"]
+    JSR -->|"out_of_scope"| REFUSE["refuse (S13)<br/>§5.19.4 verbatim message"]
+    JSR -->|"in_scope,<br/>intent=clarification"| UNAVAIL["unavailable_intent (S13)<br/>generic rephrase message"]
+    JSR -->|"in_scope, intent=document_qa,<br/>chunks non-empty"| SYNTH
+    JSR -->|"in_scope, intent=document_qa,<br/>chunks empty"| ACCESS
+    JSR -->|"in_scope,<br/>intent=admin_contact"| PREP["prepare_admin_escalation (S14)<br/>rate limit (shared counter,<br/>AUD-C-27) + deterministic<br/>draft (no LLM call)"]
+    JSR -->|"in_scope,<br/>intent=calendar"| CEXT["calendar_extract (S14)<br/>retrieve() + BedrockTask.<br/>CALENDAR_EXTRACTION"]
+    JSR -->|"in_scope,<br/>intent=branch_locator"| BLC{{"branch_locator_consent<br/>interrupt() (S15)<br/>§5.1.3 notice, no location<br/>read yet"}}
+    JSR -->|"scope_guard BedrockGatewayError<br/>(D-155, AUD-C-08), or a needed<br/>retrieval failure (AUD-C-07)"| SVCDOWN["service_unavailable (D-155)<br/>§5.29 user-safe message<br/>— fail-closed like refuse,<br/>but claims nothing about<br/>the question/corpus/calendar"]
+
+    DOCQA["retrieve_context (S13, renamed from<br/>answer_document_qa at D-441)<br/>retrieval only (S19 split);<br/>runs on every non-escalation turn"] --> FILTER["role_access_filter (S13)<br/>audiences=[public,role]<br/>+ branch + as_of<br/>— applied BEFORE search"]
     FILTER --> EMBED["create_embedding (S13)<br/>query vector"]
-    EMBED -->|"BedrockGatewayError<br/>(D-155, AUD-C-07)"| SVCDOWN
+    EMBED -->|"any failure (D-441):<br/>recorded as retrieval_failed,<br/>interpreted at the join<br/>(D-155, AUD-C-07)"| JSR
     EMBED --> HYBRID["RagRepository.hybrid_search<br/>FTS + pgvector + RRF (S13)"]
     HYBRID --> RERANK["BedrockTask.RERANK (S13)<br/>top-30 → top 5-8,<br/>score=0 dropped (D-052)"]
-    RERANK -->|"chunks empty"| ACCESS["explain_access (S19)<br/>retrieval.probe_access (D-168):<br/>candidates ≤0.60 → RERANK →<br/>pre-floor tier margin 0.10 →<br/>floor >0.9 (D-177)<br/>no candidates → keyword arm alone,<br/>one audience or silence (D-180)<br/>model ranks passages, code<br/>names the tier — role-gated only"]
+    RERANK -->|"chunk ids only<br/>(D-441: empty-vs-non-empty<br/>is decided at the join)"| JSR
+    ACCESS["explain_access (S19)<br/>retrieval.probe_access (D-168):<br/>candidates ≤0.60 → RERANK →<br/>pre-floor tier margin 0.10 →<br/>floor >0.9 (D-177)<br/>no candidates → keyword arm alone,<br/>one audience or silence (D-180)<br/>model ranks passages, code<br/>names the tier — role-gated only"]
     NOANS -->|"no_source_refusal<br/>(D-164, AUD-C-06)"| ACCESS
-    RERANK -->|"chunks non-empty"| SYNTH["synthesize_answer (S13/S19)<br/>BedrockTask.RAG_ANSWER,<br/>untrusted context, never<br/>a system instruction (§5.30.4)"]
+    SYNTH["synthesize_answer (S13/S19)<br/>BedrockTask.RAG_ANSWER,<br/>untrusted context, never<br/>a system instruction (§5.30.4)"]
     SYNTH --> VERIFY{"qa.answer_question (S13)<br/>quote a real substring?<br/>confidence ≥ threshold?<br/>sources_conflict?"}
     VERIFY -->|"no citation survives /<br/>low confidence / conflict"| NOANS["no-answer + escalation<br/>(§5.21.8, §5.29)"]
     VERIFY -->|"yes"| GROUNDED["GroundedAnswer<br/>+ verified Citations"]
