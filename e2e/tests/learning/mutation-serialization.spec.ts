@@ -64,7 +64,12 @@ test("every submitted answer reaches the server, even when the previous one is s
     await route.continue();
   });
 
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
+  // Its own student, not `studentPresent` (WORK-13-FIXTURES). This spec creates a
+  // learning session, and the journeys mutate shared per-student Postgres and MySQL
+  // state through one seeded account - so a spec sharing that account picks up
+  // whatever the previous one left behind. `FIXTURES` in config.ts has the
+  // measurement: 7 refused submissions and 2.3 minutes against 15 seconds.
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentMutation);
   await startSession(page);
   await settleToInteractiveScreen(page);
   await chooseTopic(page);

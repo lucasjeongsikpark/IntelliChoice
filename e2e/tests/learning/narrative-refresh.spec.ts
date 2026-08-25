@@ -78,7 +78,12 @@ const NARRATIVE_ARRIVAL_MS = 60_000;
 const NARRATIVE_RETURN_MS = 30_000;
 
 test("a dismissed stage narrative stays dismissed across a refresh", async ({ page, audit }) => {
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
+  // Its own student, not `studentPresent` (WORK-13-FIXTURES). This spec creates a
+  // learning session, and the journeys mutate shared per-student Postgres and MySQL
+  // state through one seeded account - so a spec sharing that account picks up
+  // whatever the previous one left behind. `FIXTURES` in config.ts has the
+  // measurement: 7 refused submissions and 2.3 minutes against 15 seconds.
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentNarrativeRefresh);
   await startSession(page);
 
   const continueButton = page.getByRole("button", { name: /^continue$/i });

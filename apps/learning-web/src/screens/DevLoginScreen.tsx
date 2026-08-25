@@ -40,6 +40,29 @@ const FIXTURE_IDS: { label: string; role: Role; sub: string }[] = [
   // Its exam gets *finalized* by the expiry walk, so signing in by hand may land on a finished
   // session rather than a fresh one - the same caveat as Lena above.
   { label: "Student — Eli Expiry (grade 3, present)", role: "student", sub: "student-ext-13" },
+  // WORK-13-FIXTURES: one student per session-creating e2e spec, finishing what D-288 and
+  // D-365 started. Grade 3, present, no parent link. They are here for the same reason the
+  // list exists at all - `e2e/config.ts` documents itself as mirroring this screen, and the
+  // one time the two disagreed a fixture became unreachable by hand without anything failing.
+  // Each may be mid-exam when you sign in as it: that is the isolation working, not a fault.
+  { label: "Student — Nora Assist (grade 3, present)", role: "student", sub: "student-ext-14" },
+  { label: "Student — Omar Position (grade 3, present)", role: "student", sub: "student-ext-15" },
+  { label: "Student — Quinn Hint (grade 3, present)", role: "student", sub: "student-ext-16" },
+  { label: "Student — Rosa Mutation (grade 3, present)", role: "student", sub: "student-ext-17" },
+  {
+    label: "Student — Sami Displacement (grade 3, present)",
+    role: "student",
+    sub: "student-ext-18",
+  },
+  { label: "Student — Tara Race (grade 3, present)", role: "student", sub: "student-ext-19" },
+  { label: "Student — Uma Refresh (grade 3, present)", role: "student", sub: "student-ext-20" },
+  { label: "Student — Vera Tutor (grade 3, present)", role: "student", sub: "student-ext-21" },
+  { label: "Student — Wes Finalize (grade 3, present)", role: "student", sub: "student-ext-22" },
+  { label: "Student — Xia Reconnect (grade 3, present)", role: "student", sub: "student-ext-23" },
+  { label: "Student — Yuna Telemetry (grade 3, present)", role: "student", sub: "student-ext-24" },
+  { label: "Student — Zane Video (grade 3, present)", role: "student", sub: "student-ext-25" },
+  { label: "Student — Nils Submit (grade 3, present)", role: "student", sub: "student-ext-26" },
+  { label: "Student — Ada Charted (grade 3, present)", role: "student", sub: "student-ext-27" },
   { label: "Parent — Priya One (1 linked child)", role: "parent", sub: "parent-ext-1" },
   { label: "Parent — Paul Two (2 linked children)", role: "parent", sub: "parent-ext-2" },
   { label: "Parent — Pia Three (1 linked child, Kai)", role: "parent", sub: "parent-ext-3" },

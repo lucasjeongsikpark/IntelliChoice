@@ -81,6 +81,9 @@ test("the welcome card's suggested prompt works as a one-click turn", async ({ p
 });
 
 for (const [name, account] of [
+  // **Deliberately shares `studentPresent`** (WORK-13-FIXTURES). These are chat sessions,
+  // not learning sessions: each one is created fresh per browser context and keyed by its
+  // own id, so the identity carries no state between specs. The role is what is under test.
   ["student", FIXTURES.studentPresent],
   ["parent", { role: "parent", sub: "parent-ext-1" }],
   ["tutor", { role: "tutor", sub: "tutor-ext-1" }],

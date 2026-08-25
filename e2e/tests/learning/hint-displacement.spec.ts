@@ -32,7 +32,13 @@ test("a requested hint stays on screen long enough to read", async ({ page, audi
   // console error. Allowed by path here so this journey still enforces "zero console
   // errors" for everything else - otherwise one known defect would mask every new one.
   audit.allow({ statuses: [409], consoleErrors: ["Failed to load resource"] });
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
+  // Its own student, not `studentPresent` (WORK-13-FIXTURES). This spec creates a
+  // learning session, and the journeys mutate shared per-student Postgres and MySQL
+  // state through one seeded account - so a spec sharing that account picks up
+  // whatever the previous one left behind. `FIXTURES` in config.ts has the
+  // measurement: 7 refused submissions and 2.3 minutes against 15 seconds.
+  // It also finalizes an exam, which is the one session state another spec cannot resume past.
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentHint);
   await startSession(page);
   await settleToInteractiveScreen(page);
   await chooseTopic(page);

@@ -25,6 +25,8 @@ test("chat-web loads and shows the sign-in screen", async ({ page }) => {
 });
 
 test("both /dev/token endpoints mint a token", async ({ request }) => {
+  // **Deliberately shares `studentPresent`** (WORK-13-FIXTURES). Minting a token creates no
+  // session and writes no per-student row, so the isolation finding does not reach here.
   const learning = await mintToken(request, "learning", FIXTURES.studentPresent);
   const chat = await mintToken(request, "chat", FIXTURES.studentPresent);
   // Three dot-separated base64url segments. Asserting the shape, never the content.

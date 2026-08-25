@@ -22,7 +22,12 @@ test("measure the window between the topic screen rendering and the narrative di
   page,
   audit,
 }) => {
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
+  // Its own student, not `studentPresent` (WORK-13-FIXTURES). This spec creates a
+  // learning session, and the journeys mutate shared per-student Postgres and MySQL
+  // state through one seeded account - so a spec sharing that account picks up
+  // whatever the previous one left behind. `FIXTURES` in config.ts has the
+  // measurement: 7 refused submissions and 2.3 minutes against 15 seconds.
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentNarrativeRace);
   await startSession(page);
 
   // Whichever appears first wins the race; both outcomes are recorded.
@@ -61,7 +66,7 @@ test("a click landing in that window is discarded (the student loses the interac
   page,
   audit,
 }) => {
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentNarrativeRace);
   await startSession(page);
 
   const topicList = page.locator(".card-list");

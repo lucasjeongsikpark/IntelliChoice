@@ -34,6 +34,10 @@ test("the dashboard survives a reload and the back button returns to the session
   page,
   audit,
 }) => {
+  // **Deliberately shares `studentPresent`** (WORK-13-FIXTURES). This spec never starts a
+  // session: it signs in, opens the dashboard and reads the address bar. Nothing it does
+  // leaves state for another spec to resume, and nothing another spec leaves changes the
+  // two URLs it asserts.
   await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
 
   await page.getByRole("button", { name: /view progress dashboard/i }).click();
