@@ -60,6 +60,9 @@ async function interceptReportPosts(
 }
 
 async function openDashboard(page: Page): Promise<void> {
+  // **Deliberately shares `studentPresent`** (WORK-13-FIXTURES). No session is started, and
+  // the report POSTs are intercepted at the network layer (see the header) - the server
+  // never sees them, so there is no per-student state to collide over.
   await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
   await page.getByRole("button", { name: /view progress dashboard/i }).click();
   await expect(page.getByRole("heading", { name: /progress dashboard/i })).toBeVisible({

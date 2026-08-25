@@ -46,6 +46,11 @@ test.describe("the deployed stack's authorization boundaries", () => {
   test("a student cannot read another student's dashboard or session list", async ({
     request,
   }) => {
+    // **Deliberately shares `studentPresent`** (WORK-13-FIXTURES). Every probe in this file is
+    // a read or a fresh chat session; none starts a learning session. `studentPresent` is also
+    // the *documented* one-linked-parent child, which the parent test below uses as its
+    // control - so this file is a reason that fixture's shape must not change, not a sharer
+    // that needs its own.
     const mine = FIXTURES.studentPresent;
     const theirs = FIXTURES.studentBand35;
     const token = await mintToken(request, "learning", mine);

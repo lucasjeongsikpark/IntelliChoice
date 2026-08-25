@@ -33,6 +33,9 @@ test("an expired token on the dashboard returns the user to sign-in instead of l
   // resource load. Both are the *handled* path, which is what this test is asserting.
   audit.allow({ statuses: [401], consoleErrors: ["Failed to load resource"] });
 
+  // **Deliberately shares `studentPresent`** (WORK-13-FIXTURES). No session is started, and
+  // every request after the route is installed is fulfilled with a 401 by the harness - so
+  // this spec's subject is the client's reaction, which no other spec's leftovers can move.
   await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
   await page.getByRole("button", { name: /view progress dashboard/i }).click();
   await expect(page.getByRole("heading", { name: /progress dashboard/i })).toBeVisible({

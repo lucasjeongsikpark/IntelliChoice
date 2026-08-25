@@ -126,7 +126,16 @@ export const STAGING_TOKEN_SECRET = {
  * journey and the screen it drives cannot disagree about who exists.
  */
 export const FIXTURES = {
-  /** Present this week, one linked parent - the only student who clears the gate. */
+  /**
+   * Present this week, one linked parent.
+   *
+   * **It stopped being "the only student who clears the gate" long ago** - a dozen students
+   * below are present too. What it still is: the *shared* identity, kept for the specs that
+   * only mint a token, read a dashboard or probe authorization, and the documented one-parent
+   * child `deployed-authorization.spec.ts` uses as its parent-link control. Nothing that
+   * creates a learning session signs in as it any more (WORK-13-FIXTURES); if a new spec
+   * needs to, give it its own student rather than reopening the sharing.
+   */
   studentPresent: { role: "student", sub: "student-ext-1" },
   /** Absent this week - drives the attendance-gate journey. */
   studentAbsent: { role: "student", sub: "student-ext-2" },
@@ -178,6 +187,48 @@ export const FIXTURES = {
   /** The exam-expiry walk's own student (V10): it finalizes an exam, which is the one session
    *  state another spec cannot resume past. */
   studentExpiry: { role: "student", sub: "student-ext-13" },
+  /**
+   * The thirteen session-creating specs that were still sharing `studentPresent`
+   * (WORK-13-FIXTURES) - the rest of the isolation finding `studentJourney` above names.
+   *
+   * Twenty-one spec files referenced `studentPresent`. Thirteen of them **create a learning
+   * session** as that identity, and the journeys mutate shared Postgres and MySQL state
+   * through one seeded account (`playwright.config.ts`'s `workers: 1` comment), so two of
+   * them signing in as the same student are one test wearing two names. The other eight
+   * references mint a token, read a dashboard, or probe authorization; each of those spec
+   * files now carries a line saying why sharing is safe there.
+   *
+   * Same grade (3) and attendance (present) as `studentPresent`, **unlinked** rather than
+   * one-parent: none of the thirteen drives a parent-facing path, so a parent apiece would
+   * be thirteen accounts and thirteen PII needles for no coverage. `studentResume` and the
+   * band students are the precedent. Kept in file-name order, which is the order the suite
+   * runs them in, so a missing one is easy to see.
+   */
+  studentAssistance: { role: "student", sub: "student-ext-14" },
+  studentExamPosition: { role: "student", sub: "student-ext-15" },
+  studentHint: { role: "student", sub: "student-ext-16" },
+  studentMutation: { role: "student", sub: "student-ext-17" },
+  studentNarrativeDisplacement: { role: "student", sub: "student-ext-18" },
+  studentNarrativeRace: { role: "student", sub: "student-ext-19" },
+  studentNarrativeRefresh: { role: "student", sub: "student-ext-20" },
+  studentTutorChat: { role: "student", sub: "student-ext-21" },
+  studentPostFinalize: { role: "student", sub: "student-ext-22" },
+  studentSseReconnect: { role: "student", sub: "student-ext-23" },
+  studentTimeTelemetry: { role: "student", sub: "student-ext-24" },
+  studentVideo: { role: "student", sub: "student-ext-25" },
+  studentDoubleSubmit: { role: "student", sub: "student-ext-26" },
+  /**
+   * `dashboard-chart-labels.spec.ts`'s own, for the *opposite* reason to the thirteen above.
+   *
+   * That spec writes nothing, so it cannot interfere with anybody - but it needs a student
+   * with charted history, and it was getting one by accident: whichever sharer of
+   * `studentPresent` ran before it in the same run left the mastery rows its axes are drawn
+   * from, and `apps/learning-api/tests/conftest.py` sweeps students 1-4 out of Postgres
+   * around every pytest test, so that history never outlived one e2e run. Isolating the
+   * sharers removed the supplier and the spec skipped itself - measured, on the first run
+   * after the swap. It now walks to the study phase itself before reading the charts.
+   */
+  studentDashboard: { role: "student", sub: "student-ext-27" },
   /** One linked child - exercises the auto-select path. */
   parentOneChild: { role: "parent", sub: "parent-ext-1" },
   /** Two linked children - exercises the child_selection interrupt. */

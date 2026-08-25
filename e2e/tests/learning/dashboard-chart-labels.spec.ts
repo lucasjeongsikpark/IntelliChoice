@@ -34,13 +34,53 @@
 
 import { FIXTURES, LEARNING_WEB } from "../../config";
 import { expect, test } from "../../fixtures/capture";
+import {
+  answerWholeExam,
+  chooseTopic,
+  finalizeExam,
+  settleToInteractiveScreen,
+  startSession,
+} from "../../fixtures/learning-flow";
 import { signInViaUi } from "../../fixtures/session";
 
 test.describe.configure({ timeout: 180_000 });
 
 test("no chart axis renders two identical labels", async ({ page, audit }) => {
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
-  await page.getByRole("button", { name: /view progress dashboard/i }).click();
+  // **Its own student, and it builds its own charted history** (WORK-13-FIXTURES).
+  //
+  // This spec writes nothing to anybody else's state, so it was not one of the thirteen that
+  // had to stop sharing `studentPresent`. It moved for the opposite reason: it was *relying*
+  // on the sharing. Everything below reads a chart, and a chart needs mastery rows - which
+  // this spec never created. They were left behind by whichever sharer of `studentPresent`
+  // ran earlier in the same run (`assistance-panel-probe.spec.ts`, in file order), and
+  // `apps/learning-api/tests/conftest.py` sweeps students 1-4 out of Postgres around every
+  // pytest test, so that history never survived a `make test` either. An accidental,
+  // order-dependent precondition.
+  //
+  // Isolating the other thirteen removed the supplier, and this test skipped itself on the
+  // very next run - a pass that examined nothing, the AUD-F-12 false negative its own
+  // positive control below exists to refuse. So the walk to the study phase is now part of
+  // the test rather than something it hopes another file did: same assertions, on a
+  // precondition it owns. The two `test.skip`s stay, because on staging or a cold database
+  // they are still the honest answer if the charts do not render.
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentDashboard);
+
+  // The study phase is what writes `mastery`, and mastery is what the skill axis is drawn
+  // from - a finished pre-exam alone leaves the category axis empty (measured: the specs that
+  // stop mid-exam have 0 mastery rows, the ones that reach study have 5).
+  await startSession(page);
+  await settleToInteractiveScreen(page);
+  await chooseTopic(page);
+  await expect(page.locator(".phase-chip")).toHaveText(/pre-exam/i, { timeout: 60_000 });
+  const answered = await answerWholeExam(page);
+  audit.note(`pre-exam answers accepted while building this student's history: ${answered}`);
+  await finalizeExam(page);
+  await expect(page.locator(".phase-chip")).toHaveText(/study/i, { timeout: 120_000 });
+
+  // Deep link rather than the start screen's button: the session is in flight, and "View
+  // progress dashboard" lives on `StartScreen`, which renders only when one is not.
+  // `routing.spec.ts` owns the claim that this URL is served at all.
+  await page.goto(`${LEARNING_WEB}/dashboard`);
   await expect(page.getByRole("heading", { name: /progress dashboard/i })).toBeVisible({
     timeout: 60_000,
   });

@@ -52,7 +52,12 @@ test("after a refresh, navigating back to an answered question stays there", asy
   page,
   audit,
 }) => {
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
+  // Its own student, not `studentPresent` (WORK-13-FIXTURES). This spec creates a
+  // learning session, and the journeys mutate shared per-student Postgres and MySQL
+  // state through one seeded account - so a spec sharing that account picks up
+  // whatever the previous one left behind. `FIXTURES` in config.ts has the
+  // measurement: 7 refused submissions and 2.3 minutes against 15 seconds.
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentExamPosition);
   await startSession(page);
   await settleToInteractiveScreen(page);
   await chooseTopic(page);
@@ -140,7 +145,7 @@ test("a mid-exam refresh never shows an answerable question before the position 
   );
   audit.allow({ failedRequests: true });
 
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentExamPosition);
   await startSession(page);
   await settleToInteractiveScreen(page);
   await chooseTopic(page);

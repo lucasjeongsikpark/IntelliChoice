@@ -102,7 +102,12 @@ test("a narrative arriving mid-exam leaves the exam screen mounted and the dwell
   });
 
   await delayStreamConnect(page);
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
+  // Its own student, not `studentPresent` (WORK-13-FIXTURES). This spec creates a
+  // learning session, and the journeys mutate shared per-student Postgres and MySQL
+  // state through one seeded account - so a spec sharing that account picks up
+  // whatever the previous one left behind. `FIXTURES` in config.ts has the
+  // measurement: 7 refused submissions and 2.3 minutes against 15 seconds.
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentNarrativeDisplacement);
   await startSession(page);
   await settleToInteractiveScreen(page);
   await chooseTopic(page);
@@ -205,7 +210,7 @@ test("a narrative arriving after the student has answered is dropped, not interp
   audit.allow({ failedRequests: true });
 
   await delayStreamConnect(page);
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentNarrativeDisplacement);
   await startSession(page);
   await settleToInteractiveScreen(page);
   await chooseTopic(page);
@@ -240,7 +245,7 @@ test("when a narrative shows before the student has acted, the screen beneath it
   // the *other* ordering, and the co-existence contract has to hold in both. This is the one
   // arm of this file that would have caught AUD-F-21 without faking any timing - the old
   // code returned the narrative screen alone, so `.card-list` was absent.
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentNarrativeDisplacement);
   await startSession(page);
 
   const shown = await narrativeContinue(page)

@@ -1,6 +1,6 @@
 """Fixture data for the dev-fake MySQL (SPEC §5.4.1 tables).
 
-4 parents (1-child, 2-child, and one each for the two full walks) + 12 students, 2
+4 parents (1-child, 2-child, and one each for the two full walks) + 27 students, 2
 branches, and attendance covering present / absent / unknown (no row).
 
 Students 1-4 cover the *gate* cases (present/absent/unknown/unlinked). Students 5-9 exist
@@ -27,6 +27,23 @@ Student 12 is the email-approval walk's own, and the isolation reason is differe
 there is one attendance gate per student per week, `journey-attendance.spec.ts` answers it
 by *declining*, and the V2 walk answers it by *approving*. Sharing one student would mean
 whichever spec ran second found a gate the first had already spent.
+
+Students 14-26 finish the job D-288 started and D-365 §2 carried one file further
+(WORK-13-FIXTURES). Twenty-one spec files referenced `student-ext-1`; thirteen of them
+*create a learning session* as that identity, which is the case the isolation finding is
+about - a student is one seeded account and the journeys mutate shared Postgres and MySQL
+state through it, so two specs signing in as the same one are one test. Each of the thirteen
+now has its own; the eight remaining references are token minting, read-only dashboard
+screens and authorization probes, which create no session state and say so in their own
+spec files.
+
+Their shape is `STUDENT_RESUME`'s rather than `STUDENT_ONLY_CHILD`'s: grade 3, present, **no
+parent link**. Present and grade 3 because that is `student-ext-1`'s shape and only the
+sharing is meant to change; unlinked because none of the thirteen drives a parent-facing
+path, and a parent apiece would add thirteen more accounts, thirteen more login-screen rows
+and thirteen more PII needles for no coverage. `STUDENT_JOURNEY` and `STUDENT_TERMINAL` have
+parents because their walks end in a parent report; these do not. The band students and
+`STUDENT_RESUME` are the precedent: unlinked students walk exams fine.
 """
 
 from intellichoice_shared.org_time import current_week_key
@@ -78,6 +95,34 @@ STUDENT_UNKNOWN_EMAIL = "student-ext-12"  # grade 3, attendance: unknown (no row
 # reach the exam, and then it *finalizes* one, which is why it cannot share: a completed exam
 # is the one session state another spec cannot simply resume past (D-288).
 STUDENT_EXPIRY = "student-ext-13"  # grade 3, attendance: present
+
+# The thirteen session-creating specs that were still sharing STUDENT_ONLY_CHILD
+# (WORK-13-FIXTURES). One per spec file, in the order the files sort. All grade 3, present
+# and unlinked - see the module docstring for why unlinked rather than STUDENT_ONLY_CHILD's
+# linked shape. Each name records the spec that owns it, so a fixture with no reader is
+# visible in a grep rather than only in this list.
+STUDENT_ASSISTANCE = "student-ext-14"  # grade 3, present - assistance-panel-probe.spec.ts
+STUDENT_EXAM_POSITION = "student-ext-15"  # grade 3, present - exam-position-refresh.spec.ts
+STUDENT_HINT = "student-ext-16"  # grade 3, present - hint-displacement.spec.ts
+STUDENT_MUTATION = "student-ext-17"  # grade 3, present - mutation-serialization.spec.ts
+STUDENT_NARRATIVE_DISP = "student-ext-18"  # grade 3, present - narrative-displacement.spec.ts
+STUDENT_NARRATIVE_RACE = "student-ext-19"  # grade 3, present - narrative-race.spec.ts
+STUDENT_NARRATIVE_REFRESH = "student-ext-20"  # grade 3, present - narrative-refresh.spec.ts
+STUDENT_TUTOR_CHAT = "student-ext-21"  # grade 3, present - pii-typed-into-tutor-chat.spec.ts
+STUDENT_POST_FINALIZE = "student-ext-22"  # grade 3, present - post-finalize-poll.spec.ts
+STUDENT_SSE_RECONNECT = "student-ext-23"  # grade 3, present - sse-reconnect.spec.ts
+STUDENT_TIME_TELEMETRY = "student-ext-24"  # grade 3, present - time-telemetry.spec.ts
+STUDENT_VIDEO = "student-ext-25"  # grade 3, present - video-intervention.spec.ts
+STUDENT_DOUBLE_SUBMIT = "student-ext-26"  # grade 3, present - last-question-double-submit.spec.ts
+# `dashboard-chart-labels.spec.ts`'s own, and it is here for the *opposite* reason to the
+# thirteen above: that spec writes nothing, but it needs a student who has *charted history*
+# and it used to get one by accident. Its precondition was supplied by whichever sharer of
+# `student-ext-1` happened to run before it, and `apps/learning-api/tests/conftest.py` sweeps
+# students 1-4 from Postgres around every pytest test - so the history was rebuilt inside each
+# e2e run and never outlived one. Isolating the sharers removed the supplier and the spec
+# started skipping itself, which is a pass that examined nothing. It now builds its own.
+STUDENT_DASHBOARD = "student-ext-27"  # grade 3, present - dashboard-chart-labels.spec.ts
+
 
 BRANCH_MAIN = "branch-ext-1"
 BRANCH_NORTH = "branch-ext-2"
@@ -204,6 +249,104 @@ _USERS = [
         # student with no branch has nobody to ask, which is a different case entirely.
         "branch_external_id": BRANCH_MAIN,
     },
+    {
+        "external_id": STUDENT_ASSISTANCE,
+        "role": "student",
+        "display_name": "Nora Assist",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_EXAM_POSITION,
+        "role": "student",
+        "display_name": "Omar Position",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_HINT,
+        "role": "student",
+        "display_name": "Quinn Hint",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_MUTATION,
+        "role": "student",
+        "display_name": "Rosa Mutation",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_NARRATIVE_DISP,
+        "role": "student",
+        "display_name": "Sami Displacement",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_NARRATIVE_RACE,
+        "role": "student",
+        "display_name": "Tara Race",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_NARRATIVE_REFRESH,
+        "role": "student",
+        "display_name": "Uma Refresh",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_TUTOR_CHAT,
+        "role": "student",
+        "display_name": "Vera Tutor",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_POST_FINALIZE,
+        "role": "student",
+        "display_name": "Wes Finalize",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_SSE_RECONNECT,
+        "role": "student",
+        "display_name": "Xia Reconnect",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_TIME_TELEMETRY,
+        "role": "student",
+        "display_name": "Yuna Telemetry",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_VIDEO,
+        "role": "student",
+        "display_name": "Zane Video",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_DOUBLE_SUBMIT,
+        "role": "student",
+        "display_name": "Nils Submit",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_DASHBOARD,
+        "role": "student",
+        "display_name": "Ada Charted",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
 ]
 
 _PARENT_CHILD_LINKS = [
@@ -263,6 +406,20 @@ _ATTENDANCE = [
     {"student_external_id": STUDENT_EXPIRY, "status": "present"},
     # STUDENT_UNKNOWN_EMAIL intentionally has no attendance row -> unknown, same as
     # STUDENT_SECOND_CHILD. Two students share that shape on purpose; see its comment above.
+    {"student_external_id": STUDENT_ASSISTANCE, "status": "present"},
+    {"student_external_id": STUDENT_EXAM_POSITION, "status": "present"},
+    {"student_external_id": STUDENT_HINT, "status": "present"},
+    {"student_external_id": STUDENT_MUTATION, "status": "present"},
+    {"student_external_id": STUDENT_NARRATIVE_DISP, "status": "present"},
+    {"student_external_id": STUDENT_NARRATIVE_RACE, "status": "present"},
+    {"student_external_id": STUDENT_NARRATIVE_REFRESH, "status": "present"},
+    {"student_external_id": STUDENT_TUTOR_CHAT, "status": "present"},
+    {"student_external_id": STUDENT_POST_FINALIZE, "status": "present"},
+    {"student_external_id": STUDENT_SSE_RECONNECT, "status": "present"},
+    {"student_external_id": STUDENT_TIME_TELEMETRY, "status": "present"},
+    {"student_external_id": STUDENT_VIDEO, "status": "present"},
+    {"student_external_id": STUDENT_DOUBLE_SUBMIT, "status": "present"},
+    {"student_external_id": STUDENT_DASHBOARD, "status": "present"},
 ]
 
 
