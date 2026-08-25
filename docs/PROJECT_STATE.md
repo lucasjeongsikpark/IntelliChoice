@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-24** (coordinator sessions: D-433..D-441 — eight §4 items closed today, capped by D-423's overlap being built; the weekly controls instrument ran green on its first dispatch; earlier: D-428..D-432) |
-| Last product-code commit | **`5b67e04`** (2026-08-24, PR #403) — scope_guard ∥ retrieval overlap (D-423 built, D-441); before it `0f42e19` (D-440) |
+| Snapshot date | **2026-08-25** (coordinator sessions: D-433..D-443 — nine §4 items closed across 08-24/25; D-442 re-homed `WORK-35` behind UD-2; the queue is down to one unblocked item) |
+| Last product-code commit | **`80791f3`** (2026-08-25, PR #405) — e2e fixture isolation (D-443; test code + seed data + DevLoginScreen mirror); before it `5b67e04` (D-441) |
 | Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
 | Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **21 product commits** (`898e2fb` → `5b67e04`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), the seam-(b) healing (D-432, **staging's seam (b) is still a dead end until the next deploy**), and the D-433 outcome counter — **staging's personalization ran-dead mode stays uninstrumented until then too**). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** were applied via control-plane targeted `terraform apply` (§8) |
+| Repo-vs-deployed gap | **22 product commits** (`898e2fb` → `80791f3`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), the seam-(b) healing (D-432, **staging's seam (b) is still a dead end until the next deploy**), and the D-433 outcome counter — **staging's personalization ran-dead mode stays uninstrumented until then too**). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** were applied via control-plane targeted `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `5b67e04`, or if the deployed staging image tag no longer matches this
+commit lands after `80791f3`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -81,7 +81,7 @@ the full local suite green on the merged HEAD; staging is unaffected until the n
 
 ## 4. Active engineering work
 
-4 open engineering entries. Full evidence per entry:
+3 open engineering entries. Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
@@ -97,12 +97,11 @@ tests on 2026-08-21/22.
 |---|---|---|---|
 | `D310-RESIDUALS` | One follow-up surviving the executed D-310 rotation: stale dead secrets in operator-browser `localStorage` | See 4.3 — a user action on operator machines; the (b) `ps` measurement and (c) README fix landed 2026-08-24 (D-437) | user |
 
-### 4.2 ACTIVE_IMPLEMENTATION (3) — decided or specified, not built
+### 4.2 ACTIVE_IMPLEMENTATION (2) — decided or specified, not built
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
-| `WORK-35-LEDGER` | U7 consolidation sizing gated on a free staging measurement nobody took | Take the free staging measurement, then hold the design review and size N against the existing 90/90/365 windows. D-420 added redacted visitor free text no retention job covers. **D-440 adds a measured input to the same review:** `existing_facts` is unbounded and crosses the new 32k gateway input ceiling at ~100–120 facts per student/skill (consolidation already declares >21 out of contract) — the which-facts-to-drop behavior decision is deliberately unmade and belongs to this design review | engineering |
-| `WORK-13-FIXTURES` | Single-spec e2e isolation is behaviourally resolved **on `gha-44a12dfc9549`** (a build no longer deployed — the D-426 deploy shipped `gha-898e2fb4270b`); the **17-spec cross-spec contention scope stays open** (never re-run) and the test-side fixture fix is owed | Land the fixture-isolation fix across the seventeen specs sharing `studentPresent` (prerequisite for UD-2's whole-directory arm — the paid re-run is `DRIFT-58`'s residual, reopened by UD-2); do not re-run the closed one-file scope. The UD-1 ordering constraint is discharged: the deploy happened 2026-08-23, so any re-run now tests the current build | engineering + docs |
+| `WORK-35-LEDGER` | U7 consolidation sizing gated on a staging measurement nobody took — **eligibility-gate finding 2026-08-25 (D-442): "free" meant dollars, not authorization** — the register's own evidence line says the sizing read needs a database session, and `DB-CONTENT-VERIFY` homes that session on UD-2's read-only-session rider | **Blocked on UD-2**: when the user authorizes the time-boxed read-only DB session, take the sizing read (with `G2-LOCATOR-PURGE`'s `__resume__` query in the same session), then hold the design review and size N against the 90/90/365 windows. Carries two review inputs: D-420's redacted visitor free text no retention job covers, and D-440's `existing_facts` crossover (~100–120 facts vs the 32k gateway ceiling; which-facts-to-drop deliberately unmade) | engineering, gated on user |
 | `M3-D370-SOLUTION-RUNG` | The solution terminal rung has no staging e2e coverage, under a roadmap-closing ✅ | Write the staging e2e coverage for the solution terminal rung | engineering + docs |
 
 ### 4.3 The item an agent should be able to act on from this file alone
@@ -155,9 +154,7 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-| 1 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
-| 2 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
-| 3 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
+| 1 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
 
 ---
 
@@ -174,7 +171,7 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | UD | Register key | Question (one line) | Blocks? | Default safe action |
 |---|---|---|---|---|
-| UD-2 | `SPEND-AUTHORIZATION` | Which deferred paid measurements (if any) are worth real spend, and is a time-boxed read-only staging DB session authorized? | No | [agent may apply] Authorize none; carry each claim as-documented with its `n` and date |
+| UD-2 | `SPEND-AUTHORIZATION` | Which deferred paid measurements (if any) are worth real spend, and is a time-boxed read-only staging DB session authorized? | **Yes since 2026-08-25 (D-442): the read-only-session half now blocks `WORK-35-LEDGER`'s first step (the U7 sizing read), the front of the §4.4 queue's remaining tail** | [agent may apply] Authorize none; carry each claim as-documented with its `n` and date |
 | UD-3 | `BUDGET-GROSS-SPEND` | Is the $20 net monthly budget raised, accepted or re-scoped, and is a gross credit-excluding control wanted before credits run out? | No | [agent may apply] Leave both budgets in place and treat the console-created budget as **load-bearing** — do not delete it during cleanup |
 | UD-4 | `RDS-POSTURE` | Is 1-day backup retention / deletion protection off / single-AZ the accepted staging posture, and what does production require? | No | [USER ONLY — hold:] change nothing; add a dated note that the posture is undeclared and that the §2.6 gate criteria were measured on this environment. Recording it as "the deliberate staging answer" is the decision itself. |
 | UD-5 | `KPI-ALARM-FLOOR` | Does a product-KPI alarm get created now (which metric, what floor), or is "none while traffic is synthetic" the settled answer to P1-10? | No | [USER ONLY — hold:] change nothing; note (dated) that the alarm floor is undecided, citing the terraform comment. Recording the disabled state as "the answer to P1-10" closes the item. |
