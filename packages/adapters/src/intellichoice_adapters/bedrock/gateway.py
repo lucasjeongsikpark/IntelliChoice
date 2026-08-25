@@ -24,8 +24,10 @@ from intellichoice_shared.bedrock import (
     CircuitOpenError,
     CostBudgetExceededError,
     EmbeddingResult,
+    InputBudgetExceededError,
     OutputTruncatedError,
     StructuredOutputError,
+    estimate_input_tokens,
     inline_schema_refs,
     schema_error_digest,
 )
@@ -76,6 +78,53 @@ _DEFAULT_EMBEDDING_RATE_PER_1K_CENTS = 0.002
 # print the capped number rather than the requested one. A guard that quietly rewrites its
 # caller's argument makes every constant upstream of it a guess.
 _HARD_MAX_OUTPUT_TOKENS = 4000
+
+# The other half of the same guard: no single `generate_structured` call may *send* more
+# than this, estimated pessimistically (`estimate_input_tokens`, chars/3) over everything
+# that actually goes on the wire - system prompt, serialised payload, the inlined JSON
+# schema, and the tool definitions when the caller passes them.
+#
+# **The bound this project did not have.** AUD-F-34 (D-141): `memory-consolidate` assembled
+# a 215,355-token prompt out of 13,865 unbounded rows, failed *every* call on prompt length
+# for its whole existence, and exited 0 each time. The fix bounded that one job's batches at
+# its own layer, which left the shape intact for every future caller - output, spend, timeout
+# and the circuit breaker were enforced here, and input was enforced nowhere. This is that
+# missing seam, so a new paid caller inherits the bound instead of inheriting the incident.
+#
+# **32k, and each of the three constraints D-141 named is slack at that value.** The largest
+# legitimate caller today is consolidation's own 20k-token batch, so 32k clears it with real
+# headroom; it is an order of magnitude under the deployed model's 200k context; and at
+# Haiku 4.5's 0.1 cents/1k it is ~3 cents of input, single-digit cents against a 50-cent
+# session budget. Sizing it against the *context window* is the mistake D-141 §3 already
+# paid for once - a 120k prompt fits the window and still cannot finish inside the 20 s
+# call timeout.
+#
+# **A payload above this is refused, never truncated or chunked.** Truncating asks the model
+# a different question and gets a fluent answer to it; chunking needs to know what the
+# payload means, which only the caller does - `intellichoice_memory.consolidation` does it
+# correctly at its layer and keeps doing so as defense in depth.
+_HARD_MAX_INPUT_TOKENS = 32_000
+
+# What `worst_case_cost_cents` assumes about input when the caller does not measure its own
+# payload. **A reserve heuristic and nothing else.** It is not the admission number - the
+# session-budget check inside `generate_structured` prices the payload it is actually about
+# to send (`estimate_input_tokens`) - and it is not what anything is billed: `settle`
+# replaces a reservation with the call's real accumulated usage the moment it finishes.
+# Its only failure direction is *low*, which would let two callers reserve less than they
+# spend; raising it costs nothing but per-day concurrency, which is why it can stay a round
+# number nobody has had to defend.
+_RESERVE_INPUT_TOKENS = 2000
+
+# Amazon Titan Text Embeddings V2 accepts at most 8,192 input tokens in one `invoke_model`
+# call, and `TitanEmbeddingProvider.raw_embed` sends one call *per text* - so the bound that
+# matters on this path is per text, not per batch. Set slightly under the model's own maximum
+# because the estimate is pessimistic in the same direction the ceiling is: refuse a
+# borderline text here rather than pay three retries and a circuit-breaker trip to learn the
+# same thing from Bedrock's own ValidationException, which is exactly AUD-F-34's shape.
+#
+# The batch total needs no second ceiling: the session-budget check below already prices the
+# whole batch, and embeddings bill 0.002 cents/1k, so cost is not what breaks this path.
+_HARD_MAX_EMBEDDING_INPUT_TOKENS_PER_TEXT = 8_000
 
 
 class ResilientBedrockGateway:
@@ -179,19 +228,62 @@ class ResilientBedrockGateway:
         rate = _EMBEDDING_RATE_PER_1K_CENTS.get(model_id, _DEFAULT_EMBEDDING_RATE_PER_1K_CENTS)
         return (input_tokens / 1000) * rate
 
-    def worst_case_cost_cents(self, task: BedrockTask, max_output_tokens: int) -> float:
+    @staticmethod
+    def _estimated_input_tokens(
+        *,
+        system_prompt: str,
+        user_message: str,
+        json_schema: dict | None = None,
+        tools: list[dict] | None = None,
+    ) -> int:
+        """What this call is about to send, in tokens, counted the same way twice.
+
+        The single place the input estimate is produced, so the hard ceiling and the
+        session-budget check below cannot disagree about how big a call is - the property
+        `worst_case_cost_cents` used to hold by sharing a literal, now held by sharing a
+        computation over the real strings.
+
+        The schema and tool blocks are counted because they are *sent*: `raw_generate` puts
+        the inlined JSON schema in the tool definition on every call, and a caller passing
+        `tools` adds more. Leaving them out would under-count exactly the payloads that are
+        most likely to need refusing.
+        """
+        return estimate_input_tokens(
+            system_prompt,
+            user_message,
+            json.dumps(json_schema, separators=(",", ":")) if json_schema is not None else None,
+            json.dumps(tools, separators=(",", ":")) if tools else None,
+        )
+
+    def worst_case_cost_cents(
+        self,
+        task: BedrockTask,
+        max_output_tokens: int,
+        estimated_input_tokens: int | None = None,
+    ) -> float:
         """The most one `generate_structured` call for this task can cost.
 
         Public so a caller can *reserve* this amount against a per-day ceiling before
-        making the call (AUD-X-08's reserve-then-settle). Deliberately the same number the
-        session-budget check below uses, so the two ceilings cannot disagree about what a
-        call is worth. The 2000-token input assumption is that check's, inherited here
-        rather than re-guessed.
+        making the call (AUD-X-08's reserve-then-settle).
+
+        **`estimated_input_tokens=None` is a reserve heuristic, not the admission number.**
+        It falls back to `_RESERVE_INPUT_TOKENS`, and until this method grew the parameter
+        that constant *was* also what the in-gateway session-budget check priced with - the
+        docstring here said so. It no longer is: that check now estimates the payload it is
+        actually about to send, so the two numbers are deliberately allowed to differ. That
+        costs nothing, because a reservation is replaced by the call's real usage at `settle`
+        and over-reserving only ever costs per-day concurrency. A caller that already knows
+        its payload size can pass it and reserve honestly.
         """
         model_id = self._model_registry.get(task)
         if model_id is None:
             raise ValueError(f"no Bedrock model configured for task {task!r}")
-        return self._cost_cents(model_id, 2000, min(max_output_tokens, _HARD_MAX_OUTPUT_TOKENS))
+        input_tokens = (
+            _RESERVE_INPUT_TOKENS if estimated_input_tokens is None else estimated_input_tokens
+        )
+        return self._cost_cents(
+            model_id, input_tokens, min(max_output_tokens, _HARD_MAX_OUTPUT_TOKENS)
+        )
 
     async def generate_structured(
         self,
@@ -241,7 +333,44 @@ class ResilientBedrockGateway:
                     max_output_tokens,
                     capped_max_tokens,
                 )
-            worst_case_cost = self._cost_cents(model_id, 2000, capped_max_tokens)
+            user_message = payload.model_dump_json()
+            # D-243: `$ref`/`$defs` indirection is inlined before the schema is shown to
+            # the model. Measured on Haiku 4.5, the one response model with a nested model
+            # inside it returned only the `$ref`'d field and nothing else, 12 times out of
+            # 12 - which is the whole of D-240's 41% generator failure rate. Same schema,
+            # different representation; flat models are returned untouched.
+            json_schema = inline_schema_refs(response_model.model_json_schema())
+            json_schema.setdefault("title", response_model.__name__)
+
+            # Assembled above the two checks below, not just above the provider call: both
+            # of them price this exact text, so it has to exist before either runs. Nothing
+            # here is paid or even I/O - it is `model_dump_json` and a schema walk.
+            estimated_input = self._estimated_input_tokens(
+                system_prompt=system_prompt,
+                user_message=user_message,
+                json_schema=json_schema,
+                tools=tools,
+            )
+            if estimated_input > _HARD_MAX_INPUT_TOKENS:
+                self._log_failure(
+                    task=task,
+                    model_id=model_id,
+                    reason="input_too_large",
+                    detail=(
+                        f"estimated {estimated_input} input tokens against a ceiling of "
+                        f"{_HARD_MAX_INPUT_TOKENS}"
+                    ),
+                    attempts=0,
+                    started_at=started_at,
+                    max_output_tokens=capped_max_tokens,
+                )
+                raise InputBudgetExceededError(
+                    f"input ceiling of {_HARD_MAX_INPUT_TOKENS} tokens would be exceeded "
+                    f"(this call estimates {estimated_input}); batch the payload rather "
+                    f"than sending it"
+                )
+
+            worst_case_cost = self._cost_cents(model_id, estimated_input, capped_max_tokens)
             if session_spend_cents + worst_case_cost > self._session_budget_cents:
                 self._log_failure(
                     task=task,
@@ -261,15 +390,6 @@ class ResilientBedrockGateway:
                     f"exceeded (already spent {session_spend_cents:.2f}, this call could "
                     f"cost up to {worst_case_cost:.2f})"
                 )
-
-            user_message = payload.model_dump_json()
-            # D-243: `$ref`/`$defs` indirection is inlined before the schema is shown to
-            # the model. Measured on Haiku 4.5, the one response model with a nested model
-            # inside it returned only the `$ref`'d field and nothing else, 12 times out of
-            # 12 - which is the whole of D-240's 41% generator failure rate. Same schema,
-            # different representation; flat models are returned untouched.
-            json_schema = inline_schema_refs(response_model.model_json_schema())
-            json_schema.setdefault("title", response_model.__name__)
 
             tool_kwargs: dict[str, Any] = (
                 {"tools": tools, "tool_executor": tool_executor} if tools else {}
@@ -423,7 +543,39 @@ class ResilientBedrockGateway:
             if model_id is None:
                 raise ValueError(f"no Bedrock model configured for task {BedrockTask.EMBEDDING!r}")
 
-            estimated_tokens = sum(len(text) // 4 for text in texts)
+            # Same estimator as the generate path, so the refusal below and the price
+            # immediately after it are the same measurement (`len(text) // 4` before this,
+            # which under-counted in the one direction a spend guard must not).
+            per_text_tokens = [estimate_input_tokens(text) for text in texts]
+            oversized = [
+                (index, tokens)
+                for index, tokens in enumerate(per_text_tokens)
+                if tokens > _HARD_MAX_EMBEDDING_INPUT_TOKENS_PER_TEXT
+            ]
+            if oversized:
+                index, tokens = oversized[0]
+                self._log_failure(
+                    task=BedrockTask.EMBEDDING,
+                    model_id=model_id,
+                    reason="input_too_large",
+                    # An index and two counts, never the text: a chunk of an org document is
+                    # exactly the kind of content this project keeps out of logs (SPEC §5.30).
+                    detail=(
+                        f"{len(oversized)} of {len(texts)} texts exceed the per-text ceiling "
+                        f"of {_HARD_MAX_EMBEDDING_INPUT_TOKENS_PER_TEXT} tokens; first at "
+                        f"index {index}, estimated {tokens}"
+                    ),
+                    attempts=0,
+                    started_at=started_at,
+                )
+                raise InputBudgetExceededError(
+                    f"embedding input ceiling of "
+                    f"{_HARD_MAX_EMBEDDING_INPUT_TOKENS_PER_TEXT} tokens per text would be "
+                    f"exceeded by {len(oversized)} of {len(texts)} texts (first at index "
+                    f"{index}, estimated {tokens}); chunk them smaller rather than sending"
+                )
+
+            estimated_tokens = sum(per_text_tokens)
             worst_case_cost = self._embedding_cost_cents(model_id, estimated_tokens)
             if session_spend_cents + worst_case_cost > self._session_budget_cents:
                 self._log_failure(

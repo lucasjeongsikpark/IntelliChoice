@@ -20,6 +20,7 @@ an exact field list, matching D-023's PII/scope-floor pattern - the generalizati
 loosens *which* strict model a given call uses, not the "no ad-hoc dict payloads" rule.
 """
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Annotated, ClassVar, Literal, Protocol, TypeVar
@@ -1572,8 +1573,59 @@ class CostBudgetExceededError(BedrockGatewayError):
     """
 
 
+class InputBudgetExceededError(BedrockGatewayError):
+    """Raised before any provider call when the *estimated* input size of a call exceeds
+    the gateway's hard input ceiling (`_HARD_MAX_INPUT_TOKENS`).
+
+    Sibling of `CostBudgetExceededError` rather than a subclass, and the split is the same
+    one `OutputTruncatedError` makes: the two refuse for different reasons and a caller can
+    honestly act on one and not the other. A cost refusal means *this session has spent
+    enough* - waiting, or a fresh session, changes the answer. An input refusal means *this
+    payload is too big* - only a smaller payload changes the answer, so the caller's move is
+    to batch (which is what `intellichoice_memory.consolidation` already does at its own
+    layer). Callers that do not care still catch `BedrockGatewayError` and fall back exactly
+    as before.
+
+    **The gateway refuses rather than truncating.** Truncation would silently degrade an
+    answer - the model would be asked the wrong question and would answer it fluently - and
+    chunking needs to know what the payload *means*, which only the caller does. AUD-F-34 is
+    the incident this type exists for: an unbounded payload made every call fail on prompt
+    length while the process exited 0.
+    """
+
+
 class CircuitOpenError(BedrockGatewayError):
     """Raised before any provider call while the circuit breaker is open."""
+
+
+# Chars per token, for every *pre-call* size estimate in this project.
+#
+# Pessimistic on purpose, and the value is not a new judgement: it is the constant
+# `intellichoice_memory.consolidation` chose after AUD-F-34 (D-141), lifted here so the
+# gateway's own ceiling is measured the same way its largest caller measures its batches.
+# English prose runs ~4 chars/token; JSON with short keys and uuid-ish ids is denser, and
+# *under*-estimating is precisely the failure these estimates exist to prevent - so the
+# estimate is allowed to be wrong only in the direction that refuses a call early.
+#
+# Consolidation deliberately keeps its own copy for now (defense in depth, D-141's bound is
+# sized against a timeout this layer knows nothing about); converging the two is future work,
+# not a silent side effect of adding a ceiling.
+CHARS_PER_TOKEN = 3.0
+
+
+def estimate_input_tokens(*parts: str | None) -> int:
+    """A pessimistic token count for the text a call is about to send.
+
+    Takes the serialised parts rather than a payload object because what reaches the model
+    is *strings* - the system prompt, `payload.model_dump_json()`, the inlined JSON schema,
+    the tool definitions - and measuring anything else is measuring a different thing than
+    the one the provider bills and the context window bounds. `None` parts are skipped so a
+    caller can pass an optional block without branching.
+
+    Rounds up: a payload of two characters is not zero tokens.
+    """
+    total_chars = sum(len(part) for part in parts if part)
+    return math.ceil(total_chars / CHARS_PER_TOKEN)
 
 
 class BedrockGateway(Protocol):

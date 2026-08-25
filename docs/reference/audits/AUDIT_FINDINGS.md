@@ -1309,6 +1309,36 @@ bounded overshoots of a ceiling rather than absent ceilings, and the circuit bre
 sustained failure spend (verified with a real concurrency test in S34). Recording them so a
 future session doesn't have to re-derive that they were considered.
 
+> **⚠️ Corrected 2026-08-24 (W-18, register `COST-10-INPUT-BOUND`). The original text is kept as
+> it stood.** Two corrections of different kinds: the first sentence has been *made* false by a
+> code change, and the conclusion drawn from it was wrong when written.
+>
+> - **"The pre-flight budget check estimates input at a hardcoded 2,000 tokens" is no longer true**
+>   — accurate when recorded, superseded by this change.
+>   `ResilientBedrockGateway.generate_structured`'s session-budget check now prices the payload it
+>   is about to send — system prompt + serialised payload + inlined schema + tools, estimated at
+>   `CHARS_PER_TOKEN = 3.0` — and the 2,000 constant survives only as `_RESERVE_INPUT_TOKENS`, the
+>   `worst_case_cost_cents` reserve default that `settle` replaces with real usage.
+> - **"Bounded overshoots of a ceiling rather than absent ceilings" mis-described the input side.**
+>   For the repair retry it was right: four calls against one check is a bounded overshoot. For
+>   input it was not — there was **no input ceiling at all**, at the gateway or anywhere else in
+>   `packages/adapters` / `packages/shared`, so the overshoot was unbounded in the one direction
+>   that had already produced an incident: AUD-F-34's 215,355-token prompt, every call failing,
+>   exit 0. A hardcoded *estimate* is not a bound, and calling it a bounded overshoot is what let
+>   the gap read as considered-and-accepted from S36 (2026-07-25) until now — including through
+>   AUD-F-34's own incident six days later. `_HARD_MAX_INPUT_TOKENS = 32_000` now
+>   refuses fail-closed with a typed `InputBudgetExceededError` before any spend, and
+>   `_HARD_MAX_EMBEDDING_INPUT_TOKENS_PER_TEXT = 8_000` does the same on the embeddings path.
+>
+> **On the register's own citation, so the next reader does not repeat the search.**
+> `FINAL_OPEN_WORK_REGISTER.md:1207` says "the AREAS note … mis-locates D-141's fix as *an
+> input-token bound in gateway code*". **That phrase does not appear in this file, or anywhere else
+> under `docs/reference/audits/`** — it exists only in the archived
+> `REPOSITORY_DRIFT_REGISTER.md:243`, which is where the register's own quotation chain leads. The
+> paragraph above is the only AREAS text on this subject, and the correction it actually needed is
+> the one written here. Per the D-427 precedent the archive is left unrewritten; the coordinator's
+> decision entry for this work is the retraction of record for that copy.
+
 **Money — no account-level enforcement exists**, only the AWS Budget *alarm*. This is
 infrastructure rather than learning-product code, so it belongs to S39/AUD-F's operations audit
 (§2.6 criterion 8 already requires proving alarms reach a human); noted here as a cross-reference
