@@ -63,6 +63,9 @@ const FIXTURE_IDS: { label: string; role: Role; sub: string }[] = [
   { label: "Student — Zane Video (grade 3, present)", role: "student", sub: "student-ext-25" },
   { label: "Student — Nils Submit (grade 3, present)", role: "student", sub: "student-ext-26" },
   { label: "Student — Ada Charted (grade 3, present)", role: "student", sub: "student-ext-27" },
+  // The solution-rung walk's own (M3-D370-SOLUTION-RUNG). Same caveat as the thirteen above:
+  // it may be mid-study with a worked solution on screen when you sign in as it by hand.
+  { label: "Student — Bram Solution (grade 3, present)", role: "student", sub: "student-ext-28" },
   { label: "Parent — Priya One (1 linked child)", role: "parent", sub: "parent-ext-1" },
   { label: "Parent — Paul Two (2 linked children)", role: "parent", sub: "parent-ext-2" },
   { label: "Parent — Pia Three (1 linked child, Kai)", role: "parent", sub: "parent-ext-3" },
