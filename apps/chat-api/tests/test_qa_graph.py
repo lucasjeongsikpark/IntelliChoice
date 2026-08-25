@@ -1,7 +1,8 @@
 """Graph-route tests for the S13 QAState workflow (SPEC §5.19.2, Phase 14 §6.15).
 
-Exercises the compiled graph end-to-end (`resolve_role -> scope_guard -> {refuse,
-unavailable_intent, answer_document_qa}`) via `InMemorySaver` + the real `MockBedrockProvider`
+Exercises the compiled graph end-to-end (`resolve_role -> {scope_guard || retrieve_context}
+-> join -> {refuse, unavailable_intent, synthesize_answer, ...}`, D-423) via `InMemorySaver`
++ the real `MockBedrockProvider`
 (deterministic, no network) + a real rollback-isolated Postgres session for retrieval,
 mirroring `apps/learning-api/tests/test_learning_graph_routes.py`'s shape. These are the
 Phase 14 "Done when" tests: role-filter proves a student query never retrieves tutor/
@@ -9,27 +10,36 @@ branch_manager chunks, and an unanswerable in-scope query refuses with escalatio
 """
 
 import asyncio
+import logging
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from chat_api.graph.build import AskInput, QAGraph, build_graph
+from chat_api.graph.build import (
+    AskInput,
+    QAGraph,
+    _route_after_scope_guard,
+    build_graph,
+)
 from chat_api.graph.nodes import (
     OUT_OF_SCOPE_MESSAGE,
     RATE_LIMITED_MESSAGE,
     SERVICE_UNAVAILABLE_MESSAGE,
     TurnContext,
+    retrieval_is_needed,
 )
+from chat_api.graph.state import QAState
 from chat_api.services import outcomes, qa
 from chat_api.services.outcomes import TurnReason
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
 from intellichoice_adapters.fake_auth import FakeTokenIssuer, JwtTokenVerifier
+from intellichoice_db.models.org import OrgEvent
 from intellichoice_db.models.rag import RagChunk, RagDocument
 from intellichoice_db.repositories.interrupts import InterruptApprovalRepository
 from intellichoice_db.repositories.mcp import McpToolCallRepository
 from intellichoice_db.repositories.org import OrgEventRepository
 from intellichoice_db.repositories.rag import RagRepository
-from intellichoice_observability.metrics import QA_ANSWERS
+from intellichoice_observability.metrics import QA_ANSWERS, QA_SERVICE_DEGRADED
 from intellichoice_shared.auth import Audience, Role, TokenClaims
 from intellichoice_shared.bedrock import (
     BedrockGateway,
@@ -38,6 +48,7 @@ from intellichoice_shared.bedrock import (
     BedrockTask,
     LlmCitation,
     RagAnswerResponse,
+    ScopeAndIntentResponse,
 )
 from intellichoice_shared.mcp import McpToolRegistry
 from intellichoice_shared.profiles import (
@@ -158,6 +169,35 @@ async def _seed_chunk(
     return chunk
 
 
+def _turn_context(
+    session,
+    *,
+    claims: TokenClaims | None,
+    query: str,
+    profile_adapter=None,
+    gateway: BedrockGateway | None = None,
+    rate_limiter: InMemoryRateLimiter | None = None,
+    rag_repo: RagRepository | None = None,
+) -> TurnContext:
+    """The per-turn context `_ask` builds, extracted so a test that needs `astream` (rather
+    than `ainvoke`) does not have to keep a second copy of it in step.
+    """
+    return TurnContext(
+        claims=claims,
+        profile_adapter=profile_adapter or FakeProfileAdapter(),
+        rag_repo=rag_repo or RagRepository(session),
+        bedrock_gateway=gateway or _gateway(),
+        interrupt_repo=InterruptApprovalRepository(session),
+        mcp_registry=McpToolRegistry(),
+        mcp_call_repo=McpToolCallRepository(session),
+        org_event_repo=OrgEventRepository(session),
+        rate_limiter=rate_limiter or InMemoryRateLimiter(max_per_window=5, window_s=3600.0),
+        escalation_sends=UnusedEscalationSends(),
+        admin_escalation_email="admin@example.test",
+        query=query,
+    )
+
+
 async def _ask(
     session,
     *,
@@ -172,19 +212,14 @@ async def _ask(
     rag_repo: RagRepository | None = None,
 ) -> dict:
     graph = graph or build_graph(InMemorySaver())
-    ctx = TurnContext(
+    ctx = _turn_context(
+        session,
         claims=claims,
-        profile_adapter=profile_adapter or FakeProfileAdapter(),
-        rag_repo=rag_repo or RagRepository(session),
-        bedrock_gateway=gateway or _gateway(),
-        interrupt_repo=InterruptApprovalRepository(session),
-        mcp_registry=McpToolRegistry(),
-        mcp_call_repo=McpToolCallRepository(session),
-        org_event_repo=OrgEventRepository(session),
-        rate_limiter=rate_limiter or InMemoryRateLimiter(max_per_window=5, window_s=3600.0),
-        escalation_sends=UnusedEscalationSends(),
-        admin_escalation_email="admin@example.test",
         query=query,
+        profile_adapter=profile_adapter,
+        gateway=gateway,
+        rate_limiter=rate_limiter,
+        rag_repo=rag_repo,
     )
     return await graph.ainvoke(
         AskInput(session_id=thread_id, query=query, escalate=escalate),
@@ -870,9 +905,14 @@ def test_a_widened_refusal_is_counted_once_not_twice() -> None:
 
 def test_prompt_injection_in_a_chunk_does_not_change_scope_or_intent() -> None:
     """SPEC §5.30.4: a retrieved document is untrusted data, never an instruction.
-    `scope_guard` runs entirely before retrieval and only ever sees the user's own
-    query, so no document content can change `scope`/`intent` - this proves that
-    structural guarantee holds even when a chunk explicitly tries.
+    `scope_guard` is handed only the user's own query (`ScopeAndIntentPayload` carries
+    `standalone_query` and nothing else), so no document content can change `scope`/
+    `intent` - this proves that structural guarantee holds even when a chunk explicitly
+    tries.
+
+    D-423 made the guarantee stronger rather than weaker: retrieval no longer runs *before*
+    the classifier, it runs *beside* it, so retrieved text is not merely unread by
+    `scope_guard` - it does not exist yet when the classification call is made.
     """
 
     async def run() -> None:
@@ -973,8 +1013,13 @@ def test_embedding_failure_on_document_qa_is_a_service_message_not_a_500() -> No
 def test_embedding_failure_on_the_calendar_path_is_also_handled() -> None:
     """AUD-C-07's second reproduction. `calendar_extract` calls the same unguarded
     `retrieve()` when the deterministic `org_events` lookup misses, so the finding is
-    two call sites, not one - fixing only `answer_document_qa` would leave the 500
+    two call sites, not one - fixing only the document-QA one would leave the 500
     reachable by asking to add something to a calendar.
+
+    Note what this turn now does *twice* under D-423's overlap: the speculative
+    `retrieve_context` fails first and is discarded (nothing was waiting on it), and then
+    `calendar_extract`'s own `retrieve()` fails and *is* what the turn needed. The
+    user-visible outcome is unchanged, which is the point.
     """
 
     async def run() -> None:
@@ -1166,5 +1211,705 @@ def test_a_chunk_still_approved_and_effective_at_synthesis_is_answered_from() ->
 
             assert result["reason"] == TurnReason.ANSWER
             assert len(result["citations"]) >= 1
+
+    asyncio.run(run())
+
+
+# --- D-423/WORK-01: scope classification overlapped with retrieval --------------------
+#
+# A grounded turn used to make four *sequential* Bedrock round trips. Measured on staging,
+# `scope_guard` was 2129 ms and retrieval 3411 ms, and retrieval's only input
+# (`standalone_query`) is written by `resolve_role` a superstep before either - so the two
+# now run in one superstep and the turn pays the larger instead of the sum. No prompt,
+# model, threshold or filter changed, which is why there is nothing about answer quality to
+# re-measure; what these tests pin is the structural claims that make that safe.
+
+_RENDEZVOUS_TIMEOUT_S = 2.0
+
+
+class _RendezvousGateway:
+    """The real mock gateway, with the two halves of the overlap made to wait for each
+    other: the scope classification blocks until retrieval's embedding has started, and vice
+    versa.
+
+    **Why a rendezvous rather than timing.** "Both ran" is what a sequential graph also
+    satisfies, and asserting on wall-clock would pin a race under fakes that finish in
+    milliseconds. Here each half records whether it met the other (`:together`) or gave up
+    waiting (`:alone`), so a graph that serialised these two nodes cannot produce a
+    `:together` pair no matter how fast it is - and neither half can *finish* before the
+    other has *started*, which is the property the optimisation actually needs.
+    """
+
+    def __init__(self) -> None:
+        self._healthy = _gateway()
+        self.order: list[str] = []
+        self.scope_started = asyncio.Event()
+        self.retrieval_started = asyncio.Event()
+        self.embedding_calls = 0
+
+    async def _rendezvous(self, other: asyncio.Event, label: str) -> None:
+        try:
+            await asyncio.wait_for(other.wait(), timeout=_RENDEZVOUS_TIMEOUT_S)
+        except TimeoutError:
+            self.order.append(f"{label}:alone")
+            return
+        self.order.append(f"{label}:together")
+
+    async def generate_structured(self, **kwargs):
+        if kwargs["task"] is BedrockTask.SCOPE_AND_INTENT:
+            self.order.append("scope:enter")
+            self.scope_started.set()
+            await self._rendezvous(self.retrieval_started, "scope")
+        return await self._healthy.generate_structured(**kwargs)
+
+    async def create_embedding(self, **kwargs):
+        self.embedding_calls += 1
+        # Only retrieval's own embedding. The access probe's second one (`explain_access`)
+        # runs supersteps later and has nothing to meet.
+        if self.embedding_calls == 1:
+            self.order.append("retrieval:enter")
+            self.retrieval_started.set()
+            await self._rendezvous(self.scope_started, "retrieval")
+        return await self._healthy.create_embedding(**kwargs)
+
+
+def test_scope_guard_and_retrieval_run_in_one_superstep() -> None:
+    """The optimisation itself: both nodes are *entered* before either completes.
+
+    If `resolve_role` still fanned out to one successor, whichever node ran first would wait
+    out `_RENDEZVOUS_TIMEOUT_S` for a partner that cannot start until it returns, and record
+    `:alone`. Both `:together` entries are only reachable from a single superstep holding
+    both tasks.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            await _seed_chunk(
+                session,
+                audience="public",
+                chunk_text="The zqxvchunk handbook lists the branch hours at the front desk.",
+            )
+            gateway = _RendezvousGateway()
+
+            result = await _ask(
+                session,
+                claims=None,
+                query="zqxvchunk handbook",
+                thread_id="t-overlap",
+                gateway=gateway,
+            )
+
+            assert gateway.order[:2] in (
+                ["scope:enter", "retrieval:enter"],
+                ["retrieval:enter", "scope:enter"],
+            ), f"one half completed before the other started: {gateway.order}"
+            assert "scope:together" in gateway.order, gateway.order
+            assert "retrieval:together" in gateway.order, gateway.order
+            # And the overlap did not cost the answer: the turn still resolves normally.
+            assert result["intent"] == "document_qa"
+            assert len(result["citations"]) >= 1
+
+    asyncio.run(run())
+
+
+def _checkpoint_bytes(saver: InMemorySaver) -> bytes:
+    """Every serialized byte `InMemorySaver` actually stored for this thread - the channel
+    blobs plus the checkpoint records themselves, not `aget_state().values`.
+
+    The distinction is the whole point of the assertion below: an in-memory state object can
+    hold anything at all and still round-trip; what must not contain chunk bodies is the
+    *stored* payload, which on staging is a row in `checkpoint_blobs`.
+    """
+    chunks: list[bytes] = []
+
+    def collect(value: object) -> None:
+        if isinstance(value, bytes):
+            chunks.append(value)
+        elif isinstance(value, tuple | list):
+            for item in value:
+                collect(item)
+        elif isinstance(value, dict):
+            for item in value.values():
+                collect(item)
+
+    collect(dict(saver.blobs))
+    collect(dict(saver.storage))
+    return b"".join(chunks)
+
+
+def test_the_checkpoint_holds_chunk_ids_and_never_chunk_bodies() -> None:
+    """D-423 constraint 2, pinned against the stored payload.
+
+    Retrieval now finishes a superstep before synthesis, so the cheap way to hand chunks
+    across would have been to checkpoint the bodies - buying ~22% of the turn by putting
+    document text into every checkpoint on every thread. `synthesize_answer` re-fetches by
+    id instead, and this asserts the outcome rather than the intention.
+
+    Two chunks are seeded because the mock synthesiser answers *out of* the first context
+    chunk, so that chunk's text legitimately appears in the checkpoint inside `answer`. The
+    body that was retrieved and **not** quoted is the one that proves the invariant, and the
+    test asserts such a body exists before asserting it is absent - otherwise a change that
+    quoted everything would make this pass by being vacuous.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            first = await _seed_chunk(
+                session,
+                audience="public",
+                chunk_text=(
+                    "The zqxvchunk handbook lists branch hours, posted at the front desk "
+                    "of every site."
+                ),
+            )
+            second = await _seed_chunk(
+                session,
+                audience="public",
+                chunk_text=(
+                    "The zqxvchunk handbook also explains that zqxvbodymarker forms are "
+                    "collected by the branch manager once a term."
+                ),
+            )
+            saver = InMemorySaver()
+            graph = build_graph(saver)
+
+            result = await _ask(
+                session,
+                claims=None,
+                query="zqxvchunk handbook",
+                thread_id="t-ids-not-bodies",
+                graph=graph,
+            )
+
+            retrieved = result["retrieved_chunk_ids"]
+            assert {first.chunk_id, second.chunk_id} <= set(retrieved)
+
+            stored = _checkpoint_bytes(saver)
+            for chunk_id in retrieved:
+                assert chunk_id.encode() in stored, f"{chunk_id} was not checkpointed"
+
+            bodies = {first.chunk_id: first.chunk_text, second.chunk_id: second.chunk_text}
+            unquoted = [body for body in bodies.values() if body not in (result["answer"] or "")]
+            assert unquoted, "every retrieved body was quoted in the answer - test is vacuous"
+            for body in unquoted:
+                assert body.encode() not in stored, "a retrieved chunk body was checkpointed"
+            # The `RagChunk` shape itself never gets near the checkpoint either.
+            assert b"chunk_text" not in stored
+
+    asyncio.run(run())
+
+
+def test_the_join_settles_retrieval_spend_without_losing_or_doubling_it() -> None:
+    """The concurrent-write landmine, from the money side.
+
+    `scope_guard` and `retrieve_context` both used to write `bedrock_spend_cents`, and two
+    writers on one LangGraph channel in one superstep is an `InvalidUpdateError` - so
+    retrieval's cost lands in its own channel and `join_scope_and_retrieval` folds it in.
+    A fold is exactly the kind of arithmetic that silently drops or doubles a term, so this
+    prices the same turn twice: once through the real graph, once by summing what the
+    gateway was actually asked to bill.
+    """
+
+    billed: list[float] = []
+
+    class _BillRecordingGateway:
+        def __init__(self) -> None:
+            self._healthy = _gateway()
+
+        async def generate_structured(self, **kwargs):
+            result = await self._healthy.generate_structured(**kwargs)
+            billed.append(result.cost_cents)
+            return result
+
+        async def create_embedding(self, **kwargs):
+            result = await self._healthy.create_embedding(**kwargs)
+            billed.append(result.cost_cents)
+            return result
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            await _seed_chunk(
+                session,
+                audience="public",
+                chunk_text="The zqxvchunk handbook lists the branch hours at the front desk.",
+            )
+            result = await _ask(
+                session,
+                claims=None,
+                query="zqxvchunk handbook",
+                thread_id="t-spend-fold",
+                gateway=_BillRecordingGateway(),
+            )
+
+            assert len(billed) >= 3, billed  # scope, embedding, rerank, synthesis
+            assert result["bedrock_spend_cents"] == pytest.approx(sum(billed))
+            # The transfer channel is left empty, so the next turn on this thread cannot
+            # fold a stale value in a second time.
+            assert result["retrieval_spend_cents"] == 0.0
+
+    asyncio.run(run())
+
+
+async def _seed_calendar_event(session, *, title: str) -> None:
+    """One structured `org_events` row, so `calendar_extract` matches it deterministically
+    and makes no model call of its own - which is what lets a calendar turn be driven
+    against a gateway whose embedding is down.
+    """
+    await OrgEventRepository(session).upsert_event(
+        OrgEvent(
+            event_external_id="zqxvcal-wasted-branch",
+            title=title,
+            description="",
+            starts_at=datetime(2023, 11, 1, 17, 0, tzinfo=UTC),
+            ends_at=datetime(2023, 11, 1, 19, 0, tzinfo=UTC),
+            timezone="America/Chicago",
+            audience="public",
+            source_url="https://www.intellichoice.org/event/zqxv/",
+            content_hash="hash",
+        )
+    )
+    await session.flush()
+
+
+def test_a_wasted_retrieval_failure_does_not_degrade_a_calendar_turn() -> None:
+    """**Fail quiet for the wasted work.** Retrieval now runs on every non-escalation turn,
+    so a Titan outage reaches turns that never needed a chunk. Degrading those would be
+    inventing an outage: the calendar answer is sitting in `org_events` and the caller can
+    still have it.
+
+    The failure is real - `_DegradedGateway` fails every `create_embedding`, which is
+    AUD-C-07's own reproduction - and the same gateway on a `document_qa` turn still fails
+    closed (the test below is the other half of the pair).
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            await _seed_calendar_event(session, title="Zqxvfundraiser Gala")
+
+            result = await _ask(
+                session,
+                claims=None,
+                query="Add the Zqxvfundraiser Gala to my calendar",
+                thread_id="t-wasted-retrieval-calendar",
+                gateway=_DegradedGateway(),
+            )
+
+            assert result["intent"] == "calendar"
+            # The turn reached its own node and paused for approval (CLAUDE.md #4), which is
+            # exactly what it would have done with retrieval healthy.
+            assert result["__interrupt__"][0].value["type"] == "calendar_action"
+            assert result["calendar_event"]["title"] == "Zqxvfundraiser Gala"
+            assert result["service_degraded"] is False
+            assert result["answer"] != SERVICE_UNAVAILABLE_MESSAGE
+            # The discarded branch left nothing behind: no failure flag for a later node to
+            # misread, and no chunk ids nobody asked for.
+            assert result["retrieval_failed"] is False
+            assert result["retrieved_chunk_ids"] is None
+
+    asyncio.run(run())
+
+
+def test_the_same_retrieval_failure_on_a_document_qa_turn_still_fails_closed() -> None:
+    """**Fail closed for the work the turn needed** - the other half of the asymmetry, and
+    unchanged from `answer_document_qa`'s own behaviour (AUD-C-07): `service_degraded` is
+    set, the router sends the turn to `service_unavailable`, and the existing
+    `document_qa_retrieval` counter moves by exactly one.
+
+    The counter is asserted here because it moved *call site* in this change - it is now
+    incremented by the join, where a turn is known to have degraded, rather than at the
+    failed call, which can no longer tell. Its series and label are untouched (COST-25).
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            await _seed_chunk(
+                session,
+                audience="public",
+                chunk_text="The zqxvchunk handbook lists the branch hours at the front desk.",
+            )
+            before = QA_SERVICE_DEGRADED.labels(stage="document_qa_retrieval")._value.get()
+
+            result = await _ask(
+                session,
+                claims=None,
+                query="zqxvchunk handbook",
+                thread_id="t-needed-retrieval-fails",
+                gateway=_DegradedGateway(),
+            )
+
+            after = QA_SERVICE_DEGRADED.labels(stage="document_qa_retrieval")._value.get()
+            assert result["intent"] == "document_qa"
+            assert result["service_degraded"] is True
+            assert result["answer"] == SERVICE_UNAVAILABLE_MESSAGE
+            assert result["citations"] == []
+            assert after - before == 1
+
+    asyncio.run(run())
+
+
+class _HybridSearchExplodes(RagRepository):
+    """A non-gateway retrieval failure - a statement timeout or a dropped connection, the
+    class the sequential graph never had to consider on a calendar turn because retrieval
+    did not run there.
+    """
+
+    async def hybrid_search(self, *args, **kwargs):
+        raise RuntimeError("connection reset by peer")
+
+
+def test_an_unexpected_retrieval_error_is_dropped_when_nothing_was_waiting_on_it() -> None:
+    """The reason `retrieve_context` catches broadly. An exception raised inside a parallel
+    superstep fails the *whole* superstep, so an unguarded DB error in the speculative half
+    would take down a calendar turn that the sequential graph answered fine.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            await _seed_calendar_event(session, title="Zqxvfundraiser Gala")
+
+            result = await _ask(
+                session,
+                claims=None,
+                query="Add the Zqxvfundraiser Gala to my calendar",
+                thread_id="t-unexpected-wasted",
+                rag_repo=_HybridSearchExplodes(session),
+            )
+
+            assert result["__interrupt__"][0].value["type"] == "calendar_action"
+            assert result["service_degraded"] is False
+            assert result["retrieval_unexpected_error"] is None
+
+    asyncio.run(run())
+
+
+def test_an_unexpected_retrieval_error_still_surfaces_when_the_turn_needed_it(caplog) -> None:
+    """...and the same error on a `document_qa` turn is still an unhandled failure, exactly
+    as it was before the overlap. Re-raised by the join rather than swallowed into a
+    user-facing service message: it is not a gateway failure, has no SPEC §5.29 fallback,
+    and turning a genuine defect into a friendly 200 would hide it.
+
+    The re-raise carries the class name rather than the original exception, because the
+    original was caught a superstep earlier - so the *traceback* is asserted too. Without it
+    the change would trade a diagnosable 500 for an opaque one, which is the half of "keeps
+    today's behaviour" that is easy to lose.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            with pytest.raises(RuntimeError, match="retrieval failed on a document_qa turn"):
+                await _ask(
+                    session,
+                    claims=None,
+                    query="zqxvchunk handbook",
+                    thread_id="t-unexpected-needed",
+                    rag_repo=_HybridSearchExplodes(session),
+                )
+
+    with caplog.at_level(logging.ERROR, logger="chat_api.graph.nodes"):
+        asyncio.run(run())
+
+    logged = [r for r in caplog.records if r.message == "qa_retrieval_unexpected_error"]
+    assert len(logged) == 1
+    assert "connection reset by peer" in (logged[0].exc_text or "")
+
+
+class _ScriptedScopeGateway:
+    """The real mock gateway except for the scope classification, which is scripted.
+
+    The mock classifier cannot return `clarification` for an in-scope query (it only ever
+    emits that with `in_scope: False`), and `unavailable_intent` is reachable no other way -
+    so the one verdict the keyword gate cannot produce is supplied directly rather than left
+    untested on the new router.
+    """
+
+    def __init__(self, *, in_scope: bool, intent: str) -> None:
+        self._healthy = _gateway()
+        # `model_validate` rather than the constructor: `intent` is a `Literal` on the real
+        # model and the point here is to script one of its values from a plain string.
+        self._response = ScopeAndIntentResponse.model_validate(
+            {"in_scope": in_scope, "intent": intent, "reasoning": "scripted"}
+        )
+
+    async def generate_structured[T: BaseModel](
+        self,
+        *,
+        task: BedrockTask,
+        system_prompt: str,
+        payload: BaseModel,
+        response_model: type[T],
+        max_output_tokens: int,
+        session_spend_cents: float,
+    ) -> BedrockGenerationResult[T]:
+        if task is not BedrockTask.SCOPE_AND_INTENT:
+            return await self._healthy.generate_structured(
+                task=task,
+                system_prompt=system_prompt,
+                payload=payload,
+                response_model=response_model,
+                max_output_tokens=max_output_tokens,
+                session_spend_cents=session_spend_cents,
+            )
+        return BedrockGenerationResult(  # type: ignore[return-value]
+            value=self._response,
+            input_tokens=10,
+            output_tokens=10,
+            cost_cents=0.1,
+            model_id="test-model",
+            repaired=False,
+        )
+
+    async def create_embedding(self, *, texts: list[str], session_spend_cents: float):
+        return await self._healthy.create_embedding(
+            texts=texts, session_spend_cents=session_spend_cents
+        )
+
+
+def _join_successors() -> set[str]:
+    """Every node the post-join router can send a turn to, read off the compiled graph."""
+    graph = build_graph(InMemorySaver())
+    return {
+        edge.target for edge in graph.get_graph().edges if edge.source == "join_scope_and_retrieval"
+    }
+
+
+# One entry per successor of `join_scope_and_retrieval`: how to drive a turn there, and the
+# observable fact that says it landed. Deliberately keyed on the *node*, so the coverage
+# assertion below fails when someone adds a branch and no case for it.
+_ROUTES = {
+    "refuse": "an out-of-scope question",
+    "service_unavailable": "a classifier outage",
+    "unavailable_intent": "an in-scope intent with no handler",
+    "synthesize_answer": "a grounded document_qa answer",
+    "explain_access": "a document_qa refusal over role-gated content",
+    "prepare_admin_escalation": "the admin_contact intent",
+    "calendar_extract": "the calendar intent",
+    "branch_locator_consent": "the branch_locator intent",
+}
+
+
+def test_the_route_table_below_covers_every_branch_out_of_the_join() -> None:
+    """The overlap replaced two conditional edges with one, so "every intent still routes
+    where it did" is only worth asserting if the case list is complete. This is what fails
+    when a ninth branch is added and left undriven.
+    """
+    assert _join_successors() == set(_ROUTES)
+
+
+@pytest.mark.parametrize("target", sorted(_ROUTES))
+def test_every_verdict_routes_where_it_did_before_the_overlap(target: str) -> None:
+    """One turn per branch out of the new router, checked on what the caller can observe.
+
+    This is also the test that proves the concurrent superstep cannot raise
+    `InvalidUpdateError` on any path: every verdict is driven through the fan-out, and a
+    second writer on any shared channel would fail the whole superstep rather than
+    misroute - so a passing row here is a channel-conflict-free row.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            if target == "refuse":
+                result = await _ask(
+                    session,
+                    claims=None,
+                    query="What's the best recipe for chocolate chip cookies?",
+                    thread_id=f"t-route-{target}",
+                )
+                assert result["scope"] == "out_of_scope"
+                assert result["answer"] == OUT_OF_SCOPE_MESSAGE
+                return
+
+            if target == "service_unavailable":
+                result = await _ask(
+                    session,
+                    claims=None,
+                    query="What are the Saturday hours?",
+                    thread_id=f"t-route-{target}",
+                    gateway=_DegradedGateway(fail_embedding=False, fail_generation=True),
+                )
+                assert result["scope"] is None
+                assert result["answer"] == SERVICE_UNAVAILABLE_MESSAGE
+                return
+
+            if target == "unavailable_intent":
+                result = await _ask(
+                    session,
+                    claims=None,
+                    query="zqxvchunk handbook",
+                    thread_id=f"t-route-{target}",
+                    gateway=_ScriptedScopeGateway(in_scope=True, intent="clarification"),
+                )
+                assert result["intent"] == "clarification"
+                assert result["reason"] == TurnReason.NEEDS_CLARIFICATION
+                return
+
+            if target == "synthesize_answer":
+                await _seed_chunk(
+                    session,
+                    audience="public",
+                    chunk_text="The zqxvchunk handbook lists the branch hours at the desk.",
+                )
+                result = await _ask(
+                    session,
+                    claims=None,
+                    query="zqxvchunk handbook",
+                    thread_id=f"t-route-{target}",
+                )
+                assert result["intent"] == "document_qa"
+                assert len(result["citations"]) >= 1
+                return
+
+            if target == "explain_access":
+                await _seed_chunk(
+                    session,
+                    audience="branch_manager",
+                    chunk_text="Branch managers escalate unresolved zqxvchunk handbook disputes.",
+                )
+                result = await _ask(
+                    session,
+                    claims=None,
+                    query="zqxvchunk handbook",
+                    thread_id=f"t-route-{target}",
+                )
+                assert result["retrieved_chunk_ids"] == []
+                assert result["reason"] == TurnReason.ACCESS_REQUIRED
+                return
+
+            if target == "prepare_admin_escalation":
+                result = await _ask(
+                    session,
+                    claims=None,
+                    query="I would like to escalate this to an administrator",
+                    thread_id=f"t-route-{target}",
+                )
+                assert result["intent"] == "admin_contact"
+                assert result["__interrupt__"][0].value["type"] == "email_approval"
+                return
+
+            if target == "calendar_extract":
+                await _seed_calendar_event(session, title="Zqxvfundraiser Gala")
+                result = await _ask(
+                    session,
+                    claims=None,
+                    query="Add the Zqxvfundraiser Gala to my calendar",
+                    thread_id=f"t-route-{target}",
+                )
+                assert result["intent"] == "calendar"
+                assert result["__interrupt__"][0].value["type"] == "calendar_action"
+                return
+
+            assert target == "branch_locator_consent"
+            result = await _ask(
+                session,
+                claims=None,
+                query="Where is my nearest branch located?",
+                thread_id=f"t-route-{target}",
+            )
+            assert result["intent"] == "branch_locator"
+            assert result["__interrupt__"][0].value["type"] == "location_consent"
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("service_degraded", [False, True])
+@pytest.mark.parametrize("scope", [None, "in_scope", "out_of_scope"])
+@pytest.mark.parametrize(
+    "intent",
+    [None, "document_qa", "admin_contact", "calendar", "branch_locator", "clarification"],
+)
+def test_the_join_and_the_router_agree_on_who_needs_retrieval(
+    service_degraded: bool, scope: str | None, intent: str | None
+) -> None:
+    """The one predicate this change states twice, pinned against itself.
+
+    `nodes.retrieval_is_needed` decides whether a retrieval failure degrades the turn;
+    `build._route_after_scope_guard` decides whether the turn goes to the synthesis path.
+    They must be the same question, or a turn could be sent to synthesis with a failure the
+    join quietly dropped - a no-source refusal produced by an outage, which is exactly the
+    false statement about the corpus AUD-C-07 exists to prevent. Asserted over the whole
+    verdict matrix rather than the reachable subset, because the reachable subset is what
+    changes when a new intent is added.
+    """
+    state = QAState(session_id="s", service_degraded=service_degraded, scope=scope, intent=intent)
+    assert retrieval_is_needed(state) == (_route_after_scope_guard(state) == "answer_document_qa")
+
+
+def test_a_grounded_turn_runs_three_model_calls_deep_and_joins_once() -> None:
+    """The acceptance shape of D-423, asserted structurally rather than on wall-clock.
+
+    **Three deep, not four.** `SCOPE_AND_INTENT` and retrieval's `EMBEDDING`/`RERANK` are
+    now in one superstep and `RAG_ANSWER` follows both, so the longest chain of *waiting* is
+    max(scope, retrieval) then synthesis. Recorded as call intervals: the two halves must
+    interleave, and synthesis must start after both have finished.
+
+    **Once, not twice.** Two static edges into `join_scope_and_retrieval` make it a fan-in,
+    and a fan-in that fires per incoming edge would double-fold retrieval's spend and count
+    a degradation twice. `stream_mode="updates"` names the nodes that ran in each superstep,
+    so this reads the real schedule instead of inferring it.
+    """
+    spans: list[tuple[str, int, int]] = []
+    tick = 0
+
+    class _IntervalRecordingGateway:
+        def __init__(self) -> None:
+            self._healthy = _gateway()
+
+        async def _record(self, label: str, awaitable):
+            nonlocal tick
+            tick += 1
+            start = tick
+            result = await awaitable
+            tick += 1
+            spans.append((label, start, tick))
+            return result
+
+        async def generate_structured(self, **kwargs):
+            return await self._record(
+                kwargs["task"].value, self._healthy.generate_structured(**kwargs)
+            )
+
+        async def create_embedding(self, **kwargs):
+            return await self._record("embedding", self._healthy.create_embedding(**kwargs))
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            await _seed_chunk(
+                session,
+                audience="public",
+                chunk_text="The zqxvchunk handbook lists the branch hours at the front desk.",
+            )
+            graph = build_graph(InMemorySaver())
+            thread_id = "t-three-deep"
+            supersteps: list[list[str]] = []
+            async for update in graph.astream(
+                AskInput(session_id=thread_id, query="zqxvchunk handbook"),
+                config=_config(thread_id),
+                context=_turn_context(
+                    session,
+                    claims=None,
+                    query="zqxvchunk handbook",
+                    gateway=_IntervalRecordingGateway(),
+                ),
+                stream_mode="updates",
+            ):
+                supersteps.append(sorted(update))
+
+            # `stream_mode="updates"` names each node that produced an update, one entry per
+            # node rather than one per superstep - so it answers "how many times did the
+            # fan-in fire", which is the question here, and the *concurrency* is asserted by
+            # the call intervals below and by the rendezvous test above.
+            ran = [node for step in supersteps for node in step]
+            assert ran.count("scope_guard") == 1, supersteps
+            assert ran.count("retrieve_context") == 1, supersteps
+            assert ran.count("join_scope_and_retrieval") == 1, supersteps
+            assert ran.count("synthesize_answer") == 1, supersteps
+
+            by_task = {label: (start, end) for label, start, end in spans}
+            scope = by_task[BedrockTask.SCOPE_AND_INTENT.value]
+            embedding = by_task["embedding"]
+            synthesis = by_task[BedrockTask.RAG_ANSWER.value]
+            # Interleaved: the classification had not returned when the embedding began.
+            assert embedding[0] < scope[1], spans
+            # And synthesis waited for both halves rather than for their sum.
+            assert synthesis[0] > max(scope[1], embedding[1]), spans
 
     asyncio.run(run())

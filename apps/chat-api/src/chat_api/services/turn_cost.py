@@ -40,7 +40,17 @@ DEFAULT_TOP_K = 8
 
 
 def worst_case_calls(*, candidate_limit: int, top_k: int) -> tuple[PricedCall, ...]:
-    """The most expensive shape a single turn can take, in the order the graph calls them.
+    """The most expensive shape a single turn can take: every model call it can make, listed
+    in the order the graph *reaches* them.
+
+    **Reaches, not "calls in sequence" - the first two now overlap.** D-423 put
+    `nodes.scope_guard` and `nodes.retrieve_context` in one LangGraph superstep, so
+    `SCOPE_AND_INTENT` and the first `RERANK` are concurrent siblings rather than one
+    after the other; `RAG_ANSWER` and the probe's `RERANK` still follow both. That changes
+    nothing here, and the reason is worth stating rather than leaving to be re-derived: a
+    reservation prices the *set* of calls a turn may bill, and running two of them at once
+    changes when they are billed, not whether. The declaration below and
+    `TURN_RESERVATION_ESTIMATE_CENTS` are unchanged by the overlap.
 
     It is a `document_qa` question that retrieves, synthesises, fails the citation or
     confidence gate, and then runs the access probe (`nodes.explain_access`) to decide
