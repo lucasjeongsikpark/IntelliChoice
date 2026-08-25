@@ -30244,3 +30244,64 @@ per-text pins). Coordinator: full diff read; 220 adapter/shared tests, lint, typ
 green; confirmed the only remaining `2000` is the named constant plus an unrelated D-233
 output-size comment. Nothing deployed (LB-05): staging still runs `gha-898e2fb4270b` with no
 input ceiling until the next deploy.
+
+## D-441 — D-423's overlap is built: scope_guard ∥ retrieval, channels split at the join, the wasted branch fails quiet, and a dead executor launch was caught by the user (accepted, 2026-08-24)
+
+Executes `WORK-01-SCOPE-GUARD` (queue row 1) — D-423 steps 1–3, "nothing about it needs
+re-deriving" honored: no prompt, model, threshold, or filter changed anywhere. Landed as
+`5b67e04` (PR #403); suite **1867 passed / 2 skipped / 1 xfailed** (+53, all new; no existing
+assertion changed).
+
+**1. The shape.** `resolve_role` fans out to `scope_guard` ∥ `retrieve_context` (the retrieval
+half of the old `answer_document_qa`, renamed because it now runs on every non-escalation turn
+and answers nothing) in one LangGraph superstep; they rejoin at `join_scope_and_retrieval`; the
+scope verdict is applied unchanged from there. A grounded turn's model chain: four sequential
+calls → three (max(2.1 s, 3.4 s) then synthesis; ~9.6 s → ~7.5 s median per D-423's staging
+measurement — **not re-measured here**: no paid call, no staging run; the comparison is future
+UD-2 work and must use the recorded span mapping, because summing `langgraph.*` durations now
+double-counts the concurrent pair).
+
+**2. The two landmines, resolved as reported.** (a) Concurrent channel writes: the executor
+confirmed `InvalidUpdateError` empirically, then **split channels rather than adding reducers**
+— `QAState` has no `Annotated` reducer anywhere and every node writes `bedrock_spend_cents` as
+an absolute total, so `operator.add` would sum two totals; `retrieval_spend_cents` /
+`retrieval_failed` / `retrieval_unexpected_error` are folded and interpreted by the join, which
+settles billed spend **on every path including the discarded one**, and a
+price-it-twice test pins the fold against loss and doubling. (b) The failure asymmetry needed
+more than the spec said: an exception in a parallel superstep fails the whole superstep, so
+`retrieve_context` catches broadly (never `CancelledError` — D-346/D-402 still cancel), logs
+the traceback at the catch site, checkpoints only the exception **class name** (a DB error's
+message can quote the caller's own question — SPEC §5.30), and the join re-raises on a
+`document_qa` turn (still a 500) and logs-and-drops otherwise. Non-`document_qa` checkpoints
+stay byte-identical to the sequential graph's.
+
+**3. Verified beyond the spec.** Cross-version resume in both directions (a turn paused on
+`calendar_action`'s interrupt under the old graph resumes under the new, and vice versa —
+`InMemorySaver`, not the production saver; recorded as residual), a rendezvous-gated
+concurrency test a sequential graph cannot pass, ids-not-bodies asserted against the saver's
+stored blobs, and a compiled-graph successor-set test so a ninth join branch fails the suite.
+The `retrieval_is_needed` predicate and the router are pinned against each other over the whole
+verdict matrix. One honest consequence flagged, not fixed (pre-existing class, D-346): a
+deadline firing mid-superstep now cancels up to two billed in-flight calls instead of one, so
+the unsettled-on-timeout maximum roughly doubles — a fraction of a cent.
+
+**4. Correction round (one):** `turn_cost.worst_case_calls`'s docstring said the calls are
+listed "in the order the graph calls them" — now false; corrected to "the order the graph
+*reaches* them", with the reason reservations are unchanged stated in place: a reservation
+prices the **set** of calls a turn may bill; concurrency changes *when* they are billed, not
+*whether*.
+
+**5. Process finding, credited to the user.** The first executor launch for this task was dead
+on arrival — an Orca runtime restart around the dispatch meant the injected prompt never
+reached an agent: 103 minutes of `dispatched` status with zero heartbeats, zero terminal
+output, no reported session, no file changes. **The launch receipt proves the request was
+honored; only a heartbeat proves an agent is working.** Recovered by `task-update → ready` and
+a fresh attempt, and the convention adopted from here on: every `worker-start` is followed by a
+liveness probe (first heartbeat or transcript activity within eight minutes, else the launch is
+declared dead and recovered).
+
+**6. Reconciliation notes.** ARCHITECTURE's D-423 bullet and the chat-graph Mermaid now show
+the fan-out/join topology; `AUDIT_FINDINGS`' AUD-C-07 row names `answer_document_qa` as
+history and is left as history. D-438's trigger fired (third time) — the topology sits below
+§5.3's altitude and inside §5.36's existing routing/orchestration placements; skip-noted.
+Staging still runs the sequential graph until the next deploy (LB-05).

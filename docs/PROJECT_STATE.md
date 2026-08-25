@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-24** (coordinator sessions: D-433..D-440 — seven §4 items closed today, incl. the gateway input ceiling; the weekly controls instrument ran green on its first dispatch; earlier: D-428..D-432) |
-| Last product-code commit | **`0f42e19`** (2026-08-24, PR #401) — the gateway input ceiling (D-440); before it `b9a6011` (D-439) |
+| Snapshot date | **2026-08-24** (coordinator sessions: D-433..D-441 — eight §4 items closed today, capped by D-423's overlap being built; the weekly controls instrument ran green on its first dispatch; earlier: D-428..D-432) |
+| Last product-code commit | **`5b67e04`** (2026-08-24, PR #403) — scope_guard ∥ retrieval overlap (D-423 built, D-441); before it `0f42e19` (D-440) |
 | Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
 | Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **20 product commits** (`898e2fb` → `0f42e19`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), the seam-(b) healing (D-432, **staging's seam (b) is still a dead end until the next deploy**), and the D-433 outcome counter — **staging's personalization ran-dead mode stays uninstrumented until then too**). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** were applied via control-plane targeted `terraform apply` (§8) |
+| Repo-vs-deployed gap | **21 product commits** (`898e2fb` → `5b67e04`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), the seam-(b) healing (D-432, **staging's seam (b) is still a dead end until the next deploy**), and the D-433 outcome counter — **staging's personalization ran-dead mode stays uninstrumented until then too**). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** were applied via control-plane targeted `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `0f42e19`, or if the deployed staging image tag no longer matches this
+commit lands after `5b67e04`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -61,8 +61,10 @@ the full local suite green on the merged HEAD; staging is unaffected until the n
   Its evidence is CI plus this deploy's gates; a live re-walk (UD-1 Option A's second half)
   remains available work for the next live-probe session.
 - **LB-08's 10.55 s pre-optimisation baseline is recorded durably in D-426** (measured on
-  `gha-44a12dfc9549`, now unreproducible). Post-optimisation comparisons for
-  `WORK-01-SCOPE-GUARD` cite D-426, not this file.
+  `gha-44a12dfc9549`, now unreproducible). The optimisation itself is **built as of D-441**
+  (HEAD only): the post-optimisation staging comparison remains future paid work under UD-2 and
+  must use D-441's span mapping — summing `langgraph.*` durations now double-counts the
+  concurrent pair.
 - **COST-22's pre-initialised label series are live** (verified post-deploy:
   `qa_service_degraded_total` exposes all three `stage` series in the deployed chat-api
   namespace) — the ~34 always-present custom-metric series upper bound is now the account's
@@ -79,7 +81,7 @@ the full local suite green on the merged HEAD; staging is unaffected until the n
 
 ## 4. Active engineering work
 
-5 open engineering entries. Full evidence per entry:
+4 open engineering entries. Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
@@ -95,11 +97,10 @@ tests on 2026-08-21/22.
 |---|---|---|---|
 | `D310-RESIDUALS` | One follow-up surviving the executed D-310 rotation: stale dead secrets in operator-browser `localStorage` | See 4.3 — a user action on operator machines; the (b) `ps` measurement and (c) README fix landed 2026-08-24 (D-437) | user |
 
-### 4.2 ACTIVE_IMPLEMENTATION (4) — decided or specified, not built
+### 4.2 ACTIVE_IMPLEMENTATION (3) — decided or specified, not built
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
-| `WORK-01-SCOPE-GUARD` | `scope_guard`/retrieval overlap is specified and measured (~22% median win) and not built | Build D-423 steps 1–3 as specified; verify the wasted-rerank trade-off is still acceptable first; and tell the user (acknowledgement, not a decision): the earlier approval rested on a ~2.5 s embedding estimate that D-423 measured at 124 ms | engineering |
 | `WORK-35-LEDGER` | U7 consolidation sizing gated on a free staging measurement nobody took | Take the free staging measurement, then hold the design review and size N against the existing 90/90/365 windows. D-420 added redacted visitor free text no retention job covers. **D-440 adds a measured input to the same review:** `existing_facts` is unbounded and crosses the new 32k gateway input ceiling at ~100–120 facts per student/skill (consolidation already declares >21 out of contract) — the which-facts-to-drop behavior decision is deliberately unmade and belongs to this design review | engineering |
 | `WORK-13-FIXTURES` | Single-spec e2e isolation is behaviourally resolved **on `gha-44a12dfc9549`** (a build no longer deployed — the D-426 deploy shipped `gha-898e2fb4270b`); the **17-spec cross-spec contention scope stays open** (never re-run) and the test-side fixture fix is owed | Land the fixture-isolation fix across the seventeen specs sharing `studentPresent` (prerequisite for UD-2's whole-directory arm — the paid re-run is `DRIFT-58`'s residual, reopened by UD-2); do not re-run the closed one-file scope. The UD-1 ordering constraint is discharged: the deploy happened 2026-08-23, so any re-run now tests the current build | engineering + docs |
 | `M3-D370-SOLUTION-RUNG` | The solution terminal rung has no staging e2e coverage, under a roadmap-closing ✅ | Write the staging e2e coverage for the solution terminal rung | engineering + docs |
@@ -154,10 +155,9 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-| 1 | `WORK-01-SCOPE-GUARD` | Larger build (D-423 steps 1–3); includes a user acknowledgement (not a decision) about the corrected embedding estimate |
-| 2 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
-| 3 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
-| 4 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
+| 1 | `WORK-35-LEDGER` | Free staging measurement first, then the design review |
+| 2 | `WORK-13-FIXTURES` | The UD-1 ordering constraint discharged by the 2026-08-23 deploy; the paid re-run stays with UD-2 |
+| 3 | `M3-D370-SOLUTION-RUNG` | Staging e2e is a paid measurement (real Bedrock) in the serialized Playwright lane; verify the UD-2 spend posture at dispatch |
 
 ---
 
