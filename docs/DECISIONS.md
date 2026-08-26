@@ -30543,3 +30543,39 @@ paid calls were made, the provider default stays `mock`, `bedrock_equation_desig
 D-205 empty default is untouched, and D-342's generation parking is unaffected. Documentation
 reconciled by the coordinator after acceptance: QUESTION_GENERATION.md Appendix A's
 "(Still true; …)" annotation on the shipped-default consequence now carries its dated closure.
+
+## D-448 — the user-ordered deploy: the 34-commit gap ships, every gate green, the tripwire quiet (accepted, 2026-08-26)
+
+The user said "go deploy". Run **32930929448**, pinned by head SHA `5fa15d4` (product code
+`7983154`) per the workflow's own rule — never "the latest run is green". Both services now run
+**`gha-5fa15d491057`**: learning task definition `:153` (2/2), chat `:151` (1/1), read from ECS
+after the drain.
+
+**Every gate green:** deployed-version, the `/dev/token` public-edge security gate, canary bake
+(rollback skipped), the D-439 blocking deployed-image consistency gate — its first firing on a
+real deploy — SPA syncs with CloudFront invalidations, and smoke through the public CloudFront
+URLs. The one annotation was a benign tool-mirror 404 fallback. No migrations were in the
+window; `8509c0486d8d` (2026-08-23) remains the latest deploy-applied migration.
+
+**What this puts live on staging for the first time:** the D-324 date-zone pair, the D-432
+seam-(b) healing, the D-433 personalization outcome counter (Prometheus-only pending UD-5),
+the D-441 chat-graph fan-out + D-440 input bounds, the DRIFT-91 relocation, the 22 dependabot
+bumps (D-430/D-445), and D-447's roster defaults (offline tooling, no runtime path).
+
+**The §7-R9 tripwire held through the drain**, measured on both sides:
+`learning_checkpoint_repairs_total` at 0.0 in both service namespaces before the deploy
+(3-day window, daily maxima) and after (4 h window, 16 datapoints, read 2026-08-26T04:58Z).
+The `ARCH-17-COMMIT-SEAM` acceptance carries forward onto the new build unbroken.
+
+**What this deploy deliberately does not claim:** the LB-08 post-optimisation comparison is now
+*measurable* (the D-441 optimisation is live for the first time) but was not measured — it is
+paid work under UD-2 and must use D-441's span mapping against D-426's 10.55 s baseline. The B4
+escalation series remains deployed-but-never-observed-live. And the SPA artifact-freshness gap
+(`DRIFT-24`) is unchanged: this run synced and invalidated both SPAs, but nothing verifies the
+served bundles' identity.
+
+One method note: the pre-deploy tripwire read initially returned no datapoints because the
+metric lives under `IntelliChoice/intellichoice-staging/<service>`, not the namespace guessed
+first — and a `list-metrics | head` truncated the alphabetically-late custom namespaces into
+apparent absence. Both misreads were caught before any conclusion was built on them; "no
+datapoints" from a wrong address looks identical to "counter never moved" from the right one.
