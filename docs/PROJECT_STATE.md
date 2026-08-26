@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-25** (coordinator sessions: D-433..D-444 — ten §4 items closed across 08-24/25; **the execution queue is empty of unblocked items** — everything left waits on the user) |
-| Last product-code commit | **`3992e45`** (2026-08-25, PR #407) — the solution terminal rung's contract spec (D-444); before it `80791f3` (D-443) |
+| Snapshot date | **2026-08-26** (D-445: weekly dependabot batch #2 merged under the standing rule; the queue stays **empty of unblocked items**; sessions D-433..D-444 closed ten §4 items across 08-24/25) |
+| Last product-code commit | **`5755897`** (2026-08-26, the ten weekly dependabot merges, D-445); before them `3992e45` (D-444) |
 | Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
 | Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **23 product commits** (`898e2fb` → `3992e45`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), the seam-(b) healing (D-432, **staging's seam (b) is still a dead end until the next deploy**), and the D-433 outcome counter — **staging's personalization ran-dead mode stays uninstrumented until then too**). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** were applied via control-plane targeted `terraform apply` (§8) |
+| Repo-vs-deployed gap | **33 product commits** (`898e2fb` → `5755897`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), the seam-(b) healing (D-432, **staging's seam (b) is still a dead end until the next deploy**), and the D-433 outcome counter — **staging's personalization ran-dead mode stays uninstrumented until then too**). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** were applied via control-plane targeted `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `3992e45`, or if the deployed staging image tag no longer matches this
+commit lands after `5755897`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -368,7 +368,9 @@ Every item carries its register key. These are the headline live risks, not the 
 - **Method rule (narrowed 2026-08-24, D-439): the image-agreement class of drift is now watched
   mechanically** — a blocking post-deploy deployed-image consistency gate plus the weekly
   `scheduled-controls.yml` run (first dispatch green: run 32783980237, `VERDICT: OK` on
-  `gha-898e2fb4270b`). What still has **no detector**: terraform-vs-deployed drift in general —
+  `gha-898e2fb4270b`; a second manual run 2026-08-26 also green — coverage continuous through
+  08-26. **The first *scheduled* firing is due Monday 2026-08-31 07:17 UTC — verify it fired**;
+  the workflow landed after 08-24's slot, so no cron has been missed yet, D-445). What still has **no detector**: terraform-vs-deployed drift in general —
   `terraform apply` is absent from the deploy workflow (`F-03-DRIFT-DETECTOR`) and the
   gitignored-tfvars hazard in §7 keeps no mechanical guard (the image check deliberately excludes
   the tfvars pin per D-417 A3).

@@ -30423,3 +30423,33 @@ waits on the user: `D310-RESIDUALS` (a) (the `localStorage` re-paste), `WORK-35-
 riding the same UD-2. Staging still runs `898e2fb` — 23 product commits behind — and a deploy
 plus one authorized lane window would convert most of the accumulated local evidence into
 deployed evidence in a single session.
+
+## D-445 — weekly dependabot batch #2 merged under the standing rule; a coordinator finding made and retracted the same session (accepted, 2026-08-26)
+
+A generic continue with an empty queue swept for arrived work and found ten dependabot PRs
+(#380–#389, all patch/minor, the weekly cadence). **Executed under D-322 #8's standing rule
+with D-430's mechanics** — one merge per lockfile group, `@dependabot rebase` rounds for the
+rest, each merged at CLEAN with 9/9 CI green; dependabot again refreshed a version mid-rebase
+(boto3 1.43.77 → **1.43.78** — the merged state, not the PR title, is truth). Landed as
+`c0e7d11..5755897` (ten product commits; gap now 33). Verification on the merged set:
+`uv sync --all-packages`, lint, pyright clean; full suite **1867 passed / 2 skipped /
+1 xfailed** — the exact baseline.
+
+**A verification wrinkle, recorded:** the first post-merge suite run reported 50 failed /
+209 errors / 646 skipped in 67 s — Docker Desktop had stopped (again) and every DB-backed
+test failed or skipped on connection refusal. Containers restarted; the re-run produced the
+exact baseline. The 67-second wall time and the 646-skip shape are the tell for this failure
+class; a red suite that finishes 7× too fast is an environment, not a regression.
+
+**A coordinator error, made and retracted within the session.** The sweep initially concluded
+the weekly `scheduled-controls.yml` had **missed its first cron** ("Monday 07:17 UTC passed
+with no scheduled run"). That was a weekday arithmetic mistake: 2026-08-24 *was* Monday
+(D-435 fixed 08-23 as Sunday), and the workflow only landed on main at 22:16 UTC that day —
+*after* the slot. **No cron has been missed; the first scheduled opportunity is Monday
+2026-08-31 07:17 UTC**, now recorded in §8 as a dated check. The manual dispatch made on the
+false premise was harmless and useful anyway: a second fully green run (positive control
+46/46 — the D-443/D-444 fixture growth flowing through; 92 allowlisted; CLEAN; image
+`VERDICT: OK`), keeping coverage continuous through 08-26. Kept on the record because a
+coordinator that files finding-shaped errors silently is the same failure mode the register
+exists to prevent — and because "a gate naming a weekday and a date should be checked for
+agreement" (D-435) now has a sibling: *so should a finding*.
