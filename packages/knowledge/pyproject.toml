@@ -10,7 +10,7 @@ dependencies = [
     "pydantic-settings>=2.15.0",
     "pyyaml>=6.0",
     "jsonschema>=4.23",
-    "llama-index-core>=0.12",
+    "llama-index-core>=0.14.24",
 ]
 
 [build-system]
