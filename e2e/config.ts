@@ -242,6 +242,18 @@ export const FIXTURES = {
    * on a *hint*, which is a different rung and a different outcome label.
    */
   studentSolution: { role: "student", sub: "student-ext-28" },
+  /**
+   * `stream-disconnect-visible.spec.ts`'s own (D-427), same grade-3 / present / unlinked
+   * shape as the thirteen above.
+   *
+   * **Its own rather than `studentSseReconnect`'s, even though both specs are about the
+   * SSE stream.** That spec measures how often the app reopens `/stream` on its own over a
+   * fixed idle window; this one routes `/stream` and refuses every attempt for the whole
+   * test. Sharing would make one spec's subject the other's noise - and worse, the reopen
+   * count `sse-reconnect` asserts a ceiling on is the exact quantity this spec distorts by
+   * design.
+   */
+  studentDisconnect: { role: "student", sub: "student-ext-29" },
   /** One linked child - exercises the auto-select path. */
   parentOneChild: { role: "parent", sub: "parent-ext-1" },
   /** Two linked children - exercises the child_selection interrupt. */

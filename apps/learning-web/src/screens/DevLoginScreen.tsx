@@ -66,6 +66,8 @@ const FIXTURE_IDS: { label: string; role: Role; sub: string }[] = [
   // The solution-rung walk's own (M3-D370-SOLUTION-RUNG). Same caveat as the thirteen above:
   // it may be mid-study with a worked solution on screen when you sign in as it by hand.
   { label: "Student — Bram Solution (grade 3, present)", role: "student", sub: "student-ext-28" },
+  // The disconnect-banner spec's own (D-427). Same caveat as the thirteen above.
+  { label: "Student — Cass Disconnect (grade 3, present)", role: "student", sub: "student-ext-29" },
   { label: "Parent — Priya One (1 linked child)", role: "parent", sub: "parent-ext-1" },
   { label: "Parent — Paul Two (2 linked children)", role: "parent", sub: "parent-ext-2" },
   { label: "Parent — Pia Three (1 linked child, Kai)", role: "parent", sub: "parent-ext-3" },

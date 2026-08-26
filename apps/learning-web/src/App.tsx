@@ -955,14 +955,15 @@ function App() {
     //
     // ---
     //
-    // **This condition is deliberately untested, and that is a decision rather than an
+    // **Only half of this condition is testable, and that is a decision rather than an
     // oversight (D-417 / C7). Do not re-file it as missing coverage.**
     //
-    // There are two directions and neither has a cheap home:
+    // There are two directions, and only one of them has a cheap home:
     //
     // - *"the banner appears when the stream is dead"* is testable in a browser, the way
-    //   chat-web's `stream-disconnect-visible.spec.ts` does it, and no such spec exists here
-    //   yet. That is the gap, and it is small.
+    //   chat-web's `stream-disconnect-visible.spec.ts` does it, and since D-427 it *is* done
+    //   here: `e2e/tests/learning/stream-disconnect-visible.spec.ts`. That gap was small and
+    //   is closed.
     // - *"and appears at no other time"* is testable **nowhere** cheaply. It needs a stream
     //   that opens and stays open, `route.fulfill` cannot hold an SSE response open, and the
     //   browser control written on that assumption for chat-web was measured flaky (1 pass /

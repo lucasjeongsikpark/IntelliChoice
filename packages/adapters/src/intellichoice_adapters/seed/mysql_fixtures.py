@@ -137,6 +137,13 @@ STUDENT_DASHBOARD = "student-ext-27"  # grade 3, present - dashboard-chart-label
 # this one carries on to the retry answer and the dashboard read, so sharing would make each
 # walk's precondition the other's leftovers.
 STUDENT_SOLUTION = "student-ext-28"  # grade 3, present - solution-terminal-rung.spec.ts
+# The disconnect-banner spec's own (D-427's C7-consistent residual). Grade 3, present,
+# unlinked - the same shape as 14-28. Its own rather than `STUDENT_SSE_RECONNECT`'s, even
+# though both specs are about the SSE stream: that one *counts* the stream's own reopens over
+# an idle window, and this one intercepts `/stream` and refuses it for the whole test. Sharing
+# would leave each spec's subject at the mercy of the other's leftover session, and the reopen
+# count that spec asserts on is exactly the number this one deliberately distorts.
+STUDENT_DISCONNECT = "student-ext-29"  # grade 3, present - stream-disconnect-visible.spec.ts
 
 
 BRANCH_MAIN = "branch-ext-1"
@@ -369,6 +376,13 @@ _USERS = [
         "grade": "3",
         "branch_external_id": BRANCH_MAIN,
     },
+    {
+        "external_id": STUDENT_DISCONNECT,
+        "role": "student",
+        "display_name": "Cass Disconnect",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
+    },
 ]
 
 _PARENT_CHILD_LINKS = [
@@ -443,6 +457,7 @@ _ATTENDANCE = [
     {"student_external_id": STUDENT_DOUBLE_SUBMIT, "status": "present"},
     {"student_external_id": STUDENT_DASHBOARD, "status": "present"},
     {"student_external_id": STUDENT_SOLUTION, "status": "present"},
+    {"student_external_id": STUDENT_DISCONNECT, "status": "present"},
 ]
 
 
