@@ -23,7 +23,7 @@ dependencies = [
     # only a fresh-database connection can.
     "cryptography>=42",
     "boto3>=1.43.73",
-    "icalendar>=7.2.2",
+    "icalendar>=7.3.0",
     "httpx>=0.28",
 ]
 
