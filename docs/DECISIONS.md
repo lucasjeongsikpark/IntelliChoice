@@ -16439,6 +16439,11 @@ What they refer to, reconstructed from the code and tests that cite them, and ve
   about rolling a **die**. Both are quoted at length in `authored_validation.py`.
 - **D-192 — the id nothing in the tree explains.** Cited in 4 code files and 2 docs; unlike the
   other two, no citation states what it decided. Left as a known unknown rather than guessed at.
+  *(Clarification 2026-08-26, D-453 — scoping the sentence above: "no citation states what it
+  decided" is exact for the **code** citations; among the docs citations, D-193 does describe
+  D-192 in detail ("built an inverted authoring mode: generate the equation from a registered
+  shape first") — but that description exists only in the entry that reverses it, and it is
+  NOT to be adopted as D-192's content. The unknown is irreducible by design.)*
 
 **Not reconstructed into full entries here.** The point of the log is that a decision was recorded
 *when it was made*, by whoever made it; writing three retrospective entries from inference would
@@ -30736,3 +30741,19 @@ again** — six sessions (D-446..D-452) consumed everything agent-actionable in 
 including a deploy. What remains is the user tail: UD-2 (the staging evidence: sizing read,
 both paid e2e runs, the LB-08 post-optimisation measurement), UD-13, UD-5's EMF promotion,
 D310 (a), and the 2026-08-31 07:17 UTC scheduled-controls check.
+
+## D-453 — D192-PHANTOM's one owed sentence, written; the unknown stays permanent (accepted, 2026-08-26)
+
+A continue found no new work and the queue empty, so the session discharged the last cheap
+documented remedy: `D192-PHANTOM`'s register entry names its whole remedy as "one clarifying
+sentence scoping the note's 'no citation states what it decided' to *code* citations" — owed
+since the audit, never written. It now exists as a dated clarification at the 2026-08-08
+phantom-ID note itself (beside the D-192 bullet): the sentence is exact for the code
+citations; D-193's detailed description exists only in the entry that reverses it and is not
+to be adopted as D-192's content.
+
+**What this does not do.** It does not resolve the unknown — D-192's content is irreducible by
+design, and the register's justification ("writing retrospective entries from inference would
+produce exactly the confident-looking, unverified prose this project keeps finding bugs
+inside") stands untouched. PROJECT_STATE §7's row stays, restated as a recorded permanent
+unknown with its remedy discharged. Docs-only; no code, no verification lane implicated.

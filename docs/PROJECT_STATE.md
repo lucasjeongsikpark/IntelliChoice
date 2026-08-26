@@ -317,7 +317,7 @@ close only by user action or a policy change, never by reading.
 
 | Unknown | Register key | Named resolution step |
 |---|---|---|
-| D-192's content | `D192-PHANTOM` | **None exists — irreducible by design.** The whole remedy is one clarifying sentence scoping the meta-note's "no citation states what it decided" to *code* citations. **Do NOT adopt D-193's description as D-192's content.** |
+| D-192's content | `D192-PHANTOM` | **None exists — irreducible by design.** The one owed remedy — the clarifying sentence scoping the meta-note's "no citation states what it decided" to *code* citations — was written 2026-08-26 (D-453), in place at the note. **Do NOT adopt D-193's description as D-192's content.** This row is a recorded permanent unknown, not open work |
 | Whether the deployed image pin is stale | `ARCH-34-REVISION-DRIFT` (half) | **Method-bounded: unreadable by policy.** `terraform.tfvars` is gitignored and deliberately not read; with `adopt_deployed_image = true`, pin staleness is invisible from the control plane. Closable only by the user or a policy change. Standing hazard: **a gitignored tfvars means the tracked tree does not determine the plan.** |
 
 ---
