@@ -250,7 +250,7 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | `INT-29-FAQ` | Enrollment FAQ still `draft`; the sole launch gate on the guest journey's canonical question | The org **content owner** answers (do not bundle with operator-audience asks) |
 | `DRIFT-85-I7-ALLOWLIST` | The I7 unknown-role metric is named as an invariant's evidence and specified nowhere | S43 opens |
 
-### 6.3 DEFERRED (16) — deliberately not now
+### 6.3 DEFERRED (15) — deliberately not now
 
 | Register key | One line | Reopen condition |
 |---|---|---|
@@ -263,7 +263,6 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | `F3-DEVTOKEN-S44` | The whole staging `/dev/token` path is scheduled for deletion at S44 | S44 opens |
 | `FIRST-VISIT-REVERIFY` | The notice's "True because" rows are dated code measurements | S45 start |
 | `ARCH-21-SCHEMA-SPLIT` | Whether to adopt SPEC §5.33.3's six-schema logical split (`learning`, `rag`, `memory`, `checkpoint_learning`, `checkpoint_chat`, `evaluation`) is **genuinely undecided** — no D-number owns it, and the only record that it is **undecided** is open question 5 of the 2026-07-21 projection (post-migration: `archive/2026-07-21-final-architecture-projection.md`; SPEC §5.33.3 still *prescribes* the split as a requirement). **Extraction into ARCHITECTURE.md's open-questions block must precede archival** | Production schema design |
-| `ARCH-33-CI-GATE` | Whether the deploy version gate ever fired is an unread GitHub fact (the PR-backlog half was read 2026-08-23: the 26-PR backlog is cleared down to the two python majors — D-429) | n/a — run `gh run list` |
 | `COST-17-CLIENT-ERRORS` | The client-error alarm path is correctly deployed and never exercised end to end | The next live-probe session (one synthetic post) |
 | `PLAYWRIGHT-LANE` | The browser lane was not executed, so the one new implementation defect has no runnable guard. Also carries `WORK-12-BANNER`'s C7-consistent residual (D-427, 2026-08-23): write **and run** the learning-web disconnect-visible spec — positive direction only, mirroring chat-web's — in the next lane window; the mock-test route is retracted per D-417 §C7 | A serialized test window (never concurrent with `make test`) |
 | `PAID-RUNS-LANE` | Paid generation and measurement scripts were not invoked; no finding depends on them | UD-2 authorises spend |
