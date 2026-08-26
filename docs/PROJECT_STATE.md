@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-26** (D-445: weekly dependabot batch #2 merged under the standing rule; the queue stays **empty of unblocked items**; sessions D-433..D-444 closed ten §4 items across 08-24/25) |
-| Last product-code commit | **`5755897`** (2026-08-26, the ten weekly dependabot merges, D-445); before them `3992e45` (D-444) |
+| Snapshot date | **2026-08-26** (D-446/D-447: the §7 sweep closed the three read-resolvable unknowns and landed DRIFT-49's roster-defaults fix; the queue stays **empty of unblocked items**) |
+| Last product-code commit | **`7983154`** (2026-08-26, the DRIFT-49 roster-defaults fix, D-447); before it `5755897` (the ten weekly dependabot merges, D-445) |
 | Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
 | Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **33 product commits** (`898e2fb` → `5755897`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), the seam-(b) healing (D-432, **staging's seam (b) is still a dead end until the next deploy**), and the D-433 outcome counter — **staging's personalization ran-dead mode stays uninstrumented until then too**). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** were applied via control-plane targeted `terraform apply` (§8) |
+| Repo-vs-deployed gap | **34 product commits** (`898e2fb` → `7983154`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), the seam-(b) healing (D-432, **staging's seam (b) is still a dead end until the next deploy**), the D-433 outcome counter — **staging's personalization ran-dead mode stays uninstrumented until then too** — and the D-447 roster-defaults fix, offline tooling with no staging effect). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** were applied via control-plane targeted `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `5755897`, or if the deployed staging image tag no longer matches this
+commit lands after `7983154`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -153,11 +153,13 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-**The queue is EMPTY of unblocked items as of 2026-08-25 (D-444).** Everything left in §4
-waits on the user: `D310-RESIDUALS` (a) is a user action, and `WORK-35-LEDGER` plus the
-staging e2e executions (the solution-rung spec and the whole-directory re-run) ride
-UD-2's read-only-session / spend authorization. The next engineering work enters this
-queue when a user decision lands or a new discovery adds a row.
+**The queue is EMPTY of unblocked items as of 2026-08-25 (D-444; reconfirmed 2026-08-26 —
+the D-446 sweep consumed §7's last read-resolvable rows and D-447 landed DRIFT-49's
+decision-free fix).** Everything left in §4 waits on the user: `D310-RESIDUALS` (a) is a
+user action, and `WORK-35-LEDGER` plus the staging e2e executions (the solution-rung spec
+and the whole-directory re-run) ride UD-2's read-only-session / spend authorization. The
+next engineering work enters this queue when a user decision lands or a new discovery adds
+a row.
 
 ---
 
@@ -308,17 +310,16 @@ same insufficient-stopgap shape as `SEC-18-WAF`):
 
 ---
 
-## 7. Known unknowns (5 — four entry-level plus `ARCH-34`'s tfvars half)
+## 7. Known unknowns (2 — one entry-level plus `ARCH-34`'s tfvars half)
 
-**UNKNOWN stays UNKNOWN.** These are not softened into "probably fine". Each has a named
-resolution step; three of them are cheap.
+**UNKNOWN stays UNKNOWN.** These are not softened into "probably fine". The three
+read-resolvable unknowns were closed by reading on 2026-08-26 (D-446: `K5-HINT-INSTRUMENTS`,
+`D288-D317-CLOSURE`, `DRIFT-49-MODEL-ROSTER` — the last also fixed, D-447); the two rows left
+close only by user action or a policy change, never by reading.
 
 | Unknown | Register key | Named resolution step |
 |---|---|---|
 | D-192's content | `D192-PHANTOM` | **None exists — irreducible by design.** The whole remedy is one clarifying sentence scoping the meta-note's "no citation states what it decided" to *code* citations. **Do NOT adopt D-193's description as D-192's content.** |
-| D-264's annotation state | `K5-HINT-INSTRUMENTS` | **Read D-264** — its status tag and any in-place correction. One targeted read converts this entry to documentation-only. |
-| Whether D-317 closes D-288's product defect | `D288-D317-CLOSURE` | **Read both bodies** (D-288, and D-317 plus its addendum) and determine whether the named defect is closed. Do not let "D-288 resolved" retire its three other live findings. |
-| The intended model roster | `DRIFT-49-MODEL-ROSTER` | **Check DECISIONS and git history for the intended roster**; if that does not settle it, ask the user — the operative `.env` is forbidden to read. The placeholder `claude-sonnet-5` defaults are fixable **without any decision** and should not wait. (The ask-the-user half is deliberately not a queue entry: it fires only if DECISIONS and git history fail to settle it. The placeholder-default fix needs no decision and should not wait.) |
 | Whether the deployed image pin is stale | `ARCH-34-REVISION-DRIFT` (half) | **Method-bounded: unreadable by policy.** `terraform.tfvars` is gitignored and deliberately not read; with `adopt_deployed_image = true`, pin staleness is invisible from the control plane. Closable only by the user or a policy change. Standing hazard: **a gitignored tfvars means the tracked tree does not determine the plan.** |
 
 ---
@@ -417,8 +418,10 @@ detail is single-homed there, not here). The one live residual is `D310-RESIDUAL
   its row. Keys appearing in more than one section (today: `UD-1`, `D310-RESIDUALS`,
   `LANGSMITH-RETENTION`) carry consequences in §3, §5, §6 and
   §8 that are **reversed, not deleted**.
-- **§7 is closed by reading.** Three of the five unknowns resolve with a targeted document read; if
-  a session performs one, delete the row and append the finding to DECISIONS the same session.
+- **§7 is closed by reading — where reading can close it.** The three read-resolvable unknowns
+  were closed 2026-08-26 (D-446); the two remaining rows are irreducible/method-bounded and close
+  only by user action or a policy change. If a future row is read-resolvable, delete it on the
+  read and append the finding to DECISIONS the same session.
 - **No chronology in this file, ever.** No session log, no diary, no newest-first stack, no strata
   of point-in-time numbers at different depths. Per-session narration goes to git commit messages
   and to `docs/log/` — **decided by the user 2026-08-20 (DQ-1)**: `docs/log/` is append-only
