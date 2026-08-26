@@ -100,9 +100,12 @@ export function useChatSession(
   // case to justify it.
   const inFlightRef = useRef<AbortController | null>(null);
   // **D-403, ported from learning-web's D-216.** Bumping this re-runs the stream effect,
-  // giving a dead stream a manual way back. `EventSource` auto-reconnects only after a
-  // *successful* connection drops - a non-2xx response (an expired token, a 403) is terminal,
-  // and before this chat-web had no path to a fresh connection short of a full reload.
+  // giving a dead stream a manual way back. `EventSource` retries *network* errors on its own
+  // backoff, including a connection that never established (measured in the e2e harness
+  // 2026-08-26: 1 -> 4 attempts over 12s of idle behind an aborted route - this clause read
+  // "only after a *successful* connection drops" until then). What it does not retry is a
+  // non-2xx response (an expired token, a 403), which is terminal, and before this chat-web
+  // had no path to a fresh connection short of a full reload.
   //
   // learning-web has had this since D-216 and chat-web never received it, which is the D-347
   // "fixed in one direction" shape the 08-16 audit named as the finding behind its findings.
