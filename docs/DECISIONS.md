@@ -30609,3 +30609,47 @@ watch; nothing here touches it. The entry's other half (`WORK-44`, the PR backlo
 read 2026-08-23 (D-429) and re-confirmed incidentally today: zero open PRs. With both halves
 executed, the register entry's remaining action is complete and the §6.3 row is deleted
 (15 deferred remain).
+
+## D-450 — the D-427 residual closed by measurement, and the measurement indicted the template (accepted, 2026-08-26)
+
+The seventeenth Orca run (`run_c267e3850101`, executor claude/opus/high, receipt requested ==
+effective, heartbeat-confirmed). `PLAYWRIGHT-LANE`'s owed artifact — the learning-web
+disconnect-visible spec D-427 folded there — written **and run** in a serialized lane window.
+Landed as `26fce8b` (PR #414). The `PLAYWRIGHT-LANE` row is deleted: its "lane was not
+executed" half went stale weeks ago (full-lane runs in D-437/D-443/D-444 executed every spec
+the register enumerated), and its residual half is this task.
+
+**The spec** (`e2e/tests/learning/stream-disconnect-visible.spec.ts`): positive direction only
+per D-417 §C7 / D-427 — with a snapshot on screen and the stream terminally dead, the
+disconnect is stated in words (`role="alert"`) and Reconnect opens a **new** stream attempt.
+`student-ext-29` seeded per the D-443 three-file convention, deliberately its own rather than
+`studentSseReconnect`'s: that spec asserts a ceiling on the exact reopen count this one
+distorts by design. App.tsx's C7 comment lost its one stale clause ("no such spec exists here
+yet"); the decision text is untouched.
+
+**The design correction, made by measurement mid-task (executor question, coordinator
+confirmed):** the Frozen Spec said "abort-based terminal failure", mirrored from chat-web.
+Measured in learning-web's harness, `route.abort()` is **not terminal** for `EventSource` —
+the browser retries on its own backoff, 1 → 5 stream attempts over 12 s of idle with the
+button never clicked — so the mirrored "attempts grew after the click" assertion passes
+whether or not the button works. A non-2xx response **is** terminal (1 attempt, still 1 after
+12 s, exactly 2 after the click), and a 403 is the documented D-216 case the manual control
+exists for. The spec uses the 403 and records the measurement in its header.
+
+**Two findings reported by the executor, deliberately not touched in the task:**
+
+1. **The template itself is likely broken the same way.** chat-web's
+   `stream-disconnect-visible.spec.ts` uses `route.abort()` — under the measured behaviour its
+   reconnect assertion is vacuous (the attempt count grows on its own). Presumed shared, not
+   yet measured in chat's harness. New PROJECT_STATE row `CHAT-DISCONNECT-VACUOUS`
+   (ACTIVE_REMEDIATION) — the queue's one unblocked item, ending the empty-queue state.
+2. **A stale claim in that spec's header:** "learning-web has no liveness timer either" was
+   true at D-403 (2026-08-17) and false since D-405 gave learning-web `STALE_AFTER_MS = 40s`.
+   Folded into the same row's fix.
+
+**Verification.** Executor: full lane 129 passed / 2 skipped (baseline 128 + 1); failing
+direction proven by swapping the 403 for `route.continue()` (healthy stream → no banner →
+the spec fails at the banner assertion); `make e2e-typecheck`, lint, typecheck clean; pytest
+serialized after the lane at exactly 1870 / 2 / 1 xfailed. Coordinator: independent full lane
+**129 passed / 2 skipped, exit 0, full capture** — both disconnect specs green in-suite —
+plus the diff review. PR #414 merged with all 9 CI checks green.
