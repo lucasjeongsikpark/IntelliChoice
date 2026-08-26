@@ -22,7 +22,7 @@ dependencies = [
     # auth methods" without it. No local test can catch its absence (warm auth cache);
     # only a fresh-database connection can.
     "cryptography>=42",
-    "boto3>=1.43.73",
+    "boto3>=1.43.78",
     "icalendar>=7.3.0",
     "httpx>=0.28",
 ]
