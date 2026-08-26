@@ -19424,6 +19424,12 @@ to accept, and the remaining 34 flagged items have not been attempted.
 
 ## D-264 — all 44 items: 28 clear, and one skill accounts for nearly every failure (accepted, 2026-08-10)
 
+> **Annotation 2026-08-26 (D-446).** The status tag stands, but three later entries correct
+> this body without a marker here until now: D-265 corrects the headline 28 → **27**; the
+> D-266/267/268 chain corrects the `place_value_compare` diagnosis this entry took from the
+> reviewers; and D-271 (0 of 130 unambiguous defects) refutes the "class automated repair
+> could not reach" conclusion. Read those before building on this entry's numbers.
+
 The full set behind D-263's pilot. 44 items, **247.7¢** — well over the ~$1.45 estimated, because
 far more items took 3-5 rounds than ten items had suggested. **Nothing was written to the bank.**
 
@@ -21052,6 +21058,10 @@ changed.
 ### D-288 — C1 Phase 6: what four grade bands looked like the first time anyone watched
 
 **Date:** 2026-08-12 · **Session:** C1 (Phase 6) · **Status:** ⏸ partial — band walks green, one product defect open
+*(Annotation 2026-08-26, D-446: the one open product defect — the mid-exam refresh landing on
+question 1 — was root-caused, fixed and staging-verified by D-317 plus its addendum, 10/10
+reloads vs 2/6 pre-fix. This note retires only that defect; the ladder question moved to
+D-318's instrument and stays open there.)*
 
 620 items shipped across 33 topics, and the only band any e2e walk had ever touched was 6-7,
 via one topic, as a grade-3 student. Phase 6 is the phase that watches the rest. Every defect
@@ -23074,7 +23084,9 @@ including once when it was read 37 ms *before* any `GET /exam/overview` landed f
 the time endpoint as a discriminator between failing and passing runs; over two hours staging shows
 **94 × 204, 2 × 401, 1 × 400, 1 × 422**, so it is n=1 and nothing was built on it.
 
-**What is not yet known.** The fix is verified locally in both directions and by the full local
+**What is not yet known.** *(Annotation 2026-08-26, D-446: superseded by the addendum
+immediately below — the fix was deployed and staging-measured the same day, 10 of 10. A reader
+stopping at this section boundary gets the wrong state.)* The fix is verified locally in both directions and by the full local
 suite (71 passed), and *not* on staging, because it is not deployed. The staging rate before the
 fix was **2 of 6** reloads (33%), which is the number the post-deploy re-run has to beat, and 6 runs
 cannot distinguish 33% from 20%. Re-measure with `--repeat-each` at the same count or higher.
@@ -30453,3 +30465,81 @@ false premise was harmless and useful anyway: a second fully green run (positive
 coordinator that files finding-shaped errors silently is the same failure mode the register
 exists to prevent — and because "a gate naming a weekday and a date should be checked for
 agreement" (D-435) now has a sibling: *so should a finding*.
+
+## D-446 — the §7 sweep: three known unknowns closed by reading, and the roster question never needed the user (accepted, 2026-08-26)
+
+PROJECT_STATE §7's own protocol ("three of the five unknowns resolve with a targeted document
+read") executed as one sweep, on a continue request that found the execution queue empty of
+unblocked items. Each finding below deletes its §7 row in the same update.
+
+**1. `K5-HINT-INSTRUMENTS` — D-264's annotation state, read.** The status tag reads
+`(accepted, 2026-08-10)` and the body carried **no in-place correction** — while three later
+entries correct it: D-265 (the headline 28 → 27), the D-266/267/268 chain (the
+`place_value_compare` diagnosis), and D-271 (0 of 130 — refuting the "class automated repair
+could not reach" conclusion). The owed marker now exists: a dated annotation at D-264's
+heading pointing at all three. The register's second check also passes:
+`reference/HINT_SOLUTION_REVIEW.md` §5 states the D-251 frame correctly — *"an instrument
+that survives all five is not validated; it is not yet falsified"* — so
+`DOC-HINT-SOLUTION-REVIEW` required no edit. The composite five-entry state stands as the
+register describes it; the UNKNOWN converts to resolved documentation.
+
+**2. `D288-D317-CLOSURE` — read both bodies; the named defect IS closed.** D-288's one open
+product defect (the staging mid-exam refresh landing on "Question 1 of 10") was root-caused
+by D-317 as the client rendering `currentDisplayOrder`'s initial `0` before the overview
+arrived, fixed with the `positionKnownFor` render gate plus its 5 s deadline, and
+staging-verified in the addendum: **10 of 10 reloads restored** against 2 of 6 pre-fix on the
+same build (`gha-e26c4fab64c5`, 2026-08-14; P(no change) ≈ 1.8%). Two dated annotations
+applied: at D-288's status line (retiring exactly that defect and nothing else) and at
+D-317's "What is not yet known" section (which its own addendum contradicted — the
+register's warned reader-trap). Deliberately NOT retired by this closure: D-288's other
+findings follow their own tracks — the SymPy fields and the calculus 503 were fixed inside
+D-288 itself; the 17-unopenable-topics shopping list belonged to Phase 3; the retry-ladder
+question moved to D-318's instrument, whose classification remains unobserved.
+
+**3. `DRIFT-49-MODEL-ROSTER` — settled from readable artifacts; the ask-the-user half never
+fires.** The named step was "check DECISIONS and git history": QUESTION_GENERATION.md §6's
+2026-08-11 stratum table names the intended roster (Generator = Sonnet 4.5, Solver A =
+Haiku 4.5, Solver B = Sonnet 4.5 — the documented asymmetric share — Judge = Haiku 4.5), and
+D-273's Phase 1 outcome shows that roster **actually ran** ("Sonnet 4.5 as Generator,
+Haiku 4.5 as Solver A", $1.51, 86% yield, the first solver-diversity-passing run). Git
+history explains the mirror: `.env.example`'s model slots were last touched at D-230
+(`6988ee6`), *before* the 08-11 re-measure, and nothing ever propagated D-273 back into the
+defaults. Staleness, not intent — no user decision was pending. Both configuration defects
+(the mirror, and the four `anthropic.claude-sonnet-5` AccessDenied defaults) were fixed the
+same session: D-447.
+
+**Method note.** The register's UNKNOWN discipline held its shape: all three conversions
+happened by reading the named evidence, none by inference, and the one closure that could
+have over-retired live findings (D-288's) says explicitly what it does not close.
+
+## D-447 — DRIFT-49 implemented: the default roster is the measured one (accepted, 2026-08-26)
+
+The sixteenth Orca run (`run_f8d852490cd5`, executor claude/opus/high, launch receipt
+requested == effective, liveness confirmed by heartbeat at 03:46Z). Landed as `7983154`
+(PR #410, all 9 CI checks green, rebase-merged).
+
+**What changed.** `packages/curriculum/.../settings.py`'s four LLM slot defaults moved off
+`anthropic.claude-sonnet-5` — an id that reports `agreementAvailability = AVAILABLE` and
+returns AccessDenied when invoked (D-273), and which, as one id in all four slots, preflight's
+solver-diversity gate refused anyway — onto the D-273 stratum roster. `.env.example`'s
+Generator slot was corrected from the mirror (Haiku sharing with Solver A) to Sonnet 4.5
+sharing with Solver B, and its stale "the default model id below is NOT this account's
+invocable id" comment now describes the new reality with the dated-availability caveat. New
+`test_pipeline_settings_defaults.py` pins the property that must never regress — default
+Solver A and Solver B differ by `underlying_model`, so alias prefixes cannot fake diversity —
+plus the documented Generator/Solver-B share and the dated ids, isolated from both `.env`
+(`_env_file=None`) and exported `CURRICULUM_*` shell variables.
+
+**Verification.** Executor: lint clean, typecheck 0 errors, full suite **1870 passed /
+2 skipped / 1 xpassed** (baseline 1867 + 3 new); two of the three new tests verified to fail
+with `settings.py` reverted. Coordinator independent review: diff read against the Frozen
+Spec section-by-section; the new tests re-run standalone (3 passed, 0.66 s); the xpass
+verified to be `test_learning_flow.py`'s **deliberately non-strict** xfail — D-238's own
+comment documents exactly this coin flip ("XPASSed once in a full run and xfailed on the
+next, from the same tree") — so the suite is at baseline, not off it.
+
+**Scope discipline held.** Offline tooling only: nothing here ships in the staging images, no
+paid calls were made, the provider default stays `mock`, `bedrock_equation_design_model_id`'s
+D-205 empty default is untouched, and D-342's generation parking is unaffected. Documentation
+reconciled by the coordinator after acceptance: QUESTION_GENERATION.md Appendix A's
+"(Still true; …)" annotation on the shipped-default consequence now carries its dated closure.

@@ -317,7 +317,7 @@ Generator** (Sonnet 4.5, mid-tier, verified) rather than an independent third so
 
 | role | model | note |
 |---|---|---|
-| Generator | `us.anthropic.claude-sonnet-4-5-20250929-v1:0` | the capability that matters most (§6) |
+| Generator | `us.anthropic.claude-sonnet-4-5-20250929-v1:0` | the capability that matters most (§6) — since 2026-08-26 (D-447) this table is also what `settings.py` and `.env.example` default to |
 | Solver A | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | genuinely independent of the Generator |
 | Solver B | `us.anthropic.claude-sonnet-4-5-20250929-v1:0` | shares the Generator's weights — the documented asymmetric weakness, unchanged |
 | Judge | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | as measured through D-231 → D-240 |
@@ -549,7 +549,9 @@ Two consequences recorded at the time, the second of which still holds:
 1. **The shipped code default `anthropic.claude-sonnet-5` is not invocable as written.** Every ACTIVE
    Anthropic model in this region is `INFERENCE_PROFILE` only, so the bare id has no on-demand
    throughput and the call fails. Use the `us.`-prefixed inference profile id, as `.env.example`
-   already does. *(Still true; unrelated to the roster.)*
+   already does. *(The `us.`-prefix requirement still binds; the shipped-default half is
+   historical as of 2026-08-26 — D-447 moved the code defaults onto the 08-11 stratum's
+   `us.`-prefixed roster ids.)*
 2. **There is no second low-cost model to give Solver B.** With two accessible models, a
    premium-generator configuration forces Solver B onto the generator's own model. That passes the
    diversity gate but weakens it: the same weights re-reading their own question fail in correlated
