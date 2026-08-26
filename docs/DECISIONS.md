@@ -30579,3 +30579,33 @@ metric lives under `IntelliChoice/intellichoice-staging/<service>`, not the name
 first — and a `list-metrics | head` truncated the alphabetically-late custom namespaces into
 apparent absence. Both misreads were caught before any conclusion was built on them; "no
 datapoints" from a wrong address looks identical to "counter never moved" from the right one.
+
+## D-449 — ARCH-33 read: both preventive deploy gates have genuinely fired (accepted, 2026-08-26)
+
+The last immediately-executable read in the documents, taken on a continue that found no new
+work: `ARCH-33-CI-GATE`'s unread half — whether the deploy-time version gate ever actually
+*fired* — which the register called "the only evidence that a preventive control has ever
+engaged" and priced at one `gh run list`.
+
+**The census, all 136 `deploy-staging.yml` runs:** 122 success, 14 failure; every failure sits
+between 2026-07-24 (the first deploy day) and 2026-08-09, and every run since 08-11 — 49-plus
+consecutive, through today's D-448 — succeeded. By failing step: 6× Alembic migrations (all
+07-24), 2× build-and-push, 1× OIDC credential configure, 1× the deploy step itself (08-09),
+2× a cancelled double-dispatch (08-06, two runs 14 s apart on one SHA — one cancelled, not a
+gate event), and **one firing each for the two preventive gates**:
+
+| gate | run | date | head |
+|---|---|---|---|
+| deployed-version gate ("Verify the running image is this commit") | 30884342749 | 2026-08-04 | `70a7643` |
+| `/dev/token` public-edge security gate | 30121133594 | 2026-07-24 | `6cc4a27` |
+
+So the answer to ARCH-33's question is **yes — twice over**: both preventive controls have
+engaged on real deploys and blocked them, which is the property a gate cannot demonstrate by
+being wired (the repository shows wiring, never firing — the register's own distinction).
+
+**Double-counting warning heeded:** this reads the CI gates' decision history only. The
+deployed-side image-agreement concern stays with `WORK-06`/`ARCH-34` and the D-439 mechanical
+watch; nothing here touches it. The entry's other half (`WORK-44`, the PR backlog) was already
+read 2026-08-23 (D-429) and re-confirmed incidentally today: zero open PRs. With both halves
+executed, the register entry's remaining action is complete and the §6.3 row is deleted
+(15 deferred remain).
