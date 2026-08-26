@@ -30757,3 +30757,30 @@ design, and the register's justification ("writing retrospective entries from in
 produce exactly the confident-looking, unverified prose this project keeps finding bugs
 inside") stands untouched. PROJECT_STATE §7's row stays, restated as a recorded permanent
 unknown with its remedy discharged. Docs-only; no code, no verification lane implicated.
+
+## D-454 — a user-ordered error sweep of the live system: no unresolved errors; one dated claim refreshed (accepted, 2026-08-27)
+
+The user asked for any errors in the current system, resolved. The sweep, all free reads on
+build `gha-5fa15d491057` (deployed 2026-08-26, D-448), taken 2026-08-26T23:4xZ:
+
+| surface | read | verdict |
+|---|---|---|
+| CloudWatch alarms (34) | 32 OK; 2 in ALARM: both **p95-latency scale-in** | by design — autoscaling scale-in alarms sit in ALARM on an idle synthetic environment at floor capacity; they page nobody |
+| ECS services | learning `:153` 2/2, chat `:151` 1/1, steady-state events only since the deploy | healthy |
+| ERROR/CRITICAL logs, all three groups since the deploy | **0 events** | clean |
+| ALB target 5xx since the deploy | **0** | clean |
+| §7-R9 tripwire | 0.0 (carried from the deploy-day reads) | acceptance intact |
+| Nightly scheduled jobs | all three fired on the 08-26 UTC day (Sum 1.0 each) | healthy — **after** un-tripping a timezone snare: `get-metric-statistics` prints bucket timestamps in local −05:00, so the "08-25" bucket is the 08-26 UTC day. The false "today's jobs missed" finding died before being filed — D-445's check-the-date rule, applied to timezones |
+| WARNING logs | org-time convention (by design until `ORG_TIME_CONFIRMED`), dev-token issuances (the user's own D310-(a)-style logins, 22:39Z), and **fresh LangSmith 429s** | one real fact below; a suspected defect died on evidence: the `%s` in the `event` field is the format template by design — the `message` field carries the fully interpolated text, nothing is lost |
+
+**The one finding: the LangSmith cap is confirmed still standing.** The D-448 deploy's traffic
+and the user's logins produced new `langsmith.client` 429s on 2026-08-26 in both APIs, with the
+same "Monthly unique traces usage limit exceeded" body D-436 classified. This ends the
+"nothing logged since 08-20T04Z" era and proves the silence was low traffic, not recovery —
+exactly what §8 predicted. §8's dated sentence is refreshed in place. The remedy fork remains
+**UD-13** (upgrade / sample / disable tracing / accept the monthly blackout) — a user decision
+this sweep neither makes nor nudges.
+
+**Nothing else to resolve.** No repo defect surfaced; the two not-OK alarms are design; the
+known user-gated risks (UD-3 gross-spend visibility, UD-4 RDS posture, free-tier walls) are
+carried in §8 unchanged, with their dates still honest.

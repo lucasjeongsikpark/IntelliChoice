@@ -352,7 +352,9 @@ Every item carries its register key. These are the headline live risks, not the 
   failures 08-16 → 08-20T04:00Z, **100% HTTP 429 "tenant exceeded usage limits: Monthly unique
   traces usage limit exceeded"** — zero timeout/connection lines, so the NAT leg is exonerated;
   plus one isolated ~1-minute 403 burst (8 lines) on 2026-08-10, self-resolved. Nothing logged
-  since 08-20T04Z: silence means little traced traffic, **not recovery** — the cap presumably
+  since 08-20T04Z until the D-448 deploy's traffic — then **fresh 429s on 2026-08-26** (both
+  APIs, same "Monthly unique traces usage limit exceeded" body, read during the D-454 error
+  sweep), confirming the earlier silence meant little traced traffic, **not recovery** — the cap presumably
   stands until the provider's monthly reset, the remedy fork is UD-13 (user), and the flap
   routing to the quiet topic remains D-401's intended design. Separately, the account's run
   retention for **minors' data** has never been read (UD-11).
