@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-26** (D-451: `CHAT-DISCONNECT-VACUOUS` fixed — the chat reconnect assertion can fail now; two comment/allowance nits queue as `DISCONNECT-NITS`. Same day: D-446..D-450) |
-| Last product-code commit | **`825ce76`** (2026-08-26, the chat disconnect-spec 403 conversion, D-451); before it `26fce8b` (D-450) |
+| Snapshot date | **2026-08-26** (D-452: `DISCONNECT-NITS` closed — the disconnect pair is fully reconciled across both apps; the queue is **empty of unblocked items again**. Same day: D-446..D-451, including the D-448 deploy) |
+| Last product-code commit | **`519dff4`** (2026-08-26, the DISCONNECT-NITS pair, D-452); before it `825ce76` (D-451) |
 | Deployed staging image (both ECS services) | **`gha-5fa15d491057`** = head `5fa15d4` (product code `7983154`), deployed 2026-08-26 (D-448, run 32930929448) |
 | Deployed task definitions | learning `:153` (2/2 running), chat `:151` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **2 product commits** (`5fa15d4` → `825ce76`: the D-450/D-451 e2e specs, fixtures, and code comments — test-side only, no runtime behavior change waits on a deploy). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** remain applied via control-plane targeted `terraform apply` (§8) |
+| Repo-vs-deployed gap | **3 product commits** (`5fa15d4` → `519dff4`: the D-450/D-451/D-452 e2e specs, fixtures, and code comments — test-side only, no runtime behavior change waits on a deploy). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** remain applied via control-plane targeted `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `825ce76`, or if the deployed staging image tag no longer matches this
+commit lands after `519dff4`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -97,11 +97,10 @@ tests on 2026-08-21/22.
 |---|---|---|---|
 | `D310-RESIDUALS` | One follow-up surviving the executed D-310 rotation: stale dead secrets in operator-browser `localStorage` | See 4.3 — a user action on operator machines; the (b) `ps` measurement and (c) README fix landed 2026-08-24 (D-437) | user |
 
-### 4.2 ACTIVE_IMPLEMENTATION (2) — decided or specified, not built
+### 4.2 ACTIVE_IMPLEMENTATION (1) — decided or specified, not built
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
-| `DISCONNECT-NITS` (post-migration discovery; evidence: D-451) | Two residuals the D-451 executor reported out-of-scope: `e2e/tests/learning/stream-disconnect-visible.spec.ts` still carries a `failedRequests: true` allowance a fulfilled 403 makes unnecessary (measured: no requestfailed event fires — the allowance mildly broadens what that spec's audit tolerates), and `apps/learning-web/src/hooks/useLearningSession.ts` ~134–137 carries the same wrong "auto-reconnects only after a *successful* connection drops" clause D-451 corrected in chat's hook | Tighten the allowance to `statuses: [403]` (mirroring chat's) and correct the one comment clause; verify with the serialized local lane. Two-line-diff scale | engineering |
 | `WORK-35-LEDGER` | U7 consolidation sizing gated on a staging measurement nobody took — **eligibility-gate finding 2026-08-25 (D-442): "free" meant dollars, not authorization** — the register's own evidence line says the sizing read needs a database session, and `DB-CONTENT-VERIFY` homes that session on UD-2's read-only-session rider | **Blocked on UD-2**: when the user authorizes the time-boxed read-only DB session, take the sizing read (with `G2-LOCATOR-PURGE`'s `__resume__` query in the same session), then hold the design review and size N against the 90/90/365 windows. Carries two review inputs: D-420's redacted visitor free text no retention job covers, and D-440's `existing_facts` crossover (~100–120 facts vs the 32k gateway ceiling; which-facts-to-drop deliberately unmade) | engineering, gated on user |
 
 ### 4.3 The item an agent should be able to act on from this file alone
@@ -154,9 +153,8 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-| # | Item(s) | Ordering evidence |
-|---|---|---|
-| 1 | `DISCONNECT-NITS` | The only unblocked engineering item (added 2026-08-26, D-451): the D-451 executor's two out-of-scope residuals — an unnecessary audit allowance and one wrong comment clause, both in learning-web's half of the disconnect pair. Free, local, two-line-diff scale; the corrected forms already exist in chat's half |
+**The queue is EMPTY of unblocked items again as of 2026-08-26 (D-452).** The next
+engineering work enters when a user decision lands or a new discovery adds a row.
 
 Everything else in §4 waits on the user: `D310-RESIDUALS` (a) is a user action, and
 `WORK-35-LEDGER` plus the staging e2e executions (the solution-rung spec and the

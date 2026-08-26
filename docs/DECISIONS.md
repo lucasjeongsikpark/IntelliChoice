@@ -30700,3 +30700,39 @@ test, it is the only end-to-end SSE delivery proof in the suite.
 still carries the now-unneeded `failedRequests: true` allowance, and `useLearningSession.ts`
 ~134–137 still carries the same wrong retry-semantics clause. Queued as `DISCONNECT-NITS`
 (two-line-diff scale) rather than fixed as a detour.
+
+## D-452 — DISCONNECT-NITS closed: the disconnect pair reconciled across both apps, and a second flake signature on the record (accepted, 2026-08-26)
+
+The nineteenth Orca run (`run_e8dfdcefed32`, executor claude/opus/high, receipt requested ==
+effective, heartbeat-confirmed). The two D-451 residuals, applied exactly at two-line-diff
+scale and landed as `519dff4` (PR #418): learning's disconnect spec dropped the
+`failedRequests: true` allowance a fulfilled 403 makes unnecessary (its `audit.allow` now
+matches chat's one-line shape), and `useLearningSession.ts`'s refuted "auto-reconnects only
+after a *successful* connection drops" clause was replaced with the measured semantics plus
+citation. The disconnect pair — spec, allowance shape, and hook comment — now says the same
+true thing in both apps.
+
+**Verification.** Executor: focused spec 1 passed; full lane 129 / 2 exit 0; e2e-typecheck /
+lint / typecheck clean; pytest serialized at exactly 1870 / 2 / 1 xfailed; learning-web
+tsc/oxlint/vitest clean. Coordinator: diff review plus **two** independent full-lane runs —
+the second green at 129 / 2, exit 0, 6.4 m with both disconnect specs and `hint-displacement`
+passing.
+
+**The first coordinator run was red, and the red is the record's second flake signature.**
+`hint-displacement.spec.ts` ("a requested hint stays on screen long enough to read") hit its
+300 s test timeout inside its 500 ms dwell-poll loop — the hint never left the screen — on a
+run stretched to **18.4 m against the usual ~6.3 m** by ordinary desktop load (load average
+5–7, no runaway process). The spec is untouched by the diff, the executor's run of the same
+tree passed it in normal time, and the immediate re-run passed it in 6.4 m. n=1,
+load-correlated: recorded, not acted on. Together with D-451's `KeyError: 'phase'` signature,
+the pattern to watch is now: **a red on an untouched timing-sensitive spec inside an
+abnormally slow run means machine load first, regression second** — re-run at normal load
+with full capture before treating it as a finding. (Kin to the D-445 fast-red signature,
+which points the opposite direction: an implausibly *fast* red suite means a dead Docker
+daemon.)
+
+**State.** `DISCONNECT-NITS` deleted; the execution queue is **empty of unblocked items
+again** — six sessions (D-446..D-452) consumed everything agent-actionable in one day,
+including a deploy. What remains is the user tail: UD-2 (the staging evidence: sizing read,
+both paid e2e runs, the LB-08 post-optimisation measurement), UD-13, UD-5's EMF promotion,
+D310 (a), and the 2026-08-31 07:17 UTC scheduled-controls check.
