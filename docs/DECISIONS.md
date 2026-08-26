@@ -30653,3 +30653,50 @@ the spec fails at the banner assertion); `make e2e-typecheck`, lint, typecheck c
 serialized after the lane at exactly 1870 / 2 / 1 xfailed. Coordinator: independent full lane
 **129 passed / 2 skipped, exit 0, full capture** — both disconnect specs green in-suite —
 plus the diff review. PR #414 merged with all 9 CI checks green.
+
+## D-451 — the template fixed the way it indicted itself: measured, converted, and proven able to fail (accepted, 2026-08-26)
+
+The eighteenth Orca run (`run_1aa46054238a`, executor claude/opus/high, receipt requested ==
+effective, heartbeat-confirmed). PROJECT_STATE §4.1's `CHAT-DISCONNECT-VACUOUS` (D-450's
+finding) executed exactly as its row demanded: **measure in chat's own harness before
+converting**. Landed as `825ce76` (PR #416).
+
+**The measurement reproduced D-450's numbers.** In chat's harness, with the button never
+clicked: `route.abort()` gave 1 stream attempt at the banner → **4 after 12 s of idle** (7
+after the click) — the reconnect poll could not fail. A fulfilled **403** gave 1 → still 1
+after 12 s → exactly **2 after the click**, identical to learning-web's numbers: the two apps'
+stream/hook architecture behaves the same way, not merely looks the same.
+
+**The vacuity was demonstrated, not inferred.** A temporary spec (written for the proof,
+then deleted) removed the click: the 403 form **fails** at the reconnect poll
+(`Expected: > 1, Received: 1`) while the abort form **passes** (1 → 2 with no click at all).
+That pair is the defect and the fix in two lines of evidence.
+
+**What changed.** The spec uses the 403 pattern; `audit.allow` tightened — `failedRequests:
+true` dropped (measured: a fulfilled 403 fires no `requestfailed` event) and `statuses: [403]`
+added. The header's two stale claims were rewritten with the measurements while keeping the
+D-403 history and the deleted-flaky-control story: D-404/D-405 gave **both** apps the
+`STALE_AFTER_MS = 40_000` liveness timer (the header claimed neither had one), and an abort
+is a network error the browser retries — only a non-2xx is terminal. One contradicted comment
+clause in `useChatSession.ts` was corrected under D-450's one-clause precedent.
+
+**Verification.** Executor: full lane 129 passed / 2 skipped exit 0 (no count change);
+`make e2e-typecheck`/lint/typecheck clean; pytest serialized after the lane at exactly
+1870 / 2 / 1 xfailed; chat-web's own oxlint/tsc/vitest (67 tests) clean. Coordinator:
+independent full lane **129 / 2, exit 0, full capture**, both disconnect specs green, plus
+the diff review.
+
+**A CI flake, recorded with its signature (first observation).** PR #416's first
+`lint-typecheck-test` run failed on `apps/learning-api/tests/`
+`test_stream_personalized_hint_over_http.py::test_a_personalized_hint_arrives_on_the_http_stream_a_student_is_holding_open`
+with `KeyError: 'phase'` at `finalize["phase"]` — the D-433 real-uvicorn SSE harness, the
+first of its kind in the suite, reading a frame that was not the finalize snapshot. The file
+is untouched by the PR, the same test passed in both local serialized runs the same day, and
+the CI rerun passed. n=1: recorded, not acted on. **If it recurs, the fix direction is the
+D-288-§4 class** (wait for the *right* frame, not the next frame) — do not delete or skip the
+test, it is the only end-to-end SSE delivery proof in the suite.
+
+**Two executor-reported residuals, deliberately not folded into the task:** learning's spec
+still carries the now-unneeded `failedRequests: true` allowance, and `useLearningSession.ts`
+~134–137 still carries the same wrong retry-semantics clause. Queued as `DISCONNECT-NITS`
+(two-line-diff scale) rather than fixed as a detour.
