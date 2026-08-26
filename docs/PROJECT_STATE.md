@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-26** (D-446/D-447: the §7 sweep closed the three read-resolvable unknowns and landed DRIFT-49's roster-defaults fix; the queue stays **empty of unblocked items**) |
+| Snapshot date | **2026-08-26** (D-448: the user-ordered deploy shipped the whole 34-commit gap; earlier the same day D-446/D-447 closed §7's read-resolvable unknowns and landed DRIFT-49; the queue stays **empty of unblocked items**) |
 | Last product-code commit | **`7983154`** (2026-08-26, the DRIFT-49 roster-defaults fix, D-447); before it `5755897` (the ten weekly dependabot merges, D-445) |
-| Deployed staging image (both ECS services) | **`gha-898e2fb4270b`** = commit `898e2fb` (product code `67cd708`), deployed 2026-08-23 (D-426, run 32613654181) |
-| Deployed task definitions | learning `:152` (2/2 running), chat `:150` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **34 product commits** (`898e2fb` → `7983154`: the SPA date-zone pair — both defects live on staging until the next deploy — the DRIFT-91 relocation, the 12 dependabot bumps (D-430), the seam-(b) healing (D-432, **staging's seam (b) is still a dead end until the next deploy**), the D-433 outcome counter — **staging's personalization ran-dead mode stays uninstrumented until then too** — and the D-447 roster-defaults fix, offline tooling with no staging effect). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** were applied via control-plane targeted `terraform apply` (§8) |
+| Deployed staging image (both ECS services) | **`gha-5fa15d491057`** = head `5fa15d4` (product code `7983154`), deployed 2026-08-26 (D-448, run 32930929448) |
+| Deployed task definitions | learning `:153` (2/2 running), chat `:151` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
+| Repo-vs-deployed gap | **0 product commits** — the D-448 deploy shipped everything through `7983154`; no migrations were in the window. The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** remain applied via control-plane targeted `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -43,39 +43,39 @@ never violate are in the repo-root `CLAUDE.md`.
 
 ## 3. Repository vs deployed
 
-**The D-426 deploy (2026-08-23, run 32613654181) shipped `gha-898e2fb4270b`** (product code
-`67cd708`) to both services with all workflow gates green (deployed-version, `/dev/token` edge,
-canary bake — rollback skipped, smoke through CloudFront). **The gap reopened the same day with
-the D-324 date-zone pair** (`8e82ba9` + `805e986`): the SPA date-rendering fixes are at HEAD
-only, so staging still renders calendar-approval times in the viewer's zone and date-only labels
-with the back-a-day edge until the next deploy. **The 12 dependabot patch/minor merges (D-430,
-landed 2026-08-24 UTC)** widened the gap to 16 commits: each merged with 9/9 CI checks green and
-the full local suite green on the merged HEAD; staging is unaffected until the next deploy.
+**The D-448 deploy (2026-08-26, run 32930929448, user-ordered) shipped `gha-5fa15d491057`**
+(head `5fa15d4`, product code `7983154`) to both services with all workflow gates green
+(deployed-version, `/dev/token` edge, canary bake — rollback skipped, the D-439 **blocking
+deployed-image consistency gate**, SPA syncs + CloudFront invalidations, smoke through
+CloudFront). It closed the whole 34-commit gap; **repo and staging agree as of this snapshot**,
+and no migrations were in the window (`8509c0486d8d`, applied 2026-08-23, remains the latest).
 
-**Facts from the D-426 deploy:**
+**Facts from the D-448 deploy:**
 
-- Migration **`8509c0486d8d`** (`chat_escalation_sends`) **applied 2026-08-23** — D-421's
-  duplicate-send guard now protects staging, and `WORK-03` is closed (the one DB-content claim
-  the deploy could settle; the rest stay with `DB-CONTENT-VERIFY`, §6.2).
-- **The B4 escalation series (D-420/421/422) is now deployed but still never observed live.**
-  Its evidence is CI plus this deploy's gates; a live re-walk (UD-1 Option A's second half)
-  remains available work for the next live-probe session.
-- **LB-08's 10.55 s pre-optimisation baseline is recorded durably in D-426** (measured on
-  `gha-44a12dfc9549`, now unreproducible). The optimisation itself is **built as of D-441**
-  (HEAD only): the post-optimisation staging comparison remains future paid work under UD-2 and
-  must use D-441's span mapping — summing `langgraph.*` durations now double-counts the
-  concurrent pair.
-- **COST-22's pre-initialised label series are live** (verified post-deploy:
-  `qa_service_degraded_total` exposes all three `stage` series in the deployed chat-api
-  namespace) — the ~34 always-present custom-metric series upper bound is now the account's
-  actual state (cost context: UD-3/COST-25).
-- The §7-R9 tripwire held through the deploy's task drain: `learning_checkpoint_repairs_total`
-  read 0.0 before and after (2026-08-23T03:1xZ) — the `ARCH-17-COMMIT-SEAM` acceptance is
-  intact.
-- The deploy pipeline still has **no artifact-freshness check for the SPAs** — no content-hash,
-  ETag or digest comparison; the SPA curls "would pass against a completely stale deployment"
-  (`DRIFT-24-ARTIFACT-FRESHNESS` — carried here for the operational fact only). The
-  deployed-version gate covers the API images, not the static assets.
+- **Now live on staging for the first time:** the D-324 date-zone pair (calendar-approval times
+  render in the event's zone; the date-only back-a-day edge is gone), the seam-(b) healing
+  (D-432 — a mid-interrupt hit now degrades to a re-answer instead of a dead end), the D-433
+  personalization outcome counter (staging's ran-dead mode is instrumented at last —
+  Prometheus-only pending UD-5's EMF ruling), the D-441 chat-graph fan-out and input bounds
+  (D-440), the DRIFT-91 relocation, and the 22 dependabot bumps (D-430, D-445). D-447's
+  roster defaults ship in the images but are offline tooling with no runtime path.
+- **The §7-R9 tripwire held through this deploy's task drain too:**
+  `learning_checkpoint_repairs_total` read 0.0 in both service namespaces before (3-day
+  window) and after (4 h window, 16 datapoints, read 2026-08-26T04:58Z) — the
+  `ARCH-17-COMMIT-SEAM` acceptance is intact on `gha-5fa15d491057`.
+- **LB-08's post-optimisation staging comparison is now measurable** — this deploy puts the
+  D-441 optimisation live for the first time. The measurement itself stays paid work under
+  UD-2 and must use D-441's span mapping (summing `langgraph.*` durations double-counts the
+  concurrent pair) against D-426's durable 10.55 s pre-optimisation baseline.
+- **The B4 escalation series (D-420/421/422) remains deployed but never observed live**
+  (carried from D-426); a live re-walk remains available work for the next live-probe session.
+- **COST-22's pre-initialised label series were verified live on the previous build**
+  (2026-08-23, `gha-898e2fb4270b`); nothing in this window changes that surface (cost context:
+  UD-3/COST-25).
+- The deploy pipeline still has **no artifact-freshness check for the SPAs** — this run synced
+  and invalidated both SPAs, but the gate class is still absent: no content-hash, ETag or
+  digest comparison (`DRIFT-24-ARTIFACT-FRESHNESS`). The deployed-version and image-consistency
+  gates cover the API images, not the static assets.
 
 ---
 
@@ -296,7 +296,8 @@ request's connection, D-110 §3): both seams heal and count as of D-432 — mid-
 `checkpoint_reconcile.py`, mid-interrupt inside the resumed `intervention_choice` node — so a
 live hit degrades to a re-answer/re-finalize, not a dead end. Unchanged terms: the counter is
 charted and **alarmed nowhere**; **any movement in `learning_checkpoint_repairs_total` voids the
-acceptance** (read 0.0 lifetime as of 2026-08-24 UTC, build `gha-898e2fb4270b`). Whether to
+acceptance** (read 0.0 lifetime as of 2026-08-26T04:58Z, build `gha-5fa15d491057`, through the
+D-448 deploy's task drain). Whether to
 alarm it or accept the dashboard cadence is UD-5's sub-question.
 
 Two further accepted residuals belong in this launch-readiness set (W-22; minors-primary product,
@@ -369,7 +370,8 @@ Every item carries its register key. These are the headline live risks, not the 
 - **Method rule (narrowed 2026-08-24, D-439): the image-agreement class of drift is now watched
   mechanically** — a blocking post-deploy deployed-image consistency gate plus the weekly
   `scheduled-controls.yml` run (first dispatch green: run 32783980237, `VERDICT: OK` on
-  `gha-898e2fb4270b`; a second manual run 2026-08-26 also green — coverage continuous through
+  `gha-898e2fb4270b`; a second manual run 2026-08-26 also green, and the D-448 deploy's own
+  blocking post-deploy gate passed on `gha-5fa15d491057` — coverage continuous through
   08-26. **The first *scheduled* firing is due Monday 2026-08-31 07:17 UTC — verify it fired**;
   the workflow landed after 08-24's slot, so no cron has been missed yet, D-445). What still has **no detector**: terraform-vs-deployed drift in general —
   `terraform apply` is absent from the deploy workflow (`F-03-DRIFT-DETECTOR`) and the
