@@ -54,11 +54,7 @@ test.describe.configure({ timeout: 180_000 });
 test("a dead learning stream says so in words, and offers a way back", async ({ page, audit }) => {
   // Refusing the stream is the subject of the test, so its 403 and the browser's console
   // complaint about it are expected noise rather than findings.
-  audit.allow({
-    failedRequests: true,
-    consoleErrors: ["Failed to load resource"],
-    statuses: [403],
-  });
+  audit.allow({ consoleErrors: ["Failed to load resource"], statuses: [403] });
 
   // Registered before the first navigation, so no attempt is ever missed - including the one
   // the stream effect makes the moment `checkpointReady` flips.
