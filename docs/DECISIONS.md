@@ -31195,3 +31195,48 @@ to fix here.
 **Verification:** coordinator confirmed zero tracked-file diff, the corpus DB rolled back
 (mock provenance intact on all 159 rows), 24 new tests green, and the drift-guard result;
 `make lint typecheck test` green.
+
+## D-463 — E5.2 accepted: defect-detection precision/recall upgrades "12/12" to a 6-class F1, and finds a real gate blind spot (accepted, 2026-08-29)
+
+The resume-evidence program's Theme-5 experiment, `docs/resume_evidence/05_content_generation/
+E5_2_REPORT.md`. It replaces the historical single-class 12/12 seeded-defect control (D-229)
+with a measured precision/recall/F1 across six defect classes. No product code, no
+`scripts/audit_authored_bank.py`, no bank/DB/curriculum writes; 27 new tests; suite 2142 / 2 / 1.
+Spend **131.23¢ of the 200¢ cap** (0.32¢/call over 408 calls; 2 truncation call failures
+excluded from every solver figure per D-230).
+
+**The corpus.** 102 labeled defects across 6 classes (17 each: wrong numeric answer,
+no-correct-option, mismatched solution, mismatched hint ladder, contradictory constraints,
+near-duplicate) + 102 disjoint clean controls, across 29/29 topics, 87 skills, all 5 tiers,
+every mutation verified against the real gate or `route_answer` before admission.
+
+**Headline.** Combined pipeline recall **72/100, precision 1.000, F1 0.837, at 0/102 clean
+false positives.** Per detector alone: deterministic gate 51/102, SymPy re-derivation 34/102,
+blind solver panel (Haiku 4.5 + Sonnet 4.5) 47/100. This is the honest defect-detection number
+the theme lacked.
+
+**Four findings worth carrying:**
+1. **`mismatched_hint_ladder` is 0/17 on every detector** — 17 of the 28 total misses. Nothing
+   in the generation gate path relates a hint to its stem; this is exactly the gap the
+   built-but-unwired hint/solution review subsystem (`HINT_SOLUTION_REVIEW.md`) was designed
+   for. Queued as an observation on `CONTENT-GATE-HINT-COHERENCE`.
+2. **`contradictory_constraints` is 0/17 on the gate but 13/15 on the solvers** — the exact
+   mirror of D-276 (the blind solvers catch semantic defects SymPy cannot, and vice-versa;
+   neither replaces the other).
+3. **The near-duplicate cosine threshold (0.05) catches typography clones 6/6 but renamed
+   clones 2/6 and name+noun clones 0/5**, while the **unwired `arithmetic_identity` check
+   catches 17/17 for free** — wiring it into the dedup stage would close the clone gap the
+   embedding threshold misses.
+4. **`arithmetic_identity` flagged 4 "clean-set false positives" that are, hand-checked, 6
+   genuine same-arithmetic duplicate pairs already in the approved bank.** This is a real
+   non-quantity content defect (D-342's carve-out keeps these reportable) — not a quantity
+   gap, so not parked.
+
+**One defect the executor found and fixed in its OWN harness (not product code), documented
+in report §4.1:** the `no_correct_option` admission test admitted 1 of 17 items whose uniform
+shift happened to move a distractor onto the true answer; the admission test now uses
+`resolved_matches` returning nothing, and that item was rebuilt and re-scored. In scope
+(the benchmark's own corpus), honestly written up.
+
+**Verification:** coordinator confirmed zero tracked-file diff, 27 new tests green, corpus
+rebuild byte-identical, `--score-only` reproduces the metrics; `make lint typecheck test` green.
