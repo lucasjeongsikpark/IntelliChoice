@@ -31240,3 +31240,40 @@ shift happened to move a distractor onto the true answer; the admission test now
 
 **Verification:** coordinator confirmed zero tracked-file diff, 27 new tests green, corpus
 rebuild byte-identical, `--score-only` reproduces the metrics; `make lint typecheck test` green.
+
+## D-464 — E6.2 accepted: 100% per-hop trace coverage measured, and the measurement found a trace-ID collision the coverage number hides (accepted, 2026-08-29)
+
+The resume-evidence program's Theme-6 trace experiment, `docs/resume_evidence/06_eval_observability/
+E6_2_REPORT.md`. A per-hop coverage harness + 28 tests, run over two pinned-UTC staging windows on
+build `gha-5fa15d491057`: E1.1's 25-VU sustained k6 run (13,571 traces) and a 4-minute chat burst
+(434 traces). No product code changed (`facts_from_documents` is a helper inside the new E6.2
+test file, not a product function); suite 2,170 / 2 / 1 (baseline 2,145 + 28 new). AWS read-only.
+
+**The coverage number generalizes D-400's narrow 99.9% join into a real per-hop measurement.**
+100.00% chain coverage on authenticated 2xx requests (**12,888/12,888**), 0.00% missing-span rate
+on every instrumented hop: FastAPI 0/13,855, SQLAlchemy 0/11,709, LangGraph 0/11,709, Bedrock
+0/120. Every route in both windows matched the code-derived expected-hop map (the 25 LangGraph
+node-span names in `graph/build.py` are current; `unmapped_routes` empty).
+
+**The finding the coverage number hides — `TRACE-ID-COLLISION` (queued).** k6 counted 13,550
+requests but X-Ray holds 13,531 traces, and the app's own access log proves the gap is **not** an
+export drop: **19 requests (0.14%) share an OTel `trace_id` with a different request in the same
+task**, so X-Ray merges them (one real trace has an entire `POST /dev/token` nested inside a
+`POST .../answers`). The nested-route counts match the per-route shortfall exactly (15 answers /
+3 dev-token / 1 topics vs −15/−3/−1), it replicates independently in the chat window (1/424), and
+all 38 colliding span_ids are present in X-Ray → measured export loss is 0. The mechanism (a
+keep-alive context leak) is a **labelled hypothesis, not verified** — it needs a local repro.
+
+**Two things could not be measured, stated as such rather than filled in.** The **MCP hop** — 0
+MCP spans exist anywhere in retention because no traffic exercises it (no spend was incurred; 210
+chat traces already covered the Bedrock hop) — and the **collector export success/failure rate**
+(ADOT serves those counters on `localhost:8888` and nothing scrapes it → `COLLECTOR-STATS-UNSCRAPED`).
+Plus `CHECKPOINTER-UNINSTRUMENTED` (low): `AsyncPostgresSaver` uses psycopg directly, so no span
+represents checkpoint I/O. AUD-F-12's export-alarm gap and SILENT-500S restated unchanged.
+
+**Verification caveat, honestly recorded.** The 2,170-pass full run was on a tree differing from
+final only by a behaviour-preserving rewrite of an empty branch in the E6.2 test helper; a
+final-tree full-suite re-run was abandoned at 26% when the host ran out of memory (environment,
+not code — the same host-pressure that halted E1 earlier). Coordinator independently confirmed:
+`git diff HEAD` empty, 28 E6.2 tests green on the final tree, no other module imports the harness.
+A coordinator full-suite run follows before the next experiment starts.

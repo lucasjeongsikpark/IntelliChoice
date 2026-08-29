@@ -1,0 +1,10 @@
+window_label,route,bucket,expected_hops_on_2xx,traces_total,traces_2xx,traces_non_2xx_short_circuit,complete_chain_2xx,coverage_2xx,coverage_naive_all_statuses,missing_hops,status_counts
+e1_sustained_25vu_10m,GET /metrics,internal,,40,40,0,40,1.0,1.0,,200:40
+e1_sustained_25vu_10m,POST /dev/token,unauthenticated,fastapi,967,967,0,967,1.0,1.0,,200:967
+e1_sustained_25vu_10m,POST /learning/sessions,authenticated,fastapi,970,970,0,970,1.0,1.0,,200:970
+e1_sustained_25vu_10m,POST /learning/sessions/{id}/answers,authenticated,fastapi|langgraph|sqlalchemy,9655,9653,2,9653,1.0,0.9997928534438115,,200:9653|409:2
+e1_sustained_25vu_10m,POST /learning/sessions/{id}/student,authenticated,fastapi|langgraph|sqlalchemy,970,970,0,970,1.0,1.0,,200:970
+e1_sustained_25vu_10m,POST /learning/sessions/{id}/topics,authenticated,fastapi|langgraph|sqlalchemy,969,966,3,966,1.0,0.9969040247678018,,200:966|409:3
+chat_burst_20260829T0050Z,GET /metrics,internal,,15,15,0,15,1.0,1.0,,200:15
+chat_burst_20260829T0050Z,POST /chat/sessions,authenticated,fastapi,209,209,0,209,1.0,1.0,,200:209
+chat_burst_20260829T0050Z,POST /chat/sessions/{id}/messages,authenticated,bedrock|fastapi|langgraph|sqlalchemy,210,120,90,120,1.0,0.5714285714285714,,200:120|429:90
