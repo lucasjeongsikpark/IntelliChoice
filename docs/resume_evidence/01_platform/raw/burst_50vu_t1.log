@@ -1,0 +1,221 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: -
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 50 max VUs, 10m30s max duration (incl. graceful stop):
+              * learning_flow: 1 iterations for each of 50 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+
+running (00m01.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m01.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m02.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m02.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m03.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m03.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m04.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m04.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m05.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m05.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m06.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m06.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m07.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m07.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m08.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m08.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m09.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m09.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m10.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m10.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m11.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m11.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m12.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m12.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m13.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m13.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m14.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m14.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m15.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m15.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m16.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m16.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m17.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m17.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m18.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m18.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m19.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m19.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m20.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m20.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m21.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m21.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m22.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m22.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m23.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m23.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m24.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m24.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m25.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m25.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m26.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m26.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m27.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m27.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m28.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m28.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m29.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m29.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m30.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m30.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m31.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m31.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m32.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m32.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m33.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m33.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m34.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m34.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m35.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m35.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m36.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m36.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m37.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m37.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m38.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m38.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m39.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m39.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m40.0s), 50/50 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 50 VUs  00m40.0s/10m0s  00/50 iters, 1 per VU
+
+running (00m41.0s), 39/50 VUs, 11 complete and 0 interrupted iterations
+learning_flow   [  22% ] 50 VUs  00m41.0s/10m0s  11/50 iters, 1 per VU
+
+
+  █ THRESHOLDS 
+
+    http_req_duration
+    ✗ 'p(95)<3000' p(95)=8.78s
+
+      {phase:cold}
+      ✓ 'p(95)<3600000' p(95)=0s
+
+      {phase:warm}
+      ✓ 'p(95)<3600000' p(95)=8.78s
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+    http_reqs
+    ✓ 'rate>1' rate=16.788112/s
+
+      {phase:cold}
+      ✓ 'count>=0' count=0
+
+      {phase:warm}
+      ✓ 'count>=0' count=700
+
+    learning_answers_submitted
+    ✓ 'count>0' count=500
+
+    learning_attendance_blocked
+    ✓ 'count==0' count=0
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 700     16.788112/s
+    checks_succeeded...: 100.00% 700 out of 700
+    checks_failed......: 0.00%   0 out of 700
+
+    ✓ dev-token 200
+    ✓ create session 200
+    ✓ select student 200
+    ✓ select topic 200
+    ✓ answer 200
+
+    CUSTOM
+    learning_answer................: avg=2.9s    min=1s      med=2.75s    max=11.71s   p(50)=2.75s    p(90)=3.36s    p(95)=4.39s    p(99)=5.43s   
+    learning_answers_submitted.....: 500    11.991508/s
+    learning_attendance_blocked....: 0      0/s
+    learning_create_session........: avg=99.63ms min=59.81ms med=96.47ms  max=158.81ms p(50)=96.47ms  p(90)=128.71ms p(95)=145.73ms p(99)=156.3ms 
+    learning_dev_token.............: avg=193.7ms min=93.27ms med=204.85ms max=273.06ms p(50)=204.85ms p(90)=270.83ms p(95)=271.38ms p(99)=272.31ms
+    learning_flow_total............: avg=41.23s  min=40.26s  med=41.34s   max=41.69s   p(50)=41.34s   p(90)=41.62s   p(95)=41.68s   p(99)=41.69s  
+    learning_select_student........: avg=3.13s   min=1.61s   med=2.49s    max=8.78s    p(50)=2.49s    p(90)=4.37s    p(95)=8.71s    p(99)=8.78s   
+    learning_select_topic..........: avg=8.59s   min=1.59s   med=8.98s    max=12.11s   p(50)=8.98s    p(90)=10.65s   p(95)=10.96s   p(99)=11.73s  
+    learning_status_4xx............: 0      0/s
+    learning_status_5xx............: 0      0/s
+
+    HTTP
+    http_req_duration..............: avg=2.93s   min=59.81ms med=2.7s     max=12.11s   p(50)=2.7s     p(90)=4.76s    p(95)=8.78s    p(99)=10.43s  
+      { expected_response:true }...: avg=2.93s   min=59.81ms med=2.7s     max=12.11s   p(50)=2.7s     p(90)=4.76s    p(95)=8.78s    p(99)=10.43s  
+      { phase:cold }...............: avg=0s      min=0s      med=0s       max=0s       p(50)=0s       p(90)=0s       p(95)=0s       p(99)=0s      
+      { phase:warm }...............: avg=2.93s   min=59.81ms med=2.7s     max=12.11s   p(50)=2.7s     p(90)=4.76s    p(95)=8.78s    p(99)=10.43s  
+    http_req_failed................: 0.00%  0 out of 700
+    http_reqs......................: 700    16.788112/s
+      { phase:cold }...............: 0      0/s
+      { phase:warm }...............: 700    16.788112/s
+
+    EXECUTION
+    iteration_duration.............: avg=41.23s  min=40.26s  med=41.34s   max=41.69s   p(50)=41.34s   p(90)=41.62s   p(95)=41.68s   p(99)=41.69s  
+    iterations.....................: 50     1.199151/s
+    vus............................: 39     min=39       max=50
+    vus_max........................: 50     min=50       max=50
+
+    NETWORK
+    data_received..................: 2.9 MB 70 kB/s
+    data_sent......................: 278 kB 6.7 kB/s
+
+
+
+
+running (00m41.7s), 00/50 VUs, 50 complete and 0 interrupted iterations
+learning_flow ✓ [ 100% ] 50 VUs  00m41.7s/10m0s  50/50 iters, 1 per VU
+time="2026-08-29T19:28:48Z" level=error msg="thresholds on metrics 'http_req_duration' have been crossed"
+make: *** [load-staging-learning-sustained] Error 99

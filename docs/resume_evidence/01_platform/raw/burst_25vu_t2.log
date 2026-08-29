@@ -1,0 +1,155 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: -
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 25 max VUs, 10m30s max duration (incl. graceful stop):
+              * learning_flow: 1 iterations for each of 25 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+
+running (00m01.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m01.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m02.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m02.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m03.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m03.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m04.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m04.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m05.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m05.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m06.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m06.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m07.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m07.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m08.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m08.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m09.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m09.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m10.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m10.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m11.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m11.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m12.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m12.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m13.0s), 25/25 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 25 VUs  00m13.0s/10m0s  00/25 iters, 1 per VU
+
+running (00m14.0s), 24/25 VUs, 1 complete and 0 interrupted iterations
+learning_flow   [   4% ] 25 VUs  00m14.0s/10m0s  01/25 iters, 1 per VU
+
+running (00m15.0s), 24/25 VUs, 1 complete and 0 interrupted iterations
+learning_flow   [   4% ] 25 VUs  00m15.0s/10m0s  01/25 iters, 1 per VU
+
+running (00m16.0s), 22/25 VUs, 3 complete and 0 interrupted iterations
+learning_flow   [  12% ] 25 VUs  00m16.0s/10m0s  03/25 iters, 1 per VU
+
+running (00m17.0s), 21/25 VUs, 4 complete and 0 interrupted iterations
+learning_flow   [  16% ] 25 VUs  00m17.0s/10m0s  04/25 iters, 1 per VU
+
+running (00m18.0s), 17/25 VUs, 8 complete and 0 interrupted iterations
+learning_flow   [  32% ] 25 VUs  00m18.0s/10m0s  08/25 iters, 1 per VU
+
+running (00m19.0s), 08/25 VUs, 17 complete and 0 interrupted iterations
+learning_flow   [  68% ] 25 VUs  00m19.0s/10m0s  17/25 iters, 1 per VU
+
+
+  █ THRESHOLDS 
+
+    http_req_duration
+    ✗ 'p(95)<3000' p(95)=3.2s
+
+      {phase:cold}
+      ✓ 'p(95)<3600000' p(95)=0s
+
+      {phase:warm}
+      ✓ 'p(95)<3600000' p(95)=3.2s
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+    http_reqs
+    ✓ 'rate>1' rate=17.845121/s
+
+      {phase:cold}
+      ✓ 'count>=0' count=0
+
+      {phase:warm}
+      ✓ 'count>=0' count=350
+
+    learning_answers_submitted
+    ✓ 'count>0' count=250
+
+    learning_attendance_blocked
+    ✓ 'count==0' count=0
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 350     17.845121/s
+    checks_succeeded...: 100.00% 350 out of 350
+    checks_failed......: 0.00%   0 out of 350
+
+    ✓ dev-token 200
+    ✓ create session 200
+    ✓ select student 200
+    ✓ select topic 200
+    ✓ answer 200
+
+    CUSTOM
+    learning_answer................: avg=1.45s    min=123.1ms  med=1.35s    max=4s       p(50)=1.35s    p(90)=2.71s    p(95)=3.41s    p(99)=3.84s   
+    learning_answers_submitted.....: 250    12.746515/s
+    learning_attendance_blocked....: 0      0/s
+    learning_create_session........: avg=64.37ms  min=58.65ms  med=61.82ms  max=89.73ms  p(50)=61.82ms  p(90)=69.93ms  p(95)=86.19ms  p(99)=89.73ms 
+    learning_dev_token.............: avg=113.78ms min=95.57ms  med=110.59ms max=129.45ms p(50)=110.59ms p(90)=126.27ms p(95)=128.21ms p(99)=129.26ms
+    learning_flow_total............: avg=18.05s   min=13.56s   med=18.33s   max=19.61s   p(50)=18.33s   p(90)=19.52s   p(95)=19.6s    p(99)=19.61s  
+    learning_select_student........: avg=853.16ms min=244.78ms med=841.35ms max=1.19s    p(50)=841.35ms p(90)=1.09s    p(95)=1.17s    p(99)=1.19s   
+    learning_select_topic..........: avg=2.26s    min=1.09s    med=2.29s    max=3.96s    p(50)=2.29s    p(90)=2.82s    p(95)=3.64s    p(99)=3.93s   
+    learning_status_4xx............: 0      0/s
+    learning_status_5xx............: 0      0/s
+
+    HTTP
+    http_req_duration..............: avg=1.27s    min=58.65ms  med=1.1s     max=4s       p(50)=1.1s     p(90)=2.59s    p(95)=3.2s     p(99)=3.84s   
+      { expected_response:true }...: avg=1.27s    min=58.65ms  med=1.1s     max=4s       p(50)=1.1s     p(90)=2.59s    p(95)=3.2s     p(99)=3.84s   
+      { phase:cold }...............: avg=0s       min=0s       med=0s       max=0s       p(50)=0s       p(90)=0s       p(95)=0s       p(99)=0s      
+      { phase:warm }...............: avg=1.27s    min=58.65ms  med=1.1s     max=4s       p(50)=1.1s     p(90)=2.59s    p(95)=3.2s     p(99)=3.84s   
+    http_req_failed................: 0.00%  0 out of 350
+    http_reqs......................: 350    17.845121/s
+      { phase:cold }...............: 0      0/s
+      { phase:warm }...............: 350    17.845121/s
+
+    EXECUTION
+    iteration_duration.............: avg=18.05s   min=13.56s   med=18.33s   max=19.61s   p(50)=18.33s   p(90)=19.52s   p(95)=19.6s    p(99)=19.61s  
+    iterations.....................: 25     1.274651/s
+    vus............................: 8      min=8        max=25
+    vus_max........................: 25     min=25       max=25
+
+    NETWORK
+    data_received..................: 1.5 MB 75 kB/s
+    data_sent......................: 139 kB 7.1 kB/s
+
+
+
+
+running (00m19.6s), 00/25 VUs, 25 complete and 0 interrupted iterations
+learning_flow ✓ [ 100% ] 25 VUs  00m19.6s/10m0s  25/25 iters, 1 per VU
+time="2026-08-29T19:23:46Z" level=error msg="thresholds on metrics 'http_req_duration' have been crossed"
+make: *** [load-staging-learning-sustained] Error 99

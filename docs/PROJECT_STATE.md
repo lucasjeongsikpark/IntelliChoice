@@ -10,7 +10,7 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-29** (D-455..D-458: the stress test found and mitigated the **RDS secret-rotation incident** and measured the ceilings; `SILENT-500S` queued; UD-14 opened; dependabot batch #3 + the nltk advisory landed; the **resume-evidence measurement program** commissioned and its first four experiments — E5.1/E6.1/E3/E4 — accepted, D-458/D-459/D-460, with E4 finding a high-severity memory-consolidation defect) |
+| Snapshot date | **2026-08-29** (D-455..D-458: the stress test found and mitigated the **RDS secret-rotation incident** and measured the ceilings; `SILENT-500S` queued; UD-14 opened; dependabot batch #3 + the nltk advisory landed; the **resume-evidence measurement program** commissioned and its first five experiments — E5.1/E6.1/E3/E4/E1 — accepted, D-458..D-461, with E4 finding a memory-consolidation defect and E1 a staging connection-ceiling defect) |
 | Last product-code commit | **`f2731a1`** (2026-08-29, dependabot batch #3 + the nltk PYSEC-2026-3726 bump, D-457); before them `519dff4` (D-452) |
 | Deployed staging image (both ECS services) | **`gha-5fa15d491057`** = head `5fa15d4` (product code `7983154`), deployed 2026-08-26 (D-448, run 32930929448); **tasks force-restarted 2026-08-29** (D-455 rotation mitigation — same image, fresh secret resolution) |
 | Deployed task definitions | learning `:153` (2/2 running), chat `:151` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
@@ -90,22 +90,23 @@ D-116's 16.68 s); at 10, the single shared anonymous rate-limit bucket returns 4
 
 ## 4. Active engineering work
 
-7 open engineering entries (5 in §4.1, 2 in §4.2). Full evidence per entry:
+8 open engineering entries (6 in §4.1, 2 in §4.2). Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
 lowercased key to the link above), except post-migration discoveries, which name their evidence
 home inline (the convention was set by `DEP-PR-BATCH-2026-08-21` → D-429, resolved by D-430; the
-resume-evidence program added `MEMORY-CONSOLIDATION-DEFECTS`, `PII-REDACTION-GAPS`,
-`HITL-INTERRUPT-HARDENING`, and `RESUME-EVIDENCE-PROGRAM`, each naming its
+resume-evidence program added `STAGING-CONN-CEILING`, `MEMORY-CONSOLIDATION-DEFECTS`,
+`PII-REDACTION-GAPS`, `HITL-INTERRUPT-HARDENING`, and `RESUME-EVIDENCE-PROGRAM`, each naming its
 `docs/resume_evidence/` evidence home inline). The `NO-NEW-TEST-CODE` category is **closed**: all three
 defects the audit established by code reading only (REQ-27, SEC-13, COST-06) gained executed
 tests on 2026-08-21/22.
 
-### 4.1 ACTIVE_REMEDIATION (5) — something built is wrong or silently ineffective
+### 4.1 ACTIVE_REMEDIATION (6) — something built is wrong or silently ineffective
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
+| `STAGING-CONN-CEILING` (post-migration discovery; evidence: `docs/resume_evidence/01_platform/E1_REPORT.md`, D-461) | The E1 staging load sweep found **scale-out reducing availability**: at 50 VUs the ALB p95 step policy scales learning-api 2→3 tasks, and the third replica's connection pool (10+10 SQLAlchemy overflow + 2 D-335 relay conns) pushes total demand past **db.t4g.micro's ~112 `max_connections`** (shared learning-api + chat-api + ops) → `asyncpg.TooManyConnectionsError`, 2× HTTP 500 on `POST /answers`. Structurally D-334's shape; **not** D-455 (slot exhaustion, not auth). CloudWatch's ~1/min `DatabaseConnections` sampling (peak 62) never sees the sub-minute refusal — only the app log witnesses it | Decide the fix: cap the SQLAlchemy pool per task so `max_replicas × (pool+overflow+relay) < max_connections`, and/or raise the RDS instance/`max_connections`, and/or lower the autoscaling ceiling. Low live exposure today (needs a 50-VU burst that scales to 3 tasks); no student-facing traffic at that level yet. Not started | engineering |
 | `MEMORY-CONSOLIDATION-DEFECTS` (post-migration discovery; evidence: `docs/resume_evidence/04_memory/E4_REPORT.md` §7, D-460) | The E4 real-model run found five defects, one high-severity: **MEMORY-OUTPUT-TRUNCATION** — under the shipped output budget 29/30 real Haiku calls truncate on `max_tokens`, Bedrock returns `{}`, and `MemoryUpdateResponse` validates it as an empty update, so 10/10 students consolidated 3 weeks to **0 facts / 0 failed calls / exit 0** (AUD-F-34's silent-zero one layer up; the mock cannot see it; plausibly a second mechanism behind the deployed-staging "0 facts added" of AUDIT_2026_08_16/D-208). Raising the budget to the 4,000 gateway ceiling produced 367 facts on the same corpus. Plus: polarity left at schema default (contradiction protocol rarely fires), `top_fact_for_skill` serves the stale positive after a regression (985/985), cost_cents omits cache-write tokens (~2.8× under-report + a never-read prompt cache), and 1–3-fact oversize headroom | Fix MEMORY-OUTPUT-TRUNCATION first — raise/verify the output budget for the consolidation task **and** make a truncated tool response distinguishable from a legitimate empty update so the gateway's `if truncated:` guard fires (a test that forces truncation and asserts a non-empty-or-failed outcome). The other four are separately queued in the report. Not started | engineering |
 | `PII-REDACTION-GAPS` (post-migration discovery; evidence: `docs/resume_evidence/06_eval_observability/E6_1_REPORT.md`, D-458) | The E6.1 probe corpus measured the free-text redaction layers for the first time and found five gaps, two worth fixing: **F-1** `_URL_RE` lacks `re.IGNORECASE` (`HTTP://`/`Https://`/`WWW.` never match, 0/6 — mobile autocapitalisation produces exactly these); **F-2** the span-export redactor's credential vocabulary drifted from the log denylist's (uppercase `BEARER`, `?refresh_token=`, `?id_token=` miss). F-3/F-4/F-5 recorded, lower value | Fix F-1 and F-2 (one-line-class changes) after the measurement program completes, so recorded baselines stay stable; the E6.1 lane's gates then get re-measured upward in the same change | engineering |
 | `HITL-INTERRUPT-HARDENING` (post-migration discovery; evidence: `docs/resume_evidence/03_gateway_agents/E3_REPORT.md` §4.4, D-459) | The E3 bypass suite (84 attempts, 0 side effects) surfaced two non-blocking gaps: **HB-CHAT-F1** — a pending interrupt has no expiry (neither `/respond` checks a pause's age; a stale pause stays resumable indefinitely); **HB-LEARN-F1** — the graph layer does not serialize resumes on its own, the route's `pg_try_advisory_xact_lock` turn claim is the only gate (sufficient for the HTTP surface, not for a future non-route caller). Both are today defended by existing gates | Decide whether to add a pending-interrupt TTL and/or graph-level resume serialization; low urgency — no live exposure through the current routes. Not started | engineering |

@@ -31096,3 +31096,59 @@ authorization.
 **Verification:** `make lint` clean, `pyright` 0 errors, suite 2062/2/1; the truncation defect
 cross-checked against `real_shipped_summary.json` (29 `hit_output_ceiling`, 10
 `students_with_a_truncated_call`, 0 failed); no product-code diff; benchmark DBs dropped.
+
+## D-461 — E1 accepted: first steady-state RPS, cross-replica SSE proven at scale, and a scale-out-reduces-availability capacity defect (accepted, 2026-08-29)
+
+The resume-evidence program's Theme-1 experiment, `docs/resume_evidence/01_platform/E1_REPORT.md`.
+A new k6 sustained script + Makefile target, a sweep runner, a CloudWatch collector, a local
+two-process SSE rig, a staging SSE harness, a pure delivery ledger, and 29 tests. No product
+code changed; `load-tests/k6/learning_sessions_staging.js` byte-for-byte unchanged; live secret
+value in 0 files, no JWT in any artifact.
+
+**E1.1 — the repository's first steady-state throughput number (deployed staging, $0 model
+spend).** 10 minutes at 25 VUs: **22.36 req/s, 13,550 requests, 0 5xx, warm p95 3,081 ms**,
+joined to ECS/ALB/RDS CloudWatch. The repeat-trial burst sweep ran 3× each at 10/25/50 VUs;
+9 of 10 planned trials completed clean (0 errors at 10 and 25 VUs).
+
+**E1.2 — cross-replica SSE delivery proven at scale, before only ever a 10-round hand probe.**
+Local two-process rig: **1,100/1,100 events delivered, 550/550 crossing a real Postgres NOTIFY**
+under concurrent load, 0 lost / 0 duplicate. Deployed staging: **240/240 delivered across a
+93/93/93 three-replica POST split**, 0 lost / 0 duplicate / 0 reconnects — the D-349 method at
+20× the scale, and the load-bearing proof that the D-335/D-395 relay fan-out holds across real
+replicas.
+
+**The capacity defect — scale-out reduced availability (reported, not fixed; queued as
+`STAGING-CONN-CEILING`).** At 50 VUs the ALB p95 step policy scaled learning-api 2→3 tasks, and
+the **third replica's connection pool (10+10 SQLAlchemy overflow + 2 D-335 relay connections)
+pushed total demand past db.t4g.micro's ~112 `max_connections` ceiling** (shared across
+learning-api + chat-api + the ops task) → `asyncpg.TooManyConnectionsError`, 2× HTTP 500 on
+`POST /answers`. This is **structurally D-334's shape** (failure rises as the service scales
+out) and is **not D-455** — connection-slot exhaustion needs no credential, whereas D-455 is an
+auth failure on new connections; the executor root-caused the distinction from primary logs.
+CloudWatch's ~1/min `DatabaseConnections` sampling peaked at 62 and **never saw the sub-minute
+refusal**, so only the application log witnesses it — a metric blind spot that is itself part of
+the finding.
+
+**The conflict the executor returned rather than resolving (correct AUTHORITY_MODEL §6.2
+behaviour).** The Frozen Spec said "if 5xx appear, STOP and report" (obeyed), but that
+instruction's named cause — a D-455 rotation-class incident — was disproved, while the
+acceptance criteria still required the 25-VU sustained leg. The coordinator authorized the
+sustained run (25 VUs ran 3/3 clean at 2 tasks, strictly below the failing level) with the
+stop-rule kept armed so a recurrence would be a second observation, not a pushed-through
+failure. It completed clean.
+
+**Three caveats weighed at acceptance, all honestly documented, none disqualifying:**
+1. The 10-VU level reports **2 trials, not 3** — a macOS `seq 1 0` counting-down bug on a
+   `TRIALS=0` invocation overwrote one trial's raw summary; the runner now refuses to overwrite
+   and guards the loop, and the lost numbers are excluded from every median (`raw/NOTES.md`).
+2. The sustained leg **began at 3 tasks, not 2**, because staging never scaled back in (D-182
+   scale-in lag), so it is not directly comparable with the 25-VU 2-task bursts — stated, not
+   smoothed.
+3. **E1.2's staging tier is not $0** — opening SSE streams fires `pre_intro`, ≤21 Haiku calls,
+   single-digit cents. E1.1 is $0 as specified. Within the program's authorized spend.
+
+**Verification:** `make lint` clean, `pyright` 0 errors, suite **2091 / 2 / 1** (baseline
+2062 + 29 new); coordinator confirmed the staging k6 script unchanged, the Makefile change
+purely additive (new target + `.PHONY`, same verbatim secret-fetch pattern), 29 new tests
+green, headline numbers cross-checked against artifacts, and secret hygiene (0 `eyJ`/secret
+occurrences in artifacts).
