@@ -1,0 +1,556 @@
+{
+  "experiment": "E6.2 per-hop trace coverage",
+  "generated_utc": "2026-08-29T23:04:26.247245Z",
+  "environment": "deployed staging, read-only trace analysis",
+  "sampling_posture": {
+    "app_sdk_sampler": "SDK default ParentBased(ALWAYS_ON) - no sampler= argument in packages/observability/src/intellichoice_observability/tracing.py",
+    "otel_traces_sampler_env": "unset in terraform/environments/staging/main.tf",
+    "collector_traces_pipeline": "otlp -> batch -> awsxray (no sampling processor, terraform/modules/ecs-service/main.tf)",
+    "conclusion": "no sampling; one request should equal one trace"
+  },
+  "expected_hop_map": {
+    "POST /chat/sessions": [
+      "fastapi"
+    ],
+    "POST /chat/sessions/{id}/messages": [
+      "bedrock",
+      "fastapi",
+      "langgraph",
+      "sqlalchemy"
+    ],
+    "POST /dev/token": [
+      "fastapi"
+    ],
+    "POST /learning/sessions": [
+      "fastapi"
+    ],
+    "POST /learning/sessions/{id}/answers": [
+      "fastapi",
+      "langgraph",
+      "sqlalchemy"
+    ],
+    "POST /learning/sessions/{id}/student": [
+      "fastapi",
+      "langgraph",
+      "sqlalchemy"
+    ],
+    "POST /learning/sessions/{id}/topics": [
+      "fastapi",
+      "langgraph",
+      "sqlalchemy"
+    ]
+  },
+  "windows": [
+    {
+      "window_label": "e1_sustained_25vu_10m",
+      "window_start_utc": "2026-08-29T19:46:49Z",
+      "window_end_utc": "2026-08-29T19:56:56Z",
+      "window_seconds": 607.0,
+      "trace_summaries_seen": 13571,
+      "traces_fetched": 13571,
+      "traces_announced_but_not_returned": 0,
+      "health_endpoint_traces": 0,
+      "buckets": {
+        "authenticated": 12564,
+        "unauthenticated": 967,
+        "internal": 40
+      },
+      "authenticated_traces": 12564,
+      "authenticated_2xx_traces": 12559,
+      "authenticated_short_circuit_traces": 5,
+      "authenticated_2xx_complete_chains": 12559,
+      "coverage_authenticated_2xx": 1.0,
+      "coverage_authenticated_naive_all_statuses": 0.9996020375676536,
+      "per_route": [
+        {
+          "route": "GET /metrics",
+          "bucket": "internal",
+          "expected_hops_on_2xx": "",
+          "traces_total": 40,
+          "traces_2xx": 40,
+          "traces_non_2xx_short_circuit": 0,
+          "complete_chain_2xx": 40,
+          "coverage_2xx": 1.0,
+          "coverage_naive_all_statuses": 1.0,
+          "missing_hops": "",
+          "status_counts": "200:40"
+        },
+        {
+          "route": "POST /dev/token",
+          "bucket": "unauthenticated",
+          "expected_hops_on_2xx": "fastapi",
+          "traces_total": 967,
+          "traces_2xx": 967,
+          "traces_non_2xx_short_circuit": 0,
+          "complete_chain_2xx": 967,
+          "coverage_2xx": 1.0,
+          "coverage_naive_all_statuses": 1.0,
+          "missing_hops": "",
+          "status_counts": "200:967"
+        },
+        {
+          "route": "POST /learning/sessions",
+          "bucket": "authenticated",
+          "expected_hops_on_2xx": "fastapi",
+          "traces_total": 970,
+          "traces_2xx": 970,
+          "traces_non_2xx_short_circuit": 0,
+          "complete_chain_2xx": 970,
+          "coverage_2xx": 1.0,
+          "coverage_naive_all_statuses": 1.0,
+          "missing_hops": "",
+          "status_counts": "200:970"
+        },
+        {
+          "route": "POST /learning/sessions/{id}/answers",
+          "bucket": "authenticated",
+          "expected_hops_on_2xx": "fastapi|langgraph|sqlalchemy",
+          "traces_total": 9655,
+          "traces_2xx": 9653,
+          "traces_non_2xx_short_circuit": 2,
+          "complete_chain_2xx": 9653,
+          "coverage_2xx": 1.0,
+          "coverage_naive_all_statuses": 0.9997928534438115,
+          "missing_hops": "",
+          "status_counts": "200:9653|409:2"
+        },
+        {
+          "route": "POST /learning/sessions/{id}/student",
+          "bucket": "authenticated",
+          "expected_hops_on_2xx": "fastapi|langgraph|sqlalchemy",
+          "traces_total": 970,
+          "traces_2xx": 970,
+          "traces_non_2xx_short_circuit": 0,
+          "complete_chain_2xx": 970,
+          "coverage_2xx": 1.0,
+          "coverage_naive_all_statuses": 1.0,
+          "missing_hops": "",
+          "status_counts": "200:970"
+        },
+        {
+          "route": "POST /learning/sessions/{id}/topics",
+          "bucket": "authenticated",
+          "expected_hops_on_2xx": "fastapi|langgraph|sqlalchemy",
+          "traces_total": 969,
+          "traces_2xx": 966,
+          "traces_non_2xx_short_circuit": 3,
+          "complete_chain_2xx": 966,
+          "coverage_2xx": 1.0,
+          "coverage_naive_all_statuses": 0.9969040247678018,
+          "missing_hops": "",
+          "status_counts": "200:966|409:3"
+        }
+      ],
+      "per_hop": {
+        "fastapi": {
+          "traces_expecting_hop": 13526,
+          "traces_with_hop": 13526,
+          "traces_missing_hop": 0,
+          "missing_rate": 0.0,
+          "routes_expecting": [
+            "POST /dev/token",
+            "POST /learning/sessions",
+            "POST /learning/sessions/{id}/answers",
+            "POST /learning/sessions/{id}/student",
+            "POST /learning/sessions/{id}/topics"
+          ]
+        },
+        "sqlalchemy": {
+          "traces_expecting_hop": 11589,
+          "traces_with_hop": 11589,
+          "traces_missing_hop": 0,
+          "missing_rate": 0.0,
+          "routes_expecting": [
+            "POST /learning/sessions/{id}/answers",
+            "POST /learning/sessions/{id}/student",
+            "POST /learning/sessions/{id}/topics"
+          ]
+        },
+        "langgraph": {
+          "traces_expecting_hop": 11589,
+          "traces_with_hop": 11589,
+          "traces_missing_hop": 0,
+          "missing_rate": 0.0,
+          "routes_expecting": [
+            "POST /learning/sessions/{id}/answers",
+            "POST /learning/sessions/{id}/student",
+            "POST /learning/sessions/{id}/topics"
+          ]
+        },
+        "bedrock": {
+          "traces_expecting_hop": 0,
+          "traces_with_hop": 0,
+          "traces_missing_hop": 0,
+          "missing_rate": null,
+          "routes_expecting": []
+        },
+        "mcp": {
+          "traces_expecting_hop": 0,
+          "traces_with_hop": 0,
+          "traces_missing_hop": 0,
+          "missing_rate": null,
+          "routes_expecting": []
+        }
+      },
+      "merged_request_traces": 19,
+      "nested_request_span_routes": {
+        "POST /learning/sessions/{id}/answers": 15,
+        "POST /dev/token": 3,
+        "POST /learning/sessions/{id}/topics": 1
+      },
+      "orphan_sql_segments_total": 208859,
+      "descendant_sql_spans_total": 208859,
+      "unmapped_routes": [],
+      "unknown_langgraph_span_names": [],
+      "node_span_frequency": {
+        "langgraph.submit_answer": 9655,
+        "langgraph.select_student": 970,
+        "langgraph.select_topic": 967
+      },
+      "k6_reconciliation": {
+        "per_route": [
+          {
+            "route": "POST /dev/token",
+            "k6_requests": 970,
+            "k6_passes": 970,
+            "k6_fails": 0,
+            "xray_traces": 967,
+            "delta_traces_minus_requests": -3,
+            "trace_per_request": 0.9969072164948454
+          },
+          {
+            "route": "POST /learning/sessions",
+            "k6_requests": 970,
+            "k6_passes": 970,
+            "k6_fails": 0,
+            "xray_traces": 970,
+            "delta_traces_minus_requests": 0,
+            "trace_per_request": 1.0
+          },
+          {
+            "route": "POST /learning/sessions/{id}/answers",
+            "k6_requests": 9670,
+            "k6_passes": 9668,
+            "k6_fails": 2,
+            "xray_traces": 9655,
+            "delta_traces_minus_requests": -15,
+            "trace_per_request": 0.9984488107549121
+          },
+          {
+            "route": "POST /learning/sessions/{id}/student",
+            "k6_requests": 970,
+            "k6_passes": 970,
+            "k6_fails": 0,
+            "xray_traces": 970,
+            "delta_traces_minus_requests": 0,
+            "trace_per_request": 1.0
+          },
+          {
+            "route": "POST /learning/sessions/{id}/topics",
+            "k6_requests": 970,
+            "k6_passes": 967,
+            "k6_fails": 3,
+            "xray_traces": 969,
+            "delta_traces_minus_requests": -1,
+            "trace_per_request": 0.9989690721649485
+          }
+        ],
+        "k6_requests_total_from_checks": 13550,
+        "k6_http_reqs_metric": 13550,
+        "xray_traces_on_k6_routes": 13531,
+        "delta_traces_minus_requests": -19,
+        "trace_per_request": 0.9985977859778598
+      },
+      "correlation_spot_check": {
+        "log_group": "/ecs/intellichoice-staging-learning-api",
+        "log_stream_prefix": "learning-api",
+        "log_events_read": 15992,
+        "trace_ids_shared_by_more_than_one_request": 19,
+        "access_lines_sharing_a_trace_id": 38,
+        "extra_requests_with_no_trace_of_their_own": 19,
+        "shared_trace_id_sample": [
+          {
+            "xray_trace_id": "1-a6ff7093-049779ab4303c461fdd5aee0",
+            "routes": [
+              "POST /dev/token"
+            ]
+          },
+          {
+            "xray_trace_id": "1-80f2f255-55dcea3ab3077eed992e3fe7",
+            "routes": [
+              "POST /learning/sessions/{learning_session_id}/answers"
+            ]
+          },
+          {
+            "xray_trace_id": "1-d66c343d-111a3c4e7716e708ad435afb",
+            "routes": [
+              "POST /learning/sessions/{learning_session_id}/answers"
+            ]
+          },
+          {
+            "xray_trace_id": "1-9a91e2c0-dbbb56cbff9260e7f604e097",
+            "routes": [
+              "POST /learning/sessions/{learning_session_id}/answers"
+            ]
+          },
+          {
+            "xray_trace_id": "1-1c398b9e-e116838c64e2f738372ebe94",
+            "routes": [
+              "POST /learning/sessions/{learning_session_id}/answers"
+            ]
+          },
+          {
+            "xray_trace_id": "1-22f829e6-0eee92a58556735a644d030a",
+            "routes": [
+              "POST /dev/token",
+              "POST /learning/sessions/{learning_session_id}/answers"
+            ]
+          },
+          {
+            "xray_trace_id": "1-6a2d17e3-2fe8ee4a0da54da137cd371d",
+            "routes": [
+              "POST /learning/sessions",
+              "POST /learning/sessions/{learning_session_id}/answers"
+            ]
+          },
+          {
+            "xray_trace_id": "1-9b17aaef-bf630d5e4748e99585660aed",
+            "routes": [
+              "POST /learning/sessions/{learning_session_id}/answers"
+            ]
+          },
+          {
+            "xray_trace_id": "1-b983750b-4afa724a8f581d844944571e",
+            "routes": [
+              "POST /learning/sessions/{learning_session_id}/answers"
+            ]
+          },
+          {
+            "xray_trace_id": "1-0c5dfdfd-f111d05f1b74339d7f00d21a",
+            "routes": [
+              "POST /learning/sessions/{learning_session_id}/answers"
+            ]
+          }
+        ],
+        "access_lines_without_trace_id_by_route": {
+          "GET /readyz": 240
+        },
+        "truncated_at_max_events": false,
+        "access_log_lines": 13820,
+        "access_lines_with_trace_id": 13580,
+        "trace_id_presence_rate": 0.9826338639652678,
+        "access_lines_with_wellformed_trace_id": 13580,
+        "access_lines_joined_to_a_fetched_trace": 13580,
+        "log_to_trace_join_rate": 1.0,
+        "distinct_log_trace_ids": 13561,
+        "xray_traces_named_by_a_log_line": 13561,
+        "xray_traces_fetched": 13571,
+        "trace_to_log_join_rate": 0.9992631346253039,
+        "unmatched_trace_id_sample": [],
+        "non_access_events_without_trace_id": {
+          "Failed to send compressed multipart ingest: langsmith.utils.": 1202
+        }
+      },
+      "export_posture": {
+        "log_group": "/ecs/intellichoice-staging-learning-api",
+        "log_stream_prefix": "otel-collector",
+        "collector_log_events_in_window": 0,
+        "levels": {},
+        "error_or_warn_sample": [],
+        "positive_control": {
+          "needed": true,
+          "method": "newest collector stream, read directly",
+          "newest_stream_last_event_utc": "2026-08-29T20:20:03.016000Z",
+          "events_read_from_newest_stream": 5,
+          "sample": [
+            "2026/08/29 19:33:24 ADOT Collector version: v0.43.3",
+            "2026/08/29 19:33:24 found no extra config, skip it, err: open /opt/aws/aws-otel-collector/etc/extracfg.txt: no such file or directory",
+            "2026/08/29 19:33:24 attn: users of the `datadog`, `logzio`, `sapm`, `signalfx` exporter components. please refer to https://github.com/aws-observability/aws-otel-collector/issues/2734 in regards to an",
+            "2026-08-29T19:33:24.526Z\tinfo\tservice@v0.117.0/service.go:164\tSetting up own telemetry...",
+            "2026-08-29T19:33:24.526Z\tinfo\ttelemetry/metrics.go:70\tServing metrics\t{\"address\": \"localhost:8888\", \"metrics level\": \"Normal\"}"
+          ],
+          "reader_proven": true
+        },
+        "export_success_count_available": false,
+        "export_failure_count_available": false,
+        "why": "ADOT serves otelcol_exporter_sent_spans/send_failed_spans on localhost:8888; the collector's own prometheus receiver scrapes localhost:<app-port> only, so those counters leave the task nowhere. Only error log lines are externally visible."
+      }
+    },
+    {
+      "window_label": "chat_burst_20260829T0050Z",
+      "window_start_utc": "2026-08-29T00:50:00Z",
+      "window_end_utc": "2026-08-29T00:54:00Z",
+      "window_seconds": 240.0,
+      "trace_summaries_seen": 434,
+      "traces_fetched": 434,
+      "traces_announced_but_not_returned": 0,
+      "health_endpoint_traces": 0,
+      "buckets": {
+        "authenticated": 419,
+        "internal": 15
+      },
+      "authenticated_traces": 419,
+      "authenticated_2xx_traces": 329,
+      "authenticated_short_circuit_traces": 90,
+      "authenticated_2xx_complete_chains": 329,
+      "coverage_authenticated_2xx": 1.0,
+      "coverage_authenticated_naive_all_statuses": 0.7852028639618138,
+      "per_route": [
+        {
+          "route": "GET /metrics",
+          "bucket": "internal",
+          "expected_hops_on_2xx": "",
+          "traces_total": 15,
+          "traces_2xx": 15,
+          "traces_non_2xx_short_circuit": 0,
+          "complete_chain_2xx": 15,
+          "coverage_2xx": 1.0,
+          "coverage_naive_all_statuses": 1.0,
+          "missing_hops": "",
+          "status_counts": "200:15"
+        },
+        {
+          "route": "POST /chat/sessions",
+          "bucket": "authenticated",
+          "expected_hops_on_2xx": "fastapi",
+          "traces_total": 209,
+          "traces_2xx": 209,
+          "traces_non_2xx_short_circuit": 0,
+          "complete_chain_2xx": 209,
+          "coverage_2xx": 1.0,
+          "coverage_naive_all_statuses": 1.0,
+          "missing_hops": "",
+          "status_counts": "200:209"
+        },
+        {
+          "route": "POST /chat/sessions/{id}/messages",
+          "bucket": "authenticated",
+          "expected_hops_on_2xx": "bedrock|fastapi|langgraph|sqlalchemy",
+          "traces_total": 210,
+          "traces_2xx": 120,
+          "traces_non_2xx_short_circuit": 90,
+          "complete_chain_2xx": 120,
+          "coverage_2xx": 1.0,
+          "coverage_naive_all_statuses": 0.5714285714285714,
+          "missing_hops": "",
+          "status_counts": "200:120|429:90"
+        }
+      ],
+      "per_hop": {
+        "fastapi": {
+          "traces_expecting_hop": 329,
+          "traces_with_hop": 329,
+          "traces_missing_hop": 0,
+          "missing_rate": 0.0,
+          "routes_expecting": [
+            "POST /chat/sessions",
+            "POST /chat/sessions/{id}/messages"
+          ]
+        },
+        "sqlalchemy": {
+          "traces_expecting_hop": 120,
+          "traces_with_hop": 120,
+          "traces_missing_hop": 0,
+          "missing_rate": 0.0,
+          "routes_expecting": [
+            "POST /chat/sessions/{id}/messages"
+          ]
+        },
+        "langgraph": {
+          "traces_expecting_hop": 120,
+          "traces_with_hop": 120,
+          "traces_missing_hop": 0,
+          "missing_rate": 0.0,
+          "routes_expecting": [
+            "POST /chat/sessions/{id}/messages"
+          ]
+        },
+        "bedrock": {
+          "traces_expecting_hop": 120,
+          "traces_with_hop": 120,
+          "traces_missing_hop": 0,
+          "missing_rate": 0.0,
+          "routes_expecting": [
+            "POST /chat/sessions/{id}/messages"
+          ]
+        },
+        "mcp": {
+          "traces_expecting_hop": 0,
+          "traces_with_hop": 0,
+          "traces_missing_hop": 0,
+          "missing_rate": null,
+          "routes_expecting": []
+        }
+      },
+      "merged_request_traces": 1,
+      "nested_request_span_routes": {
+        "POST /chat/sessions": 1
+      },
+      "orphan_sql_segments_total": 2697,
+      "descendant_sql_spans_total": 2697,
+      "unmapped_routes": [],
+      "unknown_langgraph_span_names": [],
+      "node_span_frequency": {
+        "langgraph.join_scope_and_retrieval": 120,
+        "langgraph.resolve_role": 120,
+        "langgraph.retrieve_context": 120,
+        "langgraph.scope_guard": 120,
+        "langgraph.synthesize_answer": 119,
+        "langgraph.explain_access": 5,
+        "langgraph.calendar_extract": 1,
+        "langgraph.calendar_no_event": 1
+      },
+      "correlation_spot_check": {
+        "log_group": "/ecs/intellichoice-staging-chat-api",
+        "log_stream_prefix": "chat-api",
+        "log_events_read": 1077,
+        "trace_ids_shared_by_more_than_one_request": 1,
+        "access_lines_sharing_a_trace_id": 2,
+        "extra_requests_with_no_trace_of_their_own": 1,
+        "shared_trace_id_sample": [
+          {
+            "xray_trace_id": "1-863e4f62-7bda6d0ee14672363ab4fab9",
+            "routes": [
+              "POST /chat/sessions",
+              "POST /chat/sessions/{chat_session_id}/messages"
+            ]
+          }
+        ],
+        "access_lines_without_trace_id_by_route": {
+          "GET /readyz": 32
+        },
+        "truncated_at_max_events": false,
+        "access_log_lines": 456,
+        "access_lines_with_trace_id": 424,
+        "trace_id_presence_rate": 0.9298245614035088,
+        "access_lines_with_wellformed_trace_id": 424,
+        "access_lines_joined_to_a_fetched_trace": 424,
+        "log_to_trace_join_rate": 1.0,
+        "distinct_log_trace_ids": 423,
+        "xray_traces_named_by_a_log_line": 423,
+        "xray_traces_fetched": 434,
+        "trace_to_log_join_rate": 0.9746543778801844,
+        "unmatched_trace_id_sample": [],
+        "non_access_events_without_trace_id": {
+          "Failed to send compressed multipart ingest: langsmith.utils.": 125,
+          "Failed to multipart ingest runs: langsmith.utils.LangSmithRa": 1
+        }
+      },
+      "export_posture": {
+        "log_group": "/ecs/intellichoice-staging-chat-api",
+        "log_stream_prefix": "otel-collector",
+        "collector_log_events_in_window": 4,
+        "levels": {
+          "info": 4
+        },
+        "error_or_warn_sample": [],
+        "positive_control": {
+          "needed": false
+        },
+        "export_success_count_available": false,
+        "export_failure_count_available": false,
+        "why": "ADOT serves otelcol_exporter_sent_spans/send_failed_spans on localhost:8888; the collector's own prometheus receiver scrapes localhost:<app-port> only, so those counters leave the task nowhere. Only error log lines are externally visible."
+      }
+    }
+  ]
+}
