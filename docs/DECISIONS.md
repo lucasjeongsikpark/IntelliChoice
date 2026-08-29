@@ -21486,6 +21486,11 @@ of a failure.
 
 **Date:** 2026-08-12 · **Session:** C1 · **Status:** measured; remedy is operational, not yet applied
 
+> **2026-08-29 (D-458):** D-294's 1,184 rows and this entry's 858 difficulty decisions are
+> snapshots of **different instants within 2026-08-12** — at row 1,184 only 614 difficulty
+> decisions existed; the 858th arrives at row 1,535. Each figure is correct; quoting them as a
+> matched pair is not (E5.1 measurement, `docs/resume_evidence/05_content_generation/E5_1_REPORT.md` §9).
+
 Set out to re-anchor the difficulty rubric (D-292's recommendation) and found something
 upstream of it, for free, in the retier path.
 
@@ -30910,3 +30915,60 @@ race with GitHub's mergeability recomputation (hit twice today, PRs #429/#430 er
 as "no checks reported" when the wait predicate treated an empty check list as done). The
 working shape is: wait until checks *exist*, watch them to completion, settle ~30 s, then
 merge.
+
+## D-458 — the resume-evidence measurement program: commissioned, planned, and its first two experiments accepted (accepted, 2026-08-29)
+
+The user commissioned a rigorous measurement program to produce defensible quantitative
+evidence for six resume themes (platform/load, RAG retrieval, gateway/agents, memory,
+content generation, eval/observability/PII), with explicit evidence rules: every number
+traceable to an artifact, numerator+denominator on every rate, environments never blurred,
+simulated load always labeled simulated, mock-model results never headlined as quality.
+The program contract is `docs/resume_evidence/MEASUREMENT_PLAN.md`; evidence lands under
+`docs/resume_evidence/0N_*/`; harness code under `benchmarks/resume_evidence/`.
+
+**Spend authorizations given by the user (2026-08-28):** Tier 2 real-Bedrock experiments
+(~$5–9 total: retrieval benchmark + ablations, memory real-model quality at N≈25,
+seeded-defect detection at n≥100, one e2e real eval run) and the Tier 3 isolated
+200-candidate generation benchmark (~$5–10, ~2.2 h). The Tier 3 run is a quality
+measurement into an isolated database — nothing approved, exported, or counted toward
+coverage — so it does not touch D-342's subject; the spend authorization is the user's,
+as D-342's rationale requires. Execution runs through the Orca coordinator/executor
+workflow, one fresh opus/high executor per experiment, findings reported-not-fixed inside
+measurement tasks.
+
+**E5.1 accepted (Tier 1, $0) — the content pipeline's per-stage funnel over its complete
+recorded history.** Harness `benchmarks/resume_evidence/05_content_generation/
+stage_funnel_analysis.py` + 38 tests; artifacts + `E5_1_REPORT.md`. Headlines, all
+n/N-stated in the report: 1,827 candidate attempts, 878 machine-accepted (48.1%),
+4.64¢ per machine-accepted candidate (corroborates D-289's 4.7¢ on a different
+denominator); the stage-attributed funnel closes exactly (849 stage rejections + 100
+non-verdict skips + 878 accepted = 1,827, zero unattributed); and the novel counterfactual:
+**of 250 paid-stage rejections with a snapshot, 225 (90.0%) were unique catches the free
+deterministic gate would not have made** (difficulty 121/125, judge 50/55, dedup 10/10,
+solver 44/60) — measured by re-running today's gate over persisted snapshots, $0, with
+gate drift quantified (262/391 reproductions, 333/391 under the pre-D-308 `answer_form`,
+so 71 of 129 gaps are exactly the D-308 relaxation) and the reverse direction stated as
+uncomputable. Also corrected in place at D-295: **D-294's 1,184 rows and D-295's 858
+difficulty decisions are snapshots of different instants within 2026-08-12** (614
+decisions existed at row 1,184) — each correct alone, not a matched pair.
+
+**E6.1 accepted (Tier 1, $0) — the first PII-redaction precision/recall measurement.**
+Corpus of 651 labeled free-text cases (277 in-contract positives, 110 out-of-contract,
+264 negatives — the negative half existed nowhere before) + 49 log-key + 46 span cases,
+disjoint by construction from the live scanners' fixture needles; harness over all three
+layers; a permanent 32-test lane in the default suite gating at the measured values.
+Measured: regex layer **precision 261/269 (97.0%), in-contract recall 261/277 (94.2%)**
+(precision 261/261 excluding the deliberately adversarial phone-shaped-identifier
+negatives); log denylist 36/36 reachable keys with 12/12 controls surviving; span-export
+credential recall 18/22. Five findings reported, not fixed (queued as
+`PII-REDACTION-GAPS`): **F-1** `_URL_RE` compiled without `re.IGNORECASE` (`HTTP://`,
+`Https://`, `WWW.` all miss, 0/6 — mobile autocapitalisation produces exactly these);
+**F-2** the span redactor's credential vocabulary drifted from the log denylist's
+(uppercase `BEARER` and `?refresh_token=`/`?id_token=` miss); F-3 `(555)123-4567`
+(mandatory separator); F-4 exotic email syntax (6/8 miss); F-5 the 37-key denylist has 36
+reachable keys (`name` is refused by `Logger.makeRecord` before the filter ever sees it).
+
+**Verification of both acceptances:** suite green at each step (1908/2/1 after E5.1,
+1940/2/1 after E6.1 — baseline 1870 + 38 + 32), coordinator SQL cross-checks matched the
+E5.1 funnel exactly (1,827 / 1,572 / 1,163 / 409), F-1/F-2 confirmed by direct code read,
+dev database byte-identical before/after E5.1, no product code modified by either task.

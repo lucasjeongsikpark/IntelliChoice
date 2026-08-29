@@ -102,6 +102,11 @@ Reference (durable, read on demand — not per-session):
 - [docs/reference/reconciliation-2026-08/](docs/reference/reconciliation-2026-08/) — the
   166-entry `FINAL_OPEN_WORK_REGISTER.md` and `USER_DECISION_QUEUE.md`: the provenance backbone
   `PROJECT_STATE` links into. Evidence, not authority.
+- [docs/resume_evidence/](docs/resume_evidence/) — the resume-evidence measurement program
+  (D-458, user-commissioned 2026-08-28): `MEASUREMENT_PLAN.md` is the contract; per-theme
+  experiment reports and machine-readable artifacts live in `01_platform/` … `06_eval_observability/`.
+  Measurement evidence about the system, not product documentation; harness code is in
+  `benchmarks/resume_evidence/`.
 
 Deliberately unlisted:
 
