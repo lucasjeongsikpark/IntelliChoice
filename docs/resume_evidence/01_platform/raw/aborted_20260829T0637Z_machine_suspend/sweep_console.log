@@ -1,0 +1,16 @@
+E1.1 sweep starting at 2026-08-29T06:37:00Z (UTC). repo=713cdd0
+levels='10 25 50' trials=3 gap=120s sustained=25VU/10m
+manifest: docs/resume_evidence/01_platform/raw/sweep_manifest.jsonl
+
+=== burst_10vu_t1  scenario=burst vus=10 duration=  start=2026-08-29T06:37:00Z
+requests=140 rps=16.20 failed_rate=0.0000 5xx=0 4xx=0 blocked=0 answers=100 p95=1349ms
+
+--- gap 120s
+=== burst_10vu_t2  scenario=burst vus=10 duration=  start=2026-08-29T06:39:10Z
+requests=140 rps=21.72 failed_rate=0.0000 5xx=0 4xx=0 blocked=0 answers=100 p95=770ms
+
+--- gap 120s
+=== burst_10vu_t3  scenario=burst vus=10 duration=  start=2026-08-29T06:41:18Z
+requests=120 rps=0.12 failed_rate=0.5917 5xx=0 4xx=61 blocked=0 answers=11 p95=981444ms
+STOP: http_req_failed rate 0.5917 at or above the 1% threshold
+SWEEP ABORTED at burst_10vu_t3

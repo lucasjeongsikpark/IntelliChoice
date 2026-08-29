@@ -1,0 +1,134 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: -
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 10 max VUs, 10m30s max duration (incl. graceful stop):
+              * learning_flow: 1 iterations for each of 10 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+
+running (00m01.0s), 10/10 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 10 VUs  00m01.0s/10m0s  00/10 iters, 1 per VU
+
+running (00m02.0s), 10/10 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 10 VUs  00m02.0s/10m0s  00/10 iters, 1 per VU
+time="2026-08-29T06:41:21Z" level=warning msg="Request Failed" error="Post \"https://d35dfnjzmgrm01.cloudfront.net/learning/sessions/e68323a1-96b0-497e-8b1e-70cb884b542c/answers\": unexpected EOF"
+
+running (00m03.0s), 10/10 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 10 VUs  00m03.0s/10m0s  00/10 iters, 1 per VU
+
+running (00m04.0s), 10/10 VUs, 0 complete and 0 interrupted iterations
+learning_flow   [   0% ] 10 VUs  00m04.0s/10m0s  00/10 iters, 1 per VU
+
+running (00m05.0s), 09/10 VUs, 1 complete and 0 interrupted iterations
+learning_flow   [  10% ] 10 VUs  00m05.0s/10m0s  01/10 iters, 1 per VU
+
+running (16m21.3s), 09/10 VUs, 1 complete and 0 interrupted iterations
+learning_flow   [  10% ] 10 VUs  00m06.0s/10m0s  01/10 iters, 1 per VU
+
+running (16m22.3s), 09/10 VUs, 1 complete and 0 interrupted iterations
+learning_flow   [  10% ] 10 VUs  00m07.0s/10m0s  01/10 iters, 1 per VU
+time="2026-08-29T06:57:41Z" level=warning msg="Request Failed" error="Post \"https://d35dfnjzmgrm01.cloudfront.net/learning/sessions/07356254-702a-48be-8648-fa04cf0a0381/answers\": unexpected EOF"
+time="2026-08-29T06:57:41Z" level=warning msg="Request Failed" error="Post \"https://d35dfnjzmgrm01.cloudfront.net/learning/sessions/922ee60a-d7aa-497d-bd71-da9b4b0ef7f8/answers\": unexpected EOF"
+time="2026-08-29T06:57:41Z" level=warning msg="Request Failed" error="Post \"https://d35dfnjzmgrm01.cloudfront.net/learning/sessions/2006d32e-c5ca-4960-9c16-ac2f60e37512/answers\": unexpected EOF"
+time="2026-08-29T06:57:41Z" level=warning msg="Request Failed" error="Post \"https://d35dfnjzmgrm01.cloudfront.net/learning/sessions/9851d958-54b8-4b31-abcb-4700d12095c9/answers\": unexpected EOF"
+time="2026-08-29T06:57:41Z" level=warning msg="Request Failed" error="Post \"https://d35dfnjzmgrm01.cloudfront.net/learning/sessions/00caff8c-818f-4d3d-8016-e28d645ef670/answers\": unexpected EOF"
+time="2026-08-29T06:57:41Z" level=warning msg="Request Failed" error="Post \"https://d35dfnjzmgrm01.cloudfront.net/learning/sessions/1ae28b46-8749-4ebf-bafb-e4397e01733f/topics\": unexpected EOF"
+time="2026-08-29T06:57:41Z" level=warning msg="Request Failed" error="Post \"https://d35dfnjzmgrm01.cloudfront.net/learning/sessions/8cc389a4-7809-451a-80e8-a054dde331cf/answers\": unexpected EOF"
+time="2026-08-29T06:57:41Z" level=warning msg="Request Failed" error="Post \"https://d35dfnjzmgrm01.cloudfront.net/learning/sessions/59fde2dc-e7e3-43ce-902e-e8ecc046ab2f/answers\": unexpected EOF"
+time="2026-08-29T06:57:41Z" level=warning msg="Request Failed" error="Post \"https://d35dfnjzmgrm01.cloudfront.net/learning/sessions/5671cd36-5c3f-4468-9ba2-727596b225a4/topics\": unexpected EOF"
+
+running (16m23.3s), 07/10 VUs, 3 complete and 0 interrupted iterations
+learning_flow   [  30% ] 10 VUs  00m08.0s/10m0s  03/10 iters, 1 per VU
+
+
+  █ THRESHOLDS 
+
+    http_req_duration
+    ✗ 'p(95)<3000' p(95)=16m21s
+
+      {phase:cold}
+      ✓ 'p(95)<3600000' p(95)=0s
+
+      {phase:warm}
+      ✓ 'p(95)<3600000' p(95)=16m21s
+
+    http_req_failed
+    ✗ 'rate<0.01' rate=59.16%
+
+    http_reqs
+    ✗ 'rate>1' rate=0.121976/s
+
+      {phase:cold}
+      ✓ 'count>=0' count=0
+
+      {phase:warm}
+      ✓ 'count>=0' count=120
+
+    learning_answers_submitted
+    ✓ 'count>0' count=11
+
+    learning_attendance_blocked
+    ✓ 'count==0' count=0
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 120    0.121976/s
+    checks_succeeded...: 40.83% 49 out of 120
+    checks_failed......: 59.16% 71 out of 120
+
+    ✓ dev-token 200
+    ✓ create session 200
+    ✓ select student 200
+    ✗ select topic 200
+      ↳  80% — ✓ 8 / ✗ 2
+    ✗ answer 200
+      ↳  13% — ✓ 11 / ✗ 69
+
+    CUSTOM
+    learning_answer................: avg=1m26s    min=64.47ms  med=99.48ms  max=16m21s   p(50)=99.48ms  p(90)=588.28ms p(95)=16m21s   p(99)=16m21s  
+    learning_answers_submitted.....: 11     0.011181/s
+    learning_attendance_blocked....: 0      0/s
+    learning_create_session........: avg=74.63ms  min=61.04ms  med=72.76ms  max=96.39ms  p(50)=72.76ms  p(90)=89.16ms  p(95)=92.78ms  p(99)=95.67ms 
+    learning_dev_token.............: avg=104.4ms  min=90.59ms  med=104.43ms max=127.92ms p(50)=104.43ms p(90)=117.66ms p(95)=122.79ms p(99)=126.9ms 
+    learning_flow_total............: avg=14m21s   min=4.41s    med=16m23s   max=16m23s   p(50)=16m23s   p(90)=16m23s   p(95)=16m23s   p(99)=16m23s  
+    learning_select_student........: avg=250.21ms min=231.1ms  med=251.19ms max=270.21ms p(50)=251.19ms p(90)=259.35ms p(95)=264.78ms p(99)=269.12ms
+    learning_select_topic..........: avg=3m16s    min=411.07ms med=622.13ms max=16m22s   p(50)=622.13ms p(90)=16m22s   p(95)=16m22s   p(99)=16m22s  
+    learning_status_4xx............: 61     0.062004/s
+    learning_status_5xx............: 0      0/s
+
+    HTTP
+    http_req_duration..............: avg=1m13s    min=61.04ms  med=103.76ms max=16m22s   p(50)=103.76ms p(90)=691.41ms p(95)=16m21s   p(99)=16m22s  
+      { expected_response:true }...: avg=244.15ms min=61.04ms  med=163.84ms max=960.05ms p(50)=163.84ms p(90)=554.79ms p(95)=631.03ms p(99)=938.25ms
+      { phase:cold }...............: avg=0s       min=0s       med=0s       max=0s       p(50)=0s       p(90)=0s       p(95)=0s       p(99)=0s      
+      { phase:warm }...............: avg=1m13s    min=61.04ms  med=103.76ms max=16m22s   p(50)=103.76ms p(90)=691.41ms p(95)=16m21s   p(99)=16m22s  
+    http_req_failed................: 59.16% 71 out of 120
+    http_reqs......................: 120    0.121976/s
+      { phase:cold }...............: 0      0/s
+      { phase:warm }...............: 120    0.121976/s
+
+    EXECUTION
+    iteration_duration.............: avg=7.9s     min=4.41s    med=8.46s    max=8.54s    p(50)=8.46s    p(90)=8.52s    p(95)=8.53s    p(99)=8.54s   
+    iterations.....................: 10     0.010165/s
+    vus............................: 7      min=7         max=10
+    vus_max........................: 10     min=10        max=10
+
+    NETWORK
+    data_received..................: 237 kB 241 B/s
+    data_sent......................: 65 kB  66 B/s
+
+
+
+
+running (16m23.8s), 00/10 VUs, 10 complete and 0 interrupted iterations
+learning_flow ✓ [ 100% ] 10 VUs  00m08.5s/10m0s  10/10 iters, 1 per VU
+time="2026-08-29T06:57:42Z" level=error msg="thresholds on metrics 'http_req_duration, http_req_failed, http_reqs' have been crossed"
+make: *** [load-staging-learning-sustained] Error 99

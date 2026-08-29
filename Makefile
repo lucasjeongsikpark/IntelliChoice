@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint fmt typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-gen-preflight question-review question-review-rejected question-export knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs scheduler-evidence image-check
+.PHONY: up down dev dev-observability test lint fmt typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-gen-preflight question-review question-review-rejected question-export knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning load-staging-learning-sustained scan-traces scan-logs scheduler-evidence image-check
 
 up:
 	docker compose up -d
@@ -229,6 +229,49 @@ load-staging-learning:
 	    -e STAGING_TOKEN_SECRET_LEARNING \
 	    -e VUS=$${VUS:-5} \
 	    grafana/k6 run - < load-tests/k6/learning_sessions_staging.js
+
+# E1.1 of the resume-evidence program (docs/resume_evidence/MEASUREMENT_PLAN.md, Theme 1).
+# Same secret handling as `load-staging-learning` above, verbatim and for the same reason: the
+# value is fetched per-run, never stored, and passed as a bare `-e NAME` pass-through so it
+# never appears in the docker command line, in `ps`, or in a shell history.
+#
+# Two things it adds. `SCENARIO=burst|sustained` selects the executor inside the script
+# (`per-vu-iterations` - the baseline shape - vs `constant-vus` for DURATION, which is what
+# makes an RPS number mean anything). `SUMMARY_OUT` writes k6's end-of-test summary to a host
+# JSON file, because the sweep's whole point is repeat trials that have to be compared later;
+# the file is mounted by directory so nothing but the summary crosses the container boundary.
+#
+#   make load-staging-learning-sustained VUS=25 SCENARIO=burst \
+#     SUMMARY_OUT=docs/resume_evidence/01_platform/raw/burst_25_t1.json
+load-staging-learning-sustained:
+	@STAGING_TOKEN_SECRET_LEARNING="$$(aws $${AWS_PROFILE:+--profile $$AWS_PROFILE} secretsmanager get-secret-value \
+	    --secret-id intellichoice-staging/learning-api/staging-token-shared-secret \
+	    --query SecretString --output text)" && \
+	  if [ $${#STAGING_TOKEN_SECRET_LEARNING} -lt 10 ]; then \
+	    echo "FATAL: the token secret came back too short to be real - refusing to run"; exit 1; \
+	  fi && \
+	  export STAGING_TOKEN_SECRET_LEARNING && \
+	  SUMMARY_OUT=$${SUMMARY_OUT:-/dev/null} && \
+	  if [ "$$SUMMARY_OUT" = "/dev/null" ]; then \
+	    SUMMARY_MOUNT="" ; SUMMARY_FLAG="" ; \
+	  else \
+	    mkdir -p "$$(dirname "$$SUMMARY_OUT")" && \
+	    SUMMARY_MOUNT="-v $$(cd "$$(dirname "$$SUMMARY_OUT")" && pwd):/out" && \
+	    SUMMARY_FLAG="--summary-export=/out/$$(basename "$$SUMMARY_OUT")" ; \
+	  fi && \
+	  docker run --rm -i $$SUMMARY_MOUNT \
+	    -e BASE_URL=$(STAGING_LEARNING_WEB_URL) \
+	    -e STAGING_TOKEN_SECRET_LEARNING \
+	    -e VUS=$${VUS:-5} \
+	    -e SCENARIO=$${SCENARIO:-burst} \
+	    -e DURATION=$${DURATION:-10m} \
+	    -e MIN_RPS=$${MIN_RPS:-1} \
+	    $${COLD_MS:+-e COLD_MS=$$COLD_MS} \
+	    $${P95_MS:+-e P95_MS=$$P95_MS} \
+	    $${MAX_DURATION:+-e MAX_DURATION=$$MAX_DURATION} \
+	    grafana/k6 run $$SUMMARY_FLAG \
+	      --summary-trend-stats='avg,min,med,max,p(50),p(90),p(95),p(99)' \
+	      - < load-tests/k6/learning_sessions_staging_sustained.js
 
 # S39 continuation (D-104): §2.6 criterion 9's trace half. Runs a positive control over
 # all 20 patterns before it will report anything, and FAILS on zero traces scanned - an
