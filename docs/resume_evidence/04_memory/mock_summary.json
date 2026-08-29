@@ -1,0 +1,141 @@
+{
+  "arm": "mock",
+  "environment": "mock-model simulation, local",
+  "model_id": "MockBedrockProvider (no real model)",
+  "git_sha": "a6c80fa",
+  "generated_at": "2026-08-29T06:12:17.620017+00:00",
+  "config": {
+    "students": 1000,
+    "seed": 20260828,
+    "windows": 3,
+    "window_days": 7,
+    "sessions_per_window": [
+      1,
+      2
+    ],
+    "events_per_session": [
+      30,
+      68
+    ],
+    "correct_rate": 0.62,
+    "chat_turn_share": 0.2,
+    "catalog_skills": 30,
+    "planted_skills_per_student": 6,
+    "filler_skills_per_student": 8,
+    "heavy_tail_students": 10,
+    "heavy_tail_events_per_window": 1500,
+    "extreme_tail_students": 5,
+    "extreme_tail_events_per_window": 4600
+  },
+  "students": 1000,
+  "students_by_class": {
+    "standard": 985,
+    "heavy_tail": 10,
+    "extreme_tail": 5
+  },
+  "events": {
+    "total": 346320,
+    "dropped_over_call_cap": 63063,
+    "students_with_drops": 15
+  },
+  "calls": {
+    "total": 3135,
+    "failed": 0,
+    "max_calls_per_student_per_window": 4,
+    "max_event_tokens_per_call": 20000,
+    "hit_output_ceiling": 0,
+    "students_with_a_truncated_call": 0
+  },
+  "compression_ratio": {
+    "p10": 12.7712,
+    "median": 15.8226,
+    "p90": 19.2901,
+    "n": 1000
+  },
+  "tokens": {
+    "raw_history_input_tokens_total": 31379901,
+    "live_fact_tokens_total": 1496978,
+    "median_raw_tokens_per_window": 7665.0,
+    "median_live_fact_tokens_per_student": 1537.0
+  },
+  "lifecycle_distribution": {
+    "provisional": 6386,
+    "active": 11043
+  },
+  "scenario_scores": {
+    "repeated_weak": {
+      "status_correct": 985,
+      "served_correct": 985,
+      "any_live_fact_on_skill": 985,
+      "polarity_match_any": 985,
+      "n": 985
+    },
+    "under_evidenced": {
+      "status_correct": 985,
+      "served_correct": 985,
+      "any_live_fact_on_skill": 985,
+      "polarity_match_any": 985,
+      "n": 985
+    },
+    "repeated_strength": {
+      "status_correct": 985,
+      "served_correct": 985,
+      "any_live_fact_on_skill": 985,
+      "polarity_match_any": 985,
+      "n": 985
+    },
+    "mastery_conflict_weak": {
+      "status_correct": 985,
+      "served_correct": 985,
+      "any_live_fact_on_skill": 0,
+      "polarity_match_any": 985,
+      "n": 985
+    },
+    "mastery_conflict_strength": {
+      "status_correct": 985,
+      "served_correct": 985,
+      "any_live_fact_on_skill": 0,
+      "polarity_match_any": 985,
+      "n": 985
+    },
+    "polarity_flip": {
+      "status_correct": 985,
+      "served_correct": 0,
+      "any_live_fact_on_skill": 985,
+      "polarity_match_any": 985,
+      "n": 985
+    }
+  },
+  "provenance": {
+    "facts_total": 17429,
+    "facts_with_evidence_ids": 17429,
+    "facts_with_all_evidence_resolving_to_this_student": 17429
+  },
+  "students_budget_stopped": 0,
+  "unplanted_extra_live_facts": 12504,
+  "facts_with_no_resolving_evidence": 0,
+  "input_ceiling": {
+    "hard_max_input_tokens": 32000,
+    "windows_over_ceiling": 45,
+    "windows_total": 3000,
+    "students_whose_cumulative_history_exceeds_ceiling": 40,
+    "windows_with_oversized_existing_fact_payload": 0,
+    "max_safe_existing_facts": 21
+  },
+  "cost": {
+    "measured_cents_total": 3522.2036,
+    "measured_cents_per_student": 3.5222,
+    "measured_is_real": false,
+    "projected_input_cents_at_haiku_rates": 3137.9901,
+    "conservative_cents_total": 3522.2036,
+    "cache_write_tokens_total": 0
+  },
+  "run_spend_cents": 3522.2036,
+  "run_spend_cents_conservative": 3522.2036,
+  "run_budget_cents": null,
+  "aborted": false,
+  "aborted_reason": null,
+  "students_requested": 1000,
+  "output_token_floor": null,
+  "configuration": "SHIPPED output budget (max_output_tokens_for)"
+}
