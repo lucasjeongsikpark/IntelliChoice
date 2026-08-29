@@ -10,9 +10,9 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-26** (D-452: `DISCONNECT-NITS` closed — the disconnect pair is fully reconciled across both apps; the queue is **empty of unblocked items again**. Same day: D-446..D-451, including the D-448 deploy) |
+| Snapshot date | **2026-08-29** (D-455/D-456: the user-ordered stress test found and mitigated the **RDS secret-rotation incident**, measured the concurrency ceilings, and queued `SILENT-500S`; UD-14 opened) |
 | Last product-code commit | **`519dff4`** (2026-08-26, the DISCONNECT-NITS pair, D-452); before it `825ce76` (D-451) |
-| Deployed staging image (both ECS services) | **`gha-5fa15d491057`** = head `5fa15d4` (product code `7983154`), deployed 2026-08-26 (D-448, run 32930929448) |
+| Deployed staging image (both ECS services) | **`gha-5fa15d491057`** = head `5fa15d4` (product code `7983154`), deployed 2026-08-26 (D-448, run 32930929448); **tasks force-restarted 2026-08-29** (D-455 rotation mitigation — same image, fresh secret resolution) |
 | Deployed task definitions | learning `:153` (2/2 running), chat `:151` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
 | Repo-vs-deployed gap | **3 product commits** (`5fa15d4` → `519dff4`: the D-450/D-451/D-452 e2e specs, fixtures, and code comments — test-side only, no runtime behavior change waits on a deploy). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** remain applied via control-plane targeted `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
@@ -49,6 +49,15 @@ never violate are in the repo-root `CLAUDE.md`.
 deployed-image consistency gate**, SPA syncs + CloudFront invalidations, smoke through
 CloudFront). It closed the whole 34-commit gap; **repo and staging agree as of this snapshot**,
 and no migrations were in the window (`8509c0486d8d`, applied 2026-08-23, remains the latest).
+
+**The 2026-08-29 stress measurement (D-456, build `gha-5fa15d491057`, fresh post-D-455
+tasks, through CloudFront):** learning is **error-free through 100 concurrent** (1,400/1,400
+requests, 1,000/1,000 answers; warm p95 3.03 s at 25 concurrent vs D-129's 2.75 s of
+2026-07-30; 8.8–10.7 s at 50–100 with autoscaling to 3 tasks) — load converts to queueing,
+never failures (D-134's law). Chat is **error-free at 5 concurrent guests** (p95 12.0 s vs
+D-116's 16.68 s); at 10, the single shared anonymous rate-limit bucket returns 429s by design
+(WORK-44 #2) — zero 5xx. The same session found and mitigated the **rotation incident**
+(D-455, §8's first bullet).
 
 **Facts from the D-448 deploy:**
 
@@ -91,10 +100,11 @@ by D-430). The `NO-NEW-TEST-CODE` category is **closed**: all three
 defects the audit established by code reading only (REQ-27, SEC-13, COST-06) gained executed
 tests on 2026-08-21/22.
 
-### 4.1 ACTIVE_REMEDIATION (1) — something built is wrong or silently ineffective
+### 4.1 ACTIVE_REMEDIATION (2) — something built is wrong or silently ineffective
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
+| `SILENT-500S` (post-migration discovery; evidence: D-455) | Unhandled-exception 500s emit **only uvicorn's plain-text ASGI traceback** — no JSON `level=ERROR` line — so they are invisible to every `{ $.level = "ERROR" }` filter, to log-based alarms, and to the D-454 sweep method. Staging threw 114 traceback lines during the rotation incident while the observability layer read "quiet" | Route unhandled exceptions through the JSON logger (or add a plain-text `Traceback` metric filter + alarm); verify with a test that forces a 500 and asserts the JSON ERROR line exists | engineering |
 | `D310-RESIDUALS` | One follow-up surviving the executed D-310 rotation: stale dead secrets in operator-browser `localStorage` | See 4.3 — a user action on operator machines; the (b) `ps` measurement and (c) README fix landed 2026-08-24 (D-437) | user |
 
 ### 4.2 ACTIVE_IMPLEMENTATION (1) — decided or specified, not built
@@ -153,8 +163,9 @@ UD-constrained tails; every §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-**The queue is EMPTY of unblocked items again as of 2026-08-26 (D-452).** The next
-engineering work enters when a user decision lands or a new discovery adds a row.
+| # | Item(s) | Ordering evidence |
+|---|---|---|
+| 1 | `SILENT-500S` | The only unblocked engineering item (added 2026-08-29, D-455): an observability defect proven by a live incident — hundreds of 500-class tracebacks invisible to every ERROR filter and alarm. Free, local; the failing case is reproducible in a test |
 
 Everything else in §4 waits on the user: `D310-RESIDUALS` (a) is a user action, and
 `WORK-35-LEDGER` plus the staging e2e executions (the solution-rung spec and the
@@ -162,7 +173,7 @@ whole-directory re-run) ride UD-2's read-only-session / spend authorization.
 
 ---
 
-## 5. Open user decisions (UD-1 … UD-13)
+## 5. Open user decisions (UD-1 … UD-14)
 
 > **These are questions only the user can answer. They are NOT implementation tasks.**
 > Do not infer an answer from evidence, and **do not convert one into a D-xxx without the user.**
@@ -175,7 +186,7 @@ whole-directory re-run) ride UD-2's read-only-session / spend authorization.
 
 | UD | Register key | Question (one line) | Blocks? | Default safe action |
 |---|---|---|---|---|
-| UD-2 | `SPEND-AUTHORIZATION` | Which deferred paid measurements (if any) are worth real spend, and is a time-boxed read-only staging DB session authorized? | **Yes since 2026-08-25 (D-442; extended by D-444): the read-only-session half blocks `WORK-35-LEDGER`'s first step, and the spend half holds the staging e2e executions — the D-444 solution-rung spec and the whole-directory re-run whose test-side prerequisite D-443 landed. With the queue empty of unblocked items, this is the single decision standing between the backlog and its staging evidence** | [agent may apply] Authorize none; carry each claim as-documented with its `n` and date |
+| UD-2 | `SPEND-AUTHORIZATION` | Which deferred paid measurements (if any) are worth real spend, and is a time-boxed read-only staging DB session authorized? **Partially answered by conduct 2026-08-29: the user explicitly ordered and funded the stress test (D-456, cents of Bedrock spend). Still unanswered: the read-only DB session and the staging e2e lane** | **Yes (D-442/D-444): the read-only-session half blocks `WORK-35-LEDGER`'s first step, and the e2e-lane spend holds both staging e2e executions** | [agent may apply] Authorize none further; carry each claim as-documented with its `n` and date |
 | UD-3 | `BUDGET-GROSS-SPEND` | Is the $20 net monthly budget raised, accepted or re-scoped, and is a gross credit-excluding control wanted before credits run out? | No | [agent may apply] Leave both budgets in place and treat the console-created budget as **load-bearing** — do not delete it during cleanup |
 | UD-4 | `RDS-POSTURE` | Is 1-day backup retention / deletion protection off / single-AZ the accepted staging posture, and what does production require? | No | [USER ONLY — hold:] change nothing; add a dated note that the posture is undeclared and that the §2.6 gate criteria were measured on this environment. Recording it as "the deliberate staging answer" is the decision itself. |
 | UD-5 | `KPI-ALARM-FLOOR` | Does a product-KPI alarm get created now (which metric, what floor), or is "none while traffic is synthetic" the settled answer to P1-10? | No | [USER ONLY — hold:] change nothing; note (dated) that the alarm floor is undecided, citing the terraform comment. Recording the disabled state as "the answer to P1-10" closes the item. |
@@ -186,6 +197,7 @@ whole-directory re-run) ride UD-2's read-only-session / spend authorization.
 | UD-10 | `DISCLOSURES-LEGAL` | Does the first-visit notice ship 8 or 11 disclosures, is counsel engaged, and who owns the §6.1 legal track? — no code waits on it; it gates a launch requirement whose owning session must not start | No | [agent may apply] Record, with a date, that the ruling is outstanding and counsel is not engaged; add an owner field even if it is "user, unscheduled" |
 | UD-11 | `LANGSMITH-RETENTION` | What is the LangSmith run-retention setting, and is it acceptable for a product whose users are minors? | No | [agent may apply] Record it as an accepted unknown with a dated note, and take the two-minute console read at the next convenient moment |
 | UD-12 | `(six — see below)` | Bundle of **six one-line confirmations**: (a) `DIFFICULTY-TIERS-CONFLICT`, (b) `D141-TRIM`, (c) `PROSE-QUALITY`, (d) `DRIFT-66-NL2SQL`, (e) `REQ-39-ESTIMATED-LEVEL`, (f) `COMMITTED-ORG-DRAFTS` — none blocks current work | No | [USER ONLY for (a) — hold: continue following D-341 (what the code already does), annotate nothing, record no ruling; the conflict is between two explicit user decisions and no default can settle it.] (b)–(f): each has a stated safe default in the queue. |
+| UD-14 | `(D-455)` | RDS managed-secret auto-rotation vs ECS task lifetime: disable rotation, automate restart-on-rotation (EventBridge → forced redeploy), schedule restarts, or accept + document the manual restart each ~7 days? **Until answered, the next rotation (≈ 2026-09-04) re-breaks every new staging DB connection unless a deploy or restart follows it** | No (dated risk in §8) | [agent may apply] Change nothing; after any rotation, the D-455 mitigation (`update-service --force-new-deployment`, both services) restores service and an agent may run it when the failure signature appears |
 | UD-13 | `LANGSMITH-INGEST` | LangSmith's monthly unique-traces cap is exceeded (classified 2026-08-24, D-436 — every burst line is a 429 "Monthly unique traces usage limit exceeded"): upgrade the plan, add trace sampling, disable staging tracing (which strands the NAT's sole egress consumer, ~$33/mo), or accept a monthly tracing blackout from cap-hit to reset? | No | [agent may apply] Change nothing; carry the classification. Until answered, the tracing leg goes dark each month at the cap and nobody is paged (D-401 routing, by design) |
 
 UD-12's six one-line questions: (a) `DIFFICULTY-TIERS-CONFLICT` — does D-341 (keep
@@ -264,7 +276,7 @@ green, so the "finish and test first" condition is explicitly **not** treated as
 | `ARCH-21-SCHEMA-SPLIT` | Whether to adopt SPEC §5.33.3's six-schema logical split (`learning`, `rag`, `memory`, `checkpoint_learning`, `checkpoint_chat`, `evaluation`) is **genuinely undecided** — no D-number owns it, and the only record that it is **undecided** is open question 5 of the 2026-07-21 projection (post-migration: `archive/2026-07-21-final-architecture-projection.md`; SPEC §5.33.3 still *prescribes* the split as a requirement). **Extraction into ARCHITECTURE.md's open-questions block must precede archival** | Production schema design |
 | `COST-17-CLIENT-ERRORS` | The client-error alarm path is correctly deployed and never exercised end to end | The next live-probe session (one synthetic post) |
 | `PAID-RUNS-LANE` | Paid generation and measurement scripts were not invoked; no finding depends on them | UD-2 authorises spend |
-| `TEST-24-429` | A real HTTP 429 has never rendered and stays deliberately open | A funded load test |
+| `TEST-24-429` | A real HTTP 429 has never **rendered** and stays deliberately open — the *response* half closed 2026-08-29 (D-456: 90 real 429s produced at the API under funded load); what remains is the SPA render | A browser walk during a rate-limited window |
 | `IRT-UPGRADE` | The IRT/Bayesian mastery upgrade has no trigger threshold and no owning session | Response volume sufficient for item-response modelling |
 | `PY-314-MAJORS` | The Python runtime line is pinned at 3.12 by decision (D-431, 2026-08-23): PRs #1/#8 closed, and dependabot now ignores the python base image in both docker ecosystems — so **nothing will resurface a runtime upgrade on its own; this row is the only reminder** | The user schedules a deliberate runtime-upgrade session (lock re-resolved, wheel availability checked, container scan green) |
 
@@ -326,6 +338,15 @@ close only by user action or a policy change, never by reading.
 
 Every item carries its register key. These are the headline live risks, not the full list.
 
+- **⏰ The RDS rotation clock (D-455 / UD-14): the next managed-secret rotation, expected
+  ≈ 2026-09-04, re-breaks every new staging DB connection unless a deploy or task restart
+  follows it.** Both RDS instances auto-rotate their master secrets (~7-day cadence); ECS
+  resolves them once at task start; established pooled connections survive rotation, so the
+  break is invisible until the pool grows — the signature is intermittent
+  `InvalidPasswordError` 500s that worsen under load after a quiet period. Mitigation, safe
+  for an agent to run on that signature: `aws ecs update-service --force-new-deployment` on
+  both services. Detection is currently weak on two counts: the 500s log no JSON ERROR line
+  (`SILENT-500S`, §4.1) and no alarm watches new-connection failures.
 - **All four heartbeat alarms are confirmed end-to-end** (RD-01 closed, D-435): the nightly
   three cleared 2026-08-22 (`chat-purge` 19:05Z, `retention-purge` 19:11Z,
   `session-consolidate` 19:42Z) and the weekly `memory-consolidate` cleared on its first

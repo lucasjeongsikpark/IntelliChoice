@@ -30784,3 +30784,100 @@ this sweep neither makes nor nudges.
 **Nothing else to resolve.** No repo defect surfaced; the two not-OK alarms are design; the
 known user-gated risks (UD-3 gross-spend visibility, UD-4 RDS posture, free-tier walls) are
 carried in §8 unchanged, with their dates still honest.
+
+## D-455 — the rotation incident: RDS managed-secret auto-rotation silently breaks every new DB connection, and the deploy cadence had been masking it for a month (accepted, 2026-08-29)
+
+Found by the user-ordered stress test (D-456) within minutes of its first run; classified,
+mitigated, and measured the same sitting. Severity: **staging was a dying system that looked
+healthy** — every established pooled connection kept working, so health checks, single users,
+and the D-454 error sweep all read green, while every *new* Postgres connection had been
+failing since 2026-08-28T06:15Z.
+
+**Mechanism, fully evidenced.**
+
+1. Both RDS instances use **AWS-managed master-user secrets with automatic rotation enabled**
+   (read from `describe-db-instances` + `describe-secret`): Postgres last rotated
+   **2026-08-28T06:15Z**, MySQL **2026-08-28T00:18Z**.
+2. The apps receive the credentials as **ECS container secrets** (`valueFrom` the managed
+   secret, `terraform/environments/staging/main.tf:507-510, 589-592`) — resolved **once, at
+   task start**. The D-448 tasks started 2026-08-26T04:5xZ, so they held the pre-rotation
+   password.
+3. Postgres never re-authenticates an established connection, so the pool's survivors worked;
+   pool *growth* under load opened new connections that failed
+   (`asyncpg.exceptions.InvalidPasswordError: password authentication failed for user
+   "intellichoice"` — 114 traceback lines during the stress runs; 10-33% request failures at
+   5-25 VUs; **0 failures at 1 VU**, which is the discriminating measurement).
+4. **Why a month of load history never saw it:** managed rotation runs on a ~7-day cadence and
+   every task restart re-reads the secret — and until this week the project never went 2 days
+   without a deploy. The 08-26 deploy followed by three quiet days is the first window where a
+   rotation landed on long-lived tasks. The nightly ops jobs were never affected because
+   `run-task` resolves the secret fresh at each launch — which is why their JobCompletions
+   stayed green through the broken period.
+
+**Mitigation, executed and verified:** `aws ecs update-service --force-new-deployment` on both
+services (rollouts COMPLETED); the re-run at 5 VUs went from 10% errors / 29 answers to
+**0.00% errors / all 50 answers**, and the full ramp then ran clean (D-456).
+
+**The durable fix is a posture decision, not made here (new UD-14):** (a) disable managed
+rotation (a real security posture change on a minors-adjacent system), (b) automate
+restart-on-rotation (EventBridge on the rotation event → forced ECS redeploy), (c) a scheduled
+restart, or (d) accept + document (each ~7-day rotation needs a manual restart if no deploy
+intervened). **Until answered: the next rotation, expected ≈ 2026-09-04, re-breaks every new
+staging DB connection unless a deploy or restart follows it** — carried as a dated §8 risk.
+
+**A second defect found inside the first (queued as `SILENT-500S`):** these 500s produced
+**zero JSON ERROR log events** — the unhandled-exception path emits uvicorn's plain-text ASGI
+traceback, invisible to every `{ $.level = "ERROR" }` filter, to the D-454 sweep's method, and
+to any log-based alarm. A staging system threw hundreds of 500-class tracebacks while the
+observability layer said "quiet". The fix (route unhandled exceptions through the JSON logger,
+or add a plain-text `Traceback` metric filter) is real engineering work and enters the queue.
+
+**Two method notes.** My first triage read "ALB target 5xx = 0" minutes after the failures and
+concluded the errors never reached the app — CloudWatch ALB metric propagation lag made a
+false negative; the app access logs (which showed the 500s) were the honest source. And the
+incident-response angle: `INCIDENT_RESPONSE.md` gains this pattern — intermittent DB auth
+failures that worsen under load and follow a quiet period point at
+`MasterUserSecret.LastRotatedDate` vs task start time before anything else.
+
+## D-456 — the stress test: learning is error-free to 100 concurrent; chat's ceiling is its own rate limiter (accepted, 2026-08-29)
+
+The user's explicit instruction ("let's do a stress testing") is the spend authorization —
+recorded as exactly this scope: these k6 runs. UD-2's read-only DB session and the staging
+e2e lane remain unanswered. All numbers on build `gha-5fa15d491057` (fresh post-D-455 tasks),
+2026-08-29, through the real CloudFront edge.
+
+**Learning (deterministic path, no model calls — essentially free):**
+
+| VUs | requests | errors | answers | p95 | note |
+|---|---|---|---|---|---|
+| 1 | 14 | 0.00% | 10/10 | 0.24 s | discriminator run |
+| 5 | 70 | 0.00% | 50/50 | 0.79 s | post-mitigation proof |
+| 25 (cold) | 350 | 0.00% | 250/250 | 8.87 s | 2 min after task restart — cold pools |
+| 25 (warm) | 350 | 0.00% | 250/250 | **3.03 s** | the D-129 comparison (2.75 s, 2026-07-30) |
+| 50 | 700 | 0.00% | 500/500 | 10.7 s | scale-out began |
+| 100 | 1,400 | 0.00% | 1,000/1,000 | 8.8 s | autoscaled to 3 tasks mid-ramp |
+
+**The learning answer: no error ceiling found through 100 concurrent** — load converts to
+queueing latency, never failures, exactly D-134's law ("added concurrency buys latency and
+nothing else"). Warm p95 at 25 concurrent (3.03 s) sits at the alarm threshold and within
+noise of D-129's 2.75 s despite the task resize between them; single-run p95s are not precise
+enough to call that a regression.
+
+**Chat (guest turns, 4 Bedrock calls each — paid):**
+
+| VUs | turns | errors | p95 | note |
+|---|---|---|---|---|
+| 5 | 70 | 0.00% | 12.0 s | vs D-116's 16.68 s baseline |
+| 10 | 140 | **32.14%** | 16.7 s | **all 90 failures are 429s** on `/messages` |
+
+**The chat answer: error-free at 5 concurrent guests; at 10, the single shared anonymous
+rate-limit bucket (WORK-44 #2's accepted risk) returns 429s by design** — zero 5xx anywhere in
+the run. The ceiling is the deliberate pilot limiter, not capacity, and raising it is that
+row's expiry condition ("first real traffic"), not a defect. Bonus evidence: `TEST-24-429`'s
+"a real HTTP 429 has never rendered" is now half-answered — real 429s exist at the API under
+funded load; the SPA *render* half stays open.
+
+**Measured spend:** the chat runs moved the `BedrockCostCents` counter ~1¢ on the observed
+task (tens of cents at most account-wide) — the learning path spent nothing on models by
+design. Two p95 alarms fired and self-resolved during the ramp; autoscaling did its job and
+scale-in returns capacity to the floor on its own.
