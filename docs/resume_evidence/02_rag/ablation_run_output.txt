@@ -1,0 +1,145 @@
+collecting 381 instances against real Bedrock in us-east-1
+re-embedded 144 approved chunks with real Titan (rolled back after)
+  [1/381] gt-auth-000-q0: 30 fused, spent 0.36c
+  [26/381] gt-auth-008-q1: 30 fused, spent 8.77c
+  [51/381] gt-auth-019-q0: 30 fused, spent 18.27c
+  [76/381] gt-gene-027-q1: 30 fused, spent 28.65c
+  [101/381] gt-gene-035-q2: 30 fused, spent 40.32c
+  [126/381] gt-near-042-q3: 30 fused, spent 50.11c
+  [151/381] gt-near-050-q2: 30 fused, spent 60.31c
+  [176/381] gt-near-059-q0: 30 fused, spent 72.75c
+  [201/381] gt-near-067-q2: 30 fused, spent 82.34c
+  [226/381] gt-near-075-q2: 30 fused, spent 93.93c
+  [251/381] gt-gene-083-q2: 30 fused, spent 103.30c
+  [276/381] gt-auth-093-q0: 30 fused, spent 116.18c
+  [301/381] gt-auth-101-q1: 30 fused, spent 126.55c
+  [326/381] gt-auth-109-q1: 30 fused, spent 136.85c
+  [351/381] gt-auth-117-q2: 30 fused, spent 148.47c
+  [376/381] na-e2-insurance-1: 30 fused, spent 158.05c
+  [381/381] na-e2-device-1: 30 fused, spent 159.71c
+
+running the retrieve() control (model half of the drift guard):
+  control gt-auth-000-q0: retrieve() jaccard = 100%
+  control gt-auth-000-q1: retrieve() jaccard = 100%
+  control gt-auth-001-q0: retrieve() jaccard = 100%
+  control gt-auth-002-q0: retrieve() jaccard = 67%
+  control gt-auth-002-q1: retrieve() jaccard = 100%
+  control gt-auth-002-q2: retrieve() jaccard = 67%
+  control gt-auth-002-q3: retrieve() jaccard = 50%
+  control gt-auth-003-q0: retrieve() jaccard = 50%
+  control gt-auth-003-q1: retrieve() jaccard = 100%
+  control gt-auth-003-q2: retrieve() jaccard = 100%
+  control gt-auth-003-q3: retrieve() jaccard = 50%
+  control gt-auth-004-q0: retrieve() jaccard = 50%
+  mean jaccard over 12 sampled instances: 77.8%
+
+total spend: 163.61 cents over 918 calls
+
+wrote 381 instances to docs/resume_evidence/02_rag/ablation_dump.jsonl.gz
+
+=== 363 scored instances over 123 ground truths; 18 no-answer controls ===
+
+-- overall: all  (n=363) --
+arm                             R@1    R@3    R@5   R@10     MRR  nDCG@10   p50ms   p95ms
+fts                           0.132  0.138  0.138  0.138   0.135    0.136     6.8    11.8
+vector                        0.890  0.984  1.000  1.000   0.937    0.953     6.4    12.1
+hybrid_interleave             0.876  0.986  1.000  1.000   0.932    0.950    32.6    42.0
+hybrid_rrf_k20                0.876  0.986  1.000  1.000   0.932    0.949    32.5    42.2
+hybrid_rrf_k60                0.876  0.986  1.000  1.000   0.932    0.949    32.5    42.0
+hybrid_rrf_k120               0.876  0.986  1.000  1.000   0.932    0.949    32.5    42.0
+hybrid_rrf_rerank             0.904  0.986  1.000  1.000   0.947    0.960    32.5    42.0
+hybrid_rrf_rerank_shipped     0.904  0.975  0.984  0.984   0.941    0.952    32.5    42.0
+
+-- stratum: authorization_boundary  (n=157) --
+arm                             R@1    R@3    R@5   R@10     MRR  nDCG@10   p50ms   p95ms
+fts                           0.096  0.096  0.096  0.096   0.096    0.096     6.8    11.8
+vector                        0.866  0.981  1.000  1.000   0.924    0.943     6.8    12.7
+hybrid_interleave             0.841  0.987  1.000  1.000   0.914    0.936    34.2    43.8
+hybrid_rrf_k20                0.841  0.987  1.000  1.000   0.914    0.936    34.2    43.8
+hybrid_rrf_k60                0.841  0.987  1.000  1.000   0.914    0.936    34.2    43.8
+hybrid_rrf_k120               0.841  0.987  1.000  1.000   0.914    0.936    34.2    43.8
+hybrid_rrf_rerank             0.879  0.987  1.000  1.000   0.933    0.951    34.2    43.8
+hybrid_rrf_rerank_shipped     0.879  0.975  0.981  0.981   0.927    0.941    34.2    43.8
+
+-- stratum: general  (n=94) --
+arm                             R@1    R@3    R@5   R@10     MRR  nDCG@10   p50ms   p95ms
+fts                           0.192  0.192  0.192  0.192   0.192    0.192     6.4    11.4
+vector                        0.883  0.968  1.000  1.000   0.928    0.946     6.0    12.1
+hybrid_interleave             0.894  0.968  1.000  1.000   0.936    0.953    31.0    40.1
+hybrid_rrf_k20                0.894  0.968  1.000  1.000   0.936    0.953    31.0    40.1
+hybrid_rrf_k60                0.894  0.968  1.000  1.000   0.936    0.953    31.0    40.1
+hybrid_rrf_k120               0.894  0.968  1.000  1.000   0.936    0.953    31.0    40.1
+hybrid_rrf_rerank             0.925  0.979  1.000  1.000   0.955    0.966    31.0    40.1
+hybrid_rrf_rerank_shipped     0.925  0.968  0.989  0.989   0.952    0.961    31.0    40.1
+
+-- stratum: near_duplicate_cluster  (n=112) --
+arm                             R@1    R@3    R@5   R@10     MRR  nDCG@10   p50ms   p95ms
+fts                           0.134  0.152  0.152  0.152   0.143    0.145     6.9    11.9
+vector                        0.929  1.000  1.000  1.000   0.964    0.974     6.2    12.0
+hybrid_interleave             0.911  1.000  1.000  1.000   0.955    0.967    31.4    40.2
+hybrid_rrf_k20                0.911  1.000  1.000  1.000   0.954    0.966    31.4    40.1
+hybrid_rrf_k60                0.911  1.000  1.000  1.000   0.954    0.966    31.4    40.1
+hybrid_rrf_k120               0.911  1.000  1.000  1.000   0.954    0.966    31.4    40.1
+hybrid_rrf_rerank             0.920  0.991  1.000  1.000   0.958    0.969    31.4    40.1
+hybrid_rrf_rerank_shipped     0.920  0.982  0.982  0.982   0.951    0.959    31.4    40.1
+
+-- phrasing: exact_lookup  (n=123) --
+arm                             R@1    R@3    R@5   R@10     MRR  nDCG@10   p50ms   p95ms
+fts                           0.236  0.244  0.244  0.244   0.240    0.241     6.9    13.5
+vector                        0.911  0.992  1.000  1.000   0.952    0.964     6.7    12.3
+hybrid_interleave             0.919  1.000  1.000  1.000   0.959    0.970    33.1    42.7
+hybrid_rrf_k20                0.919  1.000  1.000  1.000   0.959    0.970    33.1    42.7
+hybrid_rrf_k60                0.919  1.000  1.000  1.000   0.959    0.970    33.1    42.7
+hybrid_rrf_k120               0.919  1.000  1.000  1.000   0.959    0.970    33.1    42.7
+hybrid_rrf_rerank             0.919  0.992  1.000  1.000   0.957    0.968    33.1    42.7
+hybrid_rrf_rerank_shipped     0.919  0.984  0.984  0.984   0.951    0.960    33.1    42.7
+
+-- phrasing: lexical_mismatch  (n=41) --
+arm                             R@1    R@3    R@5   R@10     MRR  nDCG@10   p50ms   p95ms
+fts                           0.000  0.000  0.000  0.000   0.000    0.000     6.3    10.5
+vector                        0.707  0.927  1.000  1.000   0.825    0.869     6.2    11.1
+hybrid_interleave             0.707  0.927  1.000  1.000   0.825    0.869    30.7    37.7
+hybrid_rrf_k20                0.707  0.927  1.000  1.000   0.825    0.869    30.7    37.7
+hybrid_rrf_k60                0.707  0.927  1.000  1.000   0.825    0.869    30.7    37.7
+hybrid_rrf_k120               0.707  0.927  1.000  1.000   0.825    0.869    30.7    37.7
+hybrid_rrf_rerank             0.829  0.927  1.000  1.000   0.886    0.914    30.7    37.7
+hybrid_rrf_rerank_shipped     0.829  0.878  0.951  0.951   0.865    0.886    30.7    37.7
+
+-- phrasing: multi_keyword  (n=28) --
+arm                             R@1    R@3    R@5   R@10     MRR  nDCG@10   p50ms   p95ms
+fts                           0.143  0.143  0.143  0.143   0.143    0.143     6.3    11.8
+vector                        0.929  1.000  1.000  1.000   0.958    0.969     6.0    10.9
+hybrid_interleave             0.964  1.000  1.000  1.000   0.982    0.987    32.0    40.4
+hybrid_rrf_k20                0.964  1.000  1.000  1.000   0.982    0.987    32.0    40.4
+hybrid_rrf_k60                0.964  1.000  1.000  1.000   0.982    0.987    32.0    40.3
+hybrid_rrf_k120               0.964  1.000  1.000  1.000   0.982    0.987    32.0    40.3
+hybrid_rrf_rerank             1.000  1.000  1.000  1.000   1.000    1.000    32.0    40.3
+hybrid_rrf_rerank_shipped     1.000  1.000  1.000  1.000   1.000    1.000    32.0    40.3
+
+-- phrasing: paraphrase  (n=171) --
+arm                             R@1    R@3    R@5   R@10     MRR  nDCG@10   p50ms   p95ms
+fts                           0.088  0.094  0.094  0.094   0.091    0.091     6.8    11.0
+vector                        0.912  0.988  1.000  1.000   0.950    0.963     6.4    12.2
+hybrid_interleave             0.871  0.988  1.000  1.000   0.931    0.949    32.1    42.0
+hybrid_rrf_k20                0.871  0.988  1.000  1.000   0.930    0.948    32.1    42.2
+hybrid_rrf_k60                0.871  0.988  1.000  1.000   0.930    0.948    32.1    42.0
+hybrid_rrf_k120               0.871  0.988  1.000  1.000   0.930    0.948    32.1    42.0
+hybrid_rrf_rerank             0.895  0.994  1.000  1.000   0.945    0.959    32.1    42.0
+hybrid_rrf_rerank_shipped     0.895  0.988  0.988  0.988   0.942    0.954    32.1    42.0
+
+-- no-answer controls (scored outside recall) --
+arm                            emptied   mean returned   max
+fts                           18/18               0.00     0
+vector                         0/18              30.00    30
+hybrid_interleave              0/18              30.00    30
+hybrid_rrf_k20                 0/18              30.00    30
+hybrid_rrf_k60                 0/18              30.00    30
+hybrid_rrf_k120                0/18              30.00    30
+hybrid_rrf_rerank              0/18              30.00    30
+hybrid_rrf_rerank_shipped     15/18               0.17     1
+
+rerank latency (reported separately, it is a model call): p50 2766 ms  p95 3492 ms  n=363
+candidate pools: keyword mean 0.2, semantic mean 30.0, fused mean 30.0
+drift guard: {"deterministic_half": "hybrid_search order asserted equal on all 381 instances", "model_half": {"mean_jaccard": 0.7778, "sampled": 12, "cases": [{"instance_id": "gt-auth-000-q0", "harness_top_k": 1, "retrieve_top_k": 1, "jaccard": 1.0}, {"instance_id": "gt-auth-000-q1", "harness_top_k": 1, "retriev
+total spend: 163.61 cents
+wrote 64 metric rows to docs/resume_evidence/02_rag/ablation_metrics.csv

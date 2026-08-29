@@ -1,0 +1,5162 @@
+generated_by: benchmarks/resume_evidence/02_rag/generate_retrieval_benchmark.py
+generated_at: '2026-08-29T20:32:46+00:00'
+repo_sha: 34096c3
+generator_model: us.anthropic.claude-haiku-4-5-20251001-v1:0
+embedding_model: amazon.titan-embed-text-v2:0
+seed: 20260829
+min_chunk_chars: 100
+mismatch_max_overlap: 0.15
+spend_cents: 76.596
+model_calls: 741
+corpus:
+  groundable_chunks: 123
+  reembedded_for_validation: 144
+counts:
+  ground_truths: 123
+  query_instances: 363
+  no_answer_controls: 18
+note: 'E2.1. One ground truth per groundable approved+effective chunk; `chunk_ids` is a LIST because ir_metrics
+  scores set ground truth, and every entry here is a singleton. `lexical_overlap` is the measured fraction
+  of a phrasing''s content words that also appear in its source chunk - a high mean means the fixture
+  is measuring its own paraphrase. A `paraphrase` phrasing carrying `relabelled_from: lexical_mismatch`
+  was generated under the mismatch prompt and moved here by measurement: the category a case is reported
+  under is the one its numbers support. `no_answer_controls` were each validated against their real-Titan
+  nearest neighbours by an LLM answerability judge - NOT by the retrieval threshold this benchmark measures,
+  which would be circular.'
+ground_truths:
+- id: gt-auth-000
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: null
+  source_document_id: branch_manager-attendance-procedure
+  source_document_title: Attendance Procedure
+  source_section_title: Correcting Attendance
+  chunk_ids:
+  - 43cffc24-ddf9-420a-8e37-db3b6672b547
+  cluster_size: 1
+  source_chars: 193
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: When should attendance errors reported by parents be corrected?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-000-q0
+  - phrasing: paraphrase
+    text: How fast do we need to fix attendance mistakes that parents report to us?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-000-q1
+- id: gt-auth-001
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: null
+  source_document_id: branch_manager-attendance-procedure
+  source_document_title: Attendance Procedure
+  source_section_title: null
+  chunk_ids:
+  - 518479c5-e1d3-4f67-a573-14ec68b0f077
+  cluster_size: 1
+  source_chars: 114
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is the attendance procedure for our branch?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-001-q0
+- id: gt-auth-002
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: null
+  source_document_id: branch_manager-attendance-procedure
+  source_document_title: Attendance Procedure
+  source_section_title: Recording Attendance
+  chunk_ids:
+  - 9af0ef97-499f-4d5c-8b57-8ec2f9060cd5
+  cluster_size: 1
+  source_chars: 208
+  reused_from: probe_eval.yaml#probe-branch_manager-006
+  queries:
+  - phrasing: exact_lookup
+    text: How should I record attendance when students check in for their session block?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-branch_manager-006
+    answerability_checked: false
+    id: gt-auth-002-q0
+  - phrasing: paraphrase
+    text: How do I mark attendance when students arrive for their session?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-branch_manager-006
+    answerability_checked: true
+    id: gt-auth-002-q1
+  - phrasing: lexical_mismatch
+    text: What's the correct way to document learners' participation when they arrive at their class time?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-002-q2
+  - phrasing: multi_keyword
+    text: How should you treat a student with no attendance record for the week, and why does prompt recording
+      matter?
+    lexical_overlap: 0.875
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-002-q3
+- id: gt-auth-003
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: null
+  source_document_id: branch_manager-attendance-procedure
+  source_document_title: Attendance Procedure
+  source_section_title: Handling a Blocked Session
+  chunk_ids:
+  - be9582dc-c2bf-451c-aabf-a7b044fc4dca
+  cluster_size: 1
+  source_chars: 252
+  reused_from: probe_eval.yaml#probe-branch_manager-010
+  queries:
+  - phrasing: exact_lookup
+    text: What can a student do if their week shows an absence on their record?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-branch_manager-010
+    answerability_checked: false
+    id: gt-auth-003-q0
+  - phrasing: paraphrase
+    text: What can a student do if they see an absence marked on their record?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-branch_manager-010
+    answerability_checked: true
+    id: gt-auth-003-q1
+  - phrasing: lexical_mismatch
+    text: What options are available to a learner when their session has a missing or unrecorded participation
+      mark?
+    lexical_overlap: 0.125
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-003-q2
+  - phrasing: multi_keyword
+    text: What happens when a student's week is blocked due to absent or unknown attendance, and how should
+      you handle their review request?
+    lexical_overlap: 0.727
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-003-q3
+- id: gt-auth-004
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: null
+  source_document_id: branch_manager-attendance-procedure
+  source_document_title: Attendance Procedure
+  source_section_title: Absence Patterns
+  chunk_ids:
+  - d4f623da-c594-48c4-a24c-ea4bdbd9029d
+  cluster_size: 1
+  source_chars: 144
+  reused_from: probe_eval.yaml#probe-branch_manager-011
+  queries:
+  - phrasing: exact_lookup
+    text: What should I do if a student is absent for over two weeks?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-branch_manager-011
+    answerability_checked: false
+    id: gt-auth-004-q0
+  - phrasing: paraphrase
+    text: What do I do if one of our students hasn't shown up for more than two weeks?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-branch_manager-011
+    answerability_checked: true
+    id: gt-auth-004-q1
+  - phrasing: lexical_mismatch
+    text: How should educators handle a pupil missing school continuously beyond fourteen days?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-004-q2
+- id: gt-auth-005
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: branch-ext-1
+  source_document_id: branch_manager-branch-calendar
+  source_document_title: Branch Calendar
+  source_section_title: Local Contact
+  chunk_ids:
+  - 2b32c98d-d617-4f09-a17e-e64f8a4d5e94
+  cluster_size: 1
+  source_chars: 141
+  reused_from: probe_eval.yaml#probe-branch_manager-001
+  queries:
+  - phrasing: exact_lookup
+    text: Who should I contact about Main Branch schedule issues?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-branch_manager-001
+    answerability_checked: false
+    id: gt-auth-005-q0
+  - phrasing: paraphrase
+    text: Who do I contact about schedule problems at Main Branch?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-branch_manager-001
+    answerability_checked: true
+    id: gt-auth-005-q1
+  - phrasing: lexical_mismatch
+    text: Who handles timetable concerns for the primary office location?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-005-q2
+- id: gt-auth-006
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: branch-ext-1
+  source_document_id: branch_manager-branch-calendar
+  source_document_title: Branch Calendar
+  source_section_title: Session Blocks
+  chunk_ids:
+  - 53852923-e953-4cec-9c2a-dc50fa0c685d
+  cluster_size: 1
+  source_chars: 277
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What are the session block times for Monday, Wednesday, and Saturday?
+    lexical_overlap: 0.833
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-006-q0
+  - phrasing: paraphrase
+    text: What times do sessions run on Monday, Wednesday, and Saturday?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-006-q1
+  - phrasing: multi_keyword
+    text: Can I attend both session blocks on Saturday, or is there enough break time between them?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-006-q2
+  - phrasing: paraphrase
+    text: When are the two-hour meeting slots scheduled for Monday, Wednesday, and Saturday?
+    lexical_overlap: 0.375
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-006-q3
+    relabelled_from: lexical_mismatch
+- id: gt-auth-007
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: branch-ext-1
+  source_document_id: branch_manager-branch-calendar
+  source_document_title: Branch Calendar
+  source_section_title: Staffing Notes
+  chunk_ids:
+  - 880ed30b-a125-42bb-a246-6f176d99b2dc
+  cluster_size: 1
+  source_chars: 122
+  reused_from: probe_eval.yaml#probe-branch_manager-005
+  queries:
+  - phrasing: exact_lookup
+    text: How many tutors should I assign to Saturday Block 2?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-branch_manager-005
+    answerability_checked: false
+    id: gt-auth-007-q0
+  - phrasing: paraphrase
+    text: How many tutors do I need to staff Saturday Block 2?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-branch_manager-005
+    answerability_checked: true
+    id: gt-auth-007-q1
+  - phrasing: lexical_mismatch
+    text: What's the minimum number of instructors needed for Saturday's second session?
+    lexical_overlap: 0.143
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-007-q2
+- id: gt-auth-008
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: branch-ext-1
+  source_document_id: branch_manager-branch-calendar
+  source_document_title: Branch Calendar
+  source_section_title: Branch-Specific Closures
+  chunk_ids:
+  - a349536a-6ce1-4ceb-a369-0c49c1cd589b
+  cluster_size: 1
+  source_chars: 165
+  reused_from: probe_eval.yaml#probe-branch_manager-007
+  queries:
+  - phrasing: exact_lookup
+    text: When does the Main Branch close for maintenance?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-branch_manager-007
+    answerability_checked: false
+    id: gt-auth-008-q0
+  - phrasing: paraphrase
+    text: When is the Main Branch closing for maintenance?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-branch_manager-007
+    answerability_checked: true
+    id: gt-auth-008-q1
+  - phrasing: paraphrase
+    text: How often is the Main Branch shut down for facility repairs?
+    lexical_overlap: 0.286
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-auth-008-q2
+- id: gt-auth-009
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: branch-ext-1
+  source_document_id: branch_manager-branch-calendar
+  source_document_title: Branch Calendar
+  source_section_title: null
+  chunk_ids:
+  - ee69decd-fb16-4899-9446-a23b8a93404b
+  cluster_size: 1
+  source_chars: 123
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Where can I find the branch calendar for the main branch?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-009-q0
+  - phrasing: lexical_mismatch
+    text: Which location's schedule document is this?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-009-q1
+- id: gt-auth-010
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: null
+  source_document_id: branch_manager-operations-manual
+  source_document_title: Branch Operations Manual
+  source_section_title: Managing Enrollment
+  chunk_ids:
+  - 00f1a3b9-c8f8-4bde-aa79-565e2b3ac466
+  cluster_size: 1
+  source_chars: 167
+  reused_from: probe_eval.yaml#probe-branch_manager-000
+  queries:
+  - phrasing: exact_lookup
+    text: Who handles new student signups and location transfers?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-branch_manager-000
+    answerability_checked: false
+    id: gt-auth-010-q0
+  - phrasing: paraphrase
+    text: Who do I contact about getting new students signed up or moving them to a different branch?
+    lexical_overlap: 0.222
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-branch_manager-000
+    answerability_checked: true
+    id: gt-auth-010-q1
+  - phrasing: lexical_mismatch
+    text: Who processes admissions and relocations between facilities?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-010-q2
+- id: gt-auth-011
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: null
+  source_document_id: branch_manager-operations-manual
+  source_document_title: Branch Operations Manual
+  source_section_title: null
+  chunk_ids:
+  - 540f1c1a-687d-4dc7-b3f7-92ce54d5f00c
+  cluster_size: 1
+  source_chars: 118
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is the status of the Branch Operations Manual?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-011-q0
+  - phrasing: lexical_mismatch
+    text: Is this guidebook ready for use in actual settings?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-011-q1
+- id: gt-auth-012
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: null
+  source_document_id: branch_manager-operations-manual
+  source_document_title: Branch Operations Manual
+  source_section_title: Staffing
+  chunk_ids:
+  - 70958c5a-3dc3-4a67-b1e6-b253d65a62d7
+  cluster_size: 1
+  source_chars: 161
+  reused_from: probe_eval.yaml#probe-branch_manager-004
+  queries:
+  - phrasing: exact_lookup
+    text: What should I do if a tutor can't work their scheduled shift?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-branch_manager-004
+    answerability_checked: false
+    id: gt-auth-012-q0
+  - phrasing: paraphrase
+    text: What should I do if one of our tutors calls in and can't make their shift?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-branch_manager-004
+    answerability_checked: true
+    id: gt-auth-012-q1
+  - phrasing: lexical_mismatch
+    text: How do you handle it when an instructor is unavailable for their assigned time slot?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-012-q2
+- id: gt-auth-013
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: null
+  source_document_id: branch_manager-operations-manual
+  source_document_title: Branch Operations Manual
+  source_section_title: Monthly Reporting
+  chunk_ids:
+  - ab72df57-6471-447f-959d-c54eb9099233
+  cluster_size: 1
+  source_chars: 177
+  reused_from: probe_eval.yaml#probe-branch_manager-008
+  queries:
+  - phrasing: exact_lookup
+    text: What should I include in my monthly report to leadership?
+    lexical_overlap: 0.25
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-branch_manager-008
+    answerability_checked: false
+    id: gt-auth-013-q0
+  - phrasing: paraphrase
+    text: What do I need to put in my monthly report for my manager?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-branch_manager-008
+    answerability_checked: true
+    id: gt-auth-013-q1
+- id: gt-auth-014
+  stratum: authorization_boundary
+  audience: branch_manager
+  branch_external_id: null
+  source_document_id: branch_manager-operations-manual
+  source_document_title: Branch Operations Manual
+  source_section_title: Opening a Session Day
+  chunk_ids:
+  - baac8b91-e15a-408d-9f98-5a1c6a86f12f
+  cluster_size: 1
+  source_chars: 174
+  reused_from: probe_eval.yaml#probe-branch_manager-009
+  queries:
+  - phrasing: exact_lookup
+    text: What do I need to prepare before students arrive for tutoring?
+    lexical_overlap: 0.167
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-branch_manager-009
+    answerability_checked: false
+    id: gt-auth-014-q0
+  - phrasing: paraphrase
+    text: What should I have ready before students show up for their tutoring sessions?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-branch_manager-009
+    answerability_checked: true
+    id: gt-auth-014-q1
+- id: gt-auth-015
+  stratum: authorization_boundary
+  audience: parent
+  branch_external_id: null
+  source_document_id: parent-attendance-policy
+  source_document_title: Attendance Policy
+  source_section_title: Why Attendance Gates Study
+  chunk_ids:
+  - 29167616-5106-40ce-832c-9f9504ada8e4
+  cluster_size: 1
+  source_chars: 196
+  reused_from: probe_eval.yaml#probe-parent-012
+  queries:
+  - phrasing: exact_lookup
+    text: Why does my child need to attend class before starting the weekly practice exam?
+    lexical_overlap: 0.111
+    overlap_band: low
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-parent-012
+    answerability_checked: false
+    id: gt-auth-015-q0
+  - phrasing: paraphrase
+    text: Why does my kid have to go to class before taking the practice test?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-parent-012
+    answerability_checked: true
+    id: gt-auth-015-q1
+  - phrasing: lexical_mismatch
+    text: What requires my child to be marked here before they can begin weekly test preparation?
+    lexical_overlap: 0.111
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-015-q2
+- id: gt-auth-016
+  stratum: authorization_boundary
+  audience: parent
+  branch_external_id: null
+  source_document_id: parent-attendance-policy
+  source_document_title: Attendance Policy
+  source_section_title: null
+  chunk_ids:
+  - 95b132a9-e85a-47f8-9ce3-06a546d99898
+  cluster_size: 1
+  source_chars: 111
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is the current attendance policy for the school?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-016-q0
+- id: gt-auth-017
+  stratum: authorization_boundary
+  audience: parent
+  branch_external_id: null
+  source_document_id: parent-attendance-policy
+  source_document_title: Attendance Policy
+  source_section_title: Correcting a Mistake
+  chunk_ids:
+  - 9f1ab49d-673c-4793-90c5-ad2fcb5c3504
+  cluster_size: 1
+  source_chars: 158
+  reused_from: probe_eval.yaml#probe-parent-013
+  queries:
+  - phrasing: exact_lookup
+    text: How do I fix an attendance error for my child?
+    lexical_overlap: 0.25
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-parent-013
+    answerability_checked: false
+    id: gt-auth-017-q0
+  - phrasing: paraphrase
+    text: My kid got marked absent by mistake - how do I fix that?
+    lexical_overlap: 0.167
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-parent-013
+    answerability_checked: true
+    id: gt-auth-017-q1
+- id: gt-auth-018
+  stratum: authorization_boundary
+  audience: parent
+  branch_external_id: null
+  source_document_id: parent-attendance-policy
+  source_document_title: Attendance Policy
+  source_section_title: If Attendance Is Unknown
+  chunk_ids:
+  - e9b4b29f-cf17-482d-b6f8-2b82c5846e79
+  cluster_size: 1
+  source_chars: 169
+  reused_from: probe_eval.yaml#probe-parent-018
+  queries:
+  - phrasing: exact_lookup
+    text: What happens if my child's attendance hasn't been recorded yet?
+    lexical_overlap: 0.286
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-parent-018
+    answerability_checked: false
+    id: gt-auth-018-q0
+  - phrasing: paraphrase
+    text: My kid's attendance isn't showing up yet - is that normal?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-parent-018
+    answerability_checked: true
+    id: gt-auth-018-q1
+  - phrasing: lexical_mismatch
+    text: How does the system classify unrecorded presence status for children?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-018-q2
+- id: gt-auth-019
+  stratum: authorization_boundary
+  audience: parent
+  branch_external_id: null
+  source_document_id: parent-attendance-policy
+  source_document_title: Attendance Policy
+  source_section_title: If Attendance Is Marked Absent
+  chunk_ids:
+  - fab96b81-b494-41d7-8607-b521fe682efc
+  cluster_size: 1
+  source_chars: 196
+  reused_from: probe_eval.yaml#probe-parent-019
+  queries:
+  - phrasing: exact_lookup
+    text: What happens when my child is marked absent for a week?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-parent-019
+    answerability_checked: false
+    id: gt-auth-019-q0
+  - phrasing: paraphrase
+    text: What happens if my kid is absent from school for a whole week?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-parent-019
+    answerability_checked: true
+    id: gt-auth-019-q1
+  - phrasing: paraphrase
+    text: What occurs to that week's session if your child doesn't attend?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-019-q2
+    relabelled_from: lexical_mismatch
+- id: gt-auth-020
+  stratum: authorization_boundary
+  audience: parent
+  branch_external_id: null
+  source_document_id: parent-parent-handbook
+  source_document_title: Parent Handbook
+  source_section_title: Communicating With Tutors
+  chunk_ids:
+  - a2f10a96-d850-48a9-b01d-fe45e9f9739a
+  cluster_size: 1
+  source_chars: 177
+  reused_from: probe_eval.yaml#probe-parent-014
+  queries:
+  - phrasing: exact_lookup
+    text: How do I reach a tutor if I need to contact them between appointments?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-parent-014
+    answerability_checked: false
+    id: gt-auth-020-q0
+  - phrasing: paraphrase
+    text: What's the best way to get in touch with my kid's tutor if I need to contact them outside of
+      their regular sessions?
+    lexical_overlap: 0.3
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-parent-014
+    answerability_checked: true
+    id: gt-auth-020-q1
+- id: gt-auth-021
+  stratum: authorization_boundary
+  audience: parent
+  branch_external_id: null
+  source_document_id: parent-parent-handbook
+  source_document_title: Parent Handbook
+  source_section_title: Multiple Children
+  chunk_ids:
+  - a382ea1b-19a5-43dd-abd4-19467d192ffe
+  cluster_size: 1
+  source_chars: 199
+  reused_from: probe_eval.yaml#probe-parent-015
+  queries:
+  - phrasing: exact_lookup
+    text: Do I need to specify which child each appointment is for if I have multiple kids enrolled?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-parent-015
+    answerability_checked: false
+    id: gt-auth-021-q0
+  - phrasing: paraphrase
+    text: If I have multiple kids here, do I need to say which one each appointment is for?
+    lexical_overlap: 0.286
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-parent-015
+    answerability_checked: true
+    id: gt-auth-021-q1
+  - phrasing: paraphrase
+    text: When having two or more kids registered, must you indicate which youngster a meeting relates
+      to each login?
+    lexical_overlap: 0.182
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-auth-021-q2
+- id: gt-auth-022
+  stratum: authorization_boundary
+  audience: parent
+  branch_external_id: null
+  source_document_id: parent-parent-handbook
+  source_document_title: Parent Handbook
+  source_section_title: null
+  chunk_ids:
+  - b15903d6-5648-4d92-90e3-50b39864abe0
+  cluster_size: 1
+  source_chars: 109
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Is the parent handbook approved and ready to use?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-022-q0
+  - phrasing: paraphrase
+    text: Is the parent handbook out and approved to use yet?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-022-q1
+  - phrasing: lexical_mismatch
+    text: Can the caregiving guide be put into service right now?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-022-q2
+- id: gt-auth-023
+  stratum: authorization_boundary
+  audience: parent
+  branch_external_id: null
+  source_document_id: parent-parent-handbook
+  source_document_title: Parent Handbook
+  source_section_title: Viewing Reports
+  chunk_ids:
+  - d3f6483e-ec14-4147-995b-1b4c775a48b3
+  cluster_size: 1
+  source_chars: 227
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: When can I view my child's learning-gain reports?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-023-q0
+  - phrasing: paraphrase
+    text: When can I see my child's learning-gain reports?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-023-q1
+  - phrasing: multi_keyword
+    text: When can parents see their child's pre-exam and post-exam topic scores in learning-gain reports?
+    lexical_overlap: 0.818
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-023-q2
+  - phrasing: paraphrase
+    text: After your child finishes their exam, when are learning-gain reports accessible?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-023-q3
+    relabelled_from: lexical_mismatch
+- id: gt-auth-024
+  stratum: authorization_boundary
+  audience: parent
+  branch_external_id: null
+  source_document_id: parent-parent-handbook
+  source_document_title: Parent Handbook
+  source_section_title: Your Role
+  chunk_ids:
+  - df3faf94-192a-474b-a594-b39b72cc249d
+  cluster_size: 1
+  source_chars: 229
+  reused_from: probe_eval.yaml#probe-parent-017
+  queries:
+  - phrasing: exact_lookup
+    text: What am I responsible for as a parent in my child's tutoring program?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-parent-017
+    answerability_checked: false
+    id: gt-auth-024-q0
+  - phrasing: paraphrase
+    text: What do I need to do to support my kid's tutoring?
+    lexical_overlap: 0.25
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-parent-017
+    answerability_checked: true
+    id: gt-auth-024-q1
+  - phrasing: multi_keyword
+    text: What are your two main responsibilities besides helping with the material itself?
+    lexical_overlap: 0.286
+    overlap_band: mid
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-024-q2
+  - phrasing: lexical_mismatch
+    text: What obligations do mothers or fathers have regarding their offspring's educational instruction
+      schedule and progress assessments?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-024-q3
+- id: gt-gene-025
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-academic-calendar
+  source_document_title: Academic Calendar
+  source_section_title: null
+  chunk_ids:
+  - a0ba9d2b-7e39-4361-9b3d-120d56b2be0f
+  cluster_size: 1
+  source_chars: 3658
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: When is the academic calendar for this school?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-025-q0
+  - phrasing: paraphrase
+    text: When does the school year start and end?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-025-q1
+  - phrasing: lexical_mismatch
+    text: What dates cover the institution's educational schedule and key institutional milestones?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-025-q2
+- id: gt-gene-026
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-ai-use-notice
+  source_document_title: AI Use Notice
+  source_section_title: What AI Does Not Do
+  chunk_ids:
+  - 3f00a5af-70db-4389-9562-4616f8d9e0e8
+  cluster_size: 1
+  source_chars: 173
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What are the key limitations of AI in this school system?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-026-q0
+  - phrasing: paraphrase
+    text: What can't AI do well in this school system?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-026-q1
+- id: gt-gene-027
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-ai-use-notice
+  source_document_title: AI Use Notice
+  source_section_title: null
+  chunk_ids:
+  - 4a3ffda6-a64e-4cc3-ab57-a27aa2e46af2
+  cluster_size: 1
+  source_chars: 107
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Is this AI use notice approved for production?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-027-q0
+  - phrasing: paraphrase
+    text: Is this AI use notice ready to go live on the website?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-027-q1
+  - phrasing: lexical_mismatch
+    text: Has this synthetic material received clearance for real-world deployment?
+    lexical_overlap: 0.143
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-027-q2
+- id: gt-gene-028
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-ai-use-notice
+  source_document_title: AI Use Notice
+  source_section_title: Model Limitations
+  chunk_ids:
+  - 4c284c1a-7290-4ed0-8fdd-f59776553647
+  cluster_size: 1
+  source_chars: 204
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What does the AI assistant do if it can't find an answer in approved documents?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-028-q0
+  - phrasing: paraphrase
+    text: What happens if the AI doesn't have an answer to my question?
+    lexical_overlap: 0.25
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-028-q1
+  - phrasing: multi_keyword
+    text: What should the AI assistant do if it can't find an answer in approved documents?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-028-q2
+  - phrasing: lexical_mismatch
+    text: When unable to locate information in authorized materials, what alternative does the system
+      offer?
+    lexical_overlap: 0.125
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-028-q3
+- id: gt-gene-029
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-ai-use-notice
+  source_document_title: AI Use Notice
+  source_section_title: Human Review
+  chunk_ids:
+  - c76f6116-b9c6-4932-abde-b6729316896d
+  cluster_size: 1
+  source_chars: 178
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: How does the AI tutor ensure questions shown to students are correct?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-029-q0
+  - phrasing: paraphrase
+    text: How do you make sure the questions the AI tutor shows students are actually right?
+    lexical_overlap: 0.375
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-029-q1
+  - phrasing: paraphrase
+    text: What mechanisms verify the accuracy of student review items before display?
+    lexical_overlap: 0.375
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-029-q2
+    relabelled_from: lexical_mismatch
+- id: gt-gene-030
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-ai-use-notice
+  source_document_title: AI Use Notice
+  source_section_title: Where AI Is Used
+  chunk_ids:
+  - f95c3a6c-8944-4507-9cfe-1964e5ecbfd6
+  cluster_size: 1
+  source_chars: 173
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Where does IntelliChoice use AI models?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-030-q0
+  - phrasing: paraphrase
+    text: Where does IntelliChoice use AI to help out?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-030-q1
+  - phrasing: paraphrase
+    text: In what contexts does IntelliChoice apply artificial intelligence technology?
+    lexical_overlap: 0.167
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-gene-030-q2
+- id: gt-gene-031
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-branch-directory
+  source_document_title: Branch Directory
+  source_section_title: Branch List
+  chunk_ids:
+  - ad6dda1d-18dd-4d67-a2ef-7a6524902a59
+  cluster_size: 1
+  source_chars: 2970
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What are the locations and hours for all branches in this program?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-031-q0
+  - phrasing: paraphrase
+    text: Where are all the branches and what are their hours?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-031-q1
+- id: gt-gene-032
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-contact-guide
+  source_document_title: Contact Guide
+  source_section_title: null
+  chunk_ids:
+  - 1872b1a9-6bc6-437a-806b-c174b41249f6
+  cluster_size: 1
+  source_chars: 107
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Is this Contact Guide approved for production use?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-032-q0
+  - phrasing: paraphrase
+    text: Can I actually use this Contact Guide or is it still being worked on?
+    lexical_overlap: 0.286
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-032-q1
+  - phrasing: lexical_mismatch
+    text: May this document be deployed in real-world environments?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-032-q2
+- id: gt-gene-033
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-contact-guide
+  source_document_title: Contact Guide
+  source_section_title: General Questions
+  chunk_ids:
+  - 6ed29c39-0acb-4ad4-8289-1a3c19b7ff8d
+  cluster_size: 1
+  source_chars: 157
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Who should I contact about enrollment, scheduling, or billing questions?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-033-q0
+  - phrasing: paraphrase
+    text: Who do I contact about signing up, class times, or how much things cost?
+    lexical_overlap: 0.25
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-033-q1
+  - phrasing: lexical_mismatch
+    text: Who do I reach out to regarding registration, timetable, or payment inquiries?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-033-q2
+- id: gt-gene-034
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-contact-guide
+  source_document_title: Contact Guide
+  source_section_title: Technical Issues
+  chunk_ids:
+  - bf4ba0d9-637c-4437-81e9-d066161b718a
+  cluster_size: 1
+  source_chars: 184
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: How do I report login errors or loading issues with the learning platform?
+    lexical_overlap: 0.857
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-034-q0
+  - phrasing: paraphrase
+    text: How do I report problems when I can't log in or the site won't load?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-034-q1
+  - phrasing: lexical_mismatch
+    text: What should I do if I can't access the educational system or my account won't authenticate?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-034-q2
+- id: gt-gene-035
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-contact-guide
+  source_document_title: Contact Guide
+  source_section_title: Something Urgent
+  chunk_ids:
+  - e96c0ae3-e106-443a-a882-676857b05ffc
+  cluster_size: 1
+  source_chars: 152
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: How should I report student safety or wellbeing concerns?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-035-q0
+  - phrasing: paraphrase
+    text: How do I report if I'm worried about a student's safety or wellbeing?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-035-q1
+  - phrasing: paraphrase
+    text: When must you call your branch manager regarding learner concerns rather than write?
+    lexical_overlap: 0.375
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-gene-035-q2
+- id: gt-gene-036
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-contact-guide
+  source_document_title: Contact Guide
+  source_section_title: Escalating Beyond a Branch
+  chunk_ids:
+  - ed423e48-cff5-42ad-9d3b-f22697e35c6c
+  cluster_size: 1
+  source_chars: 198
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: How do I escalate an issue that my branch manager cannot resolve?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-036-q0
+  - phrasing: paraphrase
+    text: What do I do if my branch manager can't help solve my problem?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-036-q1
+  - phrasing: lexical_mismatch
+    text: What should I do when my location's supervisor can't fix my problem?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-036-q2
+- id: gt-gene-037
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-organization-overview
+  source_document_title: About IntelliChoice
+  source_section_title: First Branch Opens
+  chunk_ids:
+  - 1a705715-09a1-4031-b7c4-2d818abf6a05
+  cluster_size: 1
+  source_chars: 3033
+  reused_from: probe_eval.yaml#probe-public-023
+  queries:
+  - phrasing: exact_lookup
+    text: Where do you have tutoring locations available?
+    lexical_overlap: 0.25
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-public-023
+    answerability_checked: false
+    id: gt-gene-037-q0
+  - phrasing: paraphrase
+    text: Where can I get tutoring? Do you have locations near me?
+    lexical_overlap: 0.25
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-public-023
+    answerability_checked: true
+    id: gt-gene-037-q1
+  - phrasing: multi_keyword
+    text: What was the first student club established and at which institution did it open?
+    lexical_overlap: 0.714
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-037-q2
+  - phrasing: paraphrase
+    text: What communities and cities offer your educational support services?
+    lexical_overlap: 0.167
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-037-q3
+    relabelled_from: lexical_mismatch
+- id: gt-gene-038
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-organization-overview
+  source_document_title: About IntelliChoice
+  source_section_title: Our Mission and Values
+  chunk_ids:
+  - 2902f9d4-277f-4bb2-9449-efe3f93d5f8f
+  cluster_size: 1
+  source_chars: 493
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is the organization's mission for disadvantaged children?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-038-q0
+  - phrasing: paraphrase
+    text: What does your organization do to help kids in need?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-038-q1
+  - phrasing: paraphrase
+    text: How does the organization aim to help underprivileged youth achieve academic success through
+      numbers?
+    lexical_overlap: 0.3
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-gene-038-q2
+- id: gt-gene-039
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-organization-overview
+  source_document_title: About IntelliChoice
+  source_section_title: Our History
+  chunk_ids:
+  - 34eb3f07-7b08-471a-adc9-913c7eabf1bf
+  cluster_size: 1
+  source_chars: 1520
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: How did Prof. Gil Lee come up with the idea for Intellichoice, Inc.?
+    lexical_overlap: 0.714
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-039-q0
+  - phrasing: paraphrase
+    text: How did Prof. Gil Lee come up with the idea for Intellichoice, Inc.?
+    lexical_overlap: 0.714
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-039-q1
+  - phrasing: paraphrase
+    text: What inspired Gil Lee to create his educational organization after taking a wrong highway exit?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-gene-039-q2
+  - phrasing: multi_keyword
+    text: Why did Prof. Lee start a tutoring program after returning from sabbatical in 1991?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-039-q3
+- id: gt-gene-040
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-organization-overview
+  source_document_title: About IntelliChoice
+  source_section_title: Official Nonprofit Registration
+  chunk_ids:
+  - bd46ec1f-0418-43ad-aea0-fabfdc7e8492
+  cluster_size: 1
+  source_chars: 117
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Is IntelliChoice, Inc. registered as a 501(c)3 nonprofit?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-040-q0
+  - phrasing: paraphrase
+    text: Is IntelliChoice, Inc. a nonprofit organization?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-040-q1
+  - phrasing: paraphrase
+    text: Is IntelliChoice, Inc. officially certified with tax-exempt charitable status in Texas?
+    lexical_overlap: 0.222
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-gene-040-q2
+- id: gt-gene-041
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-organization-overview
+  source_document_title: About IntelliChoice
+  source_section_title: About Us
+  chunk_ids:
+  - de15f2b9-4fef-42e9-9237-f7e9b99e7e0e
+  cluster_size: 1
+  source_chars: 1366
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is IntelliChoice and what programs does it offer?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-041-q0
+  - phrasing: paraphrase
+    text: What is IntelliChoice and what programs can I choose from?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-041-q1
+  - phrasing: multi_keyword
+    text: Can IntelliChoice's online tutoring reach students that the 800+ on-site tutors at 20 locations
+      cannot serve?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-041-q2
+  - phrasing: paraphrase
+    text: Which charitable tutoring organization established in Dallas runs math instruction via volunteers
+      and what services do they provide?
+    lexical_overlap: 0.462
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-041-q3
+    relabelled_from: lexical_mismatch
+- id: gt-near-042
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Ovidio Rodiriguez Lopez
+  chunk_ids:
+  - 06d8ee3b-191d-43f1-94ac-7d21f5599b48
+  cluster_size: 1
+  source_chars: 701
+  reused_from: probe_eval.yaml#probe-public-020
+  queries:
+  - phrasing: exact_lookup
+    text: What is Ovidio Rodriguez Lopez's professional background and current research focus?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-public-020
+    answerability_checked: false
+    id: gt-near-042-q0
+  - phrasing: paraphrase
+    text: What's Ovidio Rodriguez Lopez's background and what does he research?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-public-020
+    answerability_checked: true
+    id: gt-near-042-q1
+  - phrasing: paraphrase
+    text: What are Ovidio Rodriguez Lopez's qualifications and what does he research presently?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-near-042-q2
+  - phrasing: multi_keyword
+    text: What degree did Rodriguez Lopez earn in 2023 and what is his current role at UTD's Center of
+      Engineering Innovation?
+    lexical_overlap: 0.727
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-042-q3
+- id: gt-near-043
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Samantha Maria
+  chunk_ids:
+  - 0b7003d6-1ee9-4c07-bf0d-5fcf87e09554
+  cluster_size: 1
+  source_chars: 155
+  reused_from: probe_eval.yaml#probe-public-021
+  queries:
+  - phrasing: exact_lookup
+    text: Who works at the Guinn Center and what is their major?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-public-021
+    answerability_checked: false
+    id: gt-near-043-q0
+  - phrasing: paraphrase
+    text: Who works at the Guinn Center and what's their major?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-public-021
+    answerability_checked: true
+    id: gt-near-043-q1
+  - phrasing: paraphrase
+    text: What field of engineering does Samantha Perez specialize in?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-043-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-044
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Hyun-Joo Nam, Ph.D.
+  chunk_ids:
+  - 1a0d7283-05e2-42a1-ae78-2717ac889bdc
+  cluster_size: 1
+  source_chars: 348
+  reused_from: probe_eval.yaml#probe-public-022
+  queries:
+  - phrasing: exact_lookup
+    text: What is Hyun-Joo Nam's educational background and work history?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-public-022
+    answerability_checked: false
+    id: gt-near-044-q0
+  - phrasing: paraphrase
+    text: Can you tell me about Hyun-Joo Nam's background and where they've worked?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-public-022
+    answerability_checked: true
+    id: gt-near-044-q1
+  - phrasing: paraphrase
+    text: Where did Hyun-Joo Nam study, and what positions has she held professionally?
+    lexical_overlap: 0.444
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-near-044-q2
+  - phrasing: multi_keyword
+    text: What is Dr. Nam's current role after working as an assistant professor of Bioengineering at
+      UT Dallas?
+    lexical_overlap: 0.556
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-044-q3
+- id: gt-near-045
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Dave Dale
+  chunk_ids:
+  - 1ca42995-da35-4ac2-b95a-c68b87f90992
+  cluster_size: 1
+  source_chars: 325
+  reused_from: probe_eval.yaml#probe-public-024
+  queries:
+  - phrasing: exact_lookup
+    text: What does Dave Dale do to support math learning in the community?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-public-024
+    answerability_checked: false
+    id: gt-near-045-q0
+  - phrasing: paraphrase
+    text: What does Dave Dale do to help people learn math?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-public-024
+    answerability_checked: true
+    id: gt-near-045-q1
+- id: gt-near-046
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Jungsoon Lee, Ph.D.
+  chunk_ids:
+  - 1d29044f-046f-4899-b9f0-2e3ab0e30719
+  cluster_size: 1
+  source_chars: 1349
+  reused_from: probe_eval.yaml#probe-public-026
+  queries:
+  - phrasing: exact_lookup
+    text: What is Dr. Jungsoon Lee's background and role at Intellichoice?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-public-026
+    answerability_checked: false
+    id: gt-near-046-q0
+  - phrasing: paraphrase
+    text: Who is Dr. Jungsoon Lee and what does she do at Intellichoice?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-public-026
+    answerability_checked: true
+    id: gt-near-046-q1
+  - phrasing: paraphrase
+    text: What are Jungsoon Lee's educational credentials and responsibilities as founder of Intellichoice?
+    lexical_overlap: 0.571
+    overlap_band: high
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-near-046-q2
+  - phrasing: multi_keyword
+    text: What university position did Dr. Lee hold with tenure from 1992 to 2008, and what program did
+      she lead for at-risk students during 2000-2003?
+    lexical_overlap: 0.636
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-046-q3
+- id: gt-near-047
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Dan Heitjan, Ph.D.
+  chunk_ids:
+  - 1e8495f1-c582-4649-a1e6-236f7993ab58
+  cluster_size: 1
+  source_chars: 296
+  reused_from: probe_eval.yaml#probe-public-027
+  queries:
+  - phrasing: exact_lookup
+    text: What are Dan Heitjan's current academic positions and educational background?
+    lexical_overlap: 0.286
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-public-027
+    answerability_checked: false
+    id: gt-near-047-q0
+  - phrasing: paraphrase
+    text: Who is Dan Heitjan and what are his current job and education?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-public-027
+    answerability_checked: true
+    id: gt-near-047-q1
+  - phrasing: paraphrase
+    text: Where does Dan Heitjan teach, and what degrees did he earn?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-047-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-048
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Juhyun Lee Ph.D.
+  chunk_ids:
+  - 20d6153f-22b6-4889-a79d-03d3bc919bab
+  cluster_size: 1
+  source_chars: 609
+  reused_from: probe_eval.yaml#probe-public-028
+  queries:
+  - phrasing: exact_lookup
+    text: What is Juhyun Lee's current position and what is his research focused on?
+    lexical_overlap: 0.571
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-public-028
+    answerability_checked: false
+    id: gt-near-048-q0
+  - phrasing: paraphrase
+    text: What does Juhyun Lee do and what's he researching?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-public-028
+    answerability_checked: true
+    id: gt-near-048-q1
+- id: gt-near-049
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Annika Sawant
+  chunk_ids:
+  - 22a9a1c5-d176-4a48-a121-638b23498a2b
+  cluster_size: 1
+  source_chars: 299
+  reused_from: probe_eval.yaml#probe-public-029
+  queries:
+  - phrasing: exact_lookup
+    text: Who is the president of the Hebron High School chapter?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-public-029
+    answerability_checked: false
+    id: gt-near-049-q0
+  - phrasing: paraphrase
+    text: Who's the president of the Hebron High School chapter?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-public-029
+    answerability_checked: true
+    id: gt-near-049-q1
+  - phrasing: multi_keyword
+    text: What roles does Annika Sawant hold at Hebron High School, and what musical accomplishments are
+      mentioned?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-049-q2
+  - phrasing: paraphrase
+    text: Who leads the Hebron High School branch?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-049-q3
+    relabelled_from: lexical_mismatch
+- id: gt-near-050
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Ryan Johnston
+  chunk_ids:
+  - 3497ee75-15b5-4343-a9e5-abf953e1d5e2
+  cluster_size: 1
+  source_chars: 245
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Who is the Vickery Park Branch Manager?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-050-q0
+  - phrasing: paraphrase
+    text: Who runs the Vickery Park Branch?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-050-q1
+  - phrasing: paraphrase
+    text: Who oversees the Vickery Park facility?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-050-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-051
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Tae-Youl Choi, Ph.D.
+  chunk_ids:
+  - 45592960-4f33-4f92-bb27-66d77fcb066c
+  cluster_size: 1
+  source_chars: 247
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What position has Tae-Youl Choi held since November 2017?
+    lexical_overlap: 0.714
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-051-q0
+  - phrasing: paraphrase
+    text: What job has Tae-Youl Choi had since November 2017?
+    lexical_overlap: 0.714
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-051-q1
+- id: gt-near-052
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Anil Bhatia
+  chunk_ids:
+  - 45b32760-179d-468a-a3af-6d04c5fc9c0f
+  cluster_size: 1
+  source_chars: 533
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What are Anil Bhatia's educational credentials and professional background?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-052-q0
+  - phrasing: paraphrase
+    text: What's Anil Bhatia's education and work experience?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-052-q1
+  - phrasing: paraphrase
+    text: What degrees does Anil Bhatia hold, and what is his career history?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-052-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-053
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Jim Jones
+  chunk_ids:
+  - 4eda5aff-dd5c-4cc5-b869-ce9e122e044c
+  cluster_size: 1
+  source_chars: 547
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Jim Jones's background and current role at Intellichoice?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-053-q0
+  - phrasing: paraphrase
+    text: Who is Jim Jones and what does he do at Intellichoice?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-053-q1
+  - phrasing: paraphrase
+    text: What are Jim Jones's work history and position at Intellichoice?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-053-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-054
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Hyunwoong (Woody) Chang, Ph.D
+  chunk_ids:
+  - 50f17d96-5855-43f5-b792-0cf847e9530c
+  cluster_size: 1
+  source_chars: 312
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What are Hyunwoong Chang's educational background and current position?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-054-q0
+  - phrasing: paraphrase
+    text: What's Hyunwoong Chang's background and what does he do?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-054-q1
+  - phrasing: paraphrase
+    text: What degrees did Hyunwoong Chang earn and where does he work now?
+    lexical_overlap: 0.286
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-near-054-q2
+- id: gt-near-055
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Rashaunda Henderson, Ph.D.
+  chunk_ids:
+  - 5880c4f9-5bc0-40dd-adac-b159e5906a4e
+  cluster_size: 1
+  source_chars: 442
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Dr. Rashaunda Henderson's educational background and research focus?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-055-q0
+  - phrasing: paraphrase
+    text: Who is Dr. Rashaunda Henderson and what does she study/research?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-055-q1
+  - phrasing: paraphrase
+    text: What degrees did Rashaunda Henderson earn and what field does she study?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-055-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-056
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Rashaunda Henderson, Ph.D.
+  chunk_ids:
+  - 6080251f-6256-4dbe-98ea-7bce0ea9a766
+  cluster_size: 1
+  source_chars: 444
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What are Rashaunda Henderson's educational degrees and background?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-056-q0
+  - phrasing: paraphrase
+    text: What degrees and educational background does Rashaunda Henderson have?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-056-q1
+- id: gt-near-057
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Isaac Brooks
+  chunk_ids:
+  - 671305ea-9ce3-454f-b6e6-9e96bd12ee5e
+  cluster_size: 1
+  source_chars: 522
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What are Isaac Brooks' volunteer roles and experience?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-057-q0
+  - phrasing: paraphrase
+    text: What volunteer work has Isaac Brooks done at the school?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-057-q1
+  - phrasing: paraphrase
+    text: Where has Isaac Brooks volunteered and what activities did he perform?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-near-057-q2
+  - phrasing: multi_keyword
+    text: What college degree is Isaac pursuing while managing the MLK Branch since Fall 2019?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-057-q3
+- id: gt-near-058
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Suran Yoo
+  chunk_ids:
+  - 6cfc5b03-402e-47b1-94bb-df7743239fd8
+  cluster_size: 1
+  source_chars: 580
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What business did Suran Yoo found?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-058-q0
+  - phrasing: paraphrase
+    text: What business did Suran Yoo start or found?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-058-q1
+  - phrasing: multi_keyword
+    text: What did Suran Yoo study for her MBA and where did she earn her undergraduate degree?
+    lexical_overlap: 0.7
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-058-q2
+  - phrasing: paraphrase
+    text: What enterprise did Suran Yoo establish selling high-end hair accessories?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-058-q3
+    relabelled_from: lexical_mismatch
+- id: gt-near-059
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Thomas Narlo
+  chunk_ids:
+  - 78a540e1-dd2f-41ea-ab42-f65b00a0090c
+  cluster_size: 1
+  source_chars: 381
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What are Thomas Narlo's hobbies outside of school?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-059-q0
+  - phrasing: paraphrase
+    text: What does Thomas Narlo like to do outside of school?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-059-q1
+  - phrasing: paraphrase
+    text: What activities does Thomas Narlo enjoy in his free time outside academics?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-near-059-q2
+- id: gt-near-060
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Duc Pham
+  chunk_ids:
+  - 7a065323-f71c-4caf-9e14-36105fb9d8cd
+  cluster_size: 1
+  source_chars: 224
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What degree did Duc Pham graduate from Baylor University with?
+    lexical_overlap: 0.833
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-060-q0
+  - phrasing: paraphrase
+    text: What degree did Duc Pham get from Baylor University?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-060-q1
+  - phrasing: paraphrase
+    text: What science bachelor's qualification did Duc Pham obtain from Baylor?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-060-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-061
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Bilal Akin, Ph.D.
+  chunk_ids:
+  - 892b6026-9957-41b4-a3b9-e8ec4638b476
+  cluster_size: 1
+  source_chars: 942
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Bilal Akin's role at UT Dallas and what are his main research interests?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-061-q0
+  - phrasing: paraphrase
+    text: Who is Bilal Akin and what does he do at UT Dallas?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-061-q1
+  - phrasing: multi_keyword
+    text: How long did Bilal Akin work in industry before joining UT Dallas as faculty in 2012?
+    lexical_overlap: 0.444
+    overlap_band: mid
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-061-q2
+  - phrasing: paraphrase
+    text: What position does Bilal Akin hold at UT Dallas and what does he primarily study?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-061-q3
+    relabelled_from: lexical_mismatch
+- id: gt-near-062
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Evelyn Lee
+  chunk_ids:
+  - 8e9883d4-0513-4365-ad13-732ad5ace132
+  cluster_size: 1
+  source_chars: 189
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Who is the president of Flower Mound High?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-062-q0
+  - phrasing: paraphrase
+    text: What is Evelyn Lee's role at Flower Mound High?
+    lexical_overlap: 0.833
+    overlap_band: high
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-062-q1
+    relabelled_from: lexical_mismatch
+- id: gt-near-063
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Anil Bhatia
+  chunk_ids:
+  - 91b7e43c-c1e4-4ca8-811e-af08d536af52
+  cluster_size: 1
+  source_chars: 532
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Anil Bhatia's educational background and current role?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-063-q0
+  - phrasing: paraphrase
+    text: Who is Anil Bhatia and what does he do?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-063-q1
+  - phrasing: paraphrase
+    text: What degrees does Anil Bhatia hold and what position does he currently occupy?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-063-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-064
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Kangkook Jee, Ph.D.
+  chunk_ids:
+  - 991ed38e-28ef-4337-a73a-e2bdc1b58749
+  cluster_size: 1
+  source_chars: 409
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Kangkook Jee's research focus and academic background?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-064-q0
+  - phrasing: paraphrase
+    text: What does Kangkook Jee study and what's their background?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-064-q1
+  - phrasing: paraphrase
+    text: What areas does Kangkook Jee study, and where did he earn his degrees?
+    lexical_overlap: 0.375
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-064-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-065
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Hye-Young Kim, Ph.D.
+  chunk_ids:
+  - a276e802-f159-4049-bc5d-0e8b6ddf9783
+  cluster_size: 1
+  source_chars: 256
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What are Hye-Young Kim's educational qualifications and current position?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-065-q0
+  - phrasing: paraphrase
+    text: What's Hye-Young Kim's background and what job does she have now?
+    lexical_overlap: 0.571
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-065-q1
+  - phrasing: paraphrase
+    text: What degrees and job role does Hye-Young Kim have?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-065-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-066
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Elliot Tian
+  chunk_ids:
+  - a4e26ebc-4c4f-4af3-bd07-8a0c28faf904
+  cluster_size: 1
+  source_chars: 366
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What are Elliot Tian's achievements and activities at school?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-066-q0
+  - phrasing: paraphrase
+    text: What has Elliot Tian done at school? Like clubs, sports, awards, stuff like that?
+    lexical_overlap: 0.556
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-066-q1
+- id: gt-near-067
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Myungkee Sung, Ph.D.
+  chunk_ids:
+  - adc08807-fe2f-4f9d-badd-fc7171d209d5
+  cluster_size: 1
+  source_chars: 193
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Myungkee Sung's educational background and current position?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-067-q0
+  - phrasing: paraphrase
+    text: Who is Myungkee Sung and what's their background and current job?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-067-q1
+  - phrasing: paraphrase
+    text: What degree did Myungkee Sung earn and where does he work now?
+    lexical_overlap: 0.286
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-near-067-q2
+- id: gt-near-068
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Alison Kiasaleh
+  chunk_ids:
+  - b2ecc62e-3cb1-4627-ac0a-03403a82f536
+  cluster_size: 1
+  source_chars: 452
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Alison Kiasaleh's educational background and career goal?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-068-q0
+  - phrasing: paraphrase
+    text: What's Alison Kiasaleh's education and what does she want to do career-wise?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-068-q1
+  - phrasing: paraphrase
+    text: What degrees has Alison Kiasaleh completed, and what medical profession does she aspire to pursue?
+    lexical_overlap: 0.556
+    overlap_band: high
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-068-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-069
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Kyeong Rok Rya
+  chunk_ids:
+  - b7063f22-5509-4834-ace9-f2675a95255a
+  cluster_size: 1
+  source_chars: 398
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Dr. Kyeong Rok Ryu's educational background and current position?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-069-q0
+  - phrasing: paraphrase
+    text: Who is Dr. Kyeong Rok Ryu and what does he do?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-069-q1
+  - phrasing: paraphrase
+    text: Where does Kyeong Rok Ryu work and what degrees does he hold?
+    lexical_overlap: 0.571
+    overlap_band: high
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-near-069-q2
+- id: gt-near-070
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Dr. Zelalem Arega
+  chunk_ids:
+  - ba6a7fd7-1de0-4268-a6d8-d0a041062998
+  cluster_size: 1
+  source_chars: 285
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Dr. Zelalem Arega's role and educational background?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-070-q0
+  - phrasing: paraphrase
+    text: Who is Dr. Zelalem Arega and what's his background?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-070-q1
+  - phrasing: paraphrase
+    text: Describe Dr. Zelalem Arega's position and academic credentials.
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-near-070-q2
+  - phrasing: multi_keyword
+    text: What degree did the Program Manager at Fort Worth earn, and what is his primary focus at DBHT-EOTC
+      Academy?
+    lexical_overlap: 0.583
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-070-q3
+- id: gt-near-071
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Nick Zahabizadeh
+  chunk_ids:
+  - bb6abf56-5e2a-4b7d-931d-74be1aa3c2ec
+  cluster_size: 1
+  source_chars: 638
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Nick Zahabizadeh's role at Skyline and when did he start?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-071-q0
+  - phrasing: paraphrase
+    text: What does Nick Zahabizadeh do at Skyline and when did he start working there?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-071-q1
+  - phrasing: multi_keyword
+    text: When did Nick become Skyline branch manager, and what role does he hold at Texas Instruments?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-071-q2
+- id: gt-near-072
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Jun Park
+  chunk_ids:
+  - bc85dfbe-4592-498b-8fc6-7b7975392650
+  cluster_size: 1
+  source_chars: 212
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What does RANK, founded by Jun Park, help North Korean refugees with?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-072-q0
+  - phrasing: paraphrase
+    text: What kind of help does RANK, founded by Jun Park, provide to North Korean refugees?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-072-q1
+  - phrasing: paraphrase
+    text: What assistance does Jun Park's organization provide to North Korean refugees in America?
+    lexical_overlap: 0.556
+    overlap_band: high
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-near-072-q2
+- id: gt-near-073
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Gashawbeza Bekele, Ph.D.
+  chunk_ids:
+  - d8a07b96-7e56-49a0-a20d-6409fb489c0d
+  cluster_size: 1
+  source_chars: 324
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Gashawbeza Bekele's educational background and current position?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-073-q0
+  - phrasing: paraphrase
+    text: What's Gashawbeza Bekele's education and what does he do now?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-073-q1
+  - phrasing: paraphrase
+    text: Where does Gashawbeza Bekele work and what degrees has he earned?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-073-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-074
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Esther Han
+  chunk_ids:
+  - dac0781a-74f0-4d45-881d-ea6fd87b8e0b
+  cluster_size: 1
+  source_chars: 104
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Who is the manager of the Lewisville MIE Church Branch?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-074-q0
+  - phrasing: paraphrase
+    text: Who runs the Lewisville MIE Church Branch?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-074-q1
+  - phrasing: paraphrase
+    text: Who oversees the Lewisville MIE Church facility?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-074-q2
+    relabelled_from: lexical_mismatch
+- id: gt-near-075
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Lalita Kulkarni, Ph.D.
+  chunk_ids:
+  - e34cd544-5bef-4f7f-8076-6f70e71488b9
+  cluster_size: 1
+  source_chars: 461
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Who is the branch manager of Lewisville MIE Church?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-075-q0
+  - phrasing: paraphrase
+    text: Who runs the Lewisville MIE Church branch?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-075-q1
+  - phrasing: multi_keyword
+    text: When did Lalita Kulkarni transition from volunteering at Ethiopian Branch to becoming Lewisville
+      branch manager?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-075-q2
+  - phrasing: paraphrase
+    text: What individual manages the Lewisville MIE Church?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-075-q3
+    relabelled_from: lexical_mismatch
+- id: gt-near-076
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Gil Sik Lee, Ph.D.
+  chunk_ids:
+  - fb7aee3e-4700-4b3d-b106-958ca46d8851
+  cluster_size: 1
+  source_chars: 1197
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Gil Sik Lee's current position and organization affiliation?
+    lexical_overlap: 0.571
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-076-q0
+  - phrasing: paraphrase
+    text: Who is Gil Sik Lee and what does he do?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-076-q1
+  - phrasing: paraphrase
+    text: Where does Gil Sik Lee work today, and what role does he hold there?
+    lexical_overlap: 0.375
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-near-076-q2
+- id: gt-near-077
+  stratum: near_duplicate_cluster
+  audience: public
+  branch_external_id: null
+  source_document_id: public-our-team
+  source_document_title: Our Team
+  source_section_title: Minseok Kim
+  chunk_ids:
+  - fe234d30-dcd2-4f3e-a776-300978cb13b7
+  cluster_size: 1
+  source_chars: 280
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is Minseok Kim's role at viveEV?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-near-077-q0
+  - phrasing: paraphrase
+    text: What does Minseok Kim do at viveEV?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-077-q1
+  - phrasing: paraphrase
+    text: What position does Minseok Kim hold at viveEV?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-near-077-q2
+  - phrasing: multi_keyword
+    text: What degree and concentration does the LA Branch Manager at viveEV have?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-near-077-q3
+- id: gt-gene-078
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-privacy-notice
+  source_document_title: Privacy Notice
+  source_section_title: null
+  chunk_ids:
+  - 036c847c-4034-4c8e-9824-f511ad82f29b
+  cluster_size: 1
+  source_chars: 108
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is the status of this Privacy Notice document?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-078-q0
+  - phrasing: lexical_mismatch
+    text: Is this document ready for real-world implementation?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-078-q1
+- id: gt-gene-079
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-privacy-notice
+  source_document_title: Privacy Notice
+  source_section_title: Requesting Your Data
+  chunk_ids:
+  - 1cf0445e-89a1-4acf-9612-ef540a5d3181
+  cluster_size: 1
+  source_chars: 176
+  reused_from: probe_eval.yaml#probe-public-025
+  queries:
+  - phrasing: exact_lookup
+    text: How do I get a copy of my child's records or ask for them to be deleted?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-public-025
+    answerability_checked: false
+    id: gt-gene-079-q0
+  - phrasing: paraphrase
+    text: How do I get or delete my kid's school records?
+    lexical_overlap: 0.25
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-public-025
+    answerability_checked: true
+    id: gt-gene-079-q1
+  - phrasing: lexical_mismatch
+    text: What steps should I take to obtain or remove my child's information files?
+    lexical_overlap: 0.143
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-079-q2
+- id: gt-gene-080
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-privacy-notice
+  source_document_title: Privacy Notice
+  source_section_title: AI Use and Your Data
+  chunk_ids:
+  - 2686ade0-49f7-4472-88f1-dd2a6d2ef093
+  cluster_size: 1
+  source_chars: 211
+  reused_from: probe_eval.yaml#probe-public-030
+  queries:
+  - phrasing: exact_lookup
+    text: Does the AI tutor keep my personal information when I ask questions?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-public-030
+    answerability_checked: false
+    id: gt-gene-080-q0
+  - phrasing: paraphrase
+    text: Do you keep my personal info when I use the AI tutor?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-public-030
+    answerability_checked: true
+    id: gt-gene-080-q1
+- id: gt-gene-081
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-privacy-notice
+  source_document_title: Privacy Notice
+  source_section_title: What We Collect
+  chunk_ids:
+  - 2853fa33-68fa-4bf3-8204-21f37a0d90a2
+  cluster_size: 1
+  source_chars: 264
+  reused_from: probe_eval.yaml#probe-public-031
+  queries:
+  - phrasing: exact_lookup
+    text: What types of student data does your system collect during learning sessions?
+    lexical_overlap: 0.375
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-public-031
+    answerability_checked: false
+    id: gt-gene-081-q0
+  - phrasing: paraphrase
+    text: What kind of information do you collect about students when they're using your system?
+    lexical_overlap: 0.286
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-public-031
+    answerability_checked: true
+    id: gt-gene-081-q1
+  - phrasing: paraphrase
+    text: What information about learners does your platform gather while sessions are running?
+    lexical_overlap: 0.25
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-gene-081-q2
+  - phrasing: multi_keyword
+    text: What specific information do we not collect except through the optional branch-locator feature?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-081-q3
+- id: gt-gene-082
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-privacy-notice
+  source_document_title: Privacy Notice
+  source_section_title: Where Student Records Live
+  chunk_ids:
+  - 6c4f9ce2-2d2e-43d5-a9b4-c3bf3e5f37c4
+  cluster_size: 1
+  source_chars: 245
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Where are student identity information and learning records stored separately?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-082-q0
+  - phrasing: multi_keyword
+    text: Why can't the learning platform show student names even though their attendance records exist
+      in the system?
+    lexical_overlap: 0.636
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-082-q1
+  - phrasing: paraphrase
+    text: How is personal data segregated from academic information in the school's systems?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-082-q2
+    relabelled_from: lexical_mismatch
+- id: gt-gene-083
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-student-participation-guide
+  source_document_title: Student Participation Guide
+  source_section_title: Getting Help During Study
+  chunk_ids:
+  - 4db4dcdd-f6b7-4ff8-91e0-cad89a79c724
+  cluster_size: 1
+  source_chars: 247
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What types of help are available if I answer a study question wrong?
+    lexical_overlap: 0.571
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-083-q0
+  - phrasing: paraphrase
+    text: What can I do if I get a study question wrong?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-083-q1
+  - phrasing: multi_keyword
+    text: What can you request if you answer a study question wrong, and why should you use it?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-083-q2
+- id: gt-gene-084
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-student-participation-guide
+  source_document_title: Student Participation Guide
+  source_section_title: What Counts as Progress
+  chunk_ids:
+  - 874c006f-e377-45a6-84ef-dc55f380de71
+  cluster_size: 1
+  source_chars: 163
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: How is progress measured in post-exam scores?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-084-q0
+  - phrasing: paraphrase
+    text: How do you measure progress based on scores after taking an exam?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-084-q1
+  - phrasing: lexical_mismatch
+    text: How is advancement gauged when comparing before-and-after assessments on identical subjects?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-084-q2
+- id: gt-gene-085
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-student-participation-guide
+  source_document_title: Student Participation Guide
+  source_section_title: Reporting a Problem With a Question
+  chunk_ids:
+  - 9bc0f007-6586-4061-971f-c57f08574fd5
+  cluster_size: 1
+  source_chars: 196
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: How do I report a problem with a question?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-085-q0
+  - phrasing: paraphrase
+    text: How do I report a problem with a question?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-085-q1
+  - phrasing: lexical_mismatch
+    text: What are two ways to flag an issue if an exam item appears faulty or unclear?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-085-q2
+- id: gt-gene-086
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-student-participation-guide
+  source_document_title: Student Participation Guide
+  source_section_title: What a Session Looks Like
+  chunk_ids:
+  - 9d00bfdc-9432-4ec3-8423-824cbc9fb953
+  cluster_size: 1
+  source_chars: 234
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What happens during a tutoring session from arrival to finish?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-086-q0
+  - phrasing: paraphrase
+    text: What actually happens when I come in for tutoring?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-086-q1
+  - phrasing: multi_keyword
+    text: What happens between taking the pre-exam and finishing the post-exam during a tutoring session?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-086-q2
+  - phrasing: lexical_mismatch
+    text: What stages do you go through from entering until leaving a tutoring appointment?
+    lexical_overlap: 0.143
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-086-q3
+- id: gt-gene-087
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-student-participation-guide
+  source_document_title: Student Participation Guide
+  source_section_title: null
+  chunk_ids:
+  - a143728f-f398-462b-9f88-a6e4cdf6a8a2
+  cluster_size: 1
+  source_chars: 121
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is the Student Participation Guide about?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-087-q0
+- id: gt-gene-088
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-volunteer-guide
+  source_document_title: Volunteer Guide
+  source_section_title: null
+  chunk_ids:
+  - 94bfe964-08b7-4ac1-a260-eeb7b7b66d4c
+  cluster_size: 1
+  source_chars: 109
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Is the Volunteer Guide approved and ready to use?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-088-q0
+  - phrasing: paraphrase
+    text: Is the Volunteer Guide approved and ready to use yet?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-088-q1
+- id: gt-gene-089
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-volunteer-guide
+  source_document_title: Volunteer Guide
+  source_section_title: Volunteering at IntelliChoice
+  chunk_ids:
+  - d37b8511-f0e0-4e9c-a83c-b7d0cd6ceafc
+  cluster_size: 1
+  source_chars: 219
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What types of volunteer work does IntelliChoice accept from the community?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-089-q0
+  - phrasing: paraphrase
+    text: What kind of volunteer work can I do for IntelliChoice?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-089-q1
+- id: gt-gene-090
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-volunteer-guide
+  source_document_title: Volunteer Guide
+  source_section_title: What Volunteers Do Not Do
+  chunk_ids:
+  - d5bd7bc4-0431-4047-a733-cc2844f7aa04
+  cluster_size: 1
+  source_chars: 194
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What tasks are volunteers not allowed to do?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-090-q0
+  - phrasing: paraphrase
+    text: What are volunteers not allowed to do?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-090-q1
+  - phrasing: lexical_mismatch
+    text: Which activities are prohibited for people who offer their time without compensation?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-090-q2
+- id: gt-gene-091
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-volunteer-guide
+  source_document_title: Volunteer Guide
+  source_section_title: How to Apply
+  chunk_ids:
+  - d745d09e-0b85-45cb-889c-05357f46d539
+  cluster_size: 1
+  source_chars: 159
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: How do I apply to support a branch?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-091-q0
+  - phrasing: paraphrase
+    text: How do I sign up to help out at one of your branches?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-091-q1
+  - phrasing: lexical_mismatch
+    text: What steps should I take to volunteer at a location?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-091-q2
+- id: gt-gene-092
+  stratum: general
+  audience: public
+  branch_external_id: null
+  source_document_id: public-volunteer-guide
+  source_document_title: Volunteer Guide
+  source_section_title: Requirements
+  chunk_ids:
+  - e7cdd539-9c80-442c-b27a-522a3ea3aa09
+  cluster_size: 1
+  source_chars: 141
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What do I need to do before starting my first shift?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-gene-092-q0
+  - phrasing: paraphrase
+    text: What do I need to do before I start working my first shift?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-092-q1
+  - phrasing: paraphrase
+    text: What must happen before your inaugural work day begins?
+    lexical_overlap: 0.167
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-gene-092-q2
+    relabelled_from: lexical_mismatch
+- id: gt-auth-093
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-code-of-conduct
+  source_document_title: Code of Conduct
+  source_section_title: Consequences
+  chunk_ids:
+  - 440308cb-7bad-44a6-99ec-7f2c304574ba
+  cluster_size: 1
+  source_chars: 170
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: How is repeated disruptive behavior during sessions handled?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-093-q0
+  - phrasing: paraphrase
+    text: What happens if I keep acting up during class?
+    lexical_overlap: 0.2
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-093-q1
+  - phrasing: paraphrase
+    text: How is repeatedly disruptive conduct dealt with in meetings?
+    lexical_overlap: 0.2
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-093-q2
+    relabelled_from: lexical_mismatch
+- id: gt-auth-094
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-code-of-conduct
+  source_document_title: Code of Conduct
+  source_section_title: Using the Platform Honestly
+  chunk_ids:
+  - 67e6d97c-e439-4641-a4d3-b3e1bdd012f6
+  cluster_size: 1
+  source_chars: 181
+  reused_from: probe_eval.yaml#probe-student-036
+  queries:
+  - phrasing: exact_lookup
+    text: Should I try to solve problems myself before asking for help?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-student-036
+    answerability_checked: false
+    id: gt-auth-094-q0
+  - phrasing: paraphrase
+    text: Should I try to figure stuff out myself before asking someone for help?
+    lexical_overlap: 0.375
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-student-036
+    answerability_checked: true
+    id: gt-auth-094-q1
+  - phrasing: lexical_mismatch
+    text: Is it better to work through challenges independently before seeking assistance?
+    lexical_overlap: 0.125
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-094-q2
+- id: gt-auth-095
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-code-of-conduct
+  source_document_title: Code of Conduct
+  source_section_title: Reporting Concerns
+  chunk_ids:
+  - 8e4b54b9-b834-4f39-b155-e04b8543bf2b
+  cluster_size: 1
+  source_chars: 191
+  reused_from: probe_eval.yaml#probe-student-039
+  queries:
+  - phrasing: exact_lookup
+    text: What should I do if something bothers me during a lesson?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-student-039
+    answerability_checked: false
+    id: gt-auth-095-q0
+  - phrasing: paraphrase
+    text: What do I do if something's bothering me while I'm in class?
+    lexical_overlap: 0.25
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-student-039
+    answerability_checked: true
+    id: gt-auth-095-q1
+  - phrasing: lexical_mismatch
+    text: Who should you notify if something troubling happens while working with an instructor?
+    lexical_overlap: 0.143
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-095-q2
+- id: gt-auth-096
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-code-of-conduct
+  source_document_title: Code of Conduct
+  source_section_title: Respect in Session
+  chunk_ids:
+  - cc55119d-6775-4c3d-bf08-b17fe4b7cf9e
+  cluster_size: 1
+  source_chars: 149
+  reused_from: probe_eval.yaml#probe-student-041
+  queries:
+  - phrasing: exact_lookup
+    text: How should I behave toward my tutor and classmates during sessions?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-student-041
+    answerability_checked: false
+    id: gt-auth-096-q0
+  - phrasing: paraphrase
+    text: What's the best way to act around my tutor and classmates during tutoring sessions?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-student-041
+    answerability_checked: true
+    id: gt-auth-096-q1
+  - phrasing: lexical_mismatch
+    text: What conduct toward instructors and peers would be appropriate in learning environments?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-096-q2
+- id: gt-auth-097
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-code-of-conduct
+  source_document_title: Code of Conduct
+  source_section_title: null
+  chunk_ids:
+  - ce50bbf3-c8e4-4232-8242-b79c7d697e94
+  cluster_size: 1
+  source_chars: 109
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is the current status of the Code of Conduct document?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-097-q0
+  - phrasing: paraphrase
+    text: Has the Code of Conduct been finished yet?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-097-q1
+  - phrasing: paraphrase
+    text: Has this Code of Conduct received final authorization for implementation?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-097-q2
+    relabelled_from: lexical_mismatch
+- id: gt-auth-098
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-learning-platform-guide
+  source_document_title: Learning Platform Guide
+  source_section_title: Starting a Session
+  chunk_ids:
+  - 1cd11c7e-ab8d-4c01-98ed-19a3233b1338
+  cluster_size: 1
+  source_chars: 163
+  reused_from: probe_eval.yaml#probe-student-032
+  queries:
+  - phrasing: exact_lookup
+    text: What should I do first when starting a tutoring session?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-student-032
+    answerability_checked: false
+    id: gt-auth-098-q0
+  - phrasing: paraphrase
+    text: What should I do first when I start tutoring?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-student-032
+    answerability_checked: true
+    id: gt-auth-098-q1
+  - phrasing: lexical_mismatch
+    text: What's the initial step before beginning your tutoring appointment?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-098-q2
+- id: gt-auth-099
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-learning-platform-guide
+  source_document_title: Learning Platform Guide
+  source_section_title: Signing In
+  chunk_ids:
+  - 71076f78-f055-4346-9f4c-eb667b9e1bc1
+  cluster_size: 1
+  source_chars: 180
+  reused_from: probe_eval.yaml#probe-student-037
+  queries:
+  - phrasing: exact_lookup
+    text: Will I see my sibling's classes if we both have accounts on the platform?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-student-037
+    answerability_checked: false
+    id: gt-auth-099-q0
+  - phrasing: paraphrase
+    text: Can I see my sibling's classes if we're both on the platform?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-student-037
+    answerability_checked: true
+    id: gt-auth-099-q1
+  - phrasing: lexical_mismatch
+    text: If my brother also has an account, will I be able to view his courses?
+    lexical_overlap: 0.143
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-099-q2
+- id: gt-auth-100
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-learning-platform-guide
+  source_document_title: Learning Platform Guide
+  source_section_title: During Study
+  chunk_ids:
+  - 7490de36-e617-4891-a69a-ffe9c341074d
+  cluster_size: 1
+  source_chars: 169
+  reused_from: probe_eval.yaml#probe-student-038
+  queries:
+  - phrasing: exact_lookup
+    text: What happens if I answer a study question incorrectly?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-student-038
+    answerability_checked: false
+    id: gt-auth-100-q0
+  - phrasing: paraphrase
+    text: What happens if I get a study question wrong?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-student-038
+    answerability_checked: true
+    id: gt-auth-100-q1
+  - phrasing: paraphrase
+    text: What's available to review if you respond wrongly to a study question?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-100-q2
+    relabelled_from: lexical_mismatch
+- id: gt-auth-101
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-learning-platform-guide
+  source_document_title: Learning Platform Guide
+  source_section_title: null
+  chunk_ids:
+  - c960eaa9-d557-4219-8aa9-51767bc03fb6
+  cluster_size: 1
+  source_chars: 117
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Is the Learning Platform Guide ready to use?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-101-q0
+  - phrasing: paraphrase
+    text: Can I use the Learning Platform Guide right now?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-101-q1
+  - phrasing: lexical_mismatch
+    text: Can this document be deployed commercially right now?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-101-q2
+- id: gt-auth-102
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-learning-platform-guide
+  source_document_title: Learning Platform Guide
+  source_section_title: If Your Session Is Interrupted
+  chunk_ids:
+  - d45bb808-c7a5-4a9e-9925-785a30b73f58
+  cluster_size: 1
+  source_chars: 177
+  reused_from: probe_eval.yaml#probe-student-042
+  queries:
+  - phrasing: exact_lookup
+    text: What happens to my answers if I accidentally close the browser or lose connection?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-student-042
+    answerability_checked: false
+    id: gt-auth-102-q0
+  - phrasing: paraphrase
+    text: What happens to my answers if I close the browser or lose internet?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-student-042
+    answerability_checked: true
+    id: gt-auth-102-q1
+  - phrasing: lexical_mismatch
+    text: Will my previous responses remain if I shut down my browser or encounter a connectivity issue?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-102-q2
+- id: gt-auth-103
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-student-handbook
+  source_document_title: Student Handbook
+  source_section_title: Your Weekly Cycle
+  chunk_ids:
+  - 2b2fc2e6-3e4d-4758-ad72-3a5c5cbb4bf0
+  cluster_size: 1
+  source_chars: 184
+  reused_from: probe_eval.yaml#probe-student-033
+  queries:
+  - phrasing: exact_lookup
+    text: What happens each week with the study sets based on my performance?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-student-033
+    answerability_checked: false
+    id: gt-auth-103-q0
+  - phrasing: paraphrase
+    text: How do my study sets change each week based on how I'm doing?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-student-033
+    answerability_checked: true
+    id: gt-auth-103-q1
+  - phrasing: lexical_mismatch
+    text: How do your learning materials adjust according to what you struggle with?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-103-q2
+- id: gt-auth-104
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-student-handbook
+  source_document_title: Student Handbook
+  source_section_title: null
+  chunk_ids:
+  - 4d6234bb-cf91-483c-b510-50f122b6b98d
+  cluster_size: 1
+  source_chars: 110
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Is the Student Handbook approved for use?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-104-q0
+  - phrasing: paraphrase
+    text: Is the student handbook actually approved to use right now?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-104-q1
+  - phrasing: lexical_mismatch
+    text: Has this document received authorization to be implemented?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-104-q2
+- id: gt-auth-105
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-student-handbook
+  source_document_title: Student Handbook
+  source_section_title: Asking for Help
+  chunk_ids:
+  - 548ebeaa-6904-46f3-b868-e559447285d0
+  cluster_size: 1
+  source_chars: 218
+  reused_from: probe_eval.yaml#probe-student-035
+  queries:
+  - phrasing: exact_lookup
+    text: Is it okay to ask for help or answers when I'm studying?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-student-035
+    answerability_checked: false
+    id: gt-auth-105-q0
+  - phrasing: paraphrase
+    text: Is it cool if I ask for help while I'm studying or doing homework?
+    lexical_overlap: 0.286
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-student-035
+    answerability_checked: true
+    id: gt-auth-105-q1
+  - phrasing: multi_keyword
+    text: What's the normal way to grow in studying according to this passage?
+    lexical_overlap: 0.167
+    overlap_band: mid
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-105-q2
+  - phrasing: paraphrase
+    text: When learning, is requesting guidance or solutions considered acceptable?
+    lexical_overlap: 0.167
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-105-q3
+    relabelled_from: lexical_mismatch
+- id: gt-auth-106
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-student-handbook
+  source_document_title: Student Handbook
+  source_section_title: Videos
+  chunk_ids:
+  - a7822ac2-2aef-4c4a-bc06-5be991fbd534
+  cluster_size: 1
+  source_chars: 119
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Can study items have video explanations instead of text hints?
+    lexical_overlap: 1.0
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-106-q0
+  - phrasing: paraphrase
+    text: Can I get videos to explain study items instead of just text hints?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-106-q1
+  - phrasing: lexical_mismatch
+    text: Do certain learning materials provide brief clips rather than written guidance when available?
+    lexical_overlap: 0.1
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-106-q2
+- id: gt-auth-107
+  stratum: authorization_boundary
+  audience: student
+  branch_external_id: null
+  source_document_id: student-student-handbook
+  source_document_title: Student Handbook
+  source_section_title: Welcome
+  chunk_ids:
+  - b505ed27-45ab-4d88-80f8-3fe3e3d18e73
+  cluster_size: 1
+  source_chars: 136
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What does this handbook cover about IntelliChoice?
+    lexical_overlap: 0.75
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-107-q0
+  - phrasing: paraphrase
+    text: What's in this handbook about IntelliChoice?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-107-q1
+  - phrasing: paraphrase
+    text: What material describes a routine week at IntelliChoice and maximizing study time?
+    lexical_overlap: 0.375
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-107-q2
+    relabelled_from: lexical_mismatch
+- id: gt-auth-108
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-instructional-procedures
+  source_document_title: Instructional Procedures
+  source_section_title: Session Pacing
+  chunk_ids:
+  - 01327041-5241-45a0-bc61-59a6e7a99877
+  cluster_size: 1
+  source_chars: 180
+  reused_from: probe_eval.yaml#probe-tutor-043
+  queries:
+  - phrasing: exact_lookup
+    text: Can students leave early if they finish their weekly skills before the session ends?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-tutor-043
+    answerability_checked: false
+    id: gt-auth-108-q0
+  - phrasing: paraphrase
+    text: If a student finishes their skills work early, can they leave before the session ends?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-tutor-043
+    answerability_checked: true
+    id: gt-auth-108-q1
+  - phrasing: paraphrase
+    text: Do learners depart once they've mastered all their weekly objectives, even if time remains?
+    lexical_overlap: 0.222
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-108-q2
+    relabelled_from: lexical_mismatch
+- id: gt-auth-109
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-instructional-procedures
+  source_document_title: Instructional Procedures
+  source_section_title: Supporting Struggling Students
+  chunk_ids:
+  - 107e93c0-b19b-4b5b-ad41-c44166f7a783
+  cluster_size: 1
+  source_chars: 234
+  reused_from: probe_eval.yaml#probe-tutor-044
+  queries:
+  - phrasing: exact_lookup
+    text: When should I notify my branch manager about a student's progress?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-tutor-044
+    answerability_checked: false
+    id: gt-auth-109-q0
+  - phrasing: paraphrase
+    text: When do I need to tell my manager about how a student is doing?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-tutor-044
+    answerability_checked: true
+    id: gt-auth-109-q1
+  - phrasing: lexical_mismatch
+    text: How long should trouble with a single topic continue before alerting leadership to a learner's
+      ongoing difficulties?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-109-q2
+  - phrasing: multi_keyword
+    text: When should you notify the branch manager about a student's difficulty, and what pattern triggers
+      this?
+    lexical_overlap: 0.375
+    overlap_band: mid
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-109-q3
+- id: gt-auth-110
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-instructional-procedures
+  source_document_title: Instructional Procedures
+  source_section_title: When a Question Looks Wrong
+  chunk_ids:
+  - 7db17345-976d-4ec6-aabb-da25f39e0bc7
+  cluster_size: 1
+  source_chars: 197
+  reused_from: probe_eval.yaml#probe-tutor-049
+  queries:
+  - phrasing: exact_lookup
+    text: What should I do if a student says a test question is unclear or wrong?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-tutor-049
+    answerability_checked: false
+    id: gt-auth-110-q0
+  - phrasing: paraphrase
+    text: What should I do if a student says a test question doesn't make sense or might be wrong?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-tutor-049
+    answerability_checked: true
+    id: gt-auth-110-q1
+  - phrasing: lexical_mismatch
+    text: What procedure should educators follow when learners indicate an exam item is confusing or contains
+      errors?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-110-q2
+- id: gt-auth-111
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-instructional-procedures
+  source_document_title: Instructional Procedures
+  source_section_title: null
+  chunk_ids:
+  - 96a61407-0baf-46e2-984b-dff09ab30793
+  cluster_size: 1
+  source_chars: 118
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is the status of the Instructional Procedures document?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-111-q0
+  - phrasing: paraphrase
+    text: Is the Instructional Procedures document done yet?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-111-q1
+- id: gt-auth-112
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-instructional-procedures
+  source_document_title: Instructional Procedures
+  source_section_title: Grading Is Automatic
+  chunk_ids:
+  - c1b8731d-14eb-4c91-9dfc-f2fbae9844b8
+  cluster_size: 1
+  source_chars: 169
+  reused_from: probe_eval.yaml#probe-tutor-052
+  queries:
+  - phrasing: exact_lookup
+    text: Do I need to manually grade student responses on the platform?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-tutor-052
+    answerability_checked: false
+    id: gt-auth-112-q0
+  - phrasing: paraphrase
+    text: Do I have to grade student answers myself or does the system do it automatically?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-tutor-052
+    answerability_checked: true
+    id: gt-auth-112-q1
+- id: gt-auth-113
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-student-support-guide
+  source_document_title: Student Support Guide
+  source_section_title: Talking to Parents
+  chunk_ids:
+  - 6c404479-5625-4365-a2ec-e3ffe825a11c
+  cluster_size: 1
+  source_chars: 179
+  reused_from: probe_eval.yaml#probe-tutor-046
+  queries:
+  - phrasing: exact_lookup
+    text: How should I discuss a student's performance concerns with their parent?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-tutor-046
+    answerability_checked: false
+    id: gt-auth-113-q0
+  - phrasing: paraphrase
+    text: How do I talk to a parent about their kid's grades or performance issues?
+    lexical_overlap: 0.286
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-tutor-046
+    answerability_checked: true
+    id: gt-auth-113-q1
+- id: gt-auth-114
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-student-support-guide
+  source_document_title: Student Support Guide
+  source_section_title: Recognizing When a Student Needs More Help
+  chunk_ids:
+  - 6f3b7bf1-bbf9-40e5-8ce4-201e387a24b8
+  cluster_size: 1
+  source_chars: 205
+  reused_from: probe_eval.yaml#probe-tutor-047
+  queries:
+  - phrasing: exact_lookup
+    text: What signs show a student needs more support than the automated system provides?
+    lexical_overlap: 0.667
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-tutor-047
+    answerability_checked: false
+    id: gt-auth-114-q0
+  - phrasing: paraphrase
+    text: How do I know if a student needs more help than the automated system can give them?
+    lexical_overlap: 0.625
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-tutor-047
+    answerability_checked: true
+    id: gt-auth-114-q1
+  - phrasing: multi_keyword
+    text: When should a tutor intervene beyond automated support for a student who repeatedly declines
+      hints and guesses quickly without reading?
+    lexical_overlap: 0.692
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-114-q2
+  - phrasing: lexical_mismatch
+    text: What behaviors indicate a learner requires additional assistance beyond computer-generated guidance?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-114-q3
+- id: gt-auth-115
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-student-support-guide
+  source_document_title: Student Support Guide
+  source_section_title: Working With Multiple Learning Styles
+  chunk_ids:
+  - 7a443034-854a-48f2-b6dc-c4db05f7a9bc
+  cluster_size: 1
+  source_chars: 208
+  reused_from: probe_eval.yaml#probe-tutor-048
+  queries:
+  - phrasing: exact_lookup
+    text: Should I let students choose between videos, written hints, and solutions?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-tutor-048
+    answerability_checked: false
+    id: gt-auth-115-q0
+  - phrasing: paraphrase
+    text: Is it okay to let my students pick whether they want videos, hints, or answers to help them?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-tutor-048
+    answerability_checked: true
+    id: gt-auth-115-q1
+  - phrasing: multi_keyword
+    text: Should you encourage a student to try video hints if they're struggling more with text explanations?
+    lexical_overlap: 0.778
+    overlap_band: high
+    generator_pass: D
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-115-q2
+  - phrasing: paraphrase
+    text: Do learners benefit from selecting their preferred format among videos, written guidance, and
+      answers?
+    lexical_overlap: 0.3
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-115-q3
+    relabelled_from: lexical_mismatch
+- id: gt-auth-116
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-student-support-guide
+  source_document_title: Student Support Guide
+  source_section_title: Escalating Wellbeing Concerns
+  chunk_ids:
+  - b23a617b-a570-4809-899d-1ce189d8f0cf
+  cluster_size: 1
+  source_chars: 181
+  reused_from: probe_eval.yaml#probe-tutor-050
+  queries:
+  - phrasing: exact_lookup
+    text: Who should I report student safety or wellbeing issues to right away?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-tutor-050
+    answerability_checked: false
+    id: gt-auth-116-q0
+  - phrasing: paraphrase
+    text: Who do I report to if I'm worried about a student's safety or wellbeing?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-tutor-050
+    answerability_checked: true
+    id: gt-auth-116-q1
+  - phrasing: paraphrase
+    text: Who must immediately receive reports about student welfare concerns?
+    lexical_overlap: 0.429
+    overlap_band: mid
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-auth-116-q2
+- id: gt-auth-117
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-student-support-guide
+  source_document_title: Student Support Guide
+  source_section_title: null
+  chunk_ids:
+  - e04d21bc-15b6-40de-964b-c92f8a64c44c
+  cluster_size: 1
+  source_chars: 115
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: Is the Student Support Guide approved for production use?
+    lexical_overlap: 0.833
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-117-q0
+  - phrasing: paraphrase
+    text: Can I actually use the Student Support Guide, or is it still being worked on?
+    lexical_overlap: 0.375
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-117-q1
+  - phrasing: lexical_mismatch
+    text: Can this document be deployed in real environments?
+    lexical_overlap: 0.0
+    overlap_band: low
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-117-q2
+- id: gt-auth-118
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-tutor-handbook
+  source_document_title: Tutor Handbook
+  source_section_title: null
+  chunk_ids:
+  - 18f58f38-3be7-4cb6-9cb9-4aef42bdc34d
+  cluster_size: 1
+  source_chars: 108
+  reused_from: null
+  queries:
+  - phrasing: exact_lookup
+    text: What is the status of the Tutor Handbook document?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: null
+    answerability_checked: false
+    id: gt-auth-118-q0
+  - phrasing: paraphrase
+    text: Is the Tutor Handbook finished yet or still being worked on?
+    lexical_overlap: 0.286
+    overlap_band: mid
+    generator_pass: B
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-118-q1
+  - phrasing: paraphrase
+    text: What stage is the Tutor Handbook in before release?
+    lexical_overlap: 0.4
+    overlap_band: mid
+    generator_pass: C2
+    reused_from: null
+    answerability_checked: true
+    id: gt-auth-118-q2
+    relabelled_from: lexical_mismatch
+- id: gt-auth-119
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-tutor-handbook
+  source_document_title: Tutor Handbook
+  source_section_title: Flagged Questions
+  chunk_ids:
+  - 56cafb1c-01d0-47a9-89f0-923e5b5d1e5d
+  cluster_size: 1
+  source_chars: 167
+  reused_from: probe_eval.yaml#probe-tutor-045
+  queries:
+  - phrasing: exact_lookup
+    text: What should I do when a student's problem gets flagged by the system for review?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-tutor-045
+    answerability_checked: false
+    id: gt-auth-119-q0
+  - phrasing: paraphrase
+    text: What do I do if one of my student's issues gets flagged for review?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-tutor-045
+    answerability_checked: true
+    id: gt-auth-119-q1
+- id: gt-auth-120
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-tutor-handbook
+  source_document_title: Tutor Handbook
+  source_section_title: Your Role
+  chunk_ids:
+  - b76f629a-eca1-4720-aea5-4fcea0a9dfbe
+  cluster_size: 1
+  source_chars: 181
+  reused_from: probe_eval.yaml#probe-tutor-051
+  queries:
+  - phrasing: exact_lookup
+    text: What are my main responsibilities as a tutor at a branch?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-tutor-051
+    answerability_checked: false
+    id: gt-auth-120-q0
+  - phrasing: paraphrase
+    text: What am I supposed to do as a tutor here?
+    lexical_overlap: 0.333
+    overlap_band: mid
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-tutor-051
+    answerability_checked: true
+    id: gt-auth-120-q1
+- id: gt-auth-121
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-tutor-handbook
+  source_document_title: Tutor Handbook
+  source_section_title: During Study
+  chunk_ids:
+  - ed0d75c3-2d2a-4294-adae-ab25bbc516a9
+  cluster_size: 1
+  source_chars: 193
+  reused_from: probe_eval.yaml#probe-tutor-053
+  queries:
+  - phrasing: exact_lookup
+    text: When a student asks me for help, what should I tell them to do first?
+    lexical_overlap: 0.6
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-tutor-053
+    answerability_checked: false
+    id: gt-auth-121-q0
+  - phrasing: paraphrase
+    text: What should I tell a student to do first when they ask me for help?
+    lexical_overlap: 0.8
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-tutor-053
+    answerability_checked: true
+    id: gt-auth-121-q1
+- id: gt-auth-122
+  stratum: authorization_boundary
+  audience: tutor
+  branch_external_id: null
+  source_document_id: tutor-tutor-handbook
+  source_document_title: Tutor Handbook
+  source_section_title: Before Sessions Start
+  chunk_ids:
+  - f53c1b87-535a-43ed-953c-40766c59af02
+  cluster_size: 1
+  source_chars: 183
+  reused_from: probe_eval.yaml#probe-tutor-054
+  queries:
+  - phrasing: exact_lookup
+    text: How do I prevent a student from being blocked from their pre-exam?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: A
+    reused_from: probe_eval.yaml#probe-tutor-054
+    answerability_checked: false
+    id: gt-auth-122-q0
+  - phrasing: paraphrase
+    text: How do I stop a student from getting locked out of their pre-exam?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: B
+    reused_from: probe_eval.yaml#probe-tutor-054
+    answerability_checked: true
+    id: gt-auth-122-q1
+  - phrasing: paraphrase
+    text: What stops a student from accessing their pre-exam assessment?
+    lexical_overlap: 0.5
+    overlap_band: high
+    generator_pass: C
+    reused_from: null
+    answerability_checked: true
+    relabelled_from: lexical_mismatch
+    id: gt-auth-122-q2
+no_answer_controls:
+- id: no-answer-cost-1
+  text: How much does the SAT Prep Camp cost for a returning student?
+  reused_from: qa_coverage_eval.yaml#no-answer-cost-1
+  validated_neighbours:
+  - chunk_id: f53c1b87-535a-43ed-953c-40766c59af02
+    document_id: tutor-tutor-handbook
+    distance: 0.8712
+    answerable: false
+  - chunk_id: 29167616-5106-40ce-832c-9f9504ada8e4
+    document_id: parent-attendance-policy
+    distance: 0.8927
+    answerable: false
+  - chunk_id: 671305ea-9ce3-454f-b6e6-9e96bd12ee5e
+    document_id: public-our-team
+    distance: 0.8963
+    answerable: false
+  - chunk_id: cc55119d-6775-4c3d-bf08-b17fe4b7cf9e
+    document_id: student-code-of-conduct
+    distance: 0.9
+    answerable: false
+  - chunk_id: a382ea1b-19a5-43dd-abd4-19467d192ffe
+    document_id: parent-parent-handbook
+    distance: 0.9022
+    answerable: false
+- id: no-answer-ratio-1
+  text: What is the student-to-tutor ratio in a typical session?
+  reused_from: qa_coverage_eval.yaml#no-answer-ratio-1
+  validated_neighbours:
+  - chunk_id: 9d00bfdc-9432-4ec3-8423-824cbc9fb953
+    document_id: public-student-participation-guide
+    distance: 0.5713
+    answerable: false
+  - chunk_id: cc55119d-6775-4c3d-bf08-b17fe4b7cf9e
+    document_id: student-code-of-conduct
+    distance: 0.5727
+    answerable: false
+  - chunk_id: 70958c5a-3dc3-4a67-b1e6-b253d65a62d7
+    document_id: branch_manager-operations-manual
+    distance: 0.5792
+    answerable: false
+  - chunk_id: 880ed30b-a125-42bb-a246-6f176d99b2dc
+    document_id: branch_manager-branch-calendar
+    distance: 0.5999
+    answerable: false
+  - chunk_id: b76f629a-eca1-4720-aea5-4fcea0a9dfbe
+    document_id: tutor-tutor-handbook
+    distance: 0.6266
+    answerable: false
+- id: no-answer-sitin-1
+  text: Can a parent sit in and watch the whole tutoring session?
+  reused_from: qa_coverage_eval.yaml#no-answer-sitin-1
+  validated_neighbours:
+  - chunk_id: df3faf94-192a-474b-a594-b39b72cc249d
+    document_id: parent-parent-handbook
+    distance: 0.4781
+    answerable: false
+  - chunk_id: 71076f78-f055-4346-9f4c-eb667b9e1bc1
+    document_id: student-learning-platform-guide
+    distance: 0.5039
+    answerable: false
+  - chunk_id: a2f10a96-d850-48a9-b01d-fe45e9f9739a
+    document_id: parent-parent-handbook
+    distance: 0.5434
+    answerable: false
+  - chunk_id: 9d00bfdc-9432-4ec3-8423-824cbc9fb953
+    document_id: public-student-participation-guide
+    distance: 0.5919
+    answerable: false
+  - chunk_id: b76f629a-eca1-4720-aea5-4fcea0a9dfbe
+    document_id: tutor-tutor-handbook
+    distance: 0.6029
+    answerable: false
+- id: no-answer-transport-1
+  text: Does IntelliChoice provide transportation for students?
+  reused_from: qa_coverage_eval.yaml#no-answer-transport-1
+  validated_neighbours:
+  - chunk_id: fab28109-4193-42a9-a527-5ab46a90eaf7
+    document_id: public-organization-overview
+    distance: 0.3614
+    answerable: false
+  - chunk_id: de15f2b9-4fef-42e9-9237-f7e9b99e7e0e
+    document_id: public-organization-overview
+    distance: 0.3658
+    answerable: false
+  - chunk_id: bd46ec1f-0418-43ad-aea0-fabfdc7e8492
+    document_id: public-organization-overview
+    distance: 0.4166
+    answerable: false
+  - chunk_id: d37b8511-f0e0-4e9c-a83c-b7d0cd6ceafc
+    document_id: public-volunteer-guide
+    distance: 0.4931
+    answerable: false
+  - chunk_id: 1a705715-09a1-4031-b7c4-2d818abf6a05
+    document_id: public-organization-overview
+    distance: 0.538
+    answerable: false
+- id: no-answer-missed-1
+  text: What happens to a student who misses three sessions in a row?
+  reused_from: qa_coverage_eval.yaml#no-answer-missed-1
+  validated_neighbours:
+  - chunk_id: fab96b81-b494-41d7-8607-b521fe682efc
+    document_id: parent-attendance-policy
+    distance: 0.4742
+    answerable: false
+  - chunk_id: be9582dc-c2bf-451c-aabf-a7b044fc4dca
+    document_id: branch_manager-attendance-procedure
+    distance: 0.5093
+    answerable: false
+  - chunk_id: d4f623da-c594-48c4-a24c-ea4bdbd9029d
+    document_id: branch_manager-attendance-procedure
+    distance: 0.5096
+    answerable: false
+  - chunk_id: 9af0ef97-499f-4d5c-8b57-8ec2f9060cd5
+    document_id: branch_manager-attendance-procedure
+    distance: 0.5936
+    answerable: false
+  - chunk_id: 107e93c0-b19b-4b5b-ad41-c44166f7a783
+    document_id: tutor-instructional-procedures
+    distance: 0.6239
+    answerable: false
+- id: no-answer-supplies-1
+  text: Do students need to bring their own laptop to a session?
+  reused_from: qa_coverage_eval.yaml#no-answer-supplies-1
+  validated_neighbours:
+  - chunk_id: 2853fa33-68fa-4bf3-8204-21f37a0d90a2
+    document_id: public-privacy-notice
+    distance: 0.6654
+    answerable: false
+  - chunk_id: 9d00bfdc-9432-4ec3-8423-824cbc9fb953
+    document_id: public-student-participation-guide
+    distance: 0.689
+    answerable: false
+  - chunk_id: 1cd11c7e-ab8d-4c01-98ed-19a3233b1338
+    document_id: student-learning-platform-guide
+    distance: 0.6988
+    answerable: false
+  - chunk_id: 70958c5a-3dc3-4a67-b1e6-b253d65a62d7
+    document_id: branch_manager-operations-manual
+    distance: 0.7132
+    answerable: false
+  - chunk_id: cc55119d-6775-4c3d-bf08-b17fe4b7cf9e
+    document_id: student-code-of-conduct
+    distance: 0.7139
+    answerable: false
+- id: no-answer-language-1
+  text: Are tutoring sessions available in Spanish for parents?
+  reused_from: qa_coverage_eval.yaml#no-answer-language-1
+  validated_neighbours:
+  - chunk_id: a2f10a96-d850-48a9-b01d-fe45e9f9739a
+    document_id: parent-parent-handbook
+    distance: 0.5118
+    answerable: false
+  - chunk_id: 71076f78-f055-4346-9f4c-eb667b9e1bc1
+    document_id: student-learning-platform-guide
+    distance: 0.587
+    answerable: false
+  - chunk_id: df3faf94-192a-474b-a594-b39b72cc249d
+    document_id: parent-parent-handbook
+    distance: 0.5983
+    answerable: false
+  - chunk_id: b76f629a-eca1-4720-aea5-4fcea0a9dfbe
+    document_id: tutor-tutor-handbook
+    distance: 0.6522
+    answerable: false
+  - chunk_id: 6c404479-5625-4365-a2ec-e3ffe825a11c
+    document_id: tutor-student-support-guide
+    distance: 0.6813
+    answerable: false
+- id: no-answer-agecap-1
+  text: Is there an age limit for a student to keep attending?
+  reused_from: qa_coverage_eval.yaml#no-answer-agecap-1
+  validated_neighbours:
+  - chunk_id: 29167616-5106-40ce-832c-9f9504ada8e4
+    document_id: parent-attendance-policy
+    distance: 0.7131
+    answerable: false
+  - chunk_id: 71076f78-f055-4346-9f4c-eb667b9e1bc1
+    document_id: student-learning-platform-guide
+    distance: 0.7339
+    answerable: false
+  - chunk_id: a382ea1b-19a5-43dd-abd4-19467d192ffe
+    document_id: parent-parent-handbook
+    distance: 0.7378
+    answerable: false
+  - chunk_id: 01327041-5241-45a0-bc61-59a6e7a99877
+    document_id: tutor-instructional-procedures
+    distance: 0.7711
+    answerable: false
+  - chunk_id: 9af0ef97-499f-4d5c-8b57-8ec2f9060cd5
+    document_id: branch_manager-attendance-procedure
+    distance: 0.7757
+    answerable: false
+- id: na-e2-refund-1
+  text: How do I get a refund if we signed up and then changed our minds?
+  reused_from: null
+  validated_neighbours:
+  - chunk_id: 9f1ab49d-673c-4793-90c5-ad2fcb5c3504
+    document_id: parent-attendance-policy
+    distance: 0.7884
+    answerable: false
+  - chunk_id: 6ed29c39-0acb-4ad4-8289-1a3c19b7ff8d
+    document_id: public-contact-guide
+    distance: 0.8103
+    answerable: false
+  - chunk_id: d45bb808-c7a5-4a9e-9925-785a30b73f58
+    document_id: student-learning-platform-guide
+    distance: 0.8152
+    answerable: false
+  - chunk_id: 56cafb1c-01d0-47a9-89f0-923e5b5d1e5d
+    document_id: tutor-tutor-handbook
+    distance: 0.83
+    answerable: false
+  - chunk_id: 7490de36-e617-4891-a69a-ffe9c341074d
+    document_id: student-learning-platform-guide
+    distance: 0.8547
+    answerable: false
+- id: na-e2-scholarship-1
+  text: Is there financial aid for families who cannot pay the fee?
+  reused_from: null
+  validated_neighbours:
+  - chunk_id: fab96b81-b494-41d7-8607-b521fe682efc
+    document_id: parent-attendance-policy
+    distance: 0.7969
+    answerable: false
+  - chunk_id: a382ea1b-19a5-43dd-abd4-19467d192ffe
+    document_id: parent-parent-handbook
+    distance: 0.8142
+    answerable: false
+  - chunk_id: 43cffc24-ddf9-420a-8e37-db3b6672b547
+    document_id: branch_manager-attendance-procedure
+    distance: 0.831
+    answerable: false
+  - chunk_id: e9b4b29f-cf17-482d-b6f8-2b82c5846e79
+    document_id: parent-attendance-policy
+    distance: 0.8461
+    answerable: false
+  - chunk_id: bc85dfbe-4592-498b-8fc6-7b7975392650
+    document_id: public-our-team
+    distance: 0.8539
+    answerable: false
+- id: na-e2-snack-1
+  text: Are snacks or lunch provided during the longer weekend sessions?
+  reused_from: null
+  validated_neighbours:
+  - chunk_id: 53852923-e953-4cec-9c2a-dc50fa0c685d
+    document_id: branch_manager-branch-calendar
+    distance: 0.6652
+    answerable: false
+  - chunk_id: 9d00bfdc-9432-4ec3-8423-824cbc9fb953
+    document_id: public-student-participation-guide
+    distance: 0.7216
+    answerable: false
+  - chunk_id: 01327041-5241-45a0-bc61-59a6e7a99877
+    document_id: tutor-instructional-procedures
+    distance: 0.7609
+    answerable: false
+  - chunk_id: 1cd11c7e-ab8d-4c01-98ed-19a3233b1338
+    document_id: student-learning-platform-guide
+    distance: 0.7717
+    answerable: false
+  - chunk_id: baac8b91-e15a-408d-9f98-5a1c6a86f12f
+    document_id: branch_manager-operations-manual
+    distance: 0.7731
+    answerable: false
+- id: na-e2-parking-1
+  text: Where do parents park when they drop their child off at a branch?
+  reused_from: null
+  validated_neighbours:
+  - chunk_id: 6c404479-5625-4365-a2ec-e3ffe825a11c
+    document_id: tutor-student-support-guide
+    distance: 0.682
+    answerable: false
+  - chunk_id: a2f10a96-d850-48a9-b01d-fe45e9f9739a
+    document_id: parent-parent-handbook
+    distance: 0.6845
+    answerable: false
+  - chunk_id: ad6dda1d-18dd-4d67-a2ef-7a6524902a59
+    document_id: public-branch-directory
+    distance: 0.708
+    answerable: false
+  - chunk_id: 1cf0445e-89a1-4acf-9612-ef540a5d3181
+    document_id: public-privacy-notice
+    distance: 0.7097
+    answerable: false
+  - chunk_id: d745d09e-0b85-45cb-889c-05357f46d539
+    document_id: public-volunteer-guide
+    distance: 0.755
+    answerable: false
+- id: na-e2-insurance-1
+  text: Does the program carry accident insurance for students on site?
+  reused_from: null
+  validated_neighbours:
+  - chunk_id: e96c0ae3-e106-443a-a882-676857b05ffc
+    document_id: public-contact-guide
+    distance: 0.796
+    answerable: false
+  - chunk_id: ed0d75c3-2d2a-4294-adae-ab25bbc516a9
+    document_id: tutor-tutor-handbook
+    distance: 0.7981
+    answerable: false
+  - chunk_id: 6c4f9ce2-2d2e-43d5-a9b4-c3bf3e5f37c4
+    document_id: public-privacy-notice
+    distance: 0.8005
+    answerable: false
+  - chunk_id: 70958c5a-3dc3-4a67-b1e6-b253d65a62d7
+    document_id: branch_manager-operations-manual
+    distance: 0.8118
+    answerable: false
+  - chunk_id: b23a617b-a570-4809-899d-1ce189d8f0cf
+    document_id: tutor-student-support-guide
+    distance: 0.8179
+    answerable: false
+- id: na-e2-summer-1
+  text: What are the dates of the summer break camp this year?
+  reused_from: null
+  validated_neighbours:
+  - chunk_id: a0ba9d2b-7e39-4361-9b3d-120d56b2be0f
+    document_id: public-academic-calendar
+    distance: 0.7043
+    answerable: false
+  - chunk_id: ee69decd-fb16-4899-9446-a23b8a93404b
+    document_id: branch_manager-branch-calendar
+    distance: 0.8235
+    answerable: false
+  - chunk_id: 53852923-e953-4cec-9c2a-dc50fa0c685d
+    document_id: branch_manager-branch-calendar
+    distance: 0.8296
+    answerable: false
+  - chunk_id: a349536a-6ce1-4ceb-a369-0c49c1cd589b
+    document_id: branch_manager-branch-calendar
+    distance: 0.8366
+    answerable: false
+  - chunk_id: 86768823-883a-4dd1-b804-358d41491001
+    document_id: public-our-team
+    distance: 0.8683
+    answerable: false
+- id: na-e2-sibling-1
+  text: Is there a sibling discount if I enroll two children at once?
+  reused_from: null
+  validated_neighbours:
+  - chunk_id: a382ea1b-19a5-43dd-abd4-19467d192ffe
+    document_id: parent-parent-handbook
+    distance: 0.5647
+    answerable: false
+  - chunk_id: 00f1a3b9-c8f8-4bde-aa79-565e2b3ac466
+    document_id: branch_manager-operations-manual
+    distance: 0.7288
+    answerable: false
+  - chunk_id: 71076f78-f055-4346-9f4c-eb667b9e1bc1
+    document_id: student-learning-platform-guide
+    distance: 0.7684
+    answerable: false
+  - chunk_id: 6ed29c39-0acb-4ad4-8289-1a3c19b7ff8d
+    document_id: public-contact-guide
+    distance: 0.801
+    answerable: false
+  - chunk_id: 9af0ef97-499f-4d5c-8b57-8ec2f9060cd5
+    document_id: branch_manager-attendance-procedure
+    distance: 0.8214
+    answerable: false
+- id: na-e2-college-1
+  text: Do you write college recommendation letters for students?
+  reused_from: null
+  validated_neighbours:
+  - chunk_id: a382ea1b-19a5-43dd-abd4-19467d192ffe
+    document_id: parent-parent-handbook
+    distance: 0.8329
+    answerable: false
+  - chunk_id: 6c404479-5625-4365-a2ec-e3ffe825a11c
+    document_id: tutor-student-support-guide
+    distance: 0.8384
+    answerable: false
+  - chunk_id: b23a617b-a570-4809-899d-1ce189d8f0cf
+    document_id: tutor-student-support-guide
+    distance: 0.8424
+    answerable: false
+  - chunk_id: 8e4b54b9-b834-4f39-b155-e04b8543bf2b
+    document_id: student-code-of-conduct
+    distance: 0.8441
+    answerable: false
+  - chunk_id: d4f623da-c594-48c4-a24c-ea4bdbd9029d
+    document_id: branch_manager-attendance-procedure
+    distance: 0.8477
+    answerable: false
+- id: na-e2-waitlist-1
+  text: How long is the waitlist if a branch is already full this term?
+  reused_from: null
+  validated_neighbours:
+  - chunk_id: a349536a-6ce1-4ceb-a369-0c49c1cd589b
+    document_id: branch_manager-branch-calendar
+    distance: 0.663
+    answerable: false
+  - chunk_id: d745d09e-0b85-45cb-889c-05357f46d539
+    document_id: public-volunteer-guide
+    distance: 0.743
+    answerable: false
+  - chunk_id: 86768823-883a-4dd1-b804-358d41491001
+    document_id: public-our-team
+    distance: 0.7495
+    answerable: false
+  - chunk_id: ee69decd-fb16-4899-9446-a23b8a93404b
+    document_id: branch_manager-branch-calendar
+    distance: 0.7508
+    answerable: false
+  - chunk_id: e96c0ae3-e106-443a-a882-676857b05ffc
+    document_id: public-contact-guide
+    distance: 0.7736
+    answerable: false
+- id: na-e2-device-1
+  text: What happens if a student breaks a tablet that belongs to a branch?
+  reused_from: null
+  validated_neighbours:
+  - chunk_id: e96c0ae3-e106-443a-a882-676857b05ffc
+    document_id: public-contact-guide
+    distance: 0.637
+    answerable: false
+  - chunk_id: 440308cb-7bad-44a6-99ec-7f2c304574ba
+    document_id: student-code-of-conduct
+    distance: 0.66
+    answerable: false
+  - chunk_id: b76f629a-eca1-4720-aea5-4fcea0a9dfbe
+    document_id: tutor-tutor-handbook
+    distance: 0.6952
+    answerable: false
+  - chunk_id: fab96b81-b494-41d7-8607-b521fe682efc
+    document_id: parent-attendance-policy
+    distance: 0.6992
+    answerable: false
+  - chunk_id: 107e93c0-b19b-4b5b-ad41-c44166f7a783
+    document_id: tutor-instructional-procedures
+    distance: 0.7001
+    answerable: false
+dropped:
+- id: gt-auth-001
+  phrasing: paraphrase
+  reason: 'rewrite drifted: The passage only provides a header/title ("Attendance Procedure") and a draft
+    notice, but contains no actual procedural content. While the title indicates the topic relates to
+    attendance, the passage does not include any substantive information about how attendance is handled.
+    Someone reading only t'
+- id: gt-auth-001
+  phrasing: lexical_mismatch
+  reason: 'rewrite drifted: The passage is only a header/title stating "Attendance Procedure" with a draft
+    notice. It contains no actual content describing workforce check-in guidelines. While the passage
+    title is related to the question''s topic, it provides no substantive information to answer the question
+    about check-in guid'
+- id: gt-auth-009
+  phrasing: paraphrase
+  reason: 'rewrite drifted: The passage is merely a header/title indicating this is a "Branch Calendar
+    (Main Branch)" document in draft status, but it contains no actual calendar information or location
+    details. It does not answer where to find the calendar—it only identifies what the document is supposed
+    to be. Someone readin'
+- id: gt-auth-011
+  phrasing: paraphrase
+  reason: 'rewrite drifted: The passage only indicates that the Branch Operations Manual is in DRAFT status
+    and not yet approved for production. It does not provide any information about when the manual will
+    be completed or when it will be approved for production. The question asks for a timeline/completion
+    date, which is not '
+- id: gt-auth-016
+  phrasing: paraphrase
+  reason: 'rewrite drifted: The passage is a header/title section that only indicates this is a draft
+    attendance policy document that has not been approved. It does not contain any actual attendance rules
+    or policies. Someone reading only this passage would not be able to provide a complete answer about
+    what the attendance rul'
+- id: gt-auth-016
+  phrasing: lexical_mismatch
+  reason: 'rewrite drifted: The passage only shows a header and disclaimer for an Attendance Policy document,
+    but contains no actual policy details, guidelines, or information about how often learners must be
+    present. It is merely a placeholder/draft header without the substantive content needed to answer
+    the question.'
+- id: gt-gene-036
+  phrasing: lexical_mismatch
+  reason: 'rewrite drifted: The passage addresses what happens when a "branch manager" cannot resolve
+    an issue (they escalate to the regional office), but the question asks about a "local site administrator,"
+    which is a different role not mentioned in the passage. While these may be similar positions, the
+    passage does not spec'
+- id: gt-gene-038
+  phrasing: multi_keyword
+  reason: 'question drifted: The passage states that the organization believes "educating children requires
+    human interaction – not just books and computers," but it does not explain WHY they believe this or
+    what their reasoning is. The passage only states the belief itself, not the underlying reasons or
+    justification for it. A'
+- id: gt-near-060
+  phrasing: multi_keyword
+  reason: 'question drifted: The passage provides information about Duc Pham''s degree from Baylor University
+    (Biochemistry B.S.), but it does not answer the second part of the question about which medical school
+    he attended. The passage only states that "He is hoping to attend medical school soon," indicating
+    he has not yet att'
+- id: gt-near-062
+  phrasing: paraphrase
+  reason: 'rewrite drifted: The passage states that Evelyn Lee is the "President" of Flower Mound High,
+    not the principal. These are different positions. The passage does not provide information about who
+    the principal is, only that Evelyn Lee holds the president role.'
+- id: gt-gene-078
+  phrasing: paraphrase
+  reason: 'rewrite drifted: The passage does not answer whether the Privacy Notice document is still current
+    or has changed. While the passage indicates this is a draft that is "NOT APPROVED FOR PRODUCTION"
+    and contains "synthetic content for development and evaluation only," this only tells us about the
+    current status of the '
+- id: gt-gene-082
+  phrasing: paraphrase
+  reason: 'rewrite drifted: The passage explains that identity information and learning records are kept
+    in separate systems, but it does not specifically answer the question about where student grades are
+    stored. The passage mentions that "learning platform data references students only by an internal
+    identifier" but does not'
+- id: gt-gene-087
+  phrasing: paraphrase
+  reason: 'rewrite drifted: The passage only provides a header title "Student Participation Guide" and
+    metadata notes (that it''s a draft and synthetic content), but contains no actual content describing
+    what is in the guide. The passage does not answer what topics, subjects, or information the guide
+    covers.'
+- id: gt-gene-089
+  phrasing: multi_keyword
+  reason: 'question drifted: The passage directly states that "Volunteers do not tutor students directly
+    or access any student learning data." Therefore, the passage only partially answers the question.
+    It confirms that volunteers can help supervise study halls, but explicitly contradicts the second
+    part of the question by clar'
+- id: gt-auth-020
+  phrasing: lexical_mismatch
+  reason: 'rewrite drifted: The passage discusses communicating with tutors during session hours and mentions
+    contacting a branch manager for urgent matters. However, the question asks specifically about contacting
+    a "teacher" outside of scheduled meetings. The passage addresses tutors, not teachers, and does not
+    provide a com'
+- id: gt-auth-001
+  phrasing: lexical_mismatch
+  reason: 'rewrite drifted: The passage is only a header/title section stating "Attendance Procedure"
+    and a disclaimer that it is draft content. It contains no actual information about how staff should
+    manage their presence at the office. While the title indicates the passage may be about attendance
+    procedures, the passage its'
+- id: gt-auth-016
+  phrasing: lexical_mismatch
+  reason: 'rewrite drifted: The passage is only a header/title for an attendance policy document that
+    is marked as "DRAFT — NOT APPROVED FOR PRODUCTION" and is synthetic content. It does not contain any
+    actual official rules or policies governing student attendance. While the question asks about official
+    attendance rules, the '
+- id: gt-gene-087
+  phrasing: lexical_mismatch
+  reason: 'rewrite drifted: The passage does not answer the question. The passage is only a header/title
+    page indicating "Student Participation Guide" in draft form with a note that it''s synthetic content.
+    It provides no information about what a "learner engagement handbook" covers, and doesn''t even appear
+    to be introducing th'
+call_failures: []
+top_ups:
+- pass: C2
+  at: '2026-08-29T20:36:28+00:00'
+  attempts: 64
+  kept_as_lexical_mismatch: 26
+  relabelled_to_paraphrase: 34
+  dropped_for_drift: 4
+  call_failures: 0
+  seed: 20260830
+  spend_cents: 17.267
+  note: Round 2 of the lexical_mismatch pass, run because round 1 kept only 15 of 40 attempts under the
+    same `mismatch_max_overlap` gate. More attempts, identical threshold - the gate was never loosened
+    to fill the cell.
