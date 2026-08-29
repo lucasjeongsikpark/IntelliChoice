@@ -30881,3 +30881,32 @@ funded load; the SPA *render* half stays open.
 task (tens of cents at most account-wide) — the learning path spent nothing on models by
 design. Two p95 alarms fired and self-resolved during the ramp; autoscaling did its job and
 scale-in returns capacity to the floor on its own.
+
+## D-457 — weekly dependabot batch #3 plus an out-of-band security bump, landed through a red-audit day (accepted, 2026-08-29)
+
+Eight dependency commits landed under the D-322 #8 standing rule and its D-430/D-445
+precedents, on the same day as the D-455/D-456 stress arc:
+
+- **The out-of-band one first, because it was blocking everything:** a new advisory
+  (**PYSEC-2026-3726**, nltk 3.10.0, fixed 3.10.2) published mid-day and turned
+  `python-dependency-audit` red on every PR — first seen failing the **docs-only** D-455/D-456
+  reconciliation PR, which is exactly how a per-PR audit should behave and exactly why a
+  docs PR runs it. nltk is transitive; `uv lock --upgrade-package nltk` moved it to 3.10.3
+  (`ba6e5e2`, PR #430). Treated as the same mechanical class as the standing dependabot rule.
+- **Batch #3 (7 PRs, #422–#428):** boto3 1.43.79, @types/node, @types/react-dom and oxlint
+  1.80.0 in both webapps — all patch/minor, all rebase-merged with required checks green, none
+  conflicted with the nltk lock change.
+
+**Verification:** per-PR CI green (the merge gate), then the full local suite on the merged
+HEAD at **exactly 1870 passed / 2 skipped / 1 xfailed**, lint and typecheck clean, and
+`uv.lock` confirmed still at nltk 3.10.3 after the boto3 lock edit. One environment artifact
+en route, recorded because it is the third occurrence: the first post-merge suite run produced
+the **D-445 dead-Docker signature** (50 failed / 646 skipped / 209 errors in 69 s) — the local
+DB containers were simply down after a day of staging-only work; `make up` and the re-run
+matched baseline exactly.
+
+**A landing lesson worth keeping:** `gh pr merge` immediately after a checks-watch loses a
+race with GitHub's mergeability recomputation (hit twice today, PRs #429/#430 era; also once
+as "no checks reported" when the wait predicate treated an empty check list as done). The
+working shape is: wait until checks *exist*, watch them to completion, settle ~30 s, then
+merge.

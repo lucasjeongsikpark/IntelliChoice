@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-08-29** (D-455/D-456: the user-ordered stress test found and mitigated the **RDS secret-rotation incident**, measured the concurrency ceilings, and queued `SILENT-500S`; UD-14 opened) |
-| Last product-code commit | **`519dff4`** (2026-08-26, the DISCONNECT-NITS pair, D-452); before it `825ce76` (D-451) |
+| Snapshot date | **2026-08-29** (D-455..D-457: the stress test found and mitigated the **RDS secret-rotation incident** and measured the ceilings; `SILENT-500S` queued; UD-14 opened; dependabot batch #3 + the nltk advisory landed) |
+| Last product-code commit | **`f2731a1`** (2026-08-29, dependabot batch #3 + the nltk PYSEC-2026-3726 bump, D-457); before them `519dff4` (D-452) |
 | Deployed staging image (both ECS services) | **`gha-5fa15d491057`** = head `5fa15d4` (product code `7983154`), deployed 2026-08-26 (D-448, run 32930929448); **tasks force-restarted 2026-08-29** (D-455 rotation mitigation — same image, fresh secret resolution) |
 | Deployed task definitions | learning `:153` (2/2 running), chat `:151` (1/1 running) — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **3 product commits** (`5fa15d4` → `519dff4`: the D-450/D-451/D-452 e2e specs, fixtures, and code comments — test-side only, no runtime behavior change waits on a deploy). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** remain applied via control-plane targeted `terraform apply` (§8) |
+| Repo-vs-deployed gap | **11 product commits** (`5fa15d4` → `f2731a1`: the D-450..D-452 e2e specs and comments — test-side — plus the D-457 dependency bumps: nltk 3.10.3 (security, PYSEC-2026-3726), boto3, and dev-tooling; no product behavior change waits on a deploy, but the nltk fix reaches staging only with one). The scheduled-job **metric filters (2026-08-21), heartbeat alarm windows (2026-08-22), and the deploy role's Logs Insights statements (2026-08-24, D-439)** remain applied via control-plane targeted `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `519dff4`, or if the deployed staging image tag no longer matches this
+commit lands after `f2731a1`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
