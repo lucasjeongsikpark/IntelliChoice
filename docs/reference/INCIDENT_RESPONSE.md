@@ -351,6 +351,25 @@ first response, not a full DR procedure: check ECS service health
 (`aws ecs describe-services`), RDS status (`aws rds describe-db-instances`), and the
 `/healthz` endpoints on both apps first: they'll usually tell you which layer failed.
 
+**One database failure mode this project has actually had (D-455, 2026-08-29), with its own
+first response.** Intermittent 500s that worsen under load, after days without a deploy, while
+health checks stay green and no JSON ERROR line appears — check for
+`asyncpg.exceptions.InvalidPasswordError` in the plain-text tracebacks
+(`filter-log-events --filter-pattern '"Traceback"'`), then compare
+`MasterUserSecret` `LastRotatedDate` (`aws secretsmanager describe-secret`) against the ECS
+tasks' start time. Both RDS master secrets **auto-rotate on a ~7-day cadence** and the tasks
+resolve them **once at start**, so a rotation landing on long-lived tasks breaks every *new*
+DB connection while pooled survivors keep working. First response — safe, and it is the whole
+fix until UD-14 settles the durable posture:
+
+```bash
+aws ecs update-service --cluster intellichoice-staging --service intellichoice-staging-learning-api --force-new-deployment
+aws ecs update-service --cluster intellichoice-staging --service intellichoice-staging-chat-api --force-new-deployment
+```
+
+One-off `run-task` jobs (the nightly three) resolve secrets per launch and are immune — their
+heartbeats staying green says nothing about this failure.
+
 ## After the incident
 
 Every real incident in this project's history became a DECISIONS.md entry (D-084's

@@ -331,6 +331,13 @@ to rot, because nothing fails when it does.)*
   costs three more tasks, not twenty-eight.** 2 → 5 tasks moves p95 from a 0.7%-margin 2.98 s to
   ~0.8 s.
 
+  **Stress-measured on the resized task, 2026-08-29 (D-456, `gha-5fa15d491057`):** learning is
+  **error-free through 100 concurrent** — 1,400/1,400 requests, load converting to queueing
+  latency and never to failures (warm p95 3.03 s at 25 concurrent; 8.8–10.7 s at 50–100 with
+  autoscaling to 3 tasks). Chat is error-free at 5 concurrent guests (p95 12.0 s); its 10-VU
+  ceiling is the deliberate shared anonymous rate-limit bucket returning 429s (WORK-44 #2),
+  not capacity — zero 5xx across the whole ramp.
+
   > **⚠️ Resize caveat — the per-task columns above understate learning-api by 2×.** *(Added
   > 2026-08-20, `D136-PRICE-TABLE`.)* The AUD-F-28 sweep that produced these numbers ran on the
   > **old 256/512** task, where p95 ≤ 3 s held only to ~8 concurrent sessions. learning-api is now
@@ -2453,6 +2460,17 @@ question, not about which service is running. One `trace_id` still spans FastAPI
 Bedrock gateway → MySQL/Postgres → MCP tools on the OTel side (SPEC §5.32.2); LangGraph node
 execution has no off-the-shelf OTel instrumentation, so `traced_span()`/`traced_node()` are manual
 wrappers at those call sites, *in addition to* the LangSmith tree.
+
+**Database credentials rotate under the running tasks, and the tasks do not notice** (learned
+live, D-455, 2026-08-29). Both RDS instances use AWS-managed master-user secrets with automatic
+~7-day rotation; the apps receive username/password as ECS container secrets (`valueFrom`),
+resolved **once at task start** — so a rotation landing on long-lived tasks silently breaks
+every *new* DB connection while established pooled connections keep working. The failure
+signature is intermittent `InvalidPasswordError` 500s that worsen under load after a quiet
+deploy-free stretch; the mitigation is a forced ECS redeploy of both services. One-off
+`run-task` jobs (the nightly three, ops tasks) resolve the secret per launch and are immune.
+The durable posture (disable rotation / automate restart-on-rotation / accept the manual
+restart) is UD-14, deliberately open.
 
 The VPC's baseline posture is **no internet egress** (reframed 2026-08-20, D-424): every AWS
 dependency an ECS task actually needs — ECR, CloudWatch Logs, Secrets Manager, Bedrock, X-Ray, and
