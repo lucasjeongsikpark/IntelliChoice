@@ -30972,3 +30972,63 @@ reachable keys (`name` is refused by `Logger.makeRecord` before the filter ever 
 1940/2/1 after E6.1 — baseline 1870 + 38 + 32), coordinator SQL cross-checks matched the
 E5.1 funnel exactly (1,827 / 1,572 / 1,163 / 409), F-1/F-2 confirmed by direct code read,
 dev database byte-identical before/after E5.1, no product code modified by either task.
+
+## D-459 — E3 accepted: the cost ledger holds 1.0× overshoot to 200 concurrent, and the HITL bypass denominator is now 84 (accepted, 2026-08-29)
+
+The resume-evidence program's Theme-3 experiment (Tier 1, $0), `docs/resume_evidence/
+03_gateway_agents/E3_REPORT.md`. Four deliverables, all measured, no product code changed.
+
+**E3.1/E3.2 — budget overshoot under concurrency, before/after.** A 252-trial
+latency-injecting benchmark: N ∈ {10, 50, 100, 200} × three ceiling shapes (report /
+tutor-chat / chat-turn constants imported from product code) × fixed-vs-pre-D-110-baseline
+× three delay arms (a 0 ms mock-speed negative control + 250 ms + 3 s). Results:
+
+- The shipped transactional ledger holds **1.000× overshoot in all 36 divisible-ceiling
+  cells, 0 errors, 0 grants-beyond-capacity across 126 fixed-arm trials.**
+- The reproduced pre-D-110 read-then-act baseline reaches **9.0× on the report ceiling**
+  (and 2.5–5.0× on the others) — the controlled version of D-110's throwaway 8.0×/10.0×.
+- The 0 ms control **quantifies D-110 §2's own warning**: at mock speed the baseline
+  under-reports overshoot by 36% (the race window vanishes), which is exactly why the
+  250 ms floor exists.
+- One honest fixed-arm exception, reported not smoothed: the production report ceiling
+  gives **1.035×**, because admission tests `spend >= ceiling` before adding the estimate
+  (bound 1 + estimate/ceiling). A property of the admission rule, not a race.
+
+**E3.3 — failure matrix through the real gateway.** 4 failure modes × N ∈ {30, 100} +
+4 half-open probes: the circuit breaker **suppressed 96% of provider calls under a
+sustained outage** (9/300 reached the provider) and **never opened on 300 schema
+failures** (D-115 verified — schema failures must not trip the breaker).
+
+**E3.4 — the HITL bypass denominator now exists: 84 bypass attempts, 0 unauthorized
+external side effects.** Three permanent pytest suites (chat-api, learning-api,
+packages/shared MCP), each with a source-of-truth `BYPASS_CASES` catalog cross-checked by
+`hitl_bypass_inventory.py` so a parametrized `[HB-…]` case with no catalog entry fails the
+run. 91 catalogued cases → 94 collected tests (91 + 3 catalog self-checks); of the 91,
+4 are positive/negative controls and 3 are excluded observations, leaving **84 genuine
+bypass attempts, all passing**. Covered: malformed/hostile resume payloads, wrong-type
+resume after graph advance, cross-session thread substitution, two concurrent `/respond`
+calls at one pause, direct MCP invocation outside any approval.
+
+**A stale-premise correction, honestly resolved.** The Frozen Spec expected learning-api
+to have no turn claim and a possible concurrent-`/respond` defect. **D-376 had already
+closed that gap** — it ported D-346's `pg_try_advisory_xact_lock` to all seven learning
+`ainvoke` sites inside `_invoke_with_deadline` — so the measurement *confirms* one email
+across 3 concurrent rounds rather than finding a defect. The would-be finding was
+reclassified to the passing case HB-LEARN-30.
+
+**Two findings recorded, not fixed (queued as `HITL-INTERRUPT-HARDENING`):**
+
+- **HB-CHAT-F1 — a pending interrupt has no expiry.** Neither `/respond` checks a pause's
+  age; there is no TTL column or sweep, so a pause left open is resumable indefinitely.
+- **HB-LEARN-F1 — the graph layer itself does not serialize resumes.** Two simultaneous
+  `ainvoke`s both send; the route's turn claim is the only gate — which is sufficient for
+  the HTTP surface today but would not protect a future non-route caller.
+- **HB-MCP-A1 (architecture note, not a defect).** `McpToolRegistry` has no approval
+  concept by design; the "0 external actions without approval" property belongs to the
+  four graph call sites, documented as an executable test rather than asserted of the
+  registry.
+
+**Verification:** `make lint` pass, `make typecheck` 0 errors, `make test` 2034 passed /
+2 skipped / 1 xfailed (baseline 1940 + 94 new); coordinator re-ran the three suites (94
+passed) and reconciled the 91/94/84 counts against the report; overshoot headlines and the
+inventory count cross-checked; no product-code diff; 0 leftover benchmark rows in Postgres.

@@ -1,0 +1,629 @@
+{
+  "generated_at": "2026-08-29T04:05:10.190285+00:00",
+  "git_sha": "62372ceebabaa78d992b6753bbbb4dac85cb5c70",
+  "environment": "local simulation - real ResilientBedrockGateway, scripted in-process provider; no network, no model spend",
+  "cost_usd": 0.0,
+  "configuration": {
+    "model_id": "anthropic.claude-haiku-4-5",
+    "max_retries": 2,
+    "backoff_base_s": 0.5,
+    "circuit_failure_threshold": 5,
+    "shipped_circuit_cooldown_s": 30.0,
+    "matrix_circuit_cooldown_s": 1.0,
+    "half_open_probe_cooldown_s": 0.5,
+    "timeout_mode_call_timeout_s": 0.05,
+    "timeout_mode_hang_s": 0.5,
+    "transient_fraction": 0.5,
+    "trials_per_cell": 3
+  },
+  "cells": [
+    {
+      "mode": "timeout",
+      "n_concurrent": 30,
+      "trial": 1,
+      "succeeded": 15,
+      "failed": 15,
+      "recovery_rate": 0.5,
+      "provider_calls": 75,
+      "retry_amplification": 2.5,
+      "circuit_opens": 2,
+      "circuit_blocked": 0,
+      "final_failure_rate": 0.5,
+      "wall_clock_s": 1.658,
+      "outcomes": {
+        "ok": 15,
+        "BedrockTimeoutError": 15
+      }
+    },
+    {
+      "mode": "timeout",
+      "n_concurrent": 30,
+      "trial": 2,
+      "succeeded": 15,
+      "failed": 15,
+      "recovery_rate": 0.5,
+      "provider_calls": 75,
+      "retry_amplification": 2.5,
+      "circuit_opens": 2,
+      "circuit_blocked": 0,
+      "final_failure_rate": 0.5,
+      "wall_clock_s": 1.664,
+      "outcomes": {
+        "ok": 15,
+        "BedrockTimeoutError": 15
+      }
+    },
+    {
+      "mode": "timeout",
+      "n_concurrent": 30,
+      "trial": 3,
+      "succeeded": 15,
+      "failed": 15,
+      "recovery_rate": 0.5,
+      "provider_calls": 75,
+      "retry_amplification": 2.5,
+      "circuit_opens": 2,
+      "circuit_blocked": 0,
+      "final_failure_rate": 0.5,
+      "wall_clock_s": 1.655,
+      "outcomes": {
+        "ok": 15,
+        "BedrockTimeoutError": 15
+      }
+    },
+    {
+      "mode": "timeout",
+      "n_concurrent": 100,
+      "trial": 1,
+      "succeeded": 50,
+      "failed": 50,
+      "recovery_rate": 0.5,
+      "provider_calls": 250,
+      "retry_amplification": 2.5,
+      "circuit_opens": 2,
+      "circuit_blocked": 0,
+      "final_failure_rate": 0.5,
+      "wall_clock_s": 1.667,
+      "outcomes": {
+        "ok": 50,
+        "BedrockTimeoutError": 50
+      }
+    },
+    {
+      "mode": "timeout",
+      "n_concurrent": 100,
+      "trial": 2,
+      "succeeded": 50,
+      "failed": 50,
+      "recovery_rate": 0.5,
+      "provider_calls": 250,
+      "retry_amplification": 2.5,
+      "circuit_opens": 2,
+      "circuit_blocked": 0,
+      "final_failure_rate": 0.5,
+      "wall_clock_s": 1.667,
+      "outcomes": {
+        "ok": 50,
+        "BedrockTimeoutError": 50
+      }
+    },
+    {
+      "mode": "timeout",
+      "n_concurrent": 100,
+      "trial": 3,
+      "succeeded": 50,
+      "failed": 50,
+      "recovery_rate": 0.5,
+      "provider_calls": 250,
+      "retry_amplification": 2.5,
+      "circuit_opens": 2,
+      "circuit_blocked": 0,
+      "final_failure_rate": 0.5,
+      "wall_clock_s": 1.682,
+      "outcomes": {
+        "ok": 50,
+        "BedrockTimeoutError": 50
+      }
+    },
+    {
+      "mode": "provider_error",
+      "n_concurrent": 30,
+      "trial": 1,
+      "succeeded": 3,
+      "failed": 27,
+      "recovery_rate": 0.1,
+      "provider_calls": 12,
+      "retry_amplification": 0.4,
+      "circuit_opens": 1,
+      "circuit_blocked": 25,
+      "final_failure_rate": 0.9,
+      "wall_clock_s": 1.501,
+      "outcomes": {
+        "CircuitOpenError": 25,
+        "ok": 3,
+        "BedrockTimeoutError": 2
+      }
+    },
+    {
+      "mode": "provider_error",
+      "n_concurrent": 30,
+      "trial": 2,
+      "succeeded": 3,
+      "failed": 27,
+      "recovery_rate": 0.1,
+      "provider_calls": 12,
+      "retry_amplification": 0.4,
+      "circuit_opens": 1,
+      "circuit_blocked": 25,
+      "final_failure_rate": 0.9,
+      "wall_clock_s": 1.502,
+      "outcomes": {
+        "CircuitOpenError": 25,
+        "ok": 3,
+        "BedrockTimeoutError": 2
+      }
+    },
+    {
+      "mode": "provider_error",
+      "n_concurrent": 30,
+      "trial": 3,
+      "succeeded": 3,
+      "failed": 27,
+      "recovery_rate": 0.1,
+      "provider_calls": 12,
+      "retry_amplification": 0.4,
+      "circuit_opens": 1,
+      "circuit_blocked": 25,
+      "final_failure_rate": 0.9,
+      "wall_clock_s": 1.503,
+      "outcomes": {
+        "CircuitOpenError": 25,
+        "ok": 3,
+        "BedrockTimeoutError": 2
+      }
+    },
+    {
+      "mode": "provider_error",
+      "n_concurrent": 100,
+      "trial": 1,
+      "succeeded": 3,
+      "failed": 97,
+      "recovery_rate": 0.03,
+      "provider_calls": 12,
+      "retry_amplification": 0.12,
+      "circuit_opens": 1,
+      "circuit_blocked": 95,
+      "final_failure_rate": 0.97,
+      "wall_clock_s": 1.504,
+      "outcomes": {
+        "CircuitOpenError": 95,
+        "ok": 3,
+        "BedrockTimeoutError": 2
+      }
+    },
+    {
+      "mode": "provider_error",
+      "n_concurrent": 100,
+      "trial": 2,
+      "succeeded": 3,
+      "failed": 97,
+      "recovery_rate": 0.03,
+      "provider_calls": 12,
+      "retry_amplification": 0.12,
+      "circuit_opens": 1,
+      "circuit_blocked": 95,
+      "final_failure_rate": 0.97,
+      "wall_clock_s": 1.506,
+      "outcomes": {
+        "CircuitOpenError": 95,
+        "ok": 3,
+        "BedrockTimeoutError": 2
+      }
+    },
+    {
+      "mode": "provider_error",
+      "n_concurrent": 100,
+      "trial": 3,
+      "succeeded": 3,
+      "failed": 97,
+      "recovery_rate": 0.03,
+      "provider_calls": 12,
+      "retry_amplification": 0.12,
+      "circuit_opens": 1,
+      "circuit_blocked": 95,
+      "final_failure_rate": 0.97,
+      "wall_clock_s": 1.504,
+      "outcomes": {
+        "CircuitOpenError": 95,
+        "ok": 3,
+        "BedrockTimeoutError": 2
+      }
+    },
+    {
+      "mode": "malformed",
+      "n_concurrent": 30,
+      "trial": 1,
+      "succeeded": 15,
+      "failed": 15,
+      "recovery_rate": 0.5,
+      "provider_calls": 60,
+      "retry_amplification": 2.0,
+      "circuit_opens": 0,
+      "circuit_blocked": 0,
+      "final_failure_rate": 0.5,
+      "wall_clock_s": 0.01,
+      "outcomes": {
+        "ok": 15,
+        "StructuredOutputError": 15
+      }
+    },
+    {
+      "mode": "malformed",
+      "n_concurrent": 30,
+      "trial": 2,
+      "succeeded": 15,
+      "failed": 15,
+      "recovery_rate": 0.5,
+      "provider_calls": 60,
+      "retry_amplification": 2.0,
+      "circuit_opens": 0,
+      "circuit_blocked": 0,
+      "final_failure_rate": 0.5,
+      "wall_clock_s": 0.007,
+      "outcomes": {
+        "ok": 15,
+        "StructuredOutputError": 15
+      }
+    },
+    {
+      "mode": "malformed",
+      "n_concurrent": 30,
+      "trial": 3,
+      "succeeded": 15,
+      "failed": 15,
+      "recovery_rate": 0.5,
+      "provider_calls": 60,
+      "retry_amplification": 2.0,
+      "circuit_opens": 0,
+      "circuit_blocked": 0,
+      "final_failure_rate": 0.5,
+      "wall_clock_s": 0.006,
+      "outcomes": {
+        "ok": 15,
+        "StructuredOutputError": 15
+      }
+    },
+    {
+      "mode": "malformed",
+      "n_concurrent": 100,
+      "trial": 1,
+      "succeeded": 50,
+      "failed": 50,
+      "recovery_rate": 0.5,
+      "provider_calls": 200,
+      "retry_amplification": 2.0,
+      "circuit_opens": 0,
+      "circuit_blocked": 0,
+      "final_failure_rate": 0.5,
+      "wall_clock_s": 0.017,
+      "outcomes": {
+        "ok": 50,
+        "StructuredOutputError": 50
+      }
+    },
+    {
+      "mode": "malformed",
+      "n_concurrent": 100,
+      "trial": 2,
+      "succeeded": 50,
+      "failed": 50,
+      "recovery_rate": 0.5,
+      "provider_calls": 200,
+      "retry_amplification": 2.0,
+      "circuit_opens": 0,
+      "circuit_blocked": 0,
+      "final_failure_rate": 0.5,
+      "wall_clock_s": 0.016,
+      "outcomes": {
+        "ok": 50,
+        "StructuredOutputError": 50
+      }
+    },
+    {
+      "mode": "malformed",
+      "n_concurrent": 100,
+      "trial": 3,
+      "succeeded": 50,
+      "failed": 50,
+      "recovery_rate": 0.5,
+      "provider_calls": 200,
+      "retry_amplification": 2.0,
+      "circuit_opens": 0,
+      "circuit_blocked": 0,
+      "final_failure_rate": 0.5,
+      "wall_clock_s": 0.016,
+      "outcomes": {
+        "ok": 50,
+        "StructuredOutputError": 50
+      }
+    },
+    {
+      "mode": "truncated",
+      "n_concurrent": 30,
+      "trial": 1,
+      "succeeded": 0,
+      "failed": 30,
+      "recovery_rate": 0.0,
+      "provider_calls": 30,
+      "retry_amplification": 1.0,
+      "circuit_opens": 0,
+      "circuit_blocked": 0,
+      "final_failure_rate": 1.0,
+      "wall_clock_s": 0.005,
+      "outcomes": {
+        "OutputTruncatedError": 30
+      }
+    },
+    {
+      "mode": "truncated",
+      "n_concurrent": 30,
+      "trial": 2,
+      "succeeded": 0,
+      "failed": 30,
+      "recovery_rate": 0.0,
+      "provider_calls": 30,
+      "retry_amplification": 1.0,
+      "circuit_opens": 0,
+      "circuit_blocked": 0,
+      "final_failure_rate": 1.0,
+      "wall_clock_s": 0.004,
+      "outcomes": {
+        "OutputTruncatedError": 30
+      }
+    },
+    {
+      "mode": "truncated",
+      "n_concurrent": 30,
+      "trial": 3,
+      "succeeded": 0,
+      "failed": 30,
+      "recovery_rate": 0.0,
+      "provider_calls": 30,
+      "retry_amplification": 1.0,
+      "circuit_opens": 0,
+      "circuit_blocked": 0,
+      "final_failure_rate": 1.0,
+      "wall_clock_s": 0.004,
+      "outcomes": {
+        "OutputTruncatedError": 30
+      }
+    },
+    {
+      "mode": "truncated",
+      "n_concurrent": 100,
+      "trial": 1,
+      "succeeded": 0,
+      "failed": 100,
+      "recovery_rate": 0.0,
+      "provider_calls": 100,
+      "retry_amplification": 1.0,
+      "circuit_opens": 0,
+      "circuit_blocked": 0,
+      "final_failure_rate": 1.0,
+      "wall_clock_s": 0.015,
+      "outcomes": {
+        "OutputTruncatedError": 100
+      }
+    },
+    {
+      "mode": "truncated",
+      "n_concurrent": 100,
+      "trial": 2,
+      "succeeded": 0,
+      "failed": 100,
+      "recovery_rate": 0.0,
+      "provider_calls": 100,
+      "retry_amplification": 1.0,
+      "circuit_opens": 0,
+      "circuit_blocked": 0,
+      "final_failure_rate": 1.0,
+      "wall_clock_s": 0.015,
+      "outcomes": {
+        "OutputTruncatedError": 100
+      }
+    },
+    {
+      "mode": "truncated",
+      "n_concurrent": 100,
+      "trial": 3,
+      "succeeded": 0,
+      "failed": 100,
+      "recovery_rate": 0.0,
+      "provider_calls": 100,
+      "retry_amplification": 1.0,
+      "circuit_opens": 0,
+      "circuit_blocked": 0,
+      "final_failure_rate": 1.0,
+      "wall_clock_s": 0.015,
+      "outcomes": {
+        "OutputTruncatedError": 100
+      }
+    }
+  ],
+  "summary": [
+    {
+      "mode": "malformed",
+      "n_concurrent": 30,
+      "trials": 3,
+      "requests": 90,
+      "recovered": 45,
+      "recovery_rate": "45/90",
+      "recovery_pct": 50.0,
+      "final_failures": 45,
+      "final_failure_rate": "45/90",
+      "provider_calls": 180,
+      "retry_amplification": 2.0,
+      "circuit_opens_total": 0,
+      "circuit_blocked": 0,
+      "wall_clock_s_median": 0.007,
+      "outcomes": "{\"StructuredOutputError\": 45, \"ok\": 45}"
+    },
+    {
+      "mode": "malformed",
+      "n_concurrent": 100,
+      "trials": 3,
+      "requests": 300,
+      "recovered": 150,
+      "recovery_rate": "150/300",
+      "recovery_pct": 50.0,
+      "final_failures": 150,
+      "final_failure_rate": "150/300",
+      "provider_calls": 600,
+      "retry_amplification": 2.0,
+      "circuit_opens_total": 0,
+      "circuit_blocked": 0,
+      "wall_clock_s_median": 0.016,
+      "outcomes": "{\"StructuredOutputError\": 150, \"ok\": 150}"
+    },
+    {
+      "mode": "provider_error",
+      "n_concurrent": 30,
+      "trials": 3,
+      "requests": 90,
+      "recovered": 9,
+      "recovery_rate": "9/90",
+      "recovery_pct": 10.0,
+      "final_failures": 81,
+      "final_failure_rate": "81/90",
+      "provider_calls": 36,
+      "retry_amplification": 0.4,
+      "circuit_opens_total": 3,
+      "circuit_blocked": 75,
+      "wall_clock_s_median": 1.502,
+      "outcomes": "{\"BedrockTimeoutError\": 6, \"CircuitOpenError\": 75, \"ok\": 9}"
+    },
+    {
+      "mode": "provider_error",
+      "n_concurrent": 100,
+      "trials": 3,
+      "requests": 300,
+      "recovered": 9,
+      "recovery_rate": "9/300",
+      "recovery_pct": 3.0,
+      "final_failures": 291,
+      "final_failure_rate": "291/300",
+      "provider_calls": 36,
+      "retry_amplification": 0.12,
+      "circuit_opens_total": 3,
+      "circuit_blocked": 285,
+      "wall_clock_s_median": 1.504,
+      "outcomes": "{\"BedrockTimeoutError\": 6, \"CircuitOpenError\": 285, \"ok\": 9}"
+    },
+    {
+      "mode": "timeout",
+      "n_concurrent": 30,
+      "trials": 3,
+      "requests": 90,
+      "recovered": 45,
+      "recovery_rate": "45/90",
+      "recovery_pct": 50.0,
+      "final_failures": 45,
+      "final_failure_rate": "45/90",
+      "provider_calls": 225,
+      "retry_amplification": 2.5,
+      "circuit_opens_total": 6,
+      "circuit_blocked": 0,
+      "wall_clock_s_median": 1.658,
+      "outcomes": "{\"BedrockTimeoutError\": 45, \"ok\": 45}"
+    },
+    {
+      "mode": "timeout",
+      "n_concurrent": 100,
+      "trials": 3,
+      "requests": 300,
+      "recovered": 150,
+      "recovery_rate": "150/300",
+      "recovery_pct": 50.0,
+      "final_failures": 150,
+      "final_failure_rate": "150/300",
+      "provider_calls": 750,
+      "retry_amplification": 2.5,
+      "circuit_opens_total": 6,
+      "circuit_blocked": 0,
+      "wall_clock_s_median": 1.667,
+      "outcomes": "{\"BedrockTimeoutError\": 150, \"ok\": 150}"
+    },
+    {
+      "mode": "truncated",
+      "n_concurrent": 30,
+      "trials": 3,
+      "requests": 90,
+      "recovered": 0,
+      "recovery_rate": "0/90",
+      "recovery_pct": 0.0,
+      "final_failures": 90,
+      "final_failure_rate": "90/90",
+      "provider_calls": 90,
+      "retry_amplification": 1.0,
+      "circuit_opens_total": 0,
+      "circuit_blocked": 0,
+      "wall_clock_s_median": 0.004,
+      "outcomes": "{\"OutputTruncatedError\": 90}"
+    },
+    {
+      "mode": "truncated",
+      "n_concurrent": 100,
+      "trials": 3,
+      "requests": 300,
+      "recovered": 0,
+      "recovery_rate": "0/300",
+      "recovery_pct": 0.0,
+      "final_failures": 300,
+      "final_failure_rate": "300/300",
+      "provider_calls": 300,
+      "retry_amplification": 1.0,
+      "circuit_opens_total": 0,
+      "circuit_blocked": 0,
+      "wall_clock_s_median": 0.015,
+      "outcomes": "{\"OutputTruncatedError\": 300}"
+    }
+  ],
+  "half_open": [
+    {
+      "mode": "timeout",
+      "configured_cooldown_s": 0.5,
+      "failures_before_open": 5,
+      "observed_recovery_s": 0.5059,
+      "cooldown_overshoot_s": 0.0059,
+      "calls_during_cooldown": 45,
+      "recovered": true
+    },
+    {
+      "mode": "provider_error",
+      "configured_cooldown_s": 0.5,
+      "failures_before_open": 5,
+      "observed_recovery_s": 0.5043,
+      "cooldown_overshoot_s": 0.0043,
+      "calls_during_cooldown": 45,
+      "recovered": true
+    },
+    {
+      "mode": "malformed",
+      "configured_cooldown_s": 0.5,
+      "failures_before_open": 50,
+      "observed_recovery_s": null,
+      "cooldown_overshoot_s": null,
+      "calls_during_cooldown": 0,
+      "recovered": false
+    },
+    {
+      "mode": "truncated",
+      "configured_cooldown_s": 0.5,
+      "failures_before_open": 50,
+      "observed_recovery_s": null,
+      "cooldown_overshoot_s": null,
+      "calls_during_cooldown": 0,
+      "recovered": false
+    }
+  ]
+}

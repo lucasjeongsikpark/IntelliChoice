@@ -1,0 +1,9 @@
+mode,n_concurrent,trials,requests,recovered,recovery_rate,recovery_pct,final_failures,final_failure_rate,provider_calls,retry_amplification,circuit_opens_total,circuit_blocked,wall_clock_s_median,outcomes
+malformed,30,3,90,45,45/90,50.0,45,45/90,180,2.0,0,0,0.007,"{""StructuredOutputError"": 45, ""ok"": 45}"
+malformed,100,3,300,150,150/300,50.0,150,150/300,600,2.0,0,0,0.016,"{""StructuredOutputError"": 150, ""ok"": 150}"
+provider_error,30,3,90,9,9/90,10.0,81,81/90,36,0.4,3,75,1.502,"{""BedrockTimeoutError"": 6, ""CircuitOpenError"": 75, ""ok"": 9}"
+provider_error,100,3,300,9,9/300,3.0,291,291/300,36,0.12,3,285,1.504,"{""BedrockTimeoutError"": 6, ""CircuitOpenError"": 285, ""ok"": 9}"
+timeout,30,3,90,45,45/90,50.0,45,45/90,225,2.5,6,0,1.658,"{""BedrockTimeoutError"": 45, ""ok"": 45}"
+timeout,100,3,300,150,150/300,50.0,150,150/300,750,2.5,6,0,1.667,"{""BedrockTimeoutError"": 150, ""ok"": 150}"
+truncated,30,3,90,0,0/90,0.0,90,90/90,90,1.0,0,0,0.004,"{""OutputTruncatedError"": 90}"
+truncated,100,3,300,0,0/300,0.0,300,300/300,300,1.0,0,0,0.015,"{""OutputTruncatedError"": 300}"
