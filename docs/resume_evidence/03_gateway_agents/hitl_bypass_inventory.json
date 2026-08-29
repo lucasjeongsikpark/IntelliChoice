@@ -1,0 +1,1128 @@
+{
+  "generated_at": "2026-08-29T04:16:53.336582+00:00",
+  "git_sha": "62372ceebabaa78d992b6753bbbb4dac85cb5c70",
+  "environment": "local - pytest collection over the three permanent bypass suites; no test executed by this tool",
+  "cost_usd": 0.0,
+  "totals": {
+    "cases": 91,
+    "bypass_attempts": 84,
+    "controls": 4,
+    "findings": 2,
+    "architecture_notes": 1,
+    "collected_tests_for_bypass_cases": 84,
+    "collected_tests_total": 94
+  },
+  "by_suite": {
+    "chat-api": 41,
+    "learning-api": 33,
+    "shared/mcp": 17
+  },
+  "suites": [
+    {
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py"
+    },
+    {
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py"
+    },
+    {
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "HB-CHAT-01",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "empty JSON body - no discriminator, no decision",
+      "expected_invariant": "422; no email sent; no interrupt_approvals row",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-01]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-02",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "decision without the interrupt_type discriminator",
+      "expected_invariant": "422; no email sent; no interrupt_approvals row",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-02]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-03",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "discriminator without a decision field",
+      "expected_invariant": "422; no email sent; no interrupt_approvals row",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-03]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-04",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "non-boolean approval string that is not an affirmative ('maybe')",
+      "expected_invariant": "422; no email sent; no interrupt_approvals row",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-04]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-05",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "null approval - absence dressed as a decision",
+      "expected_invariant": "422; no email sent; no interrupt_approvals row",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-05]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-06",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "empty list as approval - truthiness confusion probe",
+      "expected_invariant": "422; no email sent; no interrupt_approvals row",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-06]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-07",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "non-empty object as approval - truthiness confusion probe",
+      "expected_invariant": "422; no email sent; no interrupt_approvals row",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-07]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-08",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "integer 2 as approval - out-of-range int-to-bool coercion probe",
+      "expected_invariant": "422; no email sent; no interrupt_approvals row",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-08]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-09",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "the string 'false' - a node reading truthiness would send",
+      "expected_invariant": "accepted as a decline; no email sent",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-09]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-10",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "integer 0 as approval",
+      "expected_invariant": "accepted as a decline; no email sent",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-10]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-11",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "discriminator smuggled inside a list",
+      "expected_invariant": "422; no email sent; no interrupt_approvals row",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-11]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-12",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "invented discriminator value ('admin_override')",
+      "expected_invariant": "422; no email sent; no interrupt_approvals row",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-12]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-13",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "wrong-but-valid discriminator: resolve the calendar gate on an email pause",
+      "expected_invariant": "409 pending-interrupt mismatch; no email, no calendar event",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-13]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-14",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "wrong-but-valid discriminator: location consent on an email pause",
+      "expected_invariant": "409 pending-interrupt mismatch; no email sent",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-14]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-15",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "approval carrying a note past MAX_NOTE_CHARS",
+      "expected_invariant": "422; no email sent - refused rather than silently truncated",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-15]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-16",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "explicit decline carrying a fully-formed email body",
+      "expected_invariant": "200 declined; no email sent",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-16]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-17",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "approval nested one level down, as a real client bug or a probe would send it",
+      "expected_invariant": "422; no email sent",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_email_gate_refuses_malformed_or_hostile_resume_payloads[HB-CHAT-17]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-18",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond",
+      "attack": "approve an interrupt on a session id that does not exist",
+      "expected_invariant": "404; no email sent",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_18_unknown_session_id"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-19",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond",
+      "attack": "approve on a real session that has no pending interrupt",
+      "expected_invariant": "404 (no checkpoint yet); no email sent",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_19_session_with_no_checkpoint"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-20",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond",
+      "attack": "approve on a session that answered normally and never paused",
+      "expected_invariant": "409 no interrupt pending; no email sent",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_20_thread_that_answered_and_never_paused"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-21",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (owned thread)",
+      "attack": "anonymous caller resumes a signed-in caller's pending approval",
+      "expected_invariant": "403; no email sent",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_21_anonymous_caller_resumes_an_owned_thread"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-22",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (owned thread)",
+      "attack": "a different authenticated user resumes someone else's pending approval",
+      "expected_invariant": "403; no email sent",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_22_a_different_user_resumes_an_owned_thread"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-23",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond",
+      "attack": "cross-session substitution - send thread A's approval body to thread B",
+      "expected_invariant": "the unrelated thread refuses; A's email is still unsent",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_23_cross_session_thread_substitution"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-24",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond",
+      "attack": "replay: approve the same pause twice",
+      "expected_invariant": "second call 409; exactly one email in total",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_24_replay_of_an_approved_pause"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-25",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond",
+      "attack": "decline, then approve the already-resolved pause",
+      "expected_invariant": "second call 409; zero emails",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_25_approve_after_declining"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-26",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond",
+      "attack": "two genuinely concurrent approvals of one pause (advisory-lock race)",
+      "expected_invariant": "exactly one email and exactly one interrupt_approvals row",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_26_two_concurrent_approvals_of_one_pause"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-27",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "extra `recipient` field, trying to redirect the escalation email",
+      "expected_invariant": "recipient is the server-configured admin address, not the caller's",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_an_approved_resume_cannot_redirect_or_rewrite_the_email[HB-CHAT-27]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-28",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "extra `subject`/`body` fields, trying to replace the server-composed draft",
+      "expected_invariant": "the sent body is the server draft; the supplied body never appears",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_an_approved_resume_cannot_redirect_or_rewrite_the_email[HB-CHAT-28]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-29",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "extra `admin_escalation_email` field, trying to rebind the destination",
+      "expected_invariant": "recipient unchanged; the field is not part of the contract",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_an_approved_resume_cannot_redirect_or_rewrite_the_email[HB-CHAT-29]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-30",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "header-injection shaped note (CR/LF + Bcc:) inside the one caller-authored field",
+      "expected_invariant": "exactly one recipient; the note travels as body text, never as a header",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_an_approved_resume_cannot_redirect_or_rewrite_the_email[HB-CHAT-30]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-31",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "note carrying a reply channel (email address + phone) out of the system",
+      "expected_invariant": "the outbound body carries neither the address nor the number",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_an_approved_resume_cannot_redirect_or_rewrite_the_email[HB-CHAT-31]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-32",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (location_consent pending)",
+      "attack": "decline while still supplying precise coordinates",
+      "expected_invariant": "declined answer; the coordinates are purged from checkpoint writes",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_location_gate_refuses_malformed_or_mismatched_resumes[HB-CHAT-32]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-33",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (location_consent pending)",
+      "attack": "consent field omitted entirely, coordinates supplied",
+      "expected_invariant": "422; the request never reaches the node",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_location_gate_refuses_malformed_or_mismatched_resumes[HB-CHAT-33]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-34",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (location_consent pending)",
+      "attack": "resolve the email gate while the location gate is the pending one",
+      "expected_invariant": "409 mismatch; no email sent",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_location_gate_refuses_malformed_or_mismatched_resumes[HB-CHAT-34]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-35",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (location_consent pending)",
+      "attack": "non-boolean consent ('yes please')",
+      "expected_invariant": "422; the request never reaches the node",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_location_gate_refuses_malformed_or_mismatched_resumes[HB-CHAT-35]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-36",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "interrupt_approvals audit table",
+      "attack": "a schema-refused resume must not leave an approval record behind",
+      "expected_invariant": "zero interrupt_approvals rows for the thread after a 422",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_36_a_schema_refused_resume_writes_no_audit_row"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-37",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "interrupt_approvals audit table",
+      "attack": "a mismatched-discriminator resume must not leave an approval record",
+      "expected_invariant": "zero interrupt_approvals rows for the thread after a 409",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_37_a_mismatched_resume_writes_no_audit_row"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-38",
+      "kind": "bypass",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "interrupt_approvals audit table",
+      "attack": "a declined approval must be recorded as cancelled, not as approved",
+      "expected_invariant": "exactly one row, decision='cancelled', no email",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_38_a_decline_is_recorded_as_cancelled"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-C1",
+      "kind": "control",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "not an attack - a plain, valid approval",
+      "expected_invariant": "exactly one email to the configured admin; one approved audit row",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_a_legitimate_approval_still_works[HB-CHAT-C1]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-C2",
+      "kind": "control",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "not an attack - a note exactly at MAX_NOTE_CHARS",
+      "expected_invariant": "accepted; the bound above is a bound, not a blanket refusal",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_a_legitimate_approval_still_works[HB-CHAT-C2]"
+      ]
+    },
+    {
+      "case_id": "HB-CHAT-F1",
+      "kind": "finding",
+      "suite": "chat-api",
+      "file": "apps/chat-api/tests/test_hitl_bypass_suite.py",
+      "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+      "attack": "resume an approval left pending for an arbitrary length of time",
+      "expected_invariant": "FINDING: no TTL exists on a pending interrupt - a stale pause stays resumable indefinitely. Test pins the current behaviour.",
+      "test_node_ids": [
+        "apps/chat-api/tests/test_hitl_bypass_suite.py::test_hb_chat_f1_a_pending_approval_has_no_expiry"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-01",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "empty resume object",
+      "expected_invariant": "no email - LangGraph rejects the resume before the node runs",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_attendance_gate_refuses_every_non_approval[HB-LEARN-01]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-02",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "null approval",
+      "expected_invariant": "no email; decision recorded as cancelled",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_attendance_gate_refuses_every_non_approval[HB-LEARN-02]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-03",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "explicit decline",
+      "expected_invariant": "no email; decision recorded as cancelled",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_attendance_gate_refuses_every_non_approval[HB-LEARN-03]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-04",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "misspelled key ('approve'), so the real key is absent",
+      "expected_invariant": "no email; absence is never approval",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_attendance_gate_refuses_every_non_approval[HB-LEARN-04]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-05",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "integer 0 as approval",
+      "expected_invariant": "no email",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_attendance_gate_refuses_every_non_approval[HB-LEARN-05]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-06",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "empty string as approval",
+      "expected_invariant": "no email",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_attendance_gate_refuses_every_non_approval[HB-LEARN-06]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-07",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "empty list as approval",
+      "expected_invariant": "no email",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_attendance_gate_refuses_every_non_approval[HB-LEARN-07]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-08",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "empty object as approval",
+      "expected_invariant": "no email",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_attendance_gate_refuses_every_non_approval[HB-LEARN-08]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-09",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "resume value is a bare string, not the expected object",
+      "expected_invariant": "no email - a non-dict resume is not an approval",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_attendance_gate_refuses_every_non_approval[HB-LEARN-09]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-10",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "resume value is a bare boolean true",
+      "expected_invariant": "no email - a non-dict resume is not an approval",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_attendance_gate_refuses_every_non_approval[HB-LEARN-10]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-11",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "resume value is null",
+      "expected_invariant": "no email - LangGraph rejects the resume before the node runs",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_attendance_gate_refuses_every_non_approval[HB-LEARN-11]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-12",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "approval carrying a `recipient` override",
+      "expected_invariant": "one email, addressed to the branch manager the profile lookup returns",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_an_approved_attendance_email_cannot_be_steered_by_the_resume[HB-LEARN-12]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-13",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "approval carrying a different `student_external_id`, to mail about another child",
+      "expected_invariant": "one email, about the checkpointed student only",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_an_approved_attendance_email_cannot_be_steered_by_the_resume[HB-LEARN-13]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-14",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "approval carrying an injected `body`, to rewrite what the manager reads",
+      "expected_invariant": "one email, server-composed body; the injected text never appears",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_an_approved_attendance_email_cannot_be_steered_by_the_resume[HB-LEARN-14]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-15",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_student interrupt (child_selection)",
+      "attack": "select a student this parent is not linked to",
+      "expected_invariant": "PermissionError; no student bound to the session",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_child_selection_refuses_any_unlinked_or_wrongly_typed_choice[HB-LEARN-15]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-16",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_student interrupt (child_selection)",
+      "attack": "null selection",
+      "expected_invariant": "no student bound - LangGraph rejects the resume before the node runs",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_child_selection_refuses_any_unlinked_or_wrongly_typed_choice[HB-LEARN-16]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-17",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_student interrupt (child_selection)",
+      "attack": "empty-string selection",
+      "expected_invariant": "PermissionError; no student bound to the session",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_child_selection_refuses_any_unlinked_or_wrongly_typed_choice[HB-LEARN-17]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-18",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_student interrupt (child_selection)",
+      "attack": "a linked id wrapped in a list, probing membership-check confusion",
+      "expected_invariant": "PermissionError; no student bound to the session",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_child_selection_refuses_any_unlinked_or_wrongly_typed_choice[HB-LEARN-18]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-19",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_student interrupt (child_selection)",
+      "attack": "a linked id wrapped in an object",
+      "expected_invariant": "PermissionError; no student bound to the session",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_child_selection_refuses_any_unlinked_or_wrongly_typed_choice[HB-LEARN-19]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-20",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_student interrupt (child_selection)",
+      "attack": "SQL-shaped selection string",
+      "expected_invariant": "PermissionError; the value is compared, never interpolated",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_child_selection_refuses_any_unlinked_or_wrongly_typed_choice[HB-LEARN-20]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-21",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_student interrupt (child_selection)",
+      "attack": "wildcard-shaped selection string",
+      "expected_invariant": "PermissionError; membership is exact",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_child_selection_refuses_any_unlinked_or_wrongly_typed_choice[HB-LEARN-21]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-22",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "replay: approve the same pause twice, sequentially",
+      "expected_invariant": "exactly one email and one approval row - the second resume is a no-op",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_hb_learn_22_replaying_an_approved_attendance_pause_sends_once"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-23",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "decline, then approve the already-resolved pause",
+      "expected_invariant": "zero emails; the decline stands",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_hb_learn_23_approving_after_declining_sends_nothing"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-24",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_student interrupt (child_selection)",
+      "attack": "a second parent resumes the first parent's pending child selection",
+      "expected_invariant": "PermissionError; the session is not rebound",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_hb_learn_24_a_second_parent_cannot_resume_the_first_parents_selection"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-25",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api POST /learning/sessions/{id}/respond",
+      "attack": "unauthenticated resume of a pending attendance approval",
+      "expected_invariant": "401; no email",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_the_respond_route_refuses_unauthorized_or_malformed_resumes[HB-LEARN-25]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-26",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api POST /learning/sessions/{id}/respond",
+      "attack": "another student's token resumes this student's pending approval",
+      "expected_invariant": "403; no email",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_the_respond_route_refuses_unauthorized_or_malformed_resumes[HB-LEARN-26]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-27",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api POST /learning/sessions/{id}/respond",
+      "attack": "empty body on a pending approval",
+      "expected_invariant": "422; no email",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_the_respond_route_refuses_unauthorized_or_malformed_resumes[HB-LEARN-27]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-28",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api POST /learning/sessions/{id}/respond",
+      "attack": "wrong discriminator (intervention_choice) on an email approval pause",
+      "expected_invariant": "409; no email",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_the_respond_route_refuses_unauthorized_or_malformed_resumes[HB-LEARN-28]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-30",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api POST /learning/sessions/{id}/respond",
+      "attack": "two genuinely concurrent HTTP resumes of one pending approval",
+      "expected_invariant": "exactly one email and one interrupt_approvals row per round; the losing caller gets 409 from the D-376 turn claim",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_hb_learn_30_two_concurrent_http_resumes_send_exactly_one_email"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-29",
+      "kind": "bypass",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api POST /learning/sessions/{id}/respond",
+      "attack": "replay over HTTP: approve the same pause twice",
+      "expected_invariant": "second call 409; exactly one email",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_the_respond_route_refuses_unauthorized_or_malformed_resumes[HB-LEARN-29]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-C1",
+      "kind": "control",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "not an attack - a plain, valid approval",
+      "expected_invariant": "exactly one email to the branch manager; one approved audit row",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_a_legitimate_attendance_approval_still_sends[HB-LEARN-C1]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-C2",
+      "kind": "control",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_student interrupt (child_selection)",
+      "attack": "not an attack - the parent selects one of their own children",
+      "expected_invariant": "the session binds to that child",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_a_legitimate_child_selection_still_binds[HB-LEARN-C2]"
+      ]
+    },
+    {
+      "case_id": "HB-LEARN-F1",
+      "kind": "finding",
+      "suite": "learning-api",
+      "file": "apps/learning-api/tests/test_hitl_bypass_suite.py",
+      "surface": "learning-api resolve_attendance interrupt (email_approval)",
+      "attack": "two simultaneous resumes of one pause, bypassing the HTTP layer entirely",
+      "expected_invariant": "FINDING (defense in depth): both complete and two emails are sent. The serialization point is the route's turn claim (D-376), not the node - so the graph is not independently safe to invoke concurrently.",
+      "test_node_ids": [
+        "apps/learning-api/tests/test_hitl_bypass_suite.py::test_hb_learn_f1_two_simultaneous_resumes_both_complete"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-01",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "call a tool that is not registered at all",
+      "expected_invariant": "McpToolError; the handler never runs; a failure row is audited",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-01]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-02",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "registered name with an injected suffix, as a model tool call might emit",
+      "expected_invariant": "McpToolError; lookup is exact, never a prefix match",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-02]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-03",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "registered name in a different case",
+      "expected_invariant": "McpToolError; lookup is case-sensitive",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-03]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-04",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "registered name with surrounding whitespace",
+      "expected_invariant": "McpToolError; the name is not trimmed on the caller's behalf",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-04]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-05",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call + mcp_tool_calls audit row",
+      "attack": "a very long caller-controlled tool name, aimed at the audit write itself",
+      "expected_invariant": "McpToolError; the handler never runs; the audited name is truncated to 128 chars so recording the failure cannot itself fail (AUD-C-15)",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-05]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-06",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "empty argument object",
+      "expected_invariant": "ToolValidationError; nothing is sent",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-06]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-07",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "recipient omitted, body supplied",
+      "expected_invariant": "ToolValidationError; nothing is sent",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-07]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-08",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "recipient as a list, to smuggle several destinations into one send",
+      "expected_invariant": "ToolValidationError; nothing is sent",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-08]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-09",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "CR/LF in the recipient - classic SMTP header injection",
+      "expected_invariant": "ToolValidationError (SPEC \u00a75.24.2); nothing is sent",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-09]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-10",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "CR/LF in the subject",
+      "expected_invariant": "ToolValidationError (SPEC \u00a75.24.2); nothing is sent",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-10]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-11",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "arguments supplied as a list rather than an object",
+      "expected_invariant": "ToolValidationError; nothing is sent",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-11]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-12",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "null argument object",
+      "expected_invariant": "ToolValidationError; nothing is sent",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-12]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-13",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "extra `bcc`/`cc` fields alongside otherwise valid arguments",
+      "expected_invariant": "the send happens (the args are valid) but the transport receives only the declared fields - an undeclared destination cannot ride along",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_no_send_handler_runs_unless_the_call_names_a_real_tool_with_valid_args[HB-MCP-13]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-14",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call on a role-gated tool",
+      "attack": "a role outside the allowlist",
+      "expected_invariant": "ToolPermissionError; nothing is sent",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_a_role_gated_tool_refuses_callers_outside_the_allowlist[HB-MCP-14]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-15",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call on a role-gated tool",
+      "attack": "no role at all, as an anonymous caller would arrive",
+      "expected_invariant": "ToolPermissionError; nothing is sent - absent is not allowed",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_a_role_gated_tool_refuses_callers_outside_the_allowlist[HB-MCP-15]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-16",
+      "kind": "bypass",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "a handler that never returns within its timeout",
+      "expected_invariant": "ToolTimeoutError; the send never completes and is audited as a failure",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_a_handler_that_hangs_is_cut_off_before_it_can_send[HB-MCP-16]"
+      ]
+    },
+    {
+      "case_id": "HB-MCP-A1",
+      "kind": "architecture",
+      "suite": "shared/mcp",
+      "file": "packages/shared/tests/test_hitl_bypass_mcp.py",
+      "surface": "McpToolRegistry.call",
+      "attack": "call the registered send tool directly, with no approval anywhere",
+      "expected_invariant": "the call succeeds - the registry has no approval concept by design. The gate is the graph's interrupt(), not this layer. Catalogued as `architecture` and excluded from the 0-side-effects denominator.",
+      "test_node_ids": [
+        "packages/shared/tests/test_hitl_bypass_mcp.py::test_hb_mcp_a1_the_registry_itself_has_no_approval_concept"
+      ]
+    }
+  ]
+}
