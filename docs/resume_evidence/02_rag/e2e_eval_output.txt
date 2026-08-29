@@ -1,0 +1,28 @@
+# E2.3 — full real-Bedrock run of the 68-case Q&A coverage eval lane
+#
+# Command (run 2026-08-29, repo SHA 34096c3 + this task's untracked additions):
+#   eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
+#   AWS_REGION=us-east-1 CHAT_EVAL_REAL_BEDROCK=1 CHAT_EVAL_RUN_BUDGET_CENTS=150 \
+#     uv run pytest apps/chat-api/tests/test_qa_coverage_eval_real_bedrock.py -s -q
+#
+# Environment: real-model evaluation (Haiku 4.5 for scope/rerank/synthesis, Titan v2
+# embeddings), local Postgres corpus re-embedded inside a rolled-back transaction.
+# Model spend: 53.7 cents. Wall clock: 307.98 s.
+#
+# Verbatim stdout follows.
+# ============================================================================
+
+--- qa coverage eval (REAL Bedrock, 53.7 cents) ---
+adversarial                100.0%  (6/6)
+grounded                   100.0%  (9/9)
+no_answer                  100.0%  (8/8)
+no_source                  100.0%  (16/16)
+out_of_scope               100.0%  (10/10)
+paraphrase                 100.0%  (11/11)
+role_gated                 n/a (no cases)
+role_gated_question        100.0%  (3/3)
+grounded_citation_rate     100.0%  (20/20)
+correct_refusal_rate       100.0%  (37/37)
+re-embedded 144 approved chunks with the real embedding model
+.
+1 passed in 307.98s (0:05:07)

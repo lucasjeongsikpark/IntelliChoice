@@ -31152,3 +31152,46 @@ failure. It completed clean.
 purely additive (new target + `.PHONY`, same verbatim secret-fetch pattern), 29 new tests
 green, headline numbers cross-checked against artifacts, and secret hygiene (0 `eyJ`/secret
 occurrences in artifacts).
+
+## D-462 — E2 accepted: the first IR-metric retrieval benchmark, and it says the reranker earns its place while RRF is inert on this corpus (accepted, 2026-08-29)
+
+The resume-evidence program's Theme-2 experiment, `docs/resume_evidence/02_rag/E2_REPORT.md`.
+The repository's first Recall@k/MRR/nDCG measurement. No product code, thresholds,
+knowledge-content, or DB rows changed; all real-embedding work ran in rolled-back
+transactions (corpus still shows mock provenance across 159 rows); 24 new instrument tests;
+suite 2115 / 2 / 1. Spend **297.26¢ of the 500¢ hard cap**.
+
+**E2.1 — a chunk-level benchmark the corpus can actually support.** 123 ground truths /
+363 query instances (2–4 phrasings each), 18 validated no-answer controls, four honesty
+controls — including a measured-overlap gate that **relabelled 56 of 104 lexical-mismatch
+attempts** whose phrasings shared too many content words to be honest mismatches. The
+effective-n is stated as ~123, not inflated to the instance count.
+
+**E2.2 — an 8-arm ablation (real Titan + Haiku 4.5 rerank), drift-guarded both ways.** The
+mandatory guard passed: the harness's `hybrid_search` path is id-for-id equal to product
+`hybrid_search` on all 381 instances, and 77.8% mean Jaccard vs the real `retrieve()` on 12
+sampled cases. The findings are candid and do not flatter the system:
+
+- **The reranker is the one stage that clearly pays** — paired +20/−10 at rank 1, and its
+  entire gain concentrates on the `lexical_mismatch` stratum (70.7% → 82.9%). This is the
+  honest headline for the retrieval theme.
+- **RRF fusion is net-negative at rank 1** on this corpus (paired +5/−10), and k ∈
+  {20, 60, 120} produce **identical rankings on 363/363 instances** — the k parameter is
+  inert here. Do not claim RRF as a win on this corpus (the AUD-C-05/AUD-C-17 culture: report
+  what the measurement says, not what the architecture hoped).
+- The FTS arm returns **zero candidates on 305/363 queries (84%)** but is right 48/58 when it
+  does fire — a precision-not-recall instrument on a 7.5k-word corpus.
+
+**E2.3 — a full real-Bedrock e2e run at 100% every category** (grounded_citation 20/20,
+correct_refusal 37/37), consistent with the D-238-era real-lane results at this SHA.
+
+**A new measured limit, reported not acted on (thresholds were out of scope).** The shipped
+0.35 relevance floor changes no rank-1 outcome but empties 15 of 18 no-answer controls (every
+unfiltered arm returns 30 candidates); **3 controls still leak at rerank scores
+0.75/0.85/0.90**, showing a relevance score cannot fully serve as an answerability gate. This
+is a retrieval-quality observation for a future threshold/answerability decision, not a defect
+to fix here.
+
+**Verification:** coordinator confirmed zero tracked-file diff, the corpus DB rolled back
+(mock provenance intact on all 159 rows), 24 new tests green, and the drift-guard result;
+`make lint typecheck test` green.
