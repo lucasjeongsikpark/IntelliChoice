@@ -1,0 +1,100 @@
+{
+  "experiment": "E5.1 overlap - what the free deterministic gate would also have caught",
+  "generated_at": "2026-08-29T02:44:59+00:00",
+  "git_sha": "7a486a9d8ad6a3affb93c14830b58ff4aa353d26",
+  "environment": "local development database - complete offline generation history",
+  "method": "For every rejection carrying a `candidate_snapshot`, the item is rebuilt and today's free deterministic stage (the D-201/D-249 hint-leak pre-check plus `validate_authored_item`) is re-run over it. No model is called.",
+  "uncomputable_direction": "Whether the paid stages (dedup/solver/judge/difficulty) would have caught the candidates the deterministic gate rejected CANNOT be computed from this data: those stages never ran on those candidates by design, and running them now costs real money on discarded content. The nearest existing evidence is D-276, which points the other way - with the gate off, 5 wrong answer keys passed both blind solvers and the judge.",
+  "snapshots_available": 641,
+  "regate_errors": [],
+  "paid_stage_overlap": {
+    "paid_stage_rejections_with_snapshot": 250,
+    "deterministic_gate_would_also_reject": 25,
+    "unique_catch_by_paid_stage": 225,
+    "overlap_rate": 0.1,
+    "by_stage": {
+      "dedup": {
+        "snapshots_regated": 10,
+        "deterministic_gate_would_also_reject": 0,
+        "unique_catch_by_this_stage": 10,
+        "overlap_rate": 0.0,
+        "overlap_families": {}
+      },
+      "solver": {
+        "snapshots_regated": 60,
+        "deterministic_gate_would_also_reject": 16,
+        "unique_catch_by_this_stage": 44,
+        "overlap_rate": 0.26666666666666666,
+        "overlap_families": {
+          "math notation": 7,
+          "answer key: derived answer disagrees": 4,
+          "answer key: several options match": 4,
+          "readability": 1,
+          "options": 1
+        }
+      },
+      "judge": {
+        "snapshots_regated": 55,
+        "deterministic_gate_would_also_reject": 5,
+        "unique_catch_by_this_stage": 50,
+        "overlap_rate": 0.09090909090909091,
+        "overlap_families": {
+          "math notation": 3,
+          "answer leakage": 1,
+          "other": 1
+        }
+      },
+      "difficulty": {
+        "snapshots_regated": 125,
+        "deterministic_gate_would_also_reject": 4,
+        "unique_catch_by_this_stage": 121,
+        "overlap_rate": 0.032,
+        "overlap_families": {
+          "math notation": 4
+        }
+      }
+    },
+    "deterministic_gate_would_also_reject_pre_d308_form": 25,
+    "overlap_failure_families": {
+      "math notation": 14,
+      "answer key: derived answer disagrees": 4,
+      "answer key: several options match": 4,
+      "answer leakage": 1,
+      "other": 1,
+      "readability": 1,
+      "options": 1
+    }
+  },
+  "validation_stage": {
+    "validation_rejections_with_snapshot": 391,
+    "today_gate_still_rejects": 262,
+    "today_gate_now_passes": 129,
+    "reproduction_rate": 0.670076726342711,
+    "under_pre_d308_answer_form_any": {
+      "still_rejects": 333,
+      "reproduction_rate": 0.8516624040920716,
+      "explained_by_the_d308_canonical_form_relaxation": 71,
+      "residual_drift_neither_form_reproduces": 58
+    },
+    "recorded_failure_families": {
+      "answer key: derived answer disagrees": 174,
+      "answer key: several options match": 116,
+      "math notation": 67,
+      "readability": 64,
+      "answer leakage": 45,
+      "equation unusable": 21,
+      "other": 6,
+      "options": 2
+    },
+    "today_failure_families": {
+      "answer key: derived answer disagrees": 89,
+      "readability": 64,
+      "math notation": 50,
+      "answer leakage": 34,
+      "answer key: several options match": 34,
+      "equation unusable": 21,
+      "other": 7,
+      "options": 1
+    }
+  }
+}

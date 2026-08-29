@@ -1,0 +1,401 @@
+{
+  "experiment": "E5.1 - content-pipeline per-stage defect-containment funnel",
+  "generated_at": "2026-08-29T02:44:59+00:00",
+  "git_sha": "7a486a9d8ad6a3affb93c14830b58ff4aa353d26",
+  "environment": "local development database - complete offline generation history",
+  "pipeline_run_filter": null,
+  "scope": "automated pipeline only - the human review step that follows `pending` writes no row in this table",
+  "totals": {
+    "validation_runs": 1827,
+    "accepted_by_the_machine": 878,
+    "rejected": 949,
+    "acceptance_rate": 0.48056923918992883,
+    "first_candidate_at": "2026-08-05T21:58:09.263460+00:00",
+    "last_candidate_at": "2026-08-13T17:36:51.776408+00:00",
+    "distinct_pipeline_run_ids": 14,
+    "rows_without_a_pipeline_run_id": 1535,
+    "rows_carrying_a_candidate_snapshot": 641
+  },
+  "attribution_basis": {
+    "stage_evidence": 889,
+    "accepted": 878,
+    "reason_text": 60
+  },
+  "funnel": [
+    {
+      "stage": "design",
+      "reached": 1827,
+      "rejected": 77,
+      "rejection_rate": 0.0421455938697318,
+      "cost_cents": 192.8596
+    },
+    {
+      "stage": "generator",
+      "reached": 1750,
+      "rejected": 78,
+      "rejection_rate": 0.044571428571428574,
+      "cost_cents": 36.9673
+    },
+    {
+      "stage": "validation",
+      "reached": 1572,
+      "rejected": 409,
+      "rejection_rate": 0.26017811704834604,
+      "cost_cents": 642.8966
+    },
+    {
+      "stage": "dedup",
+      "reached": 1163,
+      "rejected": 16,
+      "rejection_rate": 0.013757523645743766,
+      "cost_cents": 16.5034
+    },
+    {
+      "stage": "solver",
+      "reached": 1147,
+      "rejected": 84,
+      "rejection_rate": 0.07323452484742807,
+      "cost_cents": 203.8164
+    },
+    {
+      "stage": "judge",
+      "reached": 1063,
+      "rejected": 59,
+      "rejection_rate": 0.055503292568203196,
+      "cost_cents": 185.6723
+    },
+    {
+      "stage": "difficulty",
+      "reached": 1004,
+      "rejected": 126,
+      "rejection_rate": 0.1254980079681275,
+      "cost_cents": 370.2867
+    }
+  ],
+  "skips": {
+    "budget": 16,
+    "circuit_open": 84
+  },
+  "unattributed": 0,
+  "cost": {
+    "total_cents": 4074.6072,
+    "on_accepted_candidates_cents": 2421.9627,
+    "on_rejected_candidates_cents": 1652.6445,
+    "share_spent_on_rejected": 0.4055960245414771,
+    "cents_per_accepted_candidate": 4.6408,
+    "by_stage_cents": {
+      "design": 192.8596,
+      "generator": 36.9673,
+      "validation": 642.8966,
+      "dedup": 16.5034,
+      "solver": 203.8164,
+      "judge": 185.6723,
+      "difficulty": 370.2867
+    }
+  },
+  "strata": {
+    "rows_with_no_topic_or_tier_recorded": 234,
+    "by_requested_tier": {
+      "(unknown)": {
+        "candidates": 234,
+        "accepted": 0,
+        "acceptance_rate": 0.0
+      },
+      "d1": {
+        "candidates": 239,
+        "accepted": 132,
+        "acceptance_rate": 0.5523012552301255
+      },
+      "d2": {
+        "candidates": 456,
+        "accepted": 343,
+        "acceptance_rate": 0.7521929824561403
+      },
+      "d3": {
+        "candidates": 313,
+        "accepted": 180,
+        "acceptance_rate": 0.5750798722044729
+      },
+      "d4": {
+        "candidates": 388,
+        "accepted": 160,
+        "acceptance_rate": 0.41237113402061853
+      },
+      "d5": {
+        "candidates": 197,
+        "accepted": 63,
+        "acceptance_rate": 0.3197969543147208
+      }
+    },
+    "by_topic": {
+      "(unknown)": {
+        "candidates": 234,
+        "accepted": 0,
+        "acceptance_rate": 0.0
+      },
+      "algebra_1": {
+        "candidates": 126,
+        "accepted": 25,
+        "acceptance_rate": 0.1984126984126984
+      },
+      "algebra_2": {
+        "candidates": 206,
+        "accepted": 74,
+        "acceptance_rate": 0.3592233009708738
+      },
+      "algebra_foundations": {
+        "candidates": 87,
+        "accepted": 24,
+        "acceptance_rate": 0.27586206896551724
+      },
+      "calculus": {
+        "candidates": 86,
+        "accepted": 36,
+        "acceptance_rate": 0.4186046511627907
+      },
+      "decimals": {
+        "candidates": 44,
+        "accepted": 42,
+        "acceptance_rate": 0.9545454545454546
+      },
+      "g1_addition": {
+        "candidates": 33,
+        "accepted": 28,
+        "acceptance_rate": 0.8484848484848485
+      },
+      "g1_subtraction": {
+        "candidates": 20,
+        "accepted": 20,
+        "acceptance_rate": 1.0
+      },
+      "g1_word_problems": {
+        "candidates": 27,
+        "accepted": 25,
+        "acceptance_rate": 0.9259259259259259
+      },
+      "g2_addition": {
+        "candidates": 26,
+        "accepted": 21,
+        "acceptance_rate": 0.8076923076923077
+      },
+      "g2_subtraction": {
+        "candidates": 26,
+        "accepted": 19,
+        "acceptance_rate": 0.7307692307692307
+      },
+      "g2_word_problems": {
+        "candidates": 35,
+        "accepted": 21,
+        "acceptance_rate": 0.6
+      },
+      "g3_word_problems": {
+        "candidates": 29,
+        "accepted": 26,
+        "acceptance_rate": 0.896551724137931
+      },
+      "g4_multiplication_division": {
+        "candidates": 40,
+        "accepted": 38,
+        "acceptance_rate": 0.95
+      },
+      "g4_word_problems": {
+        "candidates": 35,
+        "accepted": 26,
+        "acceptance_rate": 0.7428571428571429
+      },
+      "g5_word_problems": {
+        "candidates": 41,
+        "accepted": 32,
+        "acceptance_rate": 0.7804878048780488
+      },
+      "g68_word_problems": {
+        "candidates": 42,
+        "accepted": 28,
+        "acceptance_rate": 0.6666666666666666
+      },
+      "g6_fractions": {
+        "candidates": 117,
+        "accepted": 35,
+        "acceptance_rate": 0.29914529914529914
+      },
+      "g6_geometry_measurement": {
+        "candidates": 26,
+        "accepted": 22,
+        "acceptance_rate": 0.8461538461538461
+      },
+      "g6_word_problems": {
+        "candidates": 49,
+        "accepted": 37,
+        "acceptance_rate": 0.7551020408163265
+      },
+      "geometry_measures": {
+        "candidates": 44,
+        "accepted": 33,
+        "acceptance_rate": 0.75
+      },
+      "linear_equations": {
+        "candidates": 205,
+        "accepted": 88,
+        "acceptance_rate": 0.4292682926829268
+      },
+      "measurement": {
+        "candidates": 49,
+        "accepted": 45,
+        "acceptance_rate": 0.9183673469387755
+      },
+      "number_sense": {
+        "candidates": 31,
+        "accepted": 25,
+        "acceptance_rate": 0.8064516129032258
+      },
+      "pre_algebra": {
+        "candidates": 44,
+        "accepted": 39,
+        "acceptance_rate": 0.8863636363636364
+      },
+      "statistics_advanced": {
+        "candidates": 65,
+        "accepted": 33,
+        "acceptance_rate": 0.5076923076923077
+      },
+      "trigonometry": {
+        "candidates": 60,
+        "accepted": 36,
+        "acceptance_rate": 0.6
+      }
+    }
+  },
+  "era_notes": {
+    "rows_with_equation_design_evidence": 350,
+    "design_stage_exits": 149,
+    "uncovered_rows_by_stage": {
+      "design": 77,
+      "circuit_open": 74,
+      "solver": 24,
+      "validation": 18,
+      "budget": 16,
+      "generator": 14,
+      "dedup": 6,
+      "judge": 4,
+      "difficulty": 1
+    },
+    "accepted_rows_without_a_difficulty_stage": 28
+  },
+  "warm_up_toll": {
+    "runs_with_an_identifier": 14,
+    "candidates_counted": 292,
+    "candidates_excluded_no_run_id": 1535,
+    "by_position": [
+      {
+        "position": "1",
+        "candidates": 14,
+        "rejected": 9,
+        "rejected_at_difficulty": 1,
+        "rejection_rate": 0.6428571428571429,
+        "difficulty_rejection_rate": 0.07142857142857142
+      },
+      {
+        "position": "2",
+        "candidates": 14,
+        "rejected": 11,
+        "rejected_at_difficulty": 1,
+        "rejection_rate": 0.7857142857142857,
+        "difficulty_rejection_rate": 0.07142857142857142
+      },
+      {
+        "position": "3",
+        "candidates": 14,
+        "rejected": 9,
+        "rejected_at_difficulty": 0,
+        "rejection_rate": 0.6428571428571429,
+        "difficulty_rejection_rate": 0.0
+      },
+      {
+        "position": "4",
+        "candidates": 14,
+        "rejected": 11,
+        "rejected_at_difficulty": 0,
+        "rejection_rate": 0.7857142857142857,
+        "difficulty_rejection_rate": 0.0
+      },
+      {
+        "position": "5",
+        "candidates": 14,
+        "rejected": 6,
+        "rejected_at_difficulty": 1,
+        "rejection_rate": 0.42857142857142855,
+        "difficulty_rejection_rate": 0.07142857142857142
+      },
+      {
+        "position": "6",
+        "candidates": 14,
+        "rejected": 9,
+        "rejected_at_difficulty": 2,
+        "rejection_rate": 0.6428571428571429,
+        "difficulty_rejection_rate": 0.14285714285714285
+      },
+      {
+        "position": "7-10",
+        "candidates": 52,
+        "rejected": 41,
+        "rejected_at_difficulty": 3,
+        "rejection_rate": 0.7884615384615384,
+        "difficulty_rejection_rate": 0.057692307692307696
+      },
+      {
+        "position": "11+",
+        "candidates": 156,
+        "rejected": 87,
+        "rejected_at_difficulty": 1,
+        "rejection_rate": 0.5576923076923077,
+        "difficulty_rejection_rate": 0.00641025641025641
+      }
+    ]
+  },
+  "per_stage_reason_families": {
+    "design": {
+      "other": 77
+    },
+    "generator": {
+      "other": 68,
+      "options": 9,
+      "hint ladder": 1
+    },
+    "validation": {
+      "answer key: derived answer disagrees": 186,
+      "answer key: several options match": 116,
+      "math notation": 67,
+      "readability": 66,
+      "answer leakage": 51,
+      "equation unusable": 21,
+      "other": 9,
+      "hint ladder": 3,
+      "options": 2
+    },
+    "dedup": {
+      "other": 16
+    },
+    "solver": {
+      "answer key: derived answer disagrees": 53,
+      "other": 28,
+      "options": 19
+    },
+    "judge": {
+      "hint ladder": 34,
+      "options": 24,
+      "other": 7,
+      "answer leakage": 7,
+      "meta commentary": 6,
+      "math notation": 3
+    },
+    "difficulty": {
+      "difficulty rubric": 133
+    },
+    "budget": {
+      "other": 16
+    },
+    "circuit_open": {
+      "other": 84
+    }
+  }
+}
