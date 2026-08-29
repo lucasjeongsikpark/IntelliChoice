@@ -1,0 +1,64 @@
+real arm: 25 students x 3 windows against us.anthropic.claude-haiku-4-5-20251001-v1:0 in us-east-1
+pre-flight worst-case projection: 169.4 cents (run ceiling 170.0, per-student ceiling 25.0)
+invocability probe: OK - invoked us.anthropic.claude-haiku-4-5-20251001-v1:0 ok (repaired=False) (0.1780 c)
+seeding 25 students (6100 events) ...
+seeded in 5.5s: 6100 events, 1129 chat messages, 50 mastery rows
+  consolidated 1/25 students (0.0/s, spend 3.89 cents)
+  consolidated 2/25 students (0.0/s, spend 8.33 cents)
+memory_fact_contradicts_mastery
+  consolidated 3/25 students (0.0/s, spend 11.72 cents)
+  consolidated 4/25 students (0.0/s, spend 15.12 cents)
+memory_fact_contradicts_mastery
+  consolidated 5/25 students (0.0/s, spend 19.70 cents)
+memory_fact_contradicts_mastery
+  consolidated 6/25 students (0.0/s, spend 24.34 cents)
+  consolidated 7/25 students (0.0/s, spend 28.48 cents)
+  consolidated 8/25 students (0.0/s, spend 33.00 cents)
+  consolidated 9/25 students (0.0/s, spend 36.73 cents)
+memory_fact_contradicts_mastery
+memory_fact_contradicts_mastery
+  consolidated 10/25 students (0.0/s, spend 41.44 cents)
+memory_fact_contradicts_mastery
+memory_fact_contradicts_mastery
+  consolidated 11/25 students (0.0/s, spend 45.73 cents)
+  consolidated 12/25 students (0.0/s, spend 49.19 cents)
+memory_fact_contradicts_mastery
+memory_fact_contradicts_mastery
+  consolidated 13/25 students (0.0/s, spend 52.17 cents)
+  consolidated 14/25 students (0.0/s, spend 56.57 cents)
+memory_fact_contradicts_mastery
+memory_fact_contradicts_mastery
+  consolidated 15/25 students (0.0/s, spend 60.40 cents)
+  consolidated 16/25 students (0.0/s, spend 64.54 cents)
+  consolidated 17/25 students (0.0/s, spend 69.54 cents)
+memory_fact_contradicts_mastery
+  consolidated 18/25 students (0.0/s, spend 72.58 cents)
+  consolidated 19/25 students (0.0/s, spend 77.09 cents)
+  consolidated 20/25 students (0.0/s, spend 82.84 cents)
+Traceback (most recent call last):
+  File "/Users/jeongsikpark/Downloads/Desktop-local/github_repo/IntelliChoice/benchmarks/resume_evidence/04_memory/memory_benchmark.py", line 1963, in <module>
+    )
+      
+  File "/Users/jeongsikpark/Downloads/Desktop-local/github_repo/IntelliChoice/benchmarks/resume_evidence/04_memory/memory_benchmark.py", line 1959, in main
+    encoding="utf-8",
+^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jeongsikpark/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/jeongsikpark/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jeongsikpark/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/jeongsikpark/Downloads/Desktop-local/github_repo/IntelliChoice/benchmarks/resume_evidence/04_memory/memory_benchmark.py", line 1856, in main_async
+    conservative_cost_cents=0.0,
+               ^^^^^^^^^^^^^^^^^
+  File "/Users/jeongsikpark/Downloads/Desktop-local/github_repo/IntelliChoice/benchmarks/resume_evidence/04_memory/memory_benchmark.py", line 1717, in run_measured_arm
+    session,
+            
+  File "/Users/jeongsikpark/Downloads/Desktop-local/github_repo/IntelliChoice/benchmarks/resume_evidence/04_memory/memory_benchmark.py", line 732, in run_student
+    served_fact_tokens=served_tokens,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RunBudgetExceeded: run ceiling of 169.8 cents crossed at 172.42 cents (gateway-reported 86.23, conservative 172.42) while consolidating bench-student-00022 window 1. Aborting rather than truncating - a partial run scored as if complete is a wrong measurement.
+EXIT=1

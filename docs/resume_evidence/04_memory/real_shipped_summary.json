@@ -1,0 +1,101 @@
+{
+  "arm": "real",
+  "environment": "real-model evaluation (Haiku 4.5), local data",
+  "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "git_sha": "a6c80fa",
+  "generated_at": "2026-08-29T05:19:52.646914+00:00",
+  "students": 10,
+  "students_by_class": {
+    "standard": 10
+  },
+  "events": {
+    "total": 2264,
+    "dropped_over_call_cap": 0,
+    "students_with_drops": 0
+  },
+  "calls": {
+    "total": 30,
+    "failed": 0,
+    "max_calls_per_student_per_window": 4,
+    "max_event_tokens_per_call": 20000,
+    "hit_output_ceiling": 29,
+    "students_with_a_truncated_call": 10
+  },
+  "compression_ratio": {
+    "p10": null,
+    "median": 24.365902293120637,
+    "p90": null,
+    "n": 1
+  },
+  "tokens": {
+    "raw_history_input_tokens_total": 217448,
+    "live_fact_tokens_total": 1003,
+    "median_raw_tokens_per_window": 6529.0,
+    "median_live_fact_tokens_per_student": 0.0
+  },
+  "lifecycle_distribution": {
+    "active": 6
+  },
+  "scenario_scores": {
+    "repeated_weak": {
+      "status_correct": 0,
+      "served_correct": 0,
+      "n": 10
+    },
+    "under_evidenced": {
+      "status_correct": 0,
+      "served_correct": 10,
+      "n": 10
+    },
+    "repeated_strength": {
+      "status_correct": 0,
+      "served_correct": 0,
+      "n": 10
+    },
+    "mastery_conflict_weak": {
+      "status_correct": 10,
+      "served_correct": 10,
+      "n": 10
+    },
+    "mastery_conflict_strength": {
+      "status_correct": 10,
+      "served_correct": 10,
+      "n": 10
+    },
+    "polarity_flip": {
+      "status_correct": 0,
+      "served_correct": 0,
+      "n": 10
+    }
+  },
+  "provenance": {
+    "facts_total": 6,
+    "facts_with_evidence_ids": 6,
+    "facts_with_all_evidence_resolving_to_this_student": 6
+  },
+  "students_budget_stopped": 0,
+  "unplanted_extra_live_facts": 6,
+  "facts_with_no_resolving_evidence": 0,
+  "input_ceiling": {
+    "hard_max_input_tokens": 32000,
+    "windows_over_ceiling": 0,
+    "windows_total": 30,
+    "students_whose_cumulative_history_exceeds_ceiling": 0,
+    "windows_with_oversized_existing_fact_payload": 0,
+    "max_safe_existing_facts": 21
+  },
+  "cost": {
+    "measured_cents_total": 19.968,
+    "measured_cents_per_student": 1.9968,
+    "measured_is_real": true,
+    "projected_input_cents_at_haiku_rates": 21.7448,
+    "conservative_cents_total": 56.4093,
+    "cache_write_tokens_total": 291530
+  },
+  "run_spend_cents": 19.968,
+  "run_spend_cents_conservative": 56.4092,
+  "run_budget_cents": 79.822,
+  "output_token_floor": null,
+  "configuration": "SHIPPED output budget (max_output_tokens_for)",
+  "artifact_provenance": "Extracted verbatim from the run's own stdout (real_shipped_run.log). The per-student JSONL for this arm was lost when its benchmark database was truncated during artifact regeneration; this summary is the run's unedited output and every number in the E4 report's shipped-arm rows comes from it."
+}

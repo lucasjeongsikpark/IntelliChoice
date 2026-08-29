@@ -31032,3 +31032,67 @@ reclassified to the passing case HB-LEARN-30.
 2 skipped / 1 xfailed (baseline 1940 + 94 new); coordinator re-ran the three suites (94
 passed) and reconciled the 91/94/84 counts against the report; overshoot headlines and the
 inventory count cross-checked; no product-code diff; 0 leftover benchmark rows in Postgres.
+
+## D-460 — E4 accepted: memory consolidation compresses ~16×, and a real-model run found a silent-zero defect the mock cannot see (accepted, 2026-08-29)
+
+The resume-evidence program's Theme-4 experiment, `docs/resume_evidence/04_memory/E4_REPORT.md`.
+A seeded synthetic-history generator with planted ground truth + a four-arm benchmark
+(Tier 1 mock at N=1,000, a provider-free scripted lane, and two real Haiku 4.5 arms inside
+the user-authorized 300-cent cap). No product code changed; all three benchmark databases
+dropped; dev DB verified free of bench rows; 28 new tests; suite 2062 / 2 / 1
+(baseline 2034 + 28).
+
+**The value numbers (mock, N=1,000, provider-independent — the honest headline for scale).**
+346,320 synthetic events → consolidation compression **p10 12.77× / median 15.82× / p90
+19.29×** (raw rendered-event tokens → live fact tokens); provenance **17,429/17,429** facts
+carry verified evidence ids; the deterministic mastery screen refused 3,940 contradicting
+claims; 63,063 events dropped over the 4-call cap in the 15/1,000 tail students. E4.3:
+**40 of 1,000 students' raw histories exceed the 32,000-token gateway input ceiling** — a
+payload that cannot be sent at all, the live-evidenced (215,355-token, AUD-F-34) shape at
+population scale. These are the compression/containment claims; they are mock-derived and
+labeled as such because the mock's facts are correct by construction.
+
+**The quality number, and the finding the mock structurally could not produce.** The real
+Haiku 4.5 arm at the **shipped output budget** consolidated three weeks for 10/10 students to
+**0 facts, 0 failed calls, exit 0** — because **29/30 calls truncate on `max_tokens`, Bedrock
+returns the partial tool input as `{}`, and `MemoryUpdateResponse` validates it as an empty
+update** (all three list fields default to `[]`). This is AUD-F-34's silent-zero one layer up,
+and the mock reported it 0/3,135 times. An env-flagged ablation raising the budget to the
+gateway's own 4,000-token ceiling produced **367 facts / 20 students on the same corpus**,
+367/367 provenance, 12 real mastery-screen refusals. **This plausibly gives a second,
+independent mechanism for the deployed-staging "0 facts added" observations** (AUDIT_2026_08_16:
+0 facts / 14.11¢; D-208 attributed the deployed zero to timeouts — truncation-to-empty is a
+distinct path to the same outcome and would not show as a failure).
+
+**Five findings recorded, not fixed (queued as `MEMORY-CONSOLIDATION-DEFECTS`):**
+
+1. **`MEMORY-OUTPUT-TRUNCATION` (highest severity).** `max_output_tokens_for` sizes the budget
+   from *existing* fact count on the premise that new facts don't scale with input; a
+   fourteen-skill student refutes it. Compounded by `MemoryUpdateResponse` making a truncated
+   response indistinguishable from a legitimate empty one, which is what stops the gateway's
+   `if truncated:` guard from ever seeing it.
+2. **`MEMORY-POLARITY-DEFAULT`.** The model leaves `polarity` at its schema default on 98/120
+   `weak_skill` facts, so the polarity-keyed contradiction protocol almost never fires — neither
+   the prompt nor the schema says what the field is for.
+3. **`MEMORY-STALE-FACT-SERVED`.** After a sustained regression the correctly-evidenced negative
+   fact is written and promoted, but `top_fact_for_skill` still serves the older positive one in
+   985/985 students — ranking is by confidence, which grows with reconfirmation; recency is not
+   a term.
+4. **`MEMORY-CACHE-WRITE-UNBILLED`.** `cost_cents` omits cache-write tokens (~2.8× under-report
+   on this workload); and because every consolidation payload is unique, the prompt cache is
+   written every call and read never — a ~25% input surcharge on a cache that structurally
+   cannot hit.
+5. **Payload-oversize headroom is 1–3 facts wide** (U7's real anchor 20 live facts; corpus peak
+   19; `MAX_SAFE_EXISTING_FACTS` 21).
+
+**Two spec deviations, both documented and accepted.** The real arm reached **n=20, not 25** —
+the run's own spend ceiling aborted it at student 21 and the executor re-scored the completed
+students from the persisted DB at $0 rather than re-spending (the correct call). Arm A's
+per-student JSONL was lost when its benchmark DB was truncated during artifact regeneration;
+its summary is recovered verbatim from the run's stdout, preserved as `real_shipped_run.log`.
+Total real spend ~265¢ conservative / ~118¢ gateway-reported, both under the 300-cent
+authorization.
+
+**Verification:** `make lint` clean, `pyright` 0 errors, suite 2062/2/1; the truncation defect
+cross-checked against `real_shipped_summary.json` (29 `hit_output_ceiling`, 10
+`students_with_a_truncated_call`, 0 failed); no product-code diff; benchmark DBs dropped.

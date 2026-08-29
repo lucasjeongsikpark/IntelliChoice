@@ -1,0 +1,52 @@
+{
+  "arm": "scripted",
+  "environment": "deterministic code measurement, local (no provider)",
+  "git_sha": "a6c80fa",
+  "generated_at": "2026-08-29T06:01:45.646106+00:00",
+  "flip_students": 40,
+  "screen_students": 40,
+  "checks": {
+    "lifecycle:active_after_first_window": {
+      "passed": 40,
+      "n": 40
+    },
+    "lifecycle:contested_after_first_contradiction": {
+      "passed": 40,
+      "n": 40
+    },
+    "lifecycle:superseded_after_second_contradiction": {
+      "passed": 40,
+      "n": 40
+    },
+    "lifecycle:replacement_fact_is_live_and_negative": {
+      "passed": 40,
+      "n": 40
+    },
+    "lifecycle:superseded_fact_points_at_replacement": {
+      "passed": 40,
+      "n": 40
+    },
+    "screens:out_of_enum_fact_type_dropped": {
+      "passed": 40,
+      "n": 40
+    },
+    "screens:pii_pattern_text_dropped": {
+      "passed": 40,
+      "n": 40
+    },
+    "screens:unresolvable_evidence_dropped": {
+      "passed": 40,
+      "n": 40
+    },
+    "screens:cross_student_evidence_dropped": {
+      "passed": 40,
+      "n": 40
+    },
+    "screens:well_formed_control_accepted": {
+      "passed": 40,
+      "n": 40
+    }
+  },
+  "failures": [],
+  "failure_count": 0
+}
