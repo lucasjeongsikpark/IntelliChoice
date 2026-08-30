@@ -31323,3 +31323,37 @@ documentation/tooling drift, not product defects.
 **Verification:** coordinator confirmed zero tracked-file diff, dev DB unchanged at 1077/1827,
 25 new tests green, headline numbers cross-checked against `scoring_summary.json`, and spend
 722.55¢ ≤ 1000¢; `make lint typecheck test` green.
+
+## D-466 — the resume-evidence measurement program is complete: nine experiments, two synthesis documents (accepted, 2026-08-29)
+
+Closes the user-commissioned program (D-458). All nine experiments are accepted and landed
+(D-458 E5.1 + E6.1, D-459 E3, D-460 E4, D-461 E1, D-462 E2, D-463 E5.2, D-464 E6.2, D-465
+E5.3), and the two mandated synthesis documents are written from their artifacts:
+`docs/resume_evidence/RESUME_METRICS_REPORT.md` (the summary table, per-theme sections, and the
+A–D hiring-manager ranking) and `docs/resume_evidence/RECOMMENDED_RESUME_BULLETS.md`.
+
+**Program totals.** Nine experiments; ~110 new tests; **zero product-code change**; every
+database touched left byte-identical; total paid Bedrock/AWS spend **~$18** (E5.3 $7.23, E2
+$2.97, E4 ~$2.6, E5.2 $1.31, the rest $0), all inside per-experiment authorizations.
+
+**The headline defensible numbers, by theme.** Platform: 22.36 req/s sustained at 0 errors +
+240/240 three-replica SSE. Gateway: cost overshoot 9.0× → 1.000× at 200 concurrent + 0/84 HITL
+bypasses. Memory: 15.82× compression + a real-model-only silent-failure catch. Content: raw
+14.85% → validated 4.60% defective + F1 0.837. RAG: reranker lifts lexical-mismatch 70.7% →
+82.9% (RRF honestly shown inert). Eval/obs/PII: 97.0%/94.2% PII precision/recall + 100% per-hop
+trace coverage.
+
+**What the program leaves behind (all reported, none fixed, none blocking).** Five follow-up
+remediation rows in `PROJECT_STATE` §4.1 — `OBSERVABILITY-TRACE-GAPS` (D-464),
+`CONTENT-GATE-HINT-COHERENCE` (D-463), `STAGING-CONN-CEILING` (D-461),
+`MEMORY-CONSOLIDATION-DEFECTS` (D-460, the one high-severity item), `PII-REDACTION-GAPS`
+(D-458/E6.1) — plus the harness/tooling drift noted in D-465. The credibility of the program is
+that it found real defects and reported honest negatives (RRF inert, PII regex gaps, a mock that
+hides a production failure) rather than only flattering numbers.
+
+**The measurement instruments are reusable, not one-shot.** The nine harnesses under
+`benchmarks/resume_evidence/` are typed and tested; the PII probe corpus, the HITL bypass suites,
+and the E5.1 funnel are permanent CI-collected tests, so the numbers can be re-measured as the
+system changes. Standing rule for anyone citing these numbers: keep the environment label and the
+denominator — the report states effective-n honestly (e.g. RAG's ~123 independent ground truths,
+memory's n=20 real arm), and a bullet that drops the denominator overstates.
