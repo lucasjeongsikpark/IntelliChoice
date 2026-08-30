@@ -1,0 +1,100 @@
+[
+    {
+        "name": "intellichoice-staging-learning-api-background-failures",
+        "pattern": "{ $.event = \"background_*_failed\" }",
+        "tx": "BackgroundTaskFailures",
+        "ns": "IntelliChoice/intellichoice-staging/learning-api"
+    },
+    {
+        "name": "intellichoice-staging-learning-api-bedrock-call-failed",
+        "pattern": "{ $.event = \"bedrock_call_failed\" }",
+        "tx": "BedrockCallFailed",
+        "ns": "IntelliChoice/intellichoice-staging/learning-api"
+    },
+    {
+        "name": "intellichoice-staging-learning-api-bedrock-circuit-open",
+        "pattern": "{ $.event = \"bedrock_call_failed\" && $.reason = \"circuit_open\" }",
+        "tx": "BedrockCircuitOpen",
+        "ns": "IntelliChoice/intellichoice-staging/learning-api"
+    },
+    {
+        "name": "intellichoice-staging-learning-api-bedrock-cost-cents",
+        "pattern": "{ $.event = \"bedrock_call\" && $.cost_cents = * }",
+        "tx": "BedrockCostCents",
+        "ns": "IntelliChoice/intellichoice-staging/learning-api"
+    },
+    {
+        "name": "intellichoice-staging-learning-api-bedrock-duration-ms",
+        "pattern": "{ $.event = \"bedrock_call\" && $.duration_ms = * }",
+        "tx": "BedrockCallDurationMs",
+        "ns": "IntelliChoice/intellichoice-staging/learning-api"
+    },
+    {
+        "name": "intellichoice-staging-learning-api-client-errors",
+        "pattern": "{ $.event = \"client_error\" }",
+        "tx": "ClientErrors",
+        "ns": "IntelliChoice/intellichoice-staging/learning-api"
+    },
+    {
+        "name": "intellichoice-staging-learning-api-langsmith-ingest-failed",
+        "pattern": "{ $.logger = \"langsmith.client\" }",
+        "tx": "LangSmithIngestFailed",
+        "ns": "IntelliChoice/intellichoice-staging/learning-api"
+    },
+    {
+        "name": "intellichoice-staging-learning-api-unhandled-tracebacks",
+        "pattern": "\"Traceback (most recent call last):\" -exc_info",
+        "tx": "UnhandledTracebacks",
+        "ns": "IntelliChoice/intellichoice-staging/learning-api"
+    }
+]
+[
+    {
+        "name": "intellichoice-staging-chat-api-background-failures",
+        "pattern": "{ $.event = \"background_*_failed\" }",
+        "tx": "BackgroundTaskFailures",
+        "ns": "IntelliChoice/intellichoice-staging/chat-api"
+    },
+    {
+        "name": "intellichoice-staging-chat-api-bedrock-call-failed",
+        "pattern": "{ $.event = \"bedrock_call_failed\" }",
+        "tx": "BedrockCallFailed",
+        "ns": "IntelliChoice/intellichoice-staging/chat-api"
+    },
+    {
+        "name": "intellichoice-staging-chat-api-bedrock-circuit-open",
+        "pattern": "{ $.event = \"bedrock_call_failed\" && $.reason = \"circuit_open\" }",
+        "tx": "BedrockCircuitOpen",
+        "ns": "IntelliChoice/intellichoice-staging/chat-api"
+    },
+    {
+        "name": "intellichoice-staging-chat-api-bedrock-cost-cents",
+        "pattern": "{ $.event = \"bedrock_call\" && $.cost_cents = * }",
+        "tx": "BedrockCostCents",
+        "ns": "IntelliChoice/intellichoice-staging/chat-api"
+    },
+    {
+        "name": "intellichoice-staging-chat-api-bedrock-duration-ms",
+        "pattern": "{ $.event = \"bedrock_call\" && $.duration_ms = * }",
+        "tx": "BedrockCallDurationMs",
+        "ns": "IntelliChoice/intellichoice-staging/chat-api"
+    },
+    {
+        "name": "intellichoice-staging-chat-api-client-errors",
+        "pattern": "{ $.event = \"client_error\" }",
+        "tx": "ClientErrors",
+        "ns": "IntelliChoice/intellichoice-staging/chat-api"
+    },
+    {
+        "name": "intellichoice-staging-chat-api-langsmith-ingest-failed",
+        "pattern": "{ $.logger = \"langsmith.client\" }",
+        "tx": "LangSmithIngestFailed",
+        "ns": "IntelliChoice/intellichoice-staging/chat-api"
+    },
+    {
+        "name": "intellichoice-staging-chat-api-unhandled-tracebacks",
+        "pattern": "\"Traceback (most recent call last):\" -exc_info",
+        "tx": "UnhandledTracebacks",
+        "ns": "IntelliChoice/intellichoice-staging/chat-api"
+    }
+]

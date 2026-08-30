@@ -1,0 +1,161 @@
+{
+    "events": [
+        {
+            "timestamp": 1788071946553,
+            "message": "memory_consolidation_events_dropped",
+            "ingestionTime": 1788071950330
+        },
+        {
+            "timestamp": 1788071988525,
+            "message": "bedrock_call_failed",
+            "ingestionTime": 1788071990283
+        },
+        {
+            "timestamp": 1788071988525,
+            "message": "memory consolidation call failed, no facts changed: model hit max_output_tokens=2688 before completing the MemoryUpdateResponse response; not retrying under the same ceiling",
+            "ingestionTime": 1788071990283
+        },
+        {
+            "timestamp": 1788072020800,
+            "message": "bedrock_call_failed",
+            "ingestionTime": 1788072025282
+        },
+        {
+            "timestamp": 1788072020800,
+            "message": "memory consolidation call failed, no facts changed: model hit max_output_tokens=2688 before completing the MemoryUpdateResponse response; not retrying under the same ceiling",
+            "ingestionTime": 1788072025282
+        },
+        {
+            "timestamp": 1788072065700,
+            "message": "bedrock_call_failed",
+            "ingestionTime": 1788072070287
+        },
+        {
+            "timestamp": 1788072065700,
+            "message": "memory consolidation call failed, no facts changed: model hit max_output_tokens=2688 before completing the MemoryUpdateResponse response; not retrying under the same ceiling",
+            "ingestionTime": 1788072070287
+        },
+        {
+            "timestamp": 1788072106158,
+            "message": "bedrock_call_failed",
+            "ingestionTime": 1788072110284
+        },
+        {
+            "timestamp": 1788072106158,
+            "message": "memory consolidation call failed, no facts changed: model hit max_output_tokens=2688 before completing the MemoryUpdateResponse response; not retrying under the same ceiling",
+            "ingestionTime": 1788072110284
+        },
+        {
+            "timestamp": 1788072106182,
+            "message": "  student-ext-4: +0 facts, 0 reconfirmed, 0 contested, 0 expired (5.3856 cents) [4/4 call(s) FAILED] [6647 event(s) dropped over the call cap]",
+            "ingestionTime": 1788072110284
+        },
+        {
+            "timestamp": 1788072107460,
+            "message": "memory_consolidation_events_dropped",
+            "ingestionTime": 1788072110284
+        },
+        {
+            "timestamp": 1788072107475,
+            "message": "memory_consolidation_payload_oversized",
+            "ingestionTime": 1788072110284
+        },
+        {
+            "timestamp": 1788072107544,
+            "message": "bedrock_max_tokens_capped task=memory_consolidation requested=5888 capped_to=4000",
+            "ingestionTime": 1788072110284
+        },
+        {
+            "timestamp": 1788072283919,
+            "message": "bedrock_call_failed",
+            "ingestionTime": 1788072285289
+        },
+        {
+            "timestamp": 1788072283919,
+            "message": "memory consolidation call failed, no facts changed: model hit max_output_tokens=4000 before completing the MemoryUpdateResponse response; not retrying under the same ceiling",
+            "ingestionTime": 1788072285289
+        },
+        {
+            "timestamp": 1788072283928,
+            "message": "memory_consolidation_payload_oversized",
+            "ingestionTime": 1788072285289
+        },
+        {
+            "timestamp": 1788072283928,
+            "message": "bedrock_max_tokens_capped task=memory_consolidation requested=5888 capped_to=4000",
+            "ingestionTime": 1788072285289
+        },
+        {
+            "timestamp": 1788072385020,
+            "message": "bedrock_call_failed",
+            "ingestionTime": 1788072385284
+        },
+        {
+            "timestamp": 1788072385021,
+            "message": "memory consolidation call failed, no facts changed: model hit max_output_tokens=4000 before completing the MemoryUpdateResponse response; not retrying under the same ceiling",
+            "ingestionTime": 1788072385284
+        },
+        {
+            "timestamp": 1788072385024,
+            "message": "memory_consolidation_payload_oversized",
+            "ingestionTime": 1788072385284
+        },
+        {
+            "timestamp": 1788072385024,
+            "message": "bedrock_max_tokens_capped task=memory_consolidation requested=5888 capped_to=4000",
+            "ingestionTime": 1788072385284
+        },
+        {
+            "timestamp": 1788072433737,
+            "message": "bedrock_call_failed",
+            "ingestionTime": 1788072435280
+        },
+        {
+            "timestamp": 1788072433737,
+            "message": "memory consolidation call failed, no facts changed: model hit max_output_tokens=4000 before completing the MemoryUpdateResponse response; not retrying under the same ceiling",
+            "ingestionTime": 1788072435280
+        },
+        {
+            "timestamp": 1788072433741,
+            "message": "memory_consolidation_payload_oversized",
+            "ingestionTime": 1788072435280
+        },
+        {
+            "timestamp": 1788072433741,
+            "message": "bedrock_max_tokens_capped task=memory_consolidation requested=5888 capped_to=4000",
+            "ingestionTime": 1788072435280
+        },
+        {
+            "timestamp": 1788072544883,
+            "message": "bedrock_call_failed",
+            "ingestionTime": 1788072545293
+        },
+        {
+            "timestamp": 1788072544883,
+            "message": "memory consolidation call failed, no facts changed: model hit max_output_tokens=4000 before completing the MemoryUpdateResponse response; not retrying under the same ceiling",
+            "ingestionTime": 1788072545293
+        },
+        {
+            "timestamp": 1788072544908,
+            "message": "  student-ext-1: +0 facts, 0 reconfirmed, 0 contested, 0 expired (8.0096 cents) [4/4 call(s) FAILED] [7225 event(s) dropped over the call cap]",
+            "ingestionTime": 1788072545293
+        },
+        {
+            "timestamp": 1788072544946,
+            "message": "Consolidation run complete: 2 of 2 student(s), 0 added, 0 reconfirmed, 0 contested, 0 expired, 13.40 cents spent; 8 model call(s), 8 failed, 13872 event(s) dropped, 0 refused (contradicted mastery).",
+            "ingestionTime": 1788072545293
+        },
+        {
+            "timestamp": 1788072544946,
+            "message": "FAILED: all 8 model call(s) failed and no fact changed. Exiting non-zero so the ops-task failure alarm fires (AUD-F-34).",
+            "ingestionTime": 1788072545293
+        },
+        {
+            "timestamp": 1788072544946,
+            "message": "{\"event\": \"memory_consolidate_job_complete\", \"level\": \"INFO\", \"timestamp\": \"2026-08-30T06:49:04.946256+00:00\", \"logger\": \"intellichoice_observability.scheduled_jobs\", \"job\": \"memory-consolidate\", \"students\": 2, \"students_skipped\": 0, \"added\": 0, \"expired\": 0, \"spend_cents\": 13.4, \"model_calls\": 8, \"failed\": 8, \"dropped\": 13872}",
+            "ingestionTime": 1788072545293
+        }
+    ],
+    "nextForwardToken": "f/39875350221328941342562660397883309101675270547687342085/s",
+    "nextBackwardToken": "b/39875336876719119758227486145634281418878925823802474496/s"
+}

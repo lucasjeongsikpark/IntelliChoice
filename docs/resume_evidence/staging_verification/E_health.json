@@ -1,0 +1,60 @@
+{
+  "as_of_utc": "2026-08-30T06:53:14.112364+00:00",
+  "post_deploy_window": {
+    "start": "2026-08-30T06:30:00+00:00",
+    "end": "2026-08-30T06:53:14.112364+00:00"
+  },
+  "baseline_window_prior_day": {
+    "start": "2026-08-29T06:30:00+00:00",
+    "end": "2026-08-29T06:53:14.112364+00:00"
+  },
+  "alb": {
+    "HTTPCode_ELB_5XX_Count": {
+      "post_deploy": 0,
+      "baseline_prior_day": 0
+    },
+    "HTTPCode_Target_5XX_Count": {
+      "post_deploy": 0,
+      "baseline_prior_day": 0
+    },
+    "HTTPCode_ELB_4XX_Count": {
+      "post_deploy": 0,
+      "baseline_prior_day": 0
+    },
+    "HTTPCode_Target_4XX_Count": {
+      "post_deploy": 6.0,
+      "baseline_prior_day": 0
+    },
+    "RequestCount": {
+      "post_deploy": 19.0,
+      "baseline_prior_day": 1353.0
+    },
+    "TargetResponseTime": {
+      "post_deploy": 1.9266604999999997,
+      "baseline_prior_day": 0.5114826781828034
+    }
+  },
+  "app_http_requests_total": {
+    "learning-api": {
+      "200": {
+        "post_deploy": 420.0,
+        "baseline_prior_day": 1789.0
+      }
+    },
+    "chat-api": {
+      "200": {
+        "post_deploy": 211.0,
+        "baseline_prior_day": 225.0
+      }
+    }
+  },
+  "rds": {
+    "postgres_DatabaseConnections": {
+      "24h_avg": 36.18,
+      "24h_max": 62.0,
+      "post_deploy_avg": 16.3,
+      "post_deploy_max": 20.0,
+      "post_deploy_datapoints": 4
+    }
+  }
+}

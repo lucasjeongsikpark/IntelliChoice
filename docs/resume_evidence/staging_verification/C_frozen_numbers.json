@@ -1,0 +1,28 @@
+{
+  "section": "C — content gate (D-469)",
+  "measured_utc": "2026-08-30T06:41:30Z",
+  "repo_head": "523b9f0",
+  "deployed_image_confirmed": {
+    "verdict": "OK",
+    "tag": "gha-523b9f036a53",
+    "learning_api_revision": 155,
+    "chat_api_revision": 153,
+    "ops_task_revision": 147,
+    "source": "scripts/check_deployed_image_consistency.py (make image-check)"
+  },
+  "permanent_regression_lanes_local": {
+    "test_hint_ladder_coherence.py": {"passed": 10, "failed": 0},
+    "test_arithmetic_dedup.py": {"passed": 16, "failed": 0},
+    "test_e5_2_defect_corpus.py": {"passed": 27, "failed": 0},
+    "test_authored_pipeline.py": {"passed": 93, "failed": 0},
+    "combined_run": {"passed": 146, "failed": 0, "wall_clock_s": 14.88}
+  },
+  "frozen_authoritative_numbers_restated_not_remeasured": {
+    "note": "Restated verbatim from D-469 / R3_POSTFIX_REPORT.md. NOT re-measured in R5 (no regeneration, no model spend, no bank mutation).",
+    "hint_ladder_coherence_detection": "0/17 -> 12/17",
+    "arithmetic_fingerprint_dedup_detection": "8/17 -> 17/17",
+    "detection_F1": "0.837 -> 0.949",
+    "approved_bank_false_positives": 0
+  },
+  "bank_mutation": "none — no generation run, no loader re-gate, no write to the approved bank"
+}

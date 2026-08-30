@@ -1,0 +1,40 @@
+R5 SECTION B4 — restoration and cleanup (UTC)
+
+06:51:39Z  disable-alarm-actions intellichoice-staging-learning-api-unhandled-tracebacks                (ActionsEnabled -> false, state OK)
+06:51:51Z  put-log-events: 2 synthetic events into /ecs/intellichoice-staging-learning-api
+           stream r5-verification/synthetic-traceback
+             #1 plain-text uvicorn traceback            -> MUST count
+             #2 JSON unhandled_exception with exc_info  -> MUST NOT count
+06:51:00Z  UnhandledTracebacks datapoint = 1.0  (exactly 1, not 2 -> the -exc_info exclusion works)
+06:52:07Z  alarm OK -> ALARM,  ActionsEnabled=false  =>  NO SNS notification sent
+07:07:30Z  alarm ALARM -> OK, ON ITS OWN (the datapoint left the 900s window),
+           still with actions disabled => no OK notification sent either
+07:07:47Z  enable-alarm-actions intellichoice-staging-learning-api-unhandled-tracebacks -> {
+    "actionsEnabled": true,
+    "state": "OK",
+    "actions": [
+        "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+    ],
+    "ok": [
+        "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+    ]
+}
+07:07:48Z  delete-log-stream r5-verification/synthetic-traceback
+[]
+           (the CloudWatch METRIC datapoint survives the stream deletion, so the evidence above is not destroyed)
+07:08:00Z  sweep the one chat_turn_cancellations row left by the B1 probe:
+           re-POST the SAME (session, turn) pair. The insert is ON CONFLICT DO NOTHING (no new
+           row) and the same statement runs a GLOBAL delete of every row older than 15 minutes
+           (D-416), which is exactly the 06:54Z row. Net effect: the table returns to zero.
+07:11:11Z  re-POST /chat/sessions/not-a-uuid/turns/x/cancel -> 202 (sweep executed; original row was written 06:54:0xZ, >15 min earlier)
+
+=== FINAL READ-BACK (2026-08-30T07:11:26Z) ===
+alarms before: 40   alarms after: 40
+alarms with ACTIONS DISABLED after: 0  -> NONE (requirement met)
+alarm set identical before/after: True
+ActionsEnabled differs before/after: none
+AlarmActions differs before/after: none
+alarms not OK after:
+    intellichoice-staging-chat-api-p95-latency-scale-in ALARM
+state changed before -> after:
+    intellichoice-staging-learning-api-p95-latency-scale-in ALARM -> OK

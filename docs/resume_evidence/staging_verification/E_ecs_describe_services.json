@@ -1,0 +1,1211 @@
+{
+    "services": [
+        {
+            "serviceArn": "arn:aws:ecs:us-east-1:320503430250:service/intellichoice-staging/intellichoice-staging-learning-api",
+            "serviceName": "intellichoice-staging-learning-api",
+            "clusterArn": "arn:aws:ecs:us-east-1:320503430250:cluster/intellichoice-staging",
+            "loadBalancers": [
+                {
+                    "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285",
+                    "containerName": "learning-api",
+                    "containerPort": 8001
+                }
+            ],
+            "serviceRegistries": [],
+            "status": "ACTIVE",
+            "desiredCount": 2,
+            "runningCount": 2,
+            "pendingCount": 0,
+            "launchType": "FARGATE",
+            "platformVersion": "1.4.0",
+            "platformFamily": "Linux",
+            "taskDefinition": "arn:aws:ecs:us-east-1:320503430250:task-definition/intellichoice-staging-learning-api:155",
+            "deploymentConfiguration": {
+                "deploymentCircuitBreaker": {
+                    "enable": true,
+                    "rollback": true,
+                    "resetOnHealthyTask": true,
+                    "thresholdConfiguration": {
+                        "type": "BOUNDED_PERCENT",
+                        "value": 50
+                    }
+                },
+                "maximumPercent": 200,
+                "minimumHealthyPercent": 100,
+                "strategy": "ROLLING",
+                "bakeTimeInMinutes": 0
+            },
+            "deployments": [
+                {
+                    "id": "ecs-svc/8655965532583928581",
+                    "status": "PRIMARY",
+                    "taskDefinition": "arn:aws:ecs:us-east-1:320503430250:task-definition/intellichoice-staging-learning-api:155",
+                    "desiredCount": 2,
+                    "pendingCount": 0,
+                    "runningCount": 2,
+                    "failedTasks": 0,
+                    "createdAt": "2026-08-30T01:23:49.272000-05:00",
+                    "updatedAt": "2026-08-30T01:26:57.803000-05:00",
+                    "launchType": "FARGATE",
+                    "platformVersion": "1.4.0",
+                    "platformFamily": "Linux",
+                    "networkConfiguration": {
+                        "awsvpcConfiguration": {
+                            "subnets": [
+                                "subnet-021ec8b4b06e6d2a1",
+                                "subnet-0fab49a3bf8fc3a8f"
+                            ],
+                            "securityGroups": [
+                                "sg-0c3191c6140f84a57"
+                            ],
+                            "assignPublicIp": "DISABLED"
+                        }
+                    },
+                    "rolloutState": "COMPLETED",
+                    "rolloutStateReason": "ECS deployment ecs-svc/8655965532583928581 completed."
+                }
+            ],
+            "roleArn": "arn:aws:iam::320503430250:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+            "events": [
+                {
+                    "id": "c99d9a20-bfca-451a-bc09-9a184beb16e3",
+                    "createdAt": "2026-08-30T01:26:57.809000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "3d07b6a9-b56b-4de0-bd9e-7fceb8af68b8",
+                    "createdAt": "2026-08-30T01:26:57.808000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) (deployment ecs-svc/8655965532583928581) deployment completed."
+                },
+                {
+                    "id": "0d1d8f84-8cb7-41ef-83e4-85ceeb2dfd22",
+                    "createdAt": "2026-08-30T01:25:56.743000-05:00",
+                    "message": "(service intellichoice-staging-learning-api, taskSet ecs-svc/9664007833766557247) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "6fb0bbf2-5fbe-4adc-9aa6-722e526144dd",
+                    "createdAt": "2026-08-30T01:25:56.734000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "94688046-7aa3-49b9-b923-39a083bad29d",
+                    "createdAt": "2026-08-30T01:25:46.836000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has stopped 1 running tasks: (task c159ba0051b54b2b873138c3d568e88a)."
+                },
+                {
+                    "id": "10a07268-7bca-459c-94b9-ab4cf2b71bde",
+                    "createdAt": "2026-08-30T01:25:36.513000-05:00",
+                    "message": "(service intellichoice-staging-learning-api, taskSet ecs-svc/9664007833766557247) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "98c90499-ab29-4dcb-8215-af1b99e6adf6",
+                    "createdAt": "2026-08-30T01:25:36.507000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "3813fbe9-bca4-46cb-854f-4285bee7ce56",
+                    "createdAt": "2026-08-30T01:25:26.284000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has stopped 1 running tasks: (task 7b92dc522d994b38b6737f45d5e3f26c)."
+                },
+                {
+                    "id": "7d9bf88b-4a64-42f5-ac29-29c5e81b5b65",
+                    "createdAt": "2026-08-30T01:24:35.970000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "2fb32412-f4eb-4f14-8fab-eaef70c45ced",
+                    "createdAt": "2026-08-30T01:24:26.233000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has started 1 tasks: (task 7451473e34434c16965e4e81f1c42c24)."
+                },
+                {
+                    "id": "4e205eeb-a772-4c7b-8c3f-f826da256185",
+                    "createdAt": "2026-08-30T01:24:05.915000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has started 1 tasks: (task bdcac7247a224cb0b62fcd2c95853aec)."
+                },
+                {
+                    "id": "a5a930a3-8013-4303-a748-1f1650c27433",
+                    "createdAt": "2026-08-29T22:57:04.637000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "a602c306-ead8-4041-a507-97e9c71c36d0",
+                    "createdAt": "2026-08-29T22:57:04.636000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) (deployment ecs-svc/9664007833766557247) deployment completed."
+                },
+                {
+                    "id": "44e408ab-faae-4ae7-af1f-3726c15ba007",
+                    "createdAt": "2026-08-29T22:56:12.197000-05:00",
+                    "message": "(service intellichoice-staging-learning-api, taskSet ecs-svc/8858643528423248424) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "465d0d1e-8d14-45c3-b74e-ba4dd57b2d39",
+                    "createdAt": "2026-08-29T22:56:12.192000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "258a4419-98ad-49b5-b46b-24346ec54185",
+                    "createdAt": "2026-08-29T22:56:02.912000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has stopped 1 running tasks: (task e590abf72a7e45f89e56a6f04869df64)."
+                },
+                {
+                    "id": "400d2de7-9f8a-4180-96b5-aaf58c433096",
+                    "createdAt": "2026-08-29T22:55:42.651000-05:00",
+                    "message": "(service intellichoice-staging-learning-api, taskSet ecs-svc/8858643528423248424) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "ef6e1565-32d4-476a-9eb3-9a52ab0fe518",
+                    "createdAt": "2026-08-29T22:55:42.646000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "99d5443e-f369-4222-9a8e-dcbab2bbc645",
+                    "createdAt": "2026-08-29T22:55:32.615000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has stopped 1 running tasks: (task 8d6a84afcce649da8ea8f943e8c715a8)."
+                },
+                {
+                    "id": "8922d54b-e5b9-4ba6-9f62-16790949d95e",
+                    "createdAt": "2026-08-29T22:55:11.748000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "d33f96fd-7fe6-4dd6-8bad-dcfe14b01d19",
+                    "createdAt": "2026-08-29T22:54:42.245000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has started 1 tasks: (task c159ba0051b54b2b873138c3d568e88a)."
+                },
+                {
+                    "id": "c3d63fe8-0b61-4726-8aad-faf67a4974c8",
+                    "createdAt": "2026-08-29T22:54:41.466000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "dc9efae6-baaa-4bd3-85ea-d11ab2f95ff1",
+                    "createdAt": "2026-08-29T22:54:11.864000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has started 1 tasks: (task 7b92dc522d994b38b6737f45d5e3f26c)."
+                },
+                {
+                    "id": "b21ab44c-b7ca-4d31-a027-10404c33021f",
+                    "createdAt": "2026-08-29T21:14:53.289000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "e02c1d3a-c76b-4cf1-9116-35d9146954b4",
+                    "createdAt": "2026-08-29T15:14:27.062000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "90b3db1b-55b6-4eb1-8b5e-9bcd8bc1e277",
+                    "createdAt": "2026-08-29T15:14:26.988000-05:00",
+                    "message": "(service intellichoice-staging-learning-api, taskSet ecs-svc/8858643528423248424) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "726e7cab-c080-46df-841d-8367246b414d",
+                    "createdAt": "2026-08-29T15:14:26.982000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "171ff754-c479-4969-a894-d18b4def7a1c",
+                    "createdAt": "2026-08-29T15:14:17.868000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has stopped 1 running tasks: (task ff89d27ee3e247d2827229714889ecc6)."
+                },
+                {
+                    "id": "674389a2-2582-4e80-b57b-031854762fd9",
+                    "createdAt": "2026-08-29T14:34:09.497000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "56bf1050-1351-4281-926c-0ab6b47c31e6",
+                    "createdAt": "2026-08-29T14:33:32.310000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "78b166c2-99c3-4079-8d0f-53e1c85d6564",
+                    "createdAt": "2026-08-29T14:33:03.242000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has started 1 tasks: (task ff89d27ee3e247d2827229714889ecc6)."
+                },
+                {
+                    "id": "bbb2f54e-1e7e-4f3a-b7f1-f6487d5fd9ec",
+                    "createdAt": "2026-08-29T14:08:22.577000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "62c6b567-50f4-4aa0-a2b9-ea845256276d",
+                    "createdAt": "2026-08-29T08:08:10.160000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "d32bfa94-88bc-4d62-aa6c-5ba37b8c6b6e",
+                    "createdAt": "2026-08-29T02:07:59.940000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "862843c6-9631-45c2-a1a5-d3fba1de27b2",
+                    "createdAt": "2026-08-28T20:07:25.284000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "6f1fb717-f0fa-4728-9aa6-98c687d1d350",
+                    "createdAt": "2026-08-28T20:07:25.211000-05:00",
+                    "message": "(service intellichoice-staging-learning-api, taskSet ecs-svc/8858643528423248424) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "4f165df5-282a-40e7-97e2-02d76cbb73d7",
+                    "createdAt": "2026-08-28T20:07:25.204000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "b95a0f9b-5aac-494a-98e4-dbb87eebfb51",
+                    "createdAt": "2026-08-28T20:07:14.891000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has stopped 1 running tasks: (task 9a414d9487944d179a9f0b038038ffd1)."
+                },
+                {
+                    "id": "a382f188-b174-45bc-b535-f7f83e8bc826",
+                    "createdAt": "2026-08-28T19:50:52.672000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "35ce9751-4b2c-41ff-92a4-b6f100d17592",
+                    "createdAt": "2026-08-28T19:50:33.442000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "e813c00b-4280-4a7e-b3a0-d6aae0825916",
+                    "createdAt": "2026-08-28T19:50:06.841000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has started 1 tasks: (task 8d6a84afcce649da8ea8f943e8c715a8)."
+                },
+                {
+                    "id": "98cd6606-b42e-445a-8de5-b3b8d192ae49",
+                    "createdAt": "2026-08-28T19:45:30.987000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "5e1387e8-a443-445a-a55d-c3257f5eb12c",
+                    "createdAt": "2026-08-28T19:45:30.986000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) (deployment ecs-svc/8858643528423248424) deployment completed."
+                },
+                {
+                    "id": "2120e95f-c2c2-4eca-a7e5-4dfc17a052f2",
+                    "createdAt": "2026-08-28T19:44:39.171000-05:00",
+                    "message": "(service intellichoice-staging-learning-api, taskSet ecs-svc/0611882784985058900) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "45694d73-cecd-4a5e-910e-f2d1ee94fddd",
+                    "createdAt": "2026-08-28T19:44:39.165000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "b26cbcfb-cd27-4758-b84a-dbbb217d5a14",
+                    "createdAt": "2026-08-28T19:44:29.451000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has stopped 1 running tasks: (task b6f1246c3def4571809a9e01dafb8c18)."
+                },
+                {
+                    "id": "518c0390-0285-4950-a7a6-8cebb8eeb12f",
+                    "createdAt": "2026-08-28T19:44:09.102000-05:00",
+                    "message": "(service intellichoice-staging-learning-api, taskSet ecs-svc/0611882784985058900) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "5b26d882-45ff-48f1-8792-95787376f869",
+                    "createdAt": "2026-08-28T19:44:09.096000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "57eaf410-55c5-48ae-bfb2-465362ad9623",
+                    "createdAt": "2026-08-28T19:43:59.334000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has stopped 1 running tasks: (task 6af5cae7b7d34584ad9d940646cc9539)."
+                },
+                {
+                    "id": "b3211a12-a556-4d34-908b-c283ebfce29c",
+                    "createdAt": "2026-08-28T19:43:07.758000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "a4a2ccef-db92-451d-a937-6255b212bf2c",
+                    "createdAt": "2026-08-28T19:42:58.787000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has started 1 tasks: (task e590abf72a7e45f89e56a6f04869df64)."
+                },
+                {
+                    "id": "f20348b7-f167-4932-9a4b-8a944b1192bb",
+                    "createdAt": "2026-08-28T19:42:38.280000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has started 1 tasks: (task 9a414d9487944d179a9f0b038038ffd1)."
+                },
+                {
+                    "id": "0126248e-5025-4a57-a809-26e695c8b3d0",
+                    "createdAt": "2026-08-28T17:55:23.903000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "3a93cedd-f427-4fb4-b088-18c1757b2190",
+                    "createdAt": "2026-08-28T11:54:39.795000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "411ae60f-8ef9-49f1-9f3f-b8e98b166e1a",
+                    "createdAt": "2026-08-28T05:54:17.953000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "5540664a-bb9f-4ba2-bc77-11548f2ccf16",
+                    "createdAt": "2026-08-27T23:53:34.489000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "3075a5c1-2eba-4c71-bb05-554c9e969565",
+                    "createdAt": "2026-08-27T17:53:11.429000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "6a2d83bb-5d96-4d90-b9d7-a14631f93160",
+                    "createdAt": "2026-08-27T11:52:50.977000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "45d670b7-ad4a-4056-b817-c0c0fc8e9f6d",
+                    "createdAt": "2026-08-27T05:52:21.523000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "06998284-275d-459d-8082-695dbe597511",
+                    "createdAt": "2026-08-26T23:52:16.145000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "54d86092-56c1-4de8-b449-c74299d18e2b",
+                    "createdAt": "2026-08-26T17:52:01.954000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "293a2ae1-a6be-45df-902f-4f9e1462974f",
+                    "createdAt": "2026-08-26T11:51:45.708000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "b0b3a5b2-e65c-4d2a-b59d-fefbd5cfa59d",
+                    "createdAt": "2026-08-26T05:51:38.682000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "fb57d05e-d810-4579-aa27-9a2a1be72c57",
+                    "createdAt": "2026-08-25T23:50:59.603000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "e0f3911b-7540-4465-ad6f-6897afa7b304",
+                    "createdAt": "2026-08-25T23:50:59.602000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) (deployment ecs-svc/0611882784985058900) deployment completed."
+                },
+                {
+                    "id": "b693c1a1-58d5-40f0-862c-4657e044a5d2",
+                    "createdAt": "2026-08-25T23:49:58.658000-05:00",
+                    "message": "(service intellichoice-staging-learning-api, taskSet ecs-svc/7665591951661588207) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "f69462fe-e3df-4947-a617-1a5d10e32dd5",
+                    "createdAt": "2026-08-25T23:49:58.652000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "b33dfe16-b521-4c45-bd33-a2a346c31590",
+                    "createdAt": "2026-08-25T23:49:48.552000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has stopped 1 running tasks: (task 423905e1db9b44488bd889eb260ff6ce)."
+                },
+                {
+                    "id": "a9423938-4b6f-4d7c-a51e-b5a8961a0579",
+                    "createdAt": "2026-08-25T23:49:07.736000-05:00",
+                    "message": "(service intellichoice-staging-learning-api, taskSet ecs-svc/7665591951661588207) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "c7b00bd0-9f22-423d-804b-b7ba12a2bcdd",
+                    "createdAt": "2026-08-25T23:49:07.731000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "31d5b57b-b1e0-455f-af17-de9c9bdcea03",
+                    "createdAt": "2026-08-25T23:48:58.553000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has stopped 1 running tasks: (task 9f95c18c5c59432d88abf707cbd770b4)."
+                },
+                {
+                    "id": "38864ddc-a093-4492-9fa6-6a03f572f737",
+                    "createdAt": "2026-08-25T23:48:58.483000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "a25ba3f4-473c-4b2d-82a7-e230ec8e0dfa",
+                    "createdAt": "2026-08-25T23:48:27.427000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has started 1 tasks: (task 6af5cae7b7d34584ad9d940646cc9539)."
+                },
+                {
+                    "id": "79f433fe-4a4e-4c3c-ac1d-46f5b72a1fcd",
+                    "createdAt": "2026-08-25T23:48:17.364000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "3df2cafd-4ab5-4bb2-943f-226ac625f611",
+                    "createdAt": "2026-08-25T23:47:47.435000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has started 1 tasks: (task b6f1246c3def4571809a9e01dafb8c18)."
+                },
+                {
+                    "id": "e82781cc-b534-4225-97f7-3aca6c4c45c6",
+                    "createdAt": "2026-08-25T22:03:05.894000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "71975921-eec5-47f1-abbd-64e1c136477f",
+                    "createdAt": "2026-08-25T16:02:57.120000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "05fddd05-d424-4204-a550-413eda786d03",
+                    "createdAt": "2026-08-25T10:02:36.585000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "a30a4ce7-b93e-4e51-b43a-17a520e47025",
+                    "createdAt": "2026-08-25T04:02:23.350000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "b2992279-b3ba-46d4-91ce-c6f7f360a511",
+                    "createdAt": "2026-08-24T22:01:41.897000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "a28aa89f-c3dc-4555-8823-846544ee315e",
+                    "createdAt": "2026-08-24T16:01:21.620000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "91c3c3b5-be97-4f93-80d2-f12c18341d42",
+                    "createdAt": "2026-08-24T10:01:15.042000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "999826dc-8542-41d4-aa3b-3ace4de7cf6f",
+                    "createdAt": "2026-08-24T04:01:09.279000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "dcf2b76f-e543-4a9a-9a25-bea8ab0ab05e",
+                    "createdAt": "2026-08-23T22:01:03.096000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "fbae6197-1617-4f24-bfcc-c93290dfe1bd",
+                    "createdAt": "2026-08-23T16:00:33.005000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "93c8a925-78e4-4bbf-ad52-28ec1d1c5728",
+                    "createdAt": "2026-08-23T09:59:58.424000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "025e4183-c813-426a-87ae-1c862eb1d31f",
+                    "createdAt": "2026-08-23T03:59:38.170000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "9d8a867e-40d2-4c13-823f-052576e62765",
+                    "createdAt": "2026-08-22T21:59:06.253000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                },
+                {
+                    "id": "4468c969-4205-467b-8c0b-93590b8e4172",
+                    "createdAt": "2026-08-22T21:59:06.252000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) (deployment ecs-svc/7665591951661588207) deployment completed."
+                },
+                {
+                    "id": "608c307c-56dc-4800-acd7-05355733d52a",
+                    "createdAt": "2026-08-22T21:58:05.176000-05:00",
+                    "message": "(service intellichoice-staging-learning-api, taskSet ecs-svc/1707258953616215660) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "2d9ec98e-6792-42af-a267-4f7040a2b0a6",
+                    "createdAt": "2026-08-22T21:58:05.170000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "4ab362d2-b425-4b44-94a3-5381003e99f3",
+                    "createdAt": "2026-08-22T21:57:54.589000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has stopped 1 running tasks: (task 5ec1b723038446738c4d3b29fceb53b9)."
+                },
+                {
+                    "id": "e5c9fc48-f07a-4b90-b101-bf671ba09b74",
+                    "createdAt": "2026-08-22T21:57:33.517000-05:00",
+                    "message": "(service intellichoice-staging-learning-api, taskSet ecs-svc/1707258953616215660) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "79656e6c-acb5-4380-a2e2-efbed2aaac8c",
+                    "createdAt": "2026-08-22T21:57:33.511000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "2538e43b-6b63-457c-b4d5-df0ddead88eb",
+                    "createdAt": "2026-08-22T21:57:23.770000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has stopped 1 running tasks: (task 2be32b9f2e5946cdaa5b2e2e228ec3bd)."
+                },
+                {
+                    "id": "0ebcc362-409c-455e-a1ba-ff9333a9c895",
+                    "createdAt": "2026-08-22T21:57:03.939000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "b31bf8d0-f1f8-43e1-a7fa-072e5f03a16d",
+                    "createdAt": "2026-08-22T21:56:34.734000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has started 1 tasks: (task 423905e1db9b44488bd889eb260ff6ce)."
+                },
+                {
+                    "id": "829127cf-e55c-4933-baad-941a2ae26be2",
+                    "createdAt": "2026-08-22T21:56:33.956000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/learning-api-tg/91d67e399fbed285)"
+                },
+                {
+                    "id": "885f8ee1-f793-4cb6-aded-610bd40aea8d",
+                    "createdAt": "2026-08-22T21:55:53.306000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has started 1 tasks: (task 9f95c18c5c59432d88abf707cbd770b4)."
+                },
+                {
+                    "id": "eaf24b50-6628-49d4-acbe-419f73e46487",
+                    "createdAt": "2026-08-22T16:29:17.917000-05:00",
+                    "message": "(service intellichoice-staging-learning-api) has reached a steady state."
+                }
+            ],
+            "createdAt": "2026-07-22T21:38:42.407000-05:00",
+            "currentServiceRevisions": [
+                {
+                    "arn": "arn:aws:ecs:us-east-1:320503430250:service-revision/intellichoice-staging/intellichoice-staging-learning-api/8655965532583928581",
+                    "requestedTaskCount": 2,
+                    "runningTaskCount": 2,
+                    "pendingTaskCount": 0
+                }
+            ],
+            "placementConstraints": [],
+            "placementStrategy": [],
+            "networkConfiguration": {
+                "awsvpcConfiguration": {
+                    "subnets": [
+                        "subnet-021ec8b4b06e6d2a1",
+                        "subnet-0fab49a3bf8fc3a8f"
+                    ],
+                    "securityGroups": [
+                        "sg-0c3191c6140f84a57"
+                    ],
+                    "assignPublicIp": "DISABLED"
+                }
+            },
+            "healthCheckGracePeriodSeconds": 60,
+            "schedulingStrategy": "REPLICA",
+            "deploymentController": {
+                "type": "ECS"
+            },
+            "createdBy": "arn:aws:iam::320503430250:user/jeongsik-staging-admin",
+            "enableECSManagedTags": false,
+            "propagateTags": "NONE",
+            "enableExecuteCommand": false,
+            "availabilityZoneRebalancing": "DISABLED",
+            "resourceManagementType": "CUSTOMER"
+        },
+        {
+            "serviceArn": "arn:aws:ecs:us-east-1:320503430250:service/intellichoice-staging/intellichoice-staging-chat-api",
+            "serviceName": "intellichoice-staging-chat-api",
+            "clusterArn": "arn:aws:ecs:us-east-1:320503430250:cluster/intellichoice-staging",
+            "loadBalancers": [
+                {
+                    "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca",
+                    "containerName": "chat-api",
+                    "containerPort": 8002
+                }
+            ],
+            "serviceRegistries": [],
+            "status": "ACTIVE",
+            "desiredCount": 1,
+            "runningCount": 1,
+            "pendingCount": 0,
+            "launchType": "FARGATE",
+            "platformVersion": "LATEST",
+            "platformFamily": "Linux",
+            "taskDefinition": "arn:aws:ecs:us-east-1:320503430250:task-definition/intellichoice-staging-chat-api:153",
+            "deploymentConfiguration": {
+                "deploymentCircuitBreaker": {
+                    "enable": true,
+                    "rollback": true,
+                    "resetOnHealthyTask": true,
+                    "thresholdConfiguration": {
+                        "type": "BOUNDED_PERCENT",
+                        "value": 50
+                    }
+                },
+                "maximumPercent": 200,
+                "minimumHealthyPercent": 100,
+                "strategy": "ROLLING",
+                "bakeTimeInMinutes": 0
+            },
+            "deployments": [
+                {
+                    "id": "ecs-svc/5035362930052952572",
+                    "status": "PRIMARY",
+                    "taskDefinition": "arn:aws:ecs:us-east-1:320503430250:task-definition/intellichoice-staging-chat-api:153",
+                    "desiredCount": 1,
+                    "pendingCount": 0,
+                    "runningCount": 1,
+                    "failedTasks": 0,
+                    "createdAt": "2026-08-30T01:26:57.208000-05:00",
+                    "updatedAt": "2026-08-30T01:29:43.021000-05:00",
+                    "launchType": "FARGATE",
+                    "platformVersion": "1.4.0",
+                    "platformFamily": "Linux",
+                    "networkConfiguration": {
+                        "awsvpcConfiguration": {
+                            "subnets": [
+                                "subnet-021ec8b4b06e6d2a1",
+                                "subnet-0fab49a3bf8fc3a8f"
+                            ],
+                            "securityGroups": [
+                                "sg-0c3191c6140f84a57"
+                            ],
+                            "assignPublicIp": "DISABLED"
+                        }
+                    },
+                    "rolloutState": "COMPLETED",
+                    "rolloutStateReason": "ECS deployment ecs-svc/5035362930052952572 completed."
+                }
+            ],
+            "roleArn": "arn:aws:iam::320503430250:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+            "events": [
+                {
+                    "id": "a30ffc81-3289-418a-bad9-c6bc00e4e9dc",
+                    "createdAt": "2026-08-30T01:29:43.029000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "af6d7396-0342-49d4-8f01-071507185b5e",
+                    "createdAt": "2026-08-30T01:29:43.028000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) (deployment ecs-svc/5035362930052952572) deployment completed."
+                },
+                {
+                    "id": "c42b8920-bea1-47a7-ab69-95d1e9858c7f",
+                    "createdAt": "2026-08-30T01:28:51.400000-05:00",
+                    "message": "(service intellichoice-staging-chat-api, taskSet ecs-svc/3409720328623705083) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "7c319409-d778-437e-944d-9113b9b55e1a",
+                    "createdAt": "2026-08-30T01:28:51.395000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "752504b5-7988-48b5-8adb-da9568a7141e",
+                    "createdAt": "2026-08-30T01:28:40.682000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has stopped 1 running tasks: (task b14fcf33d978462ab91ef182226f88a8)."
+                },
+                {
+                    "id": "1e06bf6c-0f79-4e30-b71b-7af98c8cae25",
+                    "createdAt": "2026-08-30T01:27:50.660000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "f5a1d152-2fba-46c6-a2ea-14a13e86106e",
+                    "createdAt": "2026-08-30T01:27:10.034000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has started 1 tasks: (task 8535f72415dd4955a435f22122946bfa)."
+                },
+                {
+                    "id": "c790c252-bb31-42d7-9952-429e58c1ed2b",
+                    "createdAt": "2026-08-29T22:56:59.979000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "408a2b5d-277d-4edd-be8f-ec09c4a7e496",
+                    "createdAt": "2026-08-29T22:56:59.978000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) (deployment ecs-svc/3409720328623705083) deployment completed."
+                },
+                {
+                    "id": "70a5ddef-b16e-4e7f-9427-4cc767d0fa29",
+                    "createdAt": "2026-08-29T22:55:58.499000-05:00",
+                    "message": "(service intellichoice-staging-chat-api, taskSet ecs-svc/9156256391535030702) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "7878e440-1fc7-4896-96d0-7fc25b038499",
+                    "createdAt": "2026-08-29T22:55:58.494000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "e5ee3ee1-dc95-4c29-a7f0-470e5dde671d",
+                    "createdAt": "2026-08-29T22:55:48.793000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has stopped 1 running tasks: (task 8b3f59e0591e4666a62cc72d4dbdeb2c)."
+                },
+                {
+                    "id": "58280276-0743-45cd-b752-c966c056c958",
+                    "createdAt": "2026-08-29T22:54:57.835000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "47946d46-237f-448a-98c5-0767f24925ef",
+                    "createdAt": "2026-08-29T22:54:16.401000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has started 1 tasks: (task b14fcf33d978462ab91ef182226f88a8)."
+                },
+                {
+                    "id": "a2dfb1e4-ac16-429c-8d3c-a0e9fc9f7c8e",
+                    "createdAt": "2026-08-29T20:18:47.550000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "36502d21-2f3d-463e-bc8b-a1f969f0cad5",
+                    "createdAt": "2026-08-29T14:18:44.909000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "3d2513fa-7c1a-4a21-86f0-2f7bda8c2a51",
+                    "createdAt": "2026-08-29T08:18:36.774000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "9ef5e1ca-d126-487c-9aae-08197d711c70",
+                    "createdAt": "2026-08-29T02:18:06.231000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "ceaf9e88-9d1e-414b-a618-f87f04628989",
+                    "createdAt": "2026-08-28T20:17:26.717000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "87a2337f-b91d-4cce-ac39-c4433c071d92",
+                    "createdAt": "2026-08-28T20:17:26.641000-05:00",
+                    "message": "(service intellichoice-staging-chat-api, taskSet ecs-svc/9156256391535030702) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "f12b0e6d-8eb1-4820-87e1-e585b715b800",
+                    "createdAt": "2026-08-28T20:17:26.636000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "6d9c68fe-4613-45a9-bc4c-c160423bc3dc",
+                    "createdAt": "2026-08-28T20:17:16.947000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has stopped 1 running tasks: (task b6d64df0cf144177bc6eb544ed35454b)."
+                },
+                {
+                    "id": "ec664056-0cd1-4235-9376-7c24757dd20f",
+                    "createdAt": "2026-08-28T20:11:19.891000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "0db3a538-4562-4751-bb42-1f748648da82",
+                    "createdAt": "2026-08-28T20:11:19.817000-05:00",
+                    "message": "(service intellichoice-staging-chat-api, taskSet ecs-svc/9156256391535030702) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "6265a1b6-ba08-4218-9913-84808578db77",
+                    "createdAt": "2026-08-28T20:11:19.811000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "37842f05-82cf-450c-b7f4-306051671aab",
+                    "createdAt": "2026-08-28T20:11:09.988000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has stopped 1 running tasks: (task be07f8ca24cb42eb8491db11ff0fe625)."
+                },
+                {
+                    "id": "00fc552a-1298-4e76-83db-f005d235c023",
+                    "createdAt": "2026-08-28T19:55:16.931000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "f1359f3c-f0c6-4f3d-97d8-e3c7b537ba19",
+                    "createdAt": "2026-08-28T19:54:40.551000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) registered 2 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "83e20d70-4610-4540-a2bd-76bbdecf4a35",
+                    "createdAt": "2026-08-28T19:54:11.310000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has started 2 tasks: (task b6d64df0cf144177bc6eb544ed35454b) (task be07f8ca24cb42eb8491db11ff0fe625)."
+                },
+                {
+                    "id": "bcc5e02a-8754-4656-ab31-16367e08b0a1",
+                    "createdAt": "2026-08-28T19:45:19.986000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "69198a8b-2aac-4427-be55-510d962c51f4",
+                    "createdAt": "2026-08-28T19:45:19.985000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) (deployment ecs-svc/9156256391535030702) deployment completed."
+                },
+                {
+                    "id": "8725ed1b-e409-4d88-bbf8-347989ac3183",
+                    "createdAt": "2026-08-28T19:44:18.739000-05:00",
+                    "message": "(service intellichoice-staging-chat-api, taskSet ecs-svc/6881343110988713194) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "50fa0b99-fe80-46eb-9c87-4c00017a7075",
+                    "createdAt": "2026-08-28T19:44:18.733000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "ec0e8d21-8560-4f07-af3a-faa2e17bbab6",
+                    "createdAt": "2026-08-28T19:44:08.522000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has stopped 1 running tasks: (task 590a873f2dc1427eb15e4d6ad6c9d1f9)."
+                },
+                {
+                    "id": "db582e60-560b-4b73-a5fb-cd2549808b53",
+                    "createdAt": "2026-08-28T19:43:17.823000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "e5b142ca-d54d-4749-a01c-5f4daa3b3e20",
+                    "createdAt": "2026-08-28T19:42:38.247000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has started 1 tasks: (task 8b3f59e0591e4666a62cc72d4dbdeb2c)."
+                },
+                {
+                    "id": "8c037758-9a04-472f-a851-4396982bc8cb",
+                    "createdAt": "2026-08-28T17:58:08.091000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "88f78fba-703d-4554-b387-bf25220970e1",
+                    "createdAt": "2026-08-28T11:58:05.907000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "ba631f4b-0606-45c2-b4c9-b883405d76ff",
+                    "createdAt": "2026-08-28T05:57:52.105000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "52bafd53-3eb3-4b7b-931c-c86d76748bc7",
+                    "createdAt": "2026-08-27T23:57:26.143000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "f01fc21e-a920-45aa-9b14-3d0a3620a1b0",
+                    "createdAt": "2026-08-27T17:56:52.095000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "3a701eee-2a6c-4b6b-9324-ea3e4028ed7a",
+                    "createdAt": "2026-08-27T11:56:26.089000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "67a2a596-0367-4ad8-a94e-2e168e6b1ce5",
+                    "createdAt": "2026-08-27T05:55:50.763000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "6547ebbf-e6c2-4723-9af1-98a326824733",
+                    "createdAt": "2026-08-26T23:55:12.472000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "827e1775-6ae0-4d18-b1f7-bb6493ed5125",
+                    "createdAt": "2026-08-26T17:54:34.869000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "fcc54c30-9d59-4fea-b4f8-88d1d59a40fe",
+                    "createdAt": "2026-08-26T11:54:30.811000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "d129c0c1-057a-4c84-b5d4-225fd9893d4c",
+                    "createdAt": "2026-08-26T05:54:22.570000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "a5af3cc5-be11-432b-802e-ff28692001a5",
+                    "createdAt": "2026-08-25T23:53:53.027000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "2d40429f-d9a3-46ed-a299-6ff3ed70b18c",
+                    "createdAt": "2026-08-25T23:53:53.026000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) (deployment ecs-svc/6881343110988713194) deployment completed."
+                },
+                {
+                    "id": "29a04dd8-9470-4a3c-a20e-93c9ab4a9bea",
+                    "createdAt": "2026-08-25T23:52:51.750000-05:00",
+                    "message": "(service intellichoice-staging-chat-api, taskSet ecs-svc/0437178661183033210) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "f1a064e2-9d59-4d9b-b8e4-0abcb0145ee8",
+                    "createdAt": "2026-08-25T23:52:51.745000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "d7a69a1f-feb0-4891-b26e-ba37e5253756",
+                    "createdAt": "2026-08-25T23:52:41.654000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has stopped 1 running tasks: (task 8b876d99ce884641838ca9f32f0d7cb3)."
+                },
+                {
+                    "id": "46634761-2070-428d-a56c-1a64cbd3e2cf",
+                    "createdAt": "2026-08-25T23:51:50.800000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "3564502f-6ad0-4ee8-94e3-f0f7f0d21840",
+                    "createdAt": "2026-08-25T23:51:10.463000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has started 1 tasks: (task 590a873f2dc1427eb15e4d6ad6c9d1f9)."
+                },
+                {
+                    "id": "2e657c26-9a58-4aef-a329-2963ee432c0e",
+                    "createdAt": "2026-08-25T22:05:56.521000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "5a4619ea-bab4-497b-9061-7b6d49f0b8c8",
+                    "createdAt": "2026-08-25T16:05:56.311000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "aa0a75ef-9230-4166-b5e6-b78ecd85afa2",
+                    "createdAt": "2026-08-25T10:05:50.876000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "c64eaa3b-fdc7-4520-922b-c38c0534f802",
+                    "createdAt": "2026-08-25T04:05:15.151000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "e1f9fa81-2bfe-4c26-91f7-44dac9358be1",
+                    "createdAt": "2026-08-24T22:04:46.316000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "e250643e-2a9b-4478-a913-0f699a79e03b",
+                    "createdAt": "2026-08-24T16:04:28.453000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "3dda26f3-c668-4e5e-8005-e9ca133458c7",
+                    "createdAt": "2026-08-24T10:04:10.699000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "96ec9223-49b7-4091-bcf8-dc180abaec6e",
+                    "createdAt": "2026-08-24T04:03:48.318000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "e9cafb8c-45b3-425b-af0e-29cf38ae9be4",
+                    "createdAt": "2026-08-23T22:03:37.350000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "d094ec07-8d19-4079-8012-19bb16cf1830",
+                    "createdAt": "2026-08-23T16:03:14.445000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "c9e633e5-d59e-4cba-88a3-cfb540ca0f8e",
+                    "createdAt": "2026-08-23T10:02:39.972000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "33eaeecf-a46b-4250-b5a0-a7b73094baea",
+                    "createdAt": "2026-08-23T04:02:17.166000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "63813c53-3e84-4a70-8b6c-c039d49d5d0c",
+                    "createdAt": "2026-08-22T22:01:50.412000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "875c8eb9-4430-4f29-b6f4-d2aa93e3d4d2",
+                    "createdAt": "2026-08-22T22:01:50.411000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) (deployment ecs-svc/0437178661183033210) deployment completed."
+                },
+                {
+                    "id": "7b424b9b-41e2-45d9-bb1b-900283c53edb",
+                    "createdAt": "2026-08-22T22:00:48.662000-05:00",
+                    "message": "(service intellichoice-staging-chat-api, taskSet ecs-svc/1181255470699010140) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "9d0a3415-0eda-4cce-87ff-0b739add01c6",
+                    "createdAt": "2026-08-22T22:00:48.656000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "21a93597-0839-47f2-8ebb-a556bd632e9c",
+                    "createdAt": "2026-08-22T22:00:38.754000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has stopped 1 running tasks: (task 9e1bd69304084a708f74997ad8fcc99b)."
+                },
+                {
+                    "id": "d3b59010-b434-4da0-bb86-11faba9e5256",
+                    "createdAt": "2026-08-22T21:59:49.083000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "5f54b2a1-a816-44ca-89bd-b999f6029f20",
+                    "createdAt": "2026-08-22T21:59:18.024000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has started 1 tasks: (task 8b876d99ce884641838ca9f32f0d7cb3)."
+                },
+                {
+                    "id": "3f9b4236-8cac-4663-9b33-5a9ba39afbad",
+                    "createdAt": "2026-08-22T16:28:28.217000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "02c4bc7f-587d-480e-8bd9-47c77e9c1875",
+                    "createdAt": "2026-08-22T10:28:14.524000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "13d036da-29f1-4991-9ca9-593341850c0d",
+                    "createdAt": "2026-08-22T04:27:48.815000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "7dfe37f8-296f-4710-9de0-641e85c9a2c6",
+                    "createdAt": "2026-08-21T22:27:33.009000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "a5a7b697-46f4-45b7-ba21-0c12edecddf7",
+                    "createdAt": "2026-08-21T16:27:22.806000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "e46b7da7-6fa7-4feb-bd6a-d37b371fd2bd",
+                    "createdAt": "2026-08-21T10:26:52.785000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "9308f4b8-2401-492d-8245-9b909be58c49",
+                    "createdAt": "2026-08-21T04:26:24.373000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "609b2dcc-2911-42e8-9192-170802ad3460",
+                    "createdAt": "2026-08-20T22:25:59.045000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "b9ca4acf-08f0-4035-ac8e-7c9374e3d1d3",
+                    "createdAt": "2026-08-20T16:25:36.662000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "a6a54c32-f327-4741-904d-70194fde8354",
+                    "createdAt": "2026-08-20T10:25:00.545000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "5455d119-1d40-4a82-8865-e8627c1a0bc4",
+                    "createdAt": "2026-08-20T04:24:42.608000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "5728b2a0-cbf1-4d98-acae-b911952744be",
+                    "createdAt": "2026-08-19T22:24:02.826000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "42791f48-09db-4b42-b3e6-03370e706e5b",
+                    "createdAt": "2026-08-19T22:24:02.825000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) (deployment ecs-svc/1181255470699010140) deployment completed."
+                },
+                {
+                    "id": "073b7b2b-d86b-4166-8bb9-0f41ea7cf6f6",
+                    "createdAt": "2026-08-19T22:23:01.772000-05:00",
+                    "message": "(service intellichoice-staging-chat-api, taskSet ecs-svc/3275098725434076870) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "2ea41c75-9598-417c-9731-4e92be39ebb9",
+                    "createdAt": "2026-08-19T22:23:01.766000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "be9411e3-51fc-4741-af98-6beaad9e221e",
+                    "createdAt": "2026-08-19T22:23:00.571000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has stopped 1 running tasks: (task e6732a7224214098a8eef584dd052403)."
+                },
+                {
+                    "id": "bba18f2a-cf8b-46be-9ad4-fdc7c98cf4ff",
+                    "createdAt": "2026-08-19T22:22:11.162000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "9685ead8-6005-40cf-b624-e01bd33869b1",
+                    "createdAt": "2026-08-19T22:21:40.871000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has started 1 tasks: (task 9e1bd69304084a708f74997ad8fcc99b)."
+                },
+                {
+                    "id": "d0685661-e55f-47b2-b7e0-140efecfef82",
+                    "createdAt": "2026-08-19T17:34:32.203000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "3153f417-2d70-4aa6-873a-baaba3e9d170",
+                    "createdAt": "2026-08-19T11:34:00.098000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "c2dd67ee-21aa-45f5-aa75-f6c10a6879b0",
+                    "createdAt": "2026-08-19T05:33:33.499000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "3cbfeaae-6338-4fc8-aa0b-f624146c434e",
+                    "createdAt": "2026-08-18T23:33:00.524000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "8afdee70-c5fe-4377-bda7-b95957436ca3",
+                    "createdAt": "2026-08-18T17:32:55.601000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                },
+                {
+                    "id": "edb3c431-1789-49e3-857a-a31aac851a6d",
+                    "createdAt": "2026-08-18T17:32:55.528000-05:00",
+                    "message": "(service intellichoice-staging-chat-api, taskSet ecs-svc/3275098725434076870) has begun draining connections on 1 tasks."
+                },
+                {
+                    "id": "08801a4f-3a91-4c38-b9e2-bff125ea4812",
+                    "createdAt": "2026-08-18T17:32:55.522000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:us-east-1:320503430250:targetgroup/chat-api-tg/5b5db80da81e3fca)"
+                },
+                {
+                    "id": "6398e975-f5c7-4d8d-9ef0-3a7908825a8d",
+                    "createdAt": "2026-08-18T17:32:46.206000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has stopped 1 running tasks: (task e9450d1dac114dcea39c9f4f6fb6ab08)."
+                },
+                {
+                    "id": "ab9a5bf2-382f-49ec-9a60-edb48c62479f",
+                    "createdAt": "2026-08-18T17:26:59.907000-05:00",
+                    "message": "(service intellichoice-staging-chat-api) has reached a steady state."
+                }
+            ],
+            "createdAt": "2026-07-22T21:38:42.357000-05:00",
+            "currentServiceRevisions": [
+                {
+                    "arn": "arn:aws:ecs:us-east-1:320503430250:service-revision/intellichoice-staging/intellichoice-staging-chat-api/5035362930052952572",
+                    "requestedTaskCount": 1,
+                    "runningTaskCount": 1,
+                    "pendingTaskCount": 0
+                }
+            ],
+            "placementConstraints": [],
+            "placementStrategy": [],
+            "networkConfiguration": {
+                "awsvpcConfiguration": {
+                    "subnets": [
+                        "subnet-021ec8b4b06e6d2a1",
+                        "subnet-0fab49a3bf8fc3a8f"
+                    ],
+                    "securityGroups": [
+                        "sg-0c3191c6140f84a57"
+                    ],
+                    "assignPublicIp": "DISABLED"
+                }
+            },
+            "healthCheckGracePeriodSeconds": 60,
+            "schedulingStrategy": "REPLICA",
+            "deploymentController": {
+                "type": "ECS"
+            },
+            "createdBy": "arn:aws:iam::320503430250:user/jeongsik-staging-admin",
+            "enableECSManagedTags": false,
+            "propagateTags": "NONE",
+            "enableExecuteCommand": false,
+            "availabilityZoneRebalancing": "DISABLED",
+            "resourceManagementType": "CUSTOMER"
+        }
+    ],
+    "failures": []
+}
