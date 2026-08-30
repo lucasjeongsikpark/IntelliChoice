@@ -1,0 +1,917 @@
+{
+  "record": "bank_scan",
+  "generated_at": "2026-08-30T04:52:18.053283+00:00",
+  "git_sha": "7d0fe03e29dc00bb998cdc968aec2d6bc3e26b87",
+  "items_scanned": 958,
+  "hint_coherence_failures": [],
+  "items_with_no_hint_numeral": 127,
+  "identity_groups": [
+    {
+      "topic_id": "algebra_2",
+      "numbers": [
+        "0",
+        "2",
+        "2",
+        "2",
+        "2",
+        "3",
+        "5",
+        "6"
+      ],
+      "operators": [
+        "*",
+        "+",
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-algebra_2-d4-1510400",
+        "authored-algebra_2-d5-1510501"
+      ]
+    },
+    {
+      "topic_id": "algebra_2",
+      "numbers": [
+        "1",
+        "1",
+        "3",
+        "3",
+        "4",
+        "5"
+      ],
+      "operators": [
+        "*",
+        "-",
+        "/"
+      ],
+      "question_template_ids": [
+        "authored-algebra_2-d4-102401",
+        "authored-algebra_2-d5-102500",
+        "authored-algebra_2-d5-1511500"
+      ]
+    },
+    {
+      "topic_id": "algebra_2",
+      "numbers": [
+        "147"
+      ],
+      "operators": [],
+      "question_template_ids": [
+        "authored-algebra_2-d2-1606202",
+        "authored-algebra_2-d2-1614341"
+      ]
+    },
+    {
+      "topic_id": "algebra_2",
+      "numbers": [
+        "2",
+        "2",
+        "3",
+        "5",
+        "6"
+      ],
+      "operators": [
+        "*",
+        "+",
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-algebra_2-d4-1507400",
+        "authored-algebra_2-d4-98401"
+      ]
+    },
+    {
+      "topic_id": "algebra_2",
+      "numbers": [
+        "3",
+        "4"
+      ],
+      "operators": [
+        "*"
+      ],
+      "question_template_ids": [
+        "authored-algebra_2-d2-1265201",
+        "authored-algebra_2-d2-1265202",
+        "authored-algebra_2-d2-1485200",
+        "authored-algebra_2-d3-1485300"
+      ]
+    },
+    {
+      "topic_id": "algebra_2",
+      "numbers": [
+        "3",
+        "5"
+      ],
+      "operators": [
+        "*"
+      ],
+      "question_template_ids": [
+        "authored-algebra_2-d3-1265300",
+        "authored-algebra_2-d3-1485301"
+      ]
+    },
+    {
+      "topic_id": "algebra_2",
+      "numbers": [
+        "72"
+      ],
+      "operators": [],
+      "question_template_ids": [
+        "authored-algebra_2-d1-1606100",
+        "authored-algebra_2-d1-1614243",
+        "authored-algebra_2-d1-1806101",
+        "authored-algebra_2-d1-1906100"
+      ]
+    },
+    {
+      "topic_id": "algebra_2",
+      "numbers": [
+        "98"
+      ],
+      "operators": [],
+      "question_template_ids": [
+        "authored-algebra_2-d1-1614240",
+        "authored-algebra_2-d1-1906101"
+      ]
+    },
+    {
+      "topic_id": "algebra_foundations",
+      "numbers": [
+        "2",
+        "3",
+        "5",
+        "6"
+      ],
+      "operators": [
+        "*",
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-algebra_foundations-d1-1188102",
+        "authored-algebra_foundations-d2-1188202"
+      ]
+    },
+    {
+      "topic_id": "calculus",
+      "numbers": [
+        "2",
+        "2",
+        "3",
+        "5",
+        "5"
+      ],
+      "operators": [
+        "*",
+        "+",
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-calculus-d1-1468101",
+        "authored-calculus-d1-98101"
+      ]
+    },
+    {
+      "topic_id": "calculus",
+      "numbers": [
+        "2",
+        "3",
+        "4",
+        "4",
+        "5"
+      ],
+      "operators": [
+        "*",
+        "+",
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-calculus-d1-1308100",
+        "authored-calculus-d1-98100"
+      ]
+    },
+    {
+      "topic_id": "coordinate_geometry",
+      "numbers": [
+        "0",
+        "5"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "figure-coordinate_geometry-d3-730104",
+        "figure-coordinate_geometry-d4-730108"
+      ]
+    },
+    {
+      "topic_id": "decimals",
+      "numbers": [
+        "2.5",
+        "3.4"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-decimals-d1-96100",
+        "authored-decimals-d1-995100"
+      ]
+    },
+    {
+      "topic_id": "fraction_operations",
+      "numbers": [
+        "1",
+        "1",
+        "2",
+        "6"
+      ],
+      "operators": [
+        "+",
+        "/"
+      ],
+      "question_template_ids": [
+        "authored-fraction_operations-d2-100206",
+        "authored-fraction_operations-d3-100301"
+      ]
+    },
+    {
+      "topic_id": "g1_addition",
+      "numbers": [
+        "2",
+        "7"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g1_addition-d2-5200",
+        "authored-g1_addition-d2-97201"
+      ]
+    },
+    {
+      "topic_id": "g1_addition",
+      "numbers": [
+        "4",
+        "5"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g1_addition-d1-5100",
+        "authored-g1_addition-d1-5101",
+        "authored-g1_addition-d2-5201"
+      ]
+    },
+    {
+      "topic_id": "g1_addition",
+      "numbers": [
+        "6",
+        "7"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g1_addition-d2-6200",
+        "authored-g1_addition-d2-6201",
+        "authored-g1_addition-d2-98201"
+      ]
+    },
+    {
+      "topic_id": "g1_addition",
+      "numbers": [
+        "6",
+        "9"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g1_addition-d3-6300",
+        "authored-g1_addition-d3-6301"
+      ]
+    },
+    {
+      "topic_id": "g1_addition",
+      "numbers": [
+        "8",
+        "9"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g1_addition-d4-98401",
+        "authored-g1_addition-d4-99400"
+      ]
+    },
+    {
+      "topic_id": "g1_addition",
+      "numbers": [
+        "9",
+        "9"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g1_addition-d4-6400",
+        "authored-g1_addition-d4-6401",
+        "authored-g1_addition-d4-7400",
+        "authored-g1_addition-d4-7401",
+        "authored-g1_addition-d4-98400"
+      ]
+    },
+    {
+      "topic_id": "g1_subtraction",
+      "numbers": [
+        "13",
+        "5"
+      ],
+      "operators": [
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-g1_subtraction-d3-97301",
+        "authored-g1_subtraction-d4-7400"
+      ]
+    },
+    {
+      "topic_id": "g1_subtraction",
+      "numbers": [
+        "13",
+        "7"
+      ],
+      "operators": [
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-g1_subtraction-d3-7300",
+        "authored-g1_subtraction-d4-7401"
+      ]
+    },
+    {
+      "topic_id": "g1_subtraction",
+      "numbers": [
+        "15",
+        "4",
+        "6"
+      ],
+      "operators": [
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-g1_subtraction-d5-5501",
+        "authored-g1_subtraction-d5-95500"
+      ]
+    },
+    {
+      "topic_id": "g1_subtraction",
+      "numbers": [
+        "7",
+        "9"
+      ],
+      "operators": [
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-g1_subtraction-d2-6200",
+        "authored-g1_subtraction-d2-6201",
+        "authored-g1_subtraction-d2-96201"
+      ]
+    },
+    {
+      "topic_id": "g1_word_problems",
+      "numbers": [
+        "15",
+        "8"
+      ],
+      "operators": [
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-g1_word_problems-d3-96300",
+        "authored-g1_word_problems-d4-5400"
+      ]
+    },
+    {
+      "topic_id": "g1_word_problems",
+      "numbers": [
+        "15",
+        "9"
+      ],
+      "operators": [
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-g1_word_problems-d3-5300",
+        "authored-g1_word_problems-d3-5301"
+      ]
+    },
+    {
+      "topic_id": "g1_word_problems",
+      "numbers": [
+        "2",
+        "5"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g1_word_problems-d1-36101",
+        "authored-g1_word_problems-d1-97101"
+      ]
+    },
+    {
+      "topic_id": "g1_word_problems",
+      "numbers": [
+        "3",
+        "4"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g1_word_problems-d1-36100",
+        "authored-g1_word_problems-d1-36102",
+        "authored-g1_word_problems-d1-97100"
+      ]
+    },
+    {
+      "topic_id": "g2_addition",
+      "numbers": [
+        "1378",
+        "2456"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g2_addition-d4-5400",
+        "authored-g2_addition-d4-5401"
+      ]
+    },
+    {
+      "topic_id": "g2_addition",
+      "numbers": [
+        "30",
+        "40"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g2_addition-d1-37100",
+        "authored-g2_addition-d1-7101",
+        "authored-g2_addition-d1-99100"
+      ]
+    },
+    {
+      "topic_id": "g2_subtraction",
+      "numbers": [
+        "24",
+        "68"
+      ],
+      "operators": [
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-g2_subtraction-d2-7201",
+        "authored-g2_subtraction-d2-97200"
+      ]
+    },
+    {
+      "topic_id": "g2_word_problems",
+      "numbers": [
+        "24",
+        "35"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g2_word_problems-d1-7100",
+        "authored-g2_word_problems-d2-7200"
+      ]
+    },
+    {
+      "topic_id": "g2_word_problems",
+      "numbers": [
+        "28",
+        "35"
+      ],
+      "operators": [
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g2_word_problems-d1-1507101",
+        "authored-g2_word_problems-d3-5301"
+      ]
+    },
+    {
+      "topic_id": "g68_word_problems",
+      "numbers": [
+        "12",
+        "3",
+        "48"
+      ],
+      "operators": [
+        "/"
+      ],
+      "question_template_ids": [
+        "authored-g68_word_problems-d2-1227200",
+        "authored-g68_word_problems-d4-97400"
+      ]
+    },
+    {
+      "topic_id": "g68_word_problems",
+      "numbers": [
+        "15",
+        "8",
+        "95"
+      ],
+      "operators": [
+        "*",
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-g68_word_problems-d4-36400",
+        "authored-g68_word_problems-d4-96400"
+      ]
+    },
+    {
+      "topic_id": "g6_fractions",
+      "numbers": [
+        "3",
+        "4",
+        "8",
+        "9"
+      ],
+      "operators": [
+        "/"
+      ],
+      "question_template_ids": [
+        "authored-g6_fractions-d4-1106401",
+        "authored-g6_fractions-d4-1106402",
+        "authored-g6_fractions-d4-1506401"
+      ]
+    },
+    {
+      "topic_id": "g6_geometry_measurement",
+      "numbers": [
+        "10",
+        "2",
+        "3.14"
+      ],
+      "operators": [
+        "*"
+      ],
+      "question_template_ids": [
+        "authored-g6_geometry_measurement-d3-1145300",
+        "authored-g6_geometry_measurement-d3-97301"
+      ]
+    },
+    {
+      "topic_id": "g6_geometry_measurement",
+      "numbers": [
+        "2",
+        "25",
+        "3.14"
+      ],
+      "operators": [
+        "*"
+      ],
+      "question_template_ids": [
+        "authored-g6_geometry_measurement-d3-1145302",
+        "authored-g6_geometry_measurement-d3-97300"
+      ]
+    },
+    {
+      "topic_id": "g6_geometry_measurement",
+      "numbers": [
+        "30",
+        "45"
+      ],
+      "operators": [],
+      "question_template_ids": [
+        "authored-g6_geometry_measurement-d1-98101",
+        "authored-g6_geometry_measurement-d2-1146200"
+      ]
+    },
+    {
+      "topic_id": "g6_word_problems",
+      "numbers": [
+        "3",
+        "36",
+        "45",
+        "54"
+      ],
+      "operators": [
+        "+",
+        "/"
+      ],
+      "question_template_ids": [
+        "authored-g6_word_problems-d1-1125102",
+        "authored-g6_word_problems-d1-95101"
+      ]
+    },
+    {
+      "topic_id": "g6_word_problems",
+      "numbers": [
+        "3",
+        "78",
+        "84",
+        "90"
+      ],
+      "operators": [
+        "+",
+        "/"
+      ],
+      "question_template_ids": [
+        "authored-g6_word_problems-d1-1125100",
+        "authored-g6_word_problems-d1-95100"
+      ]
+    },
+    {
+      "topic_id": "geometry_measures",
+      "numbers": [
+        "12",
+        "2",
+        "2",
+        "9"
+      ],
+      "operators": [
+        "*",
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-geometry_measures-d4-1206400",
+        "authored-geometry_measures-d4-97401"
+      ]
+    },
+    {
+      "topic_id": "geometry_measures",
+      "numbers": [
+        "2",
+        "2",
+        "2",
+        "4",
+        "4",
+        "6",
+        "6",
+        "9",
+        "9"
+      ],
+      "operators": [
+        "*",
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-geometry_measures-d5-1208500",
+        "authored-geometry_measures-d5-99500"
+      ]
+    },
+    {
+      "topic_id": "geometry_measures",
+      "numbers": [
+        "4",
+        "5",
+        "6"
+      ],
+      "operators": [
+        "*"
+      ],
+      "question_template_ids": [
+        "authored-geometry_measures-d3-100300",
+        "authored-geometry_measures-d3-1209300"
+      ]
+    },
+    {
+      "topic_id": "linear_equations",
+      "numbers": [
+        "11",
+        "2",
+        "3",
+        "5"
+      ],
+      "operators": [
+        "*",
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-linear_equations-d3-1205300",
+        "authored-linear_equations-d4-9400001"
+      ]
+    },
+    {
+      "topic_id": "linear_equations",
+      "numbers": [
+        "12",
+        "4",
+        "60"
+      ],
+      "operators": [
+        "*",
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-linear_equations-d2-2607201",
+        "authored-linear_equations-d2-8457200",
+        "authored-linear_equations-d3-249301",
+        "authored-linear_equations-d3-8439300"
+      ]
+    },
+    {
+      "topic_id": "linear_equations",
+      "numbers": [
+        "12",
+        "5",
+        "52"
+      ],
+      "operators": [
+        "*",
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-linear_equations-d1-249100",
+        "authored-linear_equations-d1-8439100"
+      ]
+    },
+    {
+      "topic_id": "linear_equations",
+      "numbers": [
+        "20",
+        "5",
+        "60"
+      ],
+      "operators": [
+        "*",
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-linear_equations-d2-2607200",
+        "authored-linear_equations-d2-8467200"
+      ]
+    },
+    {
+      "topic_id": "linear_equations",
+      "numbers": [
+        "26",
+        "3",
+        "5"
+      ],
+      "operators": [
+        "*",
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-linear_equations-d1-2509100",
+        "authored-linear_equations-d2-8459200"
+      ]
+    },
+    {
+      "topic_id": "measurement",
+      "numbers": [
+        "100",
+        "25",
+        "4"
+      ],
+      "operators": [
+        "*",
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-measurement-d1-100100",
+        "authored-measurement-d1-958101"
+      ]
+    },
+    {
+      "topic_id": "measurement",
+      "numbers": [
+        "1000",
+        "275",
+        "4"
+      ],
+      "operators": [
+        "*",
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-measurement-d2-956202",
+        "authored-measurement-d2-960202"
+      ]
+    },
+    {
+      "topic_id": "measurement",
+      "numbers": [
+        "1000",
+        "3",
+        "450"
+      ],
+      "operators": [
+        "*",
+        "+"
+      ],
+      "question_template_ids": [
+        "authored-measurement-d2-956201",
+        "authored-measurement-d2-960200"
+      ]
+    },
+    {
+      "topic_id": "pre_algebra",
+      "numbers": [
+        "2",
+        "2",
+        "3",
+        "5",
+        "6"
+      ],
+      "operators": [
+        "*",
+        "+",
+        "-"
+      ],
+      "question_template_ids": [
+        "authored-pre_algebra-d3-1169300",
+        "authored-pre_algebra-d4-1169400"
+      ]
+    },
+    {
+      "topic_id": "pre_algebra",
+      "numbers": [
+        "60",
+        "90"
+      ],
+      "operators": [],
+      "question_template_ids": [
+        "authored-pre_algebra-d1-1167101",
+        "authored-pre_algebra-d1-98101"
+      ]
+    },
+    {
+      "topic_id": "statistics_advanced",
+      "numbers": [
+        "1",
+        "1",
+        "2",
+        "3"
+      ],
+      "operators": [
+        "*"
+      ],
+      "question_template_ids": [
+        "authored-statistics_advanced-d3-100300",
+        "authored-statistics_advanced-d4-1328401"
+      ]
+    },
+    {
+      "topic_id": "statistics_advanced",
+      "numbers": [
+        "12",
+        "5"
+      ],
+      "operators": [],
+      "question_template_ids": [
+        "authored-statistics_advanced-d2-1328200",
+        "authored-statistics_advanced-d2-1508200"
+      ]
+    },
+    {
+      "topic_id": "trigonometry",
+      "numbers": [
+        "24",
+        "3"
+      ],
+      "operators": [
+        "*",
+        "/"
+      ],
+      "question_template_ids": [
+        "authored-trigonometry-d3-1286300",
+        "authored-trigonometry-d3-95300"
+      ]
+    },
+    {
+      "topic_id": "trigonometry",
+      "numbers": [
+        "3",
+        "3",
+        "6",
+        "6"
+      ],
+      "operators": [
+        "*",
+        "+",
+        "/"
+      ],
+      "question_template_ids": [
+        "authored-trigonometry-d4-1505401",
+        "authored-trigonometry-d4-1605401",
+        "authored-trigonometry-d4-1705400"
+      ]
+    }
+  ],
+  "identity_group_count": 58,
+  "items_in_an_identity_group": 133,
+  "items_with_no_parseable_equation": 18
+}

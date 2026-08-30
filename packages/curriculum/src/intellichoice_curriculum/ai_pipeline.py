@@ -69,6 +69,7 @@ from intellichoice_curriculum.authored_validation import (
     _is_whole_number,
     _option_matches,
     answer_leaked_beyond_the_question,
+    arithmetic_identity,
     derive_answer,
     leak_phrase_present,
     route_answer,
@@ -1905,24 +1906,62 @@ async def _attempt_authored_candidate(
             "dedup",
         )
 
-    # --- 2b. Same calculation, different story (D-273) ----------------------------
+    # --- 2b. Same calculation, different story (D-273) - WIRED ---------------------
     #
-    # **The cause is fixed upstream; this backstop is not wired, and that ordering is the
-    # point.** The first wave produced 27 of 55 items sharing a number set, and every
-    # duplicate group was a *same-slot pair* - seeds 6200/6201 both `6 + 7`, 6400/6401 both
-    # `9 + 9`. `candidates_per_slot` is 2 and both candidates were receiving an identical
-    # design payload, so the model had no reason to choose different numbers and did not.
-    # `avoid_equations` now tells each candidate what its slot-mate used, which removes the
-    # reason rather than rejecting the result after paying for it.
+    # **The cause was fixed upstream first; this is the backstop, and it is now wired.** The
+    # first wave produced 27 of 55 items sharing a number set, and every duplicate group was
+    # a *same-slot pair* - seeds 6200/6201 both `6 + 7`, 6400/6401 both `9 + 9`.
+    # `candidates_per_slot` is 2 and both candidates were receiving an identical design
+    # payload, so the model had no reason to choose different numbers and did not.
+    # `avoid_equations` tells each candidate what its slot-mate used, which removes the
+    # reason rather than rejecting the result after paying for it. What it cannot remove is
+    # a repeat **across slots or across runs**, which is what this catches.
     #
-    # `arithmetic_identity` exists and is tested both ways, as the backstop for what that
-    # misses: a repeat across slots, or across runs. Wiring it still fails four pipeline
-    # tests, and the remaining reason is narrow - they call `generate_authored_candidate`
-    # directly rather than through `run_plan`, so no `avoid_equations` reaches them and two
-    # calls at one difficulty legitimately design the same equation. Those fixtures need a
-    # slot context before the backstop can be judged, which is a test-harness change, not a
-    # gate change, and it is not worth rushing on top of a fix that already removes the
-    # cause.
+    # **The measurement that wired it (E5.2).** Over 102 labeled defects and 102 clean
+    # controls, `arithmetic_identity` caught **17/17** near-duplicates at every cosmetic
+    # severity, where the paid embedding check managed 8/17 - 6/6 on typography-only edits,
+    # 2/6 once the protagonist is renamed, and **0/5** once the protagonist and the story
+    # object are both renamed, which is the shape D-273 actually measured in production
+    # output. It flagged 4 of the 102 clean controls, and all four were read by hand and are
+    # real: two genuine duplicate pairs already in the approved bank, `Eq(x, 9 + 9)` and
+    # `Eq(x, 30 + 40)`. Against its actual claim - "this arithmetic already exists in this
+    # topic" - it made 0 false positives in 102, for one regex over an equation string.
+    #
+    # Free, and placed with the other free predicates before the paid embedding call for
+    # that reason: a candidate that repeats a topic's arithmetic should not be embedded
+    # first. The comparison is in Python rather than SQL because `arithmetic_identity` is
+    # the predicate the E5.2 harness measured and a SQL re-implementation would be a second
+    # copy of it (D-223).
+    #
+    # **Scoped to the topic**, like the embedding check beneath it and unlike the exact-text
+    # check above. Two topics legitimately teach the same arithmetic - that is the
+    # curriculum spiral, and D-286's docstring records the same argument for the skeleton
+    # check - so a global identity check would reject correct content by design.
+    #
+    # Reported honestly: on the full 958-item approved bank this predicate finds 58
+    # same-topic identity groups covering 133 items. That is a *content* finding about
+    # already-approved material, not a regression, and it changes nothing at load time -
+    # the loader's re-gate runs `validate_authored_item` and no dedup stage at all, so this
+    # check is on the generation path only and cannot fail an existing bank item.
+    if candidate_identity := arithmetic_identity(item.equation or ""):
+        for existing_id, existing_equation in await repo.authored_equations_in_topic(topic_id):
+            if arithmetic_identity(existing_equation) != candidate_identity:
+                continue
+            stage_results["deduplication"] = {
+                "passed": False,
+                "reason": "same arithmetic identity in this topic",
+                "existing_question_template_id": existing_id,
+                "arithmetic_identity": [list(part) for part in candidate_identity],
+            }
+            return await _reject(
+                [
+                    f"the same calculation already exists in this topic ({existing_id}) - "
+                    f"same numbers, same operators, different story"
+                ],
+                stage_results,
+                "dedup",
+            )
+
     # --- 3. Near-duplicate check: embed the stem, cosine-compare against every ---
     # --- other authored template's stem in this topic -----------------------------
     try:

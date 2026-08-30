@@ -161,6 +161,50 @@ def _good_item(**overrides: object) -> AuthoredGeneratedItemResponse:
     return AuthoredGeneratedItemResponse(**base)  # type: ignore[arg-type]
 
 
+def _good_item_summing(
+    first: int, second: int, **overrides: object
+) -> AuthoredGeneratedItemResponse:
+    """`_good_item` with its arithmetic varied, for a test that persists **two** candidates
+    in one topic.
+
+    D-273's arithmetic-identity backstop is wired into the dedup stage (`ai_pipeline` §2b),
+    so two candidates that both compute `2 + 2` in `linear_equations` are now a duplicate
+    however differently their stems are worded - that is the whole point of the check, and
+    it is what E5.2 measured at 17/17 where the embedding check managed 8/17. Production
+    varies the arithmetic through `avoid_equations`, which a test calling
+    `generate_authored_candidate` directly never receives, so the variation is supplied
+    here instead. Equation, correct option, distractors and the worked solution move
+    together, because the gate above the dedup stage checks that they agree.
+    """
+    total = first + second
+    base: dict[str, object] = dict(
+        stem=f"Solve: what is {first} + {second}?",
+        option_a=str(total),
+        option_b=str(total + 1),
+        option_c=str(total + 2),
+        option_d=str(total - 1),
+        correct_option="a",
+        equation=f"Eq(x, {first} + {second})",
+        hint_ladder=[
+            "Think about combining two small groups of objects.",
+            f"Try counting up from {first} by {second} more.",
+            "Add the two numbers together directly.",
+        ],
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Add the numbers.",
+                    expression=f"{first} + {second}",
+                )
+            ],
+            final_answer=str(total),
+        ),
+    )
+    base.update(overrides)
+    return _good_item(**base)
+
+
 class _ScriptedAuthoredGateway:
     """Per-stage-overridable test gateway for the authored pipeline. Defaults produce a
     valid, passing candidate whose solvers agree with the generator's own declared
@@ -193,6 +237,7 @@ class _ScriptedAuthoredGateway:
         self._judge = judge
         self._judge_factory = judge_factory
         self._embedding_vector = embedding_vector
+        self.embedding_calls = 0
         self._last_item: AuthoredGeneratedItemResponse | None = None
         # response_model name -> the ceiling that stage was called with. Recorded rather
         # than asserted here so one test can state the whole per-stage sizing (see
@@ -317,6 +362,10 @@ class _ScriptedAuthoredGateway:
     async def create_embedding(
         self, *, texts: list[str], session_spend_cents: float
     ) -> EmbeddingResult:
+        # Counted, so a test can assert that a free predicate rejected a candidate *before*
+        # the paid one ran - "placed before the embedding call" is otherwise an ordering
+        # claim nothing checks (D-273's backstop, ai_pipeline section 2b).
+        self.embedding_calls += 1
         vectors = [self._embedding_vector or _hash_vector(t) for t in texts]
         self.charged_cents += 0.001
         return EmbeddingResult(
@@ -734,6 +783,81 @@ def test_the_judge_and_solver_decide_after_they_reason_not_before() -> None:
     assert "is_unambiguous" in solver_fields
 
 
+def test_same_arithmetic_different_story_is_rejected_at_dedup() -> None:
+    """D-273's backstop, wired (`ai_pipeline` §2b) and measured (E5.2 §7.4).
+
+    The defect: "Liam has 9 apples and gets 9 more" and "Maria has 9 stickers and gets 9
+    more" are two different stems by exact text and by embedding distance, and one question
+    by any measure that matters. The first wave produced 27 of 55 items sharing a number set
+    and every one passed dedup, because dedup asked about the story twice and about the
+    mathematics never.
+
+    Asserted at the *stage*, not at the predicate - `test_arithmetic_dedup.py` covers the
+    predicate both ways, and the thing that was missing for four waves was the wiring. The
+    rejection must name the existing template, be attributed to `dedup`, and arrive **before
+    the embedding call**, which is what makes it free.
+    """
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            first_gateway = _ScriptedAuthoredGateway(
+                item=_good_item_summing(6, 7, stem="Solve: Liam picks 6 then 7 apples. How many?")
+            )
+            first = await generate_authored_candidate(
+                session=session,
+                gateway=first_gateway,
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=1,
+                seed=1007,
+                session_spend_cents=0.0,
+            )
+            assert first.status == "pending", first.reasons
+
+            # Same calculation, told as a different story with the operands swapped - which
+            # is the form `arithmetic_identity` collapses and neither text nor embedding does.
+            second_gateway = _ScriptedAuthoredGateway(
+                item=_good_item_summing(
+                    7, 6, stem="Solve: Maria saves 7 coins then 6 coins. How many?"
+                )
+            )
+            second = await generate_authored_candidate(
+                session=session,
+                gateway=second_gateway,
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=1,
+                seed=1008,
+                session_spend_cents=0.0,
+            )
+            assert second.status == "rejected"
+            assert second.rejected_at == "dedup"
+            assert any("the same calculation already exists" in r for r in second.reasons)
+            first_id = first.question_template_id
+            assert first_id is not None
+            assert any(first_id in r for r in second.reasons)
+
+            # Free: the check sits above the embedding call, so the rejected candidate is
+            # never embedded. Its whole cost is the design + generator calls it had already
+            # made, which is why the backstop is placed where it is.
+            assert second_gateway.embedding_calls == 0
+
+            result = await session.execute(
+                select(QuestionValidationRun).where(QuestionValidationRun.outcome == "rejected")
+            )
+            evidence = [
+                run.stage_results
+                for run in result.scalars().all()
+                if run.stage_results.get("deduplication", {}).get("reason")
+                == "same arithmetic identity in this topic"
+            ]
+            assert evidence, "the rejection must persist the reading that produced it"
+            assert evidence[0]["deduplication"]["existing_question_template_id"] == first_id
+
+    asyncio.run(run())
+
+
 def test_near_duplicate_rejected_with_persisted_reasons() -> None:
     async def run() -> None:
         curriculum = load_curriculum()
@@ -756,7 +880,9 @@ def test_near_duplicate_rejected_with_persisted_reasons() -> None:
             second = await generate_authored_candidate(
                 session=session,
                 gateway=_ScriptedAuthoredGateway(
-                    item=_good_item(stem="Solve: compute 2 + 2, phrased differently."),
+                    item=_good_item_summing(
+                        3, 5, stem="Solve: compute 3 + 5, phrased differently."
+                    ),
                     embedding_vector=fixed_vector,
                 ),
                 curriculum=curriculum,
@@ -912,7 +1038,7 @@ def test_review_cli_approve_reject_and_rerun() -> None:
             reject_outcome = await generate_authored_candidate(
                 session=session,
                 gateway=_ScriptedAuthoredGateway(
-                    item=_good_item(stem="Solve: reject fixture, what is 2 + 2?")
+                    item=_good_item_summing(3, 5, stem="Solve: reject fixture, what is 3 + 5?")
                 ),
                 curriculum=curriculum,
                 topic_id="linear_equations",
@@ -957,7 +1083,9 @@ def test_review_cli_edit_and_rerun_supersedes_and_bumps_version() -> None:
             assert original_id is not None
 
             gateway = _ScriptedAuthoredGateway(
-                item=_good_item(stem="Solve: rerun-replacement fixture, what is 2 + 2?")
+                item=_good_item_summing(
+                    3, 5, stem="Solve: rerun-replacement fixture, what is 3 + 5?"
+                )
             )
             message = await review_cli.edit_and_rerun(session, gateway, original_id)
             assert "superseded" in message
@@ -1715,7 +1843,7 @@ def test_per_candidate_settlement_survives_a_duplicate_id() -> None:
             summary = await pipeline_cli.run_plan(
                 session,
                 _ScriptedAuthoredGateway(
-                    item=_good_item(stem="Solve: collision rerun, what is 2 + 2?")
+                    item=_good_item_summing(3, 5, stem="Solve: collision rerun, what is 3 + 5?")
                 ),
                 plan,
             )
@@ -1801,7 +1929,7 @@ def test_a_flush_time_duplicate_id_keeps_its_paid_spend_in_the_run_total() -> No
             )
 
             gateway = _ScriptedAuthoredGateway(
-                item=_good_item(stem="Solve: flush collision rerun, what is 3 + 3?")
+                item=_good_item_summing(3, 5, stem="Solve: flush collision rerun, what is 3 + 5?")
             )
             summary = await pipeline_cli.run_plan(session, gateway, plan)  # type: ignore[arg-type]
 
@@ -1845,7 +1973,7 @@ def test_a_flush_time_duplicates_spend_still_stops_the_run_at_its_budget(
             budget = replace(plan, run_budget_cents=slot_cost / 2)
 
             gateway = _ScriptedAuthoredGateway(
-                item=_good_item(stem="Solve: budget collision rerun, what is 7 + 7?")
+                item=_good_item_summing(3, 5, stem="Solve: budget collision rerun, what is 3 + 5?")
             )
             summary = await pipeline_cli.run_plan(session, gateway, budget)  # type: ignore[arg-type]
 
@@ -3236,8 +3364,11 @@ def test_a_real_run_builds_its_own_dispersion_and_then_retiers_on_it() -> None:
     genuinely fed: **early slots do not move** (no evidence yet) and **later ones do**.
     """
     tiers = iter([1, 2, 3, 4, 5] * 8)
-    # Distinct stems, or the dedup stage eats the run before difficulty is ever reached -
-    # which is exactly what the first version of this test measured instead.
+    # Distinct stems *and* distinct arithmetic, or the dedup stage eats the run before
+    # difficulty is ever reached - which is exactly what the first version of this test
+    # measured instead. The arithmetic joined the stem when D-273's identity backstop was
+    # wired into the dedup stage: twelve candidates all computing `2 + 2` are now twelve
+    # copies of one question however differently each one is worded.
     stems = iter(range(100))
 
     def judge() -> QuestionJudgeResponse:
@@ -3262,10 +3393,14 @@ def test_a_real_run_builds_its_own_dispersion_and_then_retiers_on_it() -> None:
             summary = await pipeline_cli.run_plan(
                 session,
                 _ScriptedAuthoredGateway(
-                    item_factory=lambda payload: _good_item(
-                        stem=f"Solve: dispersion run fixture {next(stems)}, what is 2 + 2?",
-                        proposed_difficulty=payload.target_difficulty,
-                    ),
+                    item_factory=lambda payload: (
+                        lambda n: _good_item_summing(
+                            n + 2,
+                            n + 3,
+                            stem=f"Solve: dispersion run fixture {n}, what is a sum?",
+                            proposed_difficulty=payload.target_difficulty,
+                        )
+                    )(next(stems)),
                     judge_factory=judge,
                 ),
                 plan,
@@ -3575,19 +3710,28 @@ def test_review_priority_ranks_by_what_could_reach_a_student_not_by_any_flag() -
 
 def _lowest_terms_item() -> AuthoredGeneratedItemResponse:
     """A `g6_fraction_reduce` candidate of the shape that had never once passed: the reduced
-    answer beside two unreduced equivalents of it."""
+    answer beside two unreduced equivalents of it.
+
+    The fraction is `20/45` and not the `12/18` this fixture carried until D-273's identity
+    backstop was wired into the dedup stage: `Eq(x, Rational(12, 18))` is the arithmetic of
+    a **shipped** bank item (`authored-g6_fractions-d1-1615231`, "Maya has 12 marbles out of
+    18..."), so the fixture became a genuine duplicate of approved content and was rejected
+    at dedup before it could reach the answer-form check this test is about. `20/45` is
+    unused by `g6_fractions`; the shape under test - the reduced answer beside two unreduced
+    equivalents - is unchanged.
+    """
     return _good_item(
-        stem="Reduce the fraction 12/18 to its lowest terms.",
-        option_a="12/18",
-        option_b="6/9",
-        option_c="2/3",
-        option_d="5/6",
+        stem="Reduce the fraction 20/45 to its lowest terms.",
+        option_a="20/45",
+        option_b="8/18",
+        option_c="4/9",
+        option_d="5/9",
         correct_option="c",
-        equation="Eq(x, Rational(12, 18))",
+        equation="Eq(x, Rational(20, 45))",
         proposed_difficulty=1,
         hint_ladder=[
             "Look for a number that divides both the top and the bottom.",
-            "Both 12 and 18 can be divided by 6.",
+            "Both 20 and 45 can be divided by 5.",
             "Divide the top and the bottom by the same number.",
         ],
         canonical_solution=SolutionResponse(
@@ -3595,11 +3739,11 @@ def _lowest_terms_item() -> AuthoredGeneratedItemResponse:
                 SolutionStep(
                     step_number=1,
                     explanation="Divide the top and the bottom by their common factor.",
-                    expression="12/18 = 2/3",
+                    expression="20/45 = 4/9",
                     common_mistake=None,
                 )
             ],
-            final_answer="2/3",
+            final_answer="4/9",
         ),
     )
 

@@ -54,9 +54,9 @@ shuffle_options() ─ seeded, in code. Never left to the prompt (D-191: six item
      │
      ▼
 Deterministic §5.8.5 gate ─ SymPy solve, exactly-one-correct, leakage, hint monotonicity,
-     │                       wording, readability, HTML
+     │                       hint/stem coherence, wording, readability, HTML
      ▼
-Dedup ─ stem embedding, cosine distance
+Dedup ─ exact text, cross-topic stem skeleton, arithmetic identity, stem embedding cosine
      │
      ▼
 Solver A ─┐  both see only the stem and options; neither sees the answer
@@ -81,13 +81,29 @@ a file (D-190).
 *Added 2026-08-20 — W-06 `DOC-CONTENT-PIPELINE` member DRIFT-31. Verified read-only against
 `authored_validation.py` and `SPEC.md` §5.8.5 on that date; no code was changed.*
 
-`validate_authored_item` is the whole deterministic gate. It calls **thirteen** checks: two figure
+`validate_authored_item` is the whole deterministic gate. It calls **fourteen** checks: two figure
 checks (`check_figure_agrees_with_the_question`, `check_reading_matches_the_figure`, added with
-D-279) plus the eleven that predate them — schema/markdown safety, unique options, SymPy independent
-solve, exactly-one-correct, no answer leakage, hint-ladder monotonicity, hint/solution/answer
-agreement, difficulty-rubric compliance, age-appropriate wording, readable math notation, no meta
-commentary. A figure *reading* replaces the equation as the source of truth, so the two
-answer-derivation checks are exchanged for it rather than skipped.
+D-279), `check_hint_ladder_is_about_this_question` (added by R3a, below), plus the eleven that
+predate them — schema/markdown safety, unique options, SymPy independent solve,
+exactly-one-correct, no answer leakage, hint-ladder monotonicity, hint/solution/answer agreement,
+difficulty-rubric compliance, age-appropriate wording, readable math notation, no meta commentary.
+A figure *reading* replaces the equation as the source of truth, so the two answer-derivation
+checks are exchanged for it rather than skipped.
+
+**The fourteenth: hint/stem coherence (R3a, 2026-08-29).** E5.2 measured
+`mismatched_hint_ladder` — three rungs lifted wholesale from another item — at **0/17 on every
+detector in the pipeline**, 17 of its 28 total misses and the only defect class with no detector
+at all. `check_hint_ladder_is_about_this_question` fails an item whose hint ladder names numerals
+and shares **none** of them with the question, its equation, its options or its figure. Knobless
+by choice: a "most hint numerals are foreign" threshold scores better on recall (13/17 at 75%)
+but would sit 0.036 above the highest ratio any approved item reaches, and D-249 records what a
+tuned fuzziness does one layer down. Re-measured on the same frozen corpus: **12/17**, with **0**
+false positives on the 102 clean controls and **0** on all 958 approved bank items — the last
+being why it is in the shared gate rather than generation-only, since `loader.py` re-gates the
+bank on every load. It is silent on the 127 bank items whose ladders name no numeral at all, and
+it is a *floor* on coherence, not a measure of it: semantic hint quality remains
+`HINT_SOLUTION_REVIEW.md` §3's LLM instrument and is deliberately not in this gate
+(`HINT_SOLUTION_REVIEW.md` §1 records the two scorers that failed by grading quality).
 
 **Six of those checks are not in SPEC §5.8.5 at all** — the gate is stricter than the spec in those
 directions, which is fine and worth knowing.
@@ -99,7 +115,7 @@ the "declared and never used" register wording rather than as an absence nobody 
 |---|---|
 | No division by zero | **no check** |
 | Numeric values within allowed range | **no check on item content** — the only range enforcement is on *metadata* (the bounded 1–5 fields, §7) |
-| No duplicate question | **not in the gate.** Implemented one layer up as a stem-embedding cosine threshold whose own code comment calls it *a placeholder pending real-embedding calibration* |
+| No duplicate question | **not in the gate**, and unchanged by R3b — the dedup stage is one layer up, in `ai_pipeline`, and the loader's re-gate does not run it. What R3b changed is *what that stage checks*: since 2026-08-29 it is four predicates, not three — exact rendered text, D-286's cross-topic stem skeleton, **D-273's arithmetic identity (new)**, and the stem-embedding cosine threshold whose own code comment still calls it *a placeholder pending real-embedding calibration* |
 | Topic and skill alignment | **no deterministic check.** Alignment is one of the LLM judge's rubric dimensions |
 
 Two further checks are materially narrower than their bullets, and one describes itself as "a rough

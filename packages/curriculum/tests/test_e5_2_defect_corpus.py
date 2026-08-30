@@ -211,20 +211,30 @@ def test_mismatched_hint_ladder_grafts_numeral_disjoint_hints() -> None:
     assert detail["donor_numerals"], "a ladder with no numerals proves nothing"
 
 
-def test_mismatched_hint_ladder_is_a_defect_the_gate_cannot_see() -> None:
-    """Recorded as a test because it is a *finding*, not an accident of this fixture.
+def test_mismatched_hint_ladder_is_now_a_defect_the_gate_can_see() -> None:
+    """This test used to assert the opposite, and the change is the R3a result.
 
-    Nothing in the §5.8.5 suite relates a hint to its stem - `hint_ladder_monotonicity_
-    violations` is verbatim containment and says so - so a ladder from another item passes.
-    If this test ever fails because the gate grew such a check, the E5.2 report's
-    `mismatched_hint_ladder` row is stale and must be re-measured, not re-worded.
+    E5.2 measured `mismatched_hint_ladder` at **0/17 on every detector** - 17 of the
+    pipeline's 28 total misses and the only class with no detector at all - and recorded the
+    finding here as `test_mismatched_hint_ladder_is_a_defect_the_gate_cannot_see`, whose
+    docstring said: *"if this test ever fails because the gate grew such a check, the E5.2
+    report's `mismatched_hint_ladder` row is stale and must be re-measured, not re-worded."*
+
+    It did, so it was. `check_hint_ladder_is_about_this_question` (D-273's neighbour in
+    `authored_validation`) now fails a ladder whose numerals are wholly absent from the
+    question, and the class was re-measured against the same frozen 102+102 corpus at
+    **12/17** with **0** false positives on the 102 clean controls and **0** on the 958-item
+    approved bank. The before-number stays in `E5_2_REPORT.md`; the after-number is
+    `post_remediation/R3_POSTFIX_REPORT.md`.
     """
     source = item()
     donor = item(2, name="Maya", noun="stickers", first=7, second=6)
     mutated, _ = builder.mutate_mismatched_hint_ladder(
         source, corpus_id="c", seed=0, answer_form="any", donors=[donor]
     )
-    assert builder.gate(mutated, "any").passed
+    result = builder.gate(mutated, "any")
+    assert not result.passed
+    assert any("the ladder is not about this item" in f for f in result.failures)
 
 
 def test_contradictory_constraints_makes_the_stem_imply_a_different_answer() -> None:
