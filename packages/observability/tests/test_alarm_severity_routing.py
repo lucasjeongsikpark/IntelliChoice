@@ -38,6 +38,12 @@ _INFORMATIONAL = {
     # state. This test asserts the configuration, which is the right subject - but the deployed
     # alarm count and the configured one are not the same number.
     "sessions_completed_floor",
+    # AUD-F-12/E6.2 (remediation R2). Same admission sentence as `langsmith_ingest_failed`,
+    # applied to the other telemetry leg: the observability pipeline is dark while this is
+    # firing and app traffic is unaffected - a student mid-exam notices nothing when a span
+    # fails to reach X-Ray. The alarm that *does* page for this class is
+    # `unhandled_tracebacks`, which fires on a served 500 rather than on a lost span.
+    "collector_export_failures",
 }
 
 _ALARM_BLOCK = re.compile(

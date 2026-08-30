@@ -769,6 +769,12 @@ module "observability" {
   # records were already reaching CloudWatch - just as unstructured text nothing could read.
   ops_task_log_group = module.ops_task.log_group_name
 
+  # COLLECTOR-STATS-UNSCRAPED (E6.2): the two services that run the ADOT sidecar, and
+  # therefore the two whose collector now scrapes its own `localhost:8888` and promotes its
+  # export counters. `ops_task` has no sidecar and is deliberately absent - an alarm on a
+  # metric nothing publishes reads as healthy forever.
+  otel_collector_services = ["learning-api", "chat-api"]
+
   # D-377: the scheduled jobs whose `<name>_job_complete` record is counted and heartbeat-
   # alarmed. **These strings must match `scheduled-jobs`'s own `locals.jobs` keys** - the
   # alarm carries `job` as a dimension, so a mismatch produces one that can never clear.

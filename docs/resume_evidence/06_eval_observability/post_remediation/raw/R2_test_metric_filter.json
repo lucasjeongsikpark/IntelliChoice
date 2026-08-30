@@ -1,0 +1,19 @@
+{
+    "matches": [
+        {
+            "eventNumber": 1,
+            "eventMessage": "Traceback (most recent call last):",
+            "extractedValues": {}
+        },
+        {
+            "eventNumber": 2,
+            "eventMessage": "  + Exception Group Traceback (most recent call last):",
+            "extractedValues": {}
+        },
+        {
+            "eventNumber": 3,
+            "eventMessage": "    | Traceback (most recent call last):",
+            "extractedValues": {}
+        }
+    ]
+}

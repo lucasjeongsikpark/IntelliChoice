@@ -240,3 +240,47 @@ variable "job_heartbeat_period_seconds" {
   type        = map(number)
   default     = {}
 }
+
+# --- SILENT-500S / COLLECTOR-STATS-UNSCRAPED (remediation R2) ---------------------------
+
+variable "unhandled_traceback_alarm_threshold" {
+  description = <<-EOT
+    Plain-text traceback *lines* in 15 minutes above which to alert. Zero, because an
+    unhandled exception is an event and not a rate: each one is a 500 served on a request
+    the code did not expect to be able to fail. D-455's incident produced one per request
+    from the first second, so waiting for a second datapoint buys nothing.
+
+    A variable rather than a literal only so a future noisy path can be tolerated without
+    editing the alarm. Raising it is a decision, not a tuning knob - the number this
+    protects against is 114 invisible tracebacks in one incident.
+  EOT
+  type        = number
+  default     = 0
+}
+
+variable "otel_collector_services" {
+  description = <<-EOT
+    Service names running the ADOT sidecar, for the export-failure alarms. Deliberately its
+    own variable rather than reusing `services` or `log_group_names`: those are ALB target
+    groups and log groups, and a service could plausibly have either without a collector.
+    An alarm on a metric no task publishes sits at `notBreaching` forever and looks exactly
+    like a healthy one, which is the failure class this whole module exists to end.
+
+    Keys must match the `ecs-service` module's `name`, since that is what the EMF exporter
+    puts in its namespace.
+  EOT
+  type        = set(string)
+  default     = []
+}
+
+variable "collector_export_failure_alarm_threshold" {
+  description = <<-EOT
+    Failed span/metric-point exports in 15 minutes above which to alert. Zero, from a
+    measurement rather than a preference: E6.2 read `otelcol_exporter_send_failed_spans`
+    over two staging windows and found the baseline is exactly zero, and the exporters
+    retry internally before a failure is counted at all - so a counted failure is already
+    a retried-and-still-failed export.
+  EOT
+  type        = number
+  default     = 0
+}

@@ -31398,3 +31398,39 @@ are the new tests (one ran as the 6th) and the +1 skip is a PRE-EXISTING draw-de
 learning-flow skip (coordinator re-ran the file: 22 passed / 1 xfailed — flake class, not a
 regression); no historical E4 artifact modified; the bench DB dropped; post-remediation evidence
 at `docs/resume_evidence/04_memory/post_remediation/`.
+
+## D-468 — R2 accepted: SILENT-500S and COLLECTOR-STATS-UNSCRAPED closed, verified against deployed staging (accepted, 2026-08-30)
+
+Second remediation. Both observability blind spots from the measurement program are closed, each
+verified at its own layer. No paid model calls; nothing paged (alarm actions disabled during the
+synthetic test, fully restored after — coordinator verified no alarm in the account has actions
+disabled).
+
+**SILENT-500S (app layer, D-455's blind spot).** Reproduced with a failing test ("no level=ERROR
+line was emitted; got [INFO]"), then fixed in the one place both apps already wire:
+`request_logging`'s existing except-Exception path now emits a JSON `level=ERROR`
+`unhandled_exception` event with `trace_id`, route template, exception type, and a
+`redact_free_text`'d `exc_info` — response semantics untouched. 5 permanent tests.
+**Deployment honesty: the app-side ERROR line is local-verified and reaches staging with the
+next manual deploy (D-417).**
+
+**SILENT-500S (staging layer, alertable NOW).** A targeted apply added a
+`"Traceback (most recent call last):"` (excluding JSON `exc_info`) metric filter + page alarm per
+API log group — proven end-to-end against the DEPLOYED filter: a synthetic traceback event at
+2026-08-30T04:05:50Z produced exactly one datapoint (the two JSON exc_info lines correctly
+excluded) and ALARM at 04:07:05Z with actions disabled, then restored. The D-455 class (114
+invisible tracebacks) is alertable on the current image without a deploy.
+
+**COLLECTOR-STATS-UNSCRAPED (AUD-F-12's gap, E6.2's finding).** The ADOT collector's
+`localhost:8888` self-telemetry added as a second scrape target; four export counters promoted on
+a single `exporter` dimension. `otelcol_exporter_sent_spans` / `send_failed_spans` (+ metric
+points) now exist in CloudWatch for the first time (learning-api sent 28→40, failures 0;
+chat-api 12→20, failures 0; 03:55–04:00Z), with four informational export-failure alarms — a
+silent 100%-drop like AUD-F-12 can no longer go unwatched. The services rolled onto same-image
+task-definition revisions (:154/:152) for the collector config only.
+
+**Verification:** lint/typecheck clean; suite 2206 / 2 / 1 (baseline + 5; the draw-dependent
+skip did not recur); coordinator re-ran the new tests (5 passed), confirmed the export metrics
+live in CloudWatch, and confirmed alarm-action restoration. The only remaining terraform plan
+item is the pre-existing `ops_task` image-tag drift, deliberately not applied. Evidence:
+`docs/resume_evidence/06_eval_observability/post_remediation/R2_POSTFIX_REPORT.md`.
