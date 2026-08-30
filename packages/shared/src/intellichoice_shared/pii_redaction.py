@@ -13,7 +13,13 @@ A looser digit-run pattern would redact legitimate math content.
 import re
 
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
-_URL_RE = re.compile(r"https?://\S+|www\.\S+")
+# `re.IGNORECASE` is load-bearing, not tidiness: schemes and host labels are
+# case-insensitive by RFC 3986, and a phone keyboard autocapitalises the first word of a
+# message - which is where a student pastes a link. Without the flag `HTTP://`, `Https://`
+# and `WWW.` matched nothing at all (E6.1 F-1, D-458: 6/6 of the labeled corpus's
+# `url_uppercase_scheme` cases). The email and phone patterns need no such flag - `\w` and
+# `\d` are already case-blind - so their semantics are deliberately left alone.
+_URL_RE = re.compile(r"https?://\S+|www\.\S+", re.IGNORECASE)
 _PHONE_RE = re.compile(r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b")
 
 

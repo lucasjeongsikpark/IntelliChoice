@@ -6,9 +6,16 @@ the JSON log formatter plus its denylist filter, and the span-export credential 
 and reports precision/recall/F1 with numerators and denominators. This module runs that
 harness in the default `pytest` collection and gates the result.
 
-**Measure first, then gate** (the repository's convention): every threshold below is the
-value actually measured at `7a486a9` on 2026-08-28 and recorded in
-`docs/resume_evidence/06_eval_observability/E6_1_REPORT.md`, not a number anyone chose.
+**Measure first, then gate** (the repository's convention): every threshold below is a
+value actually measured, not a number anyone chose. The corpus is unchanged since E6.1; the
+constants were re-measured on 2026-08-30 after remediation R4 fixed E6.1's F-1 (`_URL_RE`
+had no `re.IGNORECASE`) and F-2 (the span redactor's credential vocabulary had drifted from
+the log denylist's). Provenance: `docs/resume_evidence/06_eval_observability/E6_1_REPORT.md`
+is the original measurement at `7a486a9` (2026-08-28); `.../post_remediation/
+R4_POSTFIX_REPORT.md` is the current one and carries the before -> after table. Re-measuring
+and updating these constants in the same change as the behaviour improvement is this lane's
+designed workflow, not a way around its gates - the gates stay one-directional, so a later
+regression below the *new* values still fails.
 The gates are one-directional - a rate may rise, never fall - and the tolerance is exactly
 zero, because the corpus is deterministic (fixed pools, fixed templates, fixed order, no
 randomness, no I/O) and the layers are pure functions, so a re-run reproduces the same
@@ -64,27 +71,37 @@ def probe_run() -> Any:
 
 # The measured values. layer/scope/metric -> (numerator, denominator) as recorded.
 RECORDED: dict[tuple[str, str, str], tuple[int, int]] = {
-    ("layer1", "overall", "precision"): (261, 269),
-    ("layer1", "overall", "recall"): (261, 277),
-    ("layer1", "overall", "f1"): (522, 546),
-    ("layer1", "overall_excl_adversarial_negatives", "precision"): (261, 261),
+    ("layer1", "overall", "precision"): (267, 275),
+    ("layer1", "overall", "recall"): (267, 277),
+    ("layer1", "overall", "f1"): (534, 552),
+    ("layer1", "overall_excl_adversarial_negatives", "precision"): (267, 267),
     ("layer1", "class:email", "recall"): (119, 125),
-    ("layer1", "class:url", "recall"): (68, 74),
+    ("layer1", "class:url", "recall"): (74, 74),
     ("layer1", "class:phone", "recall"): (62, 66),
     ("layer1", "class:email", "precision"): (119, 119),
-    ("layer1", "class:url", "precision"): (68, 68),
+    ("layer1", "class:url", "precision"): (74, 74),
     ("layer1", "class:phone", "precision"): (62, 70),
     ("layer1", "class:mixed", "recall"): (12, 12),
     ("layer1", "api_consistency", "contains_matches_redact"): (651, 651),
     ("layer2", "denylist_keys", "coverage"): (36, 36),
     ("layer2", "control_keys", "survived_unchanged"): (12, 12),
-    ("layer2", "message_field", "recall"): (261, 277),
-    ("layer2", "message_field", "precision"): (261, 269),
-    ("layer2", "exc_info_field", "recall"): (261, 277),
-    ("layer2", "exc_info_field", "precision"): (261, 269),
-    ("layer3", "credentials", "recall"): (18, 22),
-    ("layer3", "credentials", "precision"): (18, 18),
+    ("layer2", "message_field", "recall"): (267, 277),
+    ("layer2", "message_field", "precision"): (267, 275),
+    ("layer2", "exc_info_field", "recall"): (267, 277),
+    ("layer2", "exc_info_field", "precision"): (267, 275),
+    ("layer3", "credentials", "recall"): (21, 22),
+    ("layer3", "credentials", "precision"): (21, 21),
 }
+
+# What R4 moved, on the unchanged 651-case corpus (E6.1 -> now):
+#   layer1 url recall        68/74  -> 74/74   (F-1: the six `url_uppercase_scheme` cases)
+#   layer1 overall recall   261/277 -> 267/277
+#   layer3 credential recall 18/22  -> 21/22   (F-2: uppercase BEARER, ?refresh_token=,
+#                                               ?id_token=)
+# False positives did not move: 8/264 negatives, all `neg_phone_shaped_identifier`, the
+# documented and priced phone trade-off. The precision *denominator* rises from 269 to 275
+# because it is (true positives + false positives), not the negative count - the corpus
+# composition (264 negatives, 277 in-contract, 22 span credential probes) is untouched.
 
 # Composition floors from the experiment's own acceptance criteria (>=600 cases, >=200
 # negatives). Floors, not equalities - the corpus may grow.

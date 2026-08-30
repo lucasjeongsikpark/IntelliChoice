@@ -1,0 +1,22 @@
+positive controls: 11/11 fired
+corpus: 651 cases (277 in-contract, 110 out-of-contract, 264 negative) + 49 log keys + 46 spans
+
+layer 1 (regex free text):
+  precision 261/269 (97.0%)
+  recall    261/277 (94.2%)
+  F1        522/546 (95.6%)
+  email  recall 119/125 (95.2%)  precision 119/119 (100.0%)
+  url    recall 68/74 (91.9%)  precision 68/68 (100.0%)
+  phone  recall 62/66 (93.9%)  precision 62/70 (88.6%)
+  out-of-scope caught anyway 4/110 (3.6%)
+layer 2 (json log formatter):
+  denylist keys 36/36 (100.0%)  control keys survived 12/12 (100.0%)
+  message recall 261/277 (94.2%)  exc_info recall 261/277 (94.2%)
+layer 3 (span export):
+  credential recall 18/22 (81.8%)  precision 18/18 (100.0%)
+  student PII redacted at this layer 0/8 (0.0%) (by design)
+
+artifacts:
+  results    /private/tmp/claude-501/-Users-jeongsikpark-Downloads-Desktop-local-github-repo-IntelliChoice/03f8f526-cb75-492a-9e25-e7cb262bc989/scratchpad/before2/pii_probe_results.json
+  metrics    /private/tmp/claude-501/-Users-jeongsikpark-Downloads-Desktop-local-github-repo-IntelliChoice/03f8f526-cb75-492a-9e25-e7cb262bc989/scratchpad/before2/pii_probe_metrics.csv
+  report     /private/tmp/claude-501/-Users-jeongsikpark-Downloads-Desktop-local-github-repo-IntelliChoice/03f8f526-cb75-492a-9e25-e7cb262bc989/scratchpad/before2/E6_1_REPORT.md

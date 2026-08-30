@@ -255,3 +255,84 @@ def test_both_exporter_branches_are_wrapped_in_the_redactor() -> None:
         (processor,) = provider._active_span_processor._span_processors
         assert isinstance(getattr(processor, "span_exporter", None), RedactingSpanExporter)
         provider.shutdown()
+
+
+def test_uppercase_bearer_credentials_are_redacted_before_export() -> None:
+    """E6.1 F-2 (D-458): the pattern named `[Bb]earer` only, so `BEARER abc123XYZ` - an
+    opaque token, so the JWT pattern cannot catch it either - was exported verbatim. HTTP
+    auth schemes are case-insensitive by RFC 7235, so the uppercased form is the same
+    credential, not a different one.
+    """
+    exporter = _install_test_provider()
+
+    with traced_span("http.client", authorization="BEARER abc123XYZ"):
+        pass
+
+    (span,) = exporter.get_finished_spans()
+    assert span.attributes is not None
+    assert span.attributes["authorization"] == "BEARER REDACTED"
+
+
+def test_refresh_and_id_token_query_parameters_are_redacted_before_export() -> None:
+    """E6.1 F-2's other half: the span redactor's query-parameter alternation named
+    `token|access_token|api_key` while the *log* denylist
+    (`_DENYLISTED_LOG_KEYS`) already listed `refresh_token` and `id_token` as keys. Two
+    credential vocabularies drifting apart is the finding; a JWT-valued parameter was still
+    caught by the JWT pattern, an opaque-valued one was not.
+    """
+    exporter = _install_test_provider()
+
+    with traced_span(
+        "auth.exchange",
+        refresh="https://idp.example/t?refresh_token=abc123XYZ",
+        identity="https://idp.example/t?id_token=abc123XYZ",
+        oauth="https://idp.example/t?oauth_token=abc123XYZ",
+    ):
+        pass
+
+    (span,) = exporter.get_finished_spans()
+    assert span.attributes is not None
+    assert span.attributes["refresh"] == "https://idp.example/t?refresh_token=REDACTED"
+    assert span.attributes["identity"] == "https://idp.example/t?id_token=REDACTED"
+    assert span.attributes["oauth"] == "https://idp.example/t?oauth_token=REDACTED"
+
+
+def test_the_span_credential_vocabulary_covers_the_log_denylist_credential_keys() -> None:
+    """The reconciliation itself, asserted rather than left to the comment: every
+    credential-shaped key the log denylist filters is also a parameter name the span
+    redactor strips. This is the test that fails the next time one list grows and the
+    other does not - which is exactly how F-2 happened.
+    """
+    from intellichoice_observability.logging_config import _DENYLISTED_LOG_KEYS
+    from intellichoice_observability.tracing import _CREDENTIAL_QUERY_PARAMS
+
+    credential_keys = {key for key in _DENYLISTED_LOG_KEYS if key.endswith(("token", "api_key"))}
+    assert credential_keys, "vacuous: the log denylist named no credential key"
+    missing = sorted(credential_keys - set(_CREDENTIAL_QUERY_PARAMS))
+    assert not missing, f"span redactor does not name these log-denylisted credentials: {missing}"
+
+
+def test_clean_operational_attributes_survive_the_widened_credential_patterns() -> None:
+    """The false-positive arm of F-2. Widening an alternation is only safe if the span
+    content the store exists for still arrives intact.
+    """
+    exporter = _install_test_provider()
+
+    with traced_span(
+        "db.query",
+        statement="SELECT id FROM mastery WHERE student_external_id = :sid",
+        route="/learning/sessions/{session_id}/answer",
+        model_id="us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        token_count="1287",
+        prose="refresh_token and id_token are rotated nightly",
+    ):
+        pass
+
+    (span,) = exporter.get_finished_spans()
+    assert span.attributes is not None
+    assert span.attributes["statement"] == "SELECT id FROM mastery WHERE student_external_id = :sid"
+    assert span.attributes["route"] == "/learning/sessions/{session_id}/answer"
+    assert span.attributes["model_id"] == "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    assert span.attributes["token_count"] == "1287"
+    # No `?`/`&` context, so these are parameter *names* in prose, not a credential.
+    assert span.attributes["prose"] == "refresh_token and id_token are rotated nightly"
