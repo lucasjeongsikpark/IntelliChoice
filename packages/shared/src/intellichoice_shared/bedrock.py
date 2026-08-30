@@ -1051,6 +1051,13 @@ class MemoryFactUpdate(BaseModel):
     supporting_event_ids: list[str]
 
 
+# The output budget one consolidation call needs for *new* facts alone, before the
+# per-existing-fact term. ~17 candidates x ~149 tokens each - see
+# `MemoryUpdateResponse.max_output_tokens_for` for the measurement that set it and for why
+# it is not simply the gateway's 4000 ceiling.
+_CONSOLIDATION_NEW_FACT_SLATE_TOKENS = 2560
+
+
 class MemoryUpdateResponse(BaseModel):
     facts_to_add: list[MemoryFactCandidate] = []
     facts_to_update: list[MemoryFactUpdate] = []
@@ -1059,7 +1066,14 @@ class MemoryUpdateResponse(BaseModel):
     # The largest existing-fact count this response shape can serialize inside the
     # gateway's 4000-token hard ceiling. Past it the cap saturates and the caller warns -
     # see `max_output_tokens_for`.
-    MAX_SAFE_EXISTING_FACTS: ClassVar[int] = 21
+    #
+    # **21 until D-460/R1, and that number was fiction.** It was (4000 - 1280) / 128, taken
+    # over a base that could not hold even *zero* existing facts' worth of new ones: E4
+    # truncated 29 of 30 real calls at 0 live facts, where this classvar promised 21 was
+    # safe. Raising the base to cover the new-fact slate lowers the honest bound to 11, and
+    # `consolidation.py`'s oversize warning now fires when truncation risk is real rather
+    # than 10 facts after it started.
+    MAX_SAFE_EXISTING_FACTS: ClassVar[int] = 11
 
     @staticmethod
     def max_output_tokens_for(existing_fact_count: int) -> int:
@@ -1080,25 +1094,48 @@ class MemoryUpdateResponse(BaseModel):
             response   261  1249   1733   2712   4659 tokens
 
         Marginal cost is ~94 tok per reconfirmed fact and ~10 per expiry, so ~104/fact;
-        128 carries ~20% headroom. The base covers a full slate of *new* facts, which are
-        the expensive item at ~149 tokens each and do not scale with the input.
+        128 carries ~20% headroom. That per-fact term is unchanged and was never the
+        problem.
 
-        **The base is set by the floor, not by that measurement.** 896 would have been
-        ample for the need (261 tokens at one fact) but yields 1024 at n=1 - *below* the
-        flat 1200 it replaces. That is precisely the regression D-115 §10 shipped and had
-        to correct on the RAG answer cap: a derived formula can be strictly worse than the
-        constant it replaces at the low end, where most calls live. 1280 keeps every count
-        above the old cap. `test_consolidation_output_budget_scales_with_existing_fact_
-        count` asserts that floor, and caught this exact mistake here before it shipped.
+        **The base was wrong, and E4 (D-460) measured how wrong.** It was 1280, justified
+        as "a full slate of *new* facts, which do not scale with the input". Both halves of
+        that sentence were false. New facts are one per thing-the-week-showed, so they scale
+        with the *events* in the batch - the one input this formula is not a function of -
+        and 1280 does not hold a slate of them: at ~149 tokens each it holds eight. A real
+        window (~100 events over ~14 skills) offers ~14 candidates, about 2,086 tokens, so
+        the call stopped on `max_tokens` before the response was finished. It did that on
+        **29 of 30 real calls, for 10 of 10 students, at zero existing facts** - the regime
+        this formula was most confident about. Same payload, same model, only `maxTokens`
+        differing:
 
-        **This does not fit forever, and that is the finding under the finding.** Past
-        `MAX_SAFE_EXISTING_FACTS` the derived budget exceeds the gateway's own 4000-token
-        hard ceiling, so no cap can rescue the largest students - the *payload* would have
-        to be bounded, which is a behaviour change (which facts get dropped?) and needs its
-        own decision. Deliberately not made here; `consolidation.py` logs when it is
-        reached so that decision arrives with evidence rather than a guess.
+            maxTokens   stopReason    tool input                  facts
+              1,280     max_tokens    {}                            0
+              4,000     tool_use      {"facts_to_add": [...]}      14
+
+        **2560 is the slate, priced from that measurement.** ~17 new facts x ~149 tokens,
+        which clears the measured 14-candidate window (~2,086) with ~23% headroom and is
+        double the base it replaces, so no count loses budget. The floor argument that set
+        1280 still holds a fortiori: every count stays above the flat 1200 this line
+        originally replaced.
+
+        **Not simply the 4000 ceiling, and D-233 is why.** A response whose size has no
+        internal bound expands to fill whatever ceiling it is given - the §5.8.5 judge went
+        1847 -> 2263 -> 4370 tokens as its cap rose, buying nothing. The candidate *count*
+        here is exactly that kind of unbounded component, and more room is an invitation to
+        emit marginal facts, which is the wrong trade for a store that is read back to a
+        student (D-221: protect precision). A derived, bounded budget keeps the number
+        defensible; a flat ceiling would just move the failure from truncation to noise.
+
+        **This still does not fit forever, and that is the finding under the finding.**
+        Past `MAX_SAFE_EXISTING_FACTS` the derived budget exceeds the gateway's own
+        4000-token hard ceiling, so no cap can rescue the largest students - the *payload*
+        would have to be bounded, which is a behaviour change (which facts get dropped?)
+        and needs its own decision. Deliberately not made here; `consolidation.py` logs
+        when it is reached so that decision arrives with evidence rather than a guess. What
+        *has* changed is the consequence of reaching it: a truncated call is now a reported
+        failed call, not a silent empty update (D-460/R1's gateway half).
         """
-        return 1280 + 128 * max(existing_fact_count, 0)
+        return _CONSOLIDATION_NEW_FACT_SLATE_TOKENS + 128 * max(existing_fact_count, 0)
 
 
 # --- SPEC §5.10.3/§5.13.3 personalized stage narratives (S26, plan §18-L7) --------

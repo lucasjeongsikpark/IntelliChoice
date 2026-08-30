@@ -31357,3 +31357,44 @@ and the E5.1 funnel are permanent CI-collected tests, so the numbers can be re-m
 system changes. Standing rule for anyone citing these numbers: keep the environment label and the
 denominator — the report states effective-n honestly (e.g. RAG's ~123 independent ground truths,
 memory's n=20 real arm), and a bullet that drops the denominator overstates.
+
+## D-467 — R1 accepted: MEMORY-OUTPUT-TRUNCATION fixed — truncation now fails closed, and the shipped budget was re-derived from measurement (accepted, 2026-08-30)
+
+First remediation of the post-measurement program. Root cause proven, not guessed: the gateway's
+truncation guard ran **after** Pydantic validation, and Converse returns the **partial `toolUse`
+input** on `max_tokens` — a model cut off before its first key returns `{}`, which is valid JSON
+and valid against any all-defaulted response model. `MemoryUpdateResponse` is the only `*Response`
+model in the codebase with that shape, so 29/30 real consolidation calls were silent successes
+(E4/D-460). Two compounding fixes, both product code:
+
+1. **`gateway.py`: the stop-reason check moved above validation** — a truncated response raises
+   `OutputTruncatedError` regardless of whether its fragment validates. D-115 preserved on both
+   halves: no repair retry under the same ceiling, and no circuit-breaker trip (schema-class).
+2. **`bedrock.py`: the consolidation output base re-derived from E4's own measurement** —
+   1280 → 2560 (`_CONSOLIDATION_NEW_FACT_SLATE_TOKENS`, ~17 candidates × ~149 tokens), and the
+   fictitious `MAX_SAFE_EXISTING_FACTS = 21` (which promised safety where 29/30 calls truncated
+   at zero facts) lowered to the honest **11**, so the oversize warning fires when truncation
+   risk is real.
+
+**Reproduce-first honored:** four new tests shown FAILING on unfixed code — including an
+end-to-end one through the real gateway asserting the silent-zero shape — then passing.
+
+**Minimal paid re-validation (same students/seed as E4 arm A, n=10, 36.30¢ of the 150¢ cap):**
+
+| metric | before (E4 arm A) | after (R1) |
+|---|---|---|
+| facts written | 6 | **119** (119/119 provenance, both measures) |
+| silent truncations | 29/30 calls, 10/10 students | **0** |
+| calls reported failed | 0 | **11** (counted, surfaced) |
+| genuine-empty vs truncated | indistinguishable | distinguishable (one real empty window in the data) |
+
+**Honestly still open:** 11/30 calls still truncate at 2560 and are now *reported* — bounding the
+response shape further is a behavior decision deliberately not made here; fact QUALITY is
+unchanged (111/119 on non-planted skills — E4 arm B's pre-existing model-behavior finding, part
+of the remaining `MEMORY-CONSOLIDATION-DEFECTS` items #2–#4).
+
+**Verification:** lint/typecheck clean; suite 2200 / 3 / 1 vs baseline 2195 / 2 / 1 — +5 passes
+are the new tests (one ran as the 6th) and the +1 skip is a PRE-EXISTING draw-dependent
+learning-flow skip (coordinator re-ran the file: 22 passed / 1 xfailed — flake class, not a
+regression); no historical E4 artifact modified; the bench DB dropped; post-remediation evidence
+at `docs/resume_evidence/04_memory/post_remediation/`.

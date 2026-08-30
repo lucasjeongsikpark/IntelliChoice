@@ -657,21 +657,39 @@ class ResilientBedrockGateway:
         tokens_so_far: tuple[int, int],
         truncated: bool = False,
     ) -> tuple[T, bool, int, int, int, int]:
-        value, _ = self._try_validate(raw_text, response_model)
-        if value is not None:
-            return value, False, 0, 0, 0, 0
-
         already_in, already_out = tokens_so_far
+        # **Checked BEFORE validation, and that ordering is the whole fix (D-460/R1).**
+        #
+        # It used to run after, so a truncated response only failed when its fragment also
+        # failed Pydantic. That holds for a fragment cut mid-string, but Converse does not
+        # return a fragment: on `max_tokens` it returns the *partial `toolUse` input*, and a
+        # model cut off before its first key gives `{}`. `{}` is valid JSON and valid against
+        # any response model whose fields all default - `MemoryUpdateResponse` is exactly
+        # that shape - so `_try_validate` succeeded and the gateway handed back a
+        # legitimate-looking empty result while this guard sat unreached.
+        #
+        # Measured cost of that ordering (E4, D-460): 29 of 30 real consolidation calls
+        # stopped on `max_tokens`, 10 of 10 students had one, and the run reported
+        # `added=0, calls_failed=0, exit 0` - AUD-F-34's silent-zero shape again, one layer
+        # up. The signal that a response is unusable is the *stop reason*, never whether the
+        # fragment happened to survive validation, so the stop reason is what decides.
+        #
+        # A repair call here is still pure waste: same prompt, same ceiling, same truncation,
+        # at full input cost and ~10 s of latency. Raise on the spot and let the caller's
+        # fallback run - the honest fix is a bigger ceiling or a smaller response shape, not
+        # another attempt (D-115). And still no `_record_failure()`: the call reached Bedrock
+        # and came back, so this stays a schema-class failure that cannot open the circuit on
+        # every other task (D-115's blast-radius half, unchanged).
         if truncated:
-            # A repair call here is pure waste: same prompt, same ceiling, same
-            # truncation, at full input cost and ~10 s of latency. Raise on the spot and
-            # let the caller's fallback run - the honest fix is a bigger ceiling or a
-            # smaller response shape, not another attempt (D-115).
             raise OutputTruncatedError(
                 f"model hit max_output_tokens={max_output_tokens} before completing the "
                 f"{response_model.__name__} response; not retrying under the same ceiling",
                 cost_cents=self._cost_cents(model_id, already_in, already_out),
             )
+
+        value, _ = self._try_validate(raw_text, response_model)
+        if value is not None:
+            return value, False, 0, 0, 0, 0
 
         # D-217: the correction goes in the *user* turn, leaving `system_prompt` byte-for-
         # byte identical to the first call - so the system cache point (D-203) still hits on

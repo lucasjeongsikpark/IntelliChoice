@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 import pytest
+from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
+from intellichoice_adapters.bedrock.provider import RawGeneration
 from intellichoice_db.engine import create_engine
 from intellichoice_db.models.curriculum import Skill, Topic
 from intellichoice_db.models.mastery import Mastery
@@ -41,6 +43,7 @@ from intellichoice_shared.bedrock import (
     MemoryFactCandidate,
     MemoryFactUpdate,
     MemoryUpdateResponse,
+    OutputTruncatedError,
 )
 from intellichoice_shared.mastery_policy import WEAK_SKILL_THRESHOLD
 from sqlalchemy import text
@@ -901,6 +904,36 @@ def test_consolidation_output_budget_scales_with_existing_fact_count() -> None:
     assert budget_for(safe + 1) > 4000
 
 
+def test_the_output_budget_admits_the_e4_worst_case_new_fact_slate() -> None:
+    """D-460/R1: the base must hold a real window's worth of NEW facts.
+
+    E4 measured a window of ~100 events across ~14 skills offering ~14 new-fact candidates
+    at ~149 output tokens each - about 2,086 tokens - against a base of 1,280. The call
+    stopped on `max_tokens` 29 times out of 30, at ZERO existing facts, which is the regime
+    the old formula was most confident about. This asserts the regime the old one failed:
+    the budget at no existing facts, where the per-fact term contributes nothing.
+    """
+    budget_for = MemoryUpdateResponse.max_output_tokens_for
+
+    e4_candidates = 14
+    tokens_per_new_fact = 149
+    e4_worst_case = e4_candidates * tokens_per_new_fact  # 2,086
+    assert budget_for(0) >= e4_worst_case, (
+        f"a {e4_candidates}-candidate window needs ~{e4_worst_case} tokens; "
+        f"the base is {budget_for(0)} - this is the E4 truncation, unfixed"
+    )
+
+    # ...and it fits under the gateway's hard ceiling with room for existing facts too, so
+    # the fix does not just move the truncation to the first student who has any history.
+    assert budget_for(0) < 4000
+    assert MemoryUpdateResponse.MAX_SAFE_EXISTING_FACTS >= 10
+
+    # No count loses budget relative to what it had before the raise (the D-115 10 floor
+    # argument, which set the old base and still binds).
+    for facts in (0, 1, 5, 10, 20):
+        assert budget_for(facts) >= 1280 + 128 * facts
+
+
 def test_consolidation_sends_a_fact_count_derived_budget() -> None:
     """A derived cap that never reaches the gateway is decoration - assert the wire."""
 
@@ -1080,6 +1113,130 @@ def test_every_call_failing_is_reported_rather_than_swallowed() -> None:
             assert result.calls_failed == 1
             # The condition the CLI turns into a non-zero exit code.
             assert result.calls_failed == result.calls_attempted
+
+    asyncio.run(run())
+
+
+def test_a_truncated_consolidation_is_a_failed_call_not_an_empty_update() -> None:
+    """E4/D-460's silent-success path, at the layer that reports it.
+
+    Truncation on this task does not arrive as malformed JSON. Converse returns the partial
+    `toolUse` input, which for a model cut off before its first key is `{}` - and `{}` is a
+    *valid* `MemoryUpdateResponse`, because all three of its lists default to empty. So the
+    real run reported `added=0, calls_failed=0, exit 0` for 10 of 10 students whose calls had
+    all truncated: identical, from the outside, to ten students with nothing to consolidate.
+
+    The gateway now fails closed on the stop reason, and `OutputTruncatedError` is a
+    `BedrockGatewayError` - so it lands in the branch AUD-F-34 built and the count travels
+    with the result. This test pins the whole path, not just the base class: a future
+    refactor that catches `StructuredOutputError` separately, or that "recovers" a truncated
+    response into an empty update, fails here.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            tutor_chat_repo = TutorChatMessageRepository(session)
+            event = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s1")
+
+            gateway = _FakeGateway(
+                [
+                    OutputTruncatedError(
+                        "model hit max_output_tokens=1280 before completing the "
+                        "MemoryUpdateResponse response",
+                        cost_cents=0.4,
+                    )
+                ]
+            )
+            result = await consolidate_student_window(
+                memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
+                tutor_chat_repo=tutor_chat_repo,
+                gateway=gateway,
+                student_external_id=STUDENT_ID,
+                window_start=event.occurred_at - timedelta(minutes=1),
+                window_end=event.occurred_at + timedelta(minutes=1),
+                session_spend_cents=0.0,
+            )
+            assert result.added == 0
+            assert result.calls_attempted == 1
+            # The whole point: a truncated call is a FAILED call, never a quiet zero.
+            assert result.calls_failed == 1
+            assert result.calls_failed == result.calls_attempted  # the CLI's exit-1 condition
+            assert result.cost_cents > 0  # the truncated call still cost money
+
+    asyncio.run(run())
+
+
+class _TruncatingProvider:
+    """A `BedrockProvider` that reproduces real Bedrock on `max_tokens` for this task.
+
+    Not a fake gateway: the point of this double is to exercise the REAL
+    `ResilientBedrockGateway` underneath `consolidate_student_window`, because the defect
+    lived in the gateway's validate-then-check-truncation ordering and a fake gateway
+    cannot show it. `text="{}"` is what Converse hands back - the partial `toolUse` input
+    of a model cut off before its first key.
+    """
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def raw_generate(self, **kwargs) -> RawGeneration:
+        del kwargs
+        self.calls += 1
+        return RawGeneration(
+            text="{}",
+            input_tokens=500,
+            output_tokens=1280,
+            truncated=True,
+            stop_reason="max_tokens",
+        )
+
+
+def test_a_truncated_call_through_the_real_gateway_is_never_a_silent_zero() -> None:
+    """The end-to-end reproduction of E4/D-460, through the real gateway.
+
+    Everything above this test doubles the gateway; this one doubles only the *provider*,
+    so the path under test is the one that actually shipped: provider returns `{}` with
+    `stopReason=max_tokens` -> gateway -> `consolidate_student_window` -> the result the CLI
+    reads. Before the fix this returned `added=0, calls_failed=0` and the CLI exited 0.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            tutor_chat_repo = TutorChatMessageRepository(session)
+            event = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s1")
+
+            provider = _TruncatingProvider()
+            gateway = ResilientBedrockGateway(
+                provider=provider,
+                model_registry={BedrockTask.MEMORY_CONSOLIDATION: "anthropic.claude-test"},
+                max_retries=0,
+            )
+            result = await consolidate_student_window(
+                memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
+                tutor_chat_repo=tutor_chat_repo,
+                gateway=gateway,
+                student_external_id=STUDENT_ID,
+                window_start=event.occurred_at - timedelta(minutes=1),
+                window_end=event.occurred_at + timedelta(minutes=1),
+                session_spend_cents=0.0,
+            )
+            assert provider.calls == 1  # D-115: no repair retry under the same ceiling
+            assert result.added == 0
+            assert result.calls_attempted == 1
+            assert result.calls_failed == 1  # was 0 - the whole defect
+            assert result.calls_failed == result.calls_attempted  # the CLI's exit-1 condition
+
+            # And nothing was written: a truncated response must not mutate the store.
+            written = await memory_repo.list_facts_for_student(
+                STUDENT_ID, statuses=("active", "provisional", "contested", "superseded")
+            )
+            assert written == []
 
     asyncio.run(run())
 
