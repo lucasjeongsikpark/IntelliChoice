@@ -304,6 +304,35 @@ class QuestionRepository:
         )
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
+    async def authored_equations_in_topic(self, topic_id: str) -> list[tuple[str, str]]:
+        """Every authored template in this topic that carries an equation, as
+        `(question_template_id, answer_expression)`.
+
+        Exists for the D-273 arithmetic-identity backstop in `ai_pipeline`'s dedup stage.
+        The comparison itself is **not** done here: `arithmetic_identity` lives in
+        `intellichoice_curriculum.authored_validation`, the db package does not depend on the
+        curriculum package, and a SQL re-implementation of "sorted numeric literals, sorted
+        operators" would be a second copy of the predicate that drifts from the first
+        (D-223's rule). So this returns the raw column and the caller applies the one
+        implementation that the E5.2 harness also measured.
+
+        Scoped exactly like `stem_near_duplicate_exists`: this topic, `authoring_mode`
+        "authored", no status filter. A rejected candidate is never persisted as a template
+        (`run_authored_candidate._reject` writes a validation run with no template id), so
+        the population here is the topic's pending and approved authored items - the same
+        set the embedding check compares against, which is what makes the two dedup
+        predicates agree about what "already exists" means.
+        """
+        stmt = select(
+            QuestionTemplate.question_template_id, QuestionTemplate.answer_expression
+        ).where(
+            QuestionTemplate.topic_id == topic_id,
+            QuestionTemplate.authoring_mode == SERVABLE_AUTHORING_MODE,
+            QuestionTemplate.answer_expression.is_not(None),
+        )
+        rows = (await self._session.execute(stmt)).all()
+        return [(template_id, equation) for template_id, equation in rows if equation]
+
     async def activate_template(self, question_template_id: str) -> QuestionTemplate:
         """SPEC §5.8.3 "Activate" step. Only promotes a template already sitting at
         `validation_status="pending"` - i.e. one the pipeline already determined passed

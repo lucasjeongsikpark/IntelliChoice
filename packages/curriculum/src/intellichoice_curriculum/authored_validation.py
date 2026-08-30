@@ -1639,6 +1639,138 @@ def check_hint_ladder_monotonicity(
         result.fail(f"hint_ladder[{i}] already reveals hint_ladder[{i + 1}]'s content")
 
 
+# Every standalone number in a piece of item text. Deliberately the same shape as the
+# corpus builder's and `arithmetic_identity`'s - a digit run with an optional decimal part -
+# so "the numbers in this item" means one thing across the gate and the instruments that
+# measure it.
+_HINT_NUMERAL_RE = re.compile(r"\d+(?:\.\d+)?")
+
+
+def _hint_numerals(text: str) -> set[str]:
+    """The numerals in one piece of item text, after the two normalisations that would
+    otherwise invent a mismatch: `'38,472'` is one number and not two (D-274's separator),
+    and `2³` carries a 3 that no ASCII scan would find.
+    """
+    return set(_HINT_NUMERAL_RE.findall(_superscripts_to_powers(_strip_thousands_separators(text))))
+
+
+def _grounded_numerals(values: set[str]) -> set[str]:
+    """Everything a hint may legitimately *name* given the numbers the question states.
+
+    A hint is allowed to take a question's numbers apart, and the bank shows exactly how,
+    measured rather than guessed - every expansion below exists because an approved item
+    needed it:
+
+    - **the digits**, for place-value coaching: "Look at the leftmost digit of each
+      population number" against `45,832 / 67,419 / 52,106`, where the hint names 4, 6 and 5
+      and the stem names none of them (`number_sense` compare/round items, 10 of them);
+    - **the place-value components**, for column arithmetic: "Add the ones place first: 2 + 4.
+      Then add the tens place: 30 + 20" against `Eq(x, 32 + 24)` (`authored-g2_addition-d2-7201`);
+    - **the parts of a decimal**, for money: "Remember to regroup when subtracting cents:
+      50 cents minus 35 cents" against `$21.50` and `$9.35`
+      (`authored-measurement-d2-959202`);
+    - **the canonical spelling of the value**, so an item writing `7.00` grounds a hint
+      writing `7`.
+
+    Expanding the *item* side only, never the hint's, is what keeps this from collapsing:
+    enriching both sides makes almost any pair of ladders share a digit, and the same rule
+    measured that way falls from 12 of 17 grafted ladders caught to 2.
+    """
+    grounded: set[str] = set()
+    for value in values:
+        grounded.add(value)
+        try:
+            grounded.add(f"{float(value):g}")
+        except ValueError:  # pragma: no cover - the regex only yields parseable numerals
+            continue
+        integer_part, _, fraction_part = value.partition(".")
+        for part in (integer_part, fraction_part):
+            if not part:
+                continue
+            grounded.add(part)
+            grounded.add(part.lstrip("0") or "0")
+            for index, digit in enumerate(part):
+                grounded.add(digit)
+                if digit != "0":
+                    grounded.add(digit + "0" * (len(part) - 1 - index))
+    return grounded
+
+
+def hint_ladder_is_ungrounded(
+    item: AuthoredGeneratedItemResponse, figure: FigureSpec | None = None
+) -> set[str]:
+    """The hint ladder's numerals when **none** of them belongs to this question, else `set()`.
+
+    **The hole this closes, measured (E5.2).** `mismatched_hint_ladder` - three rungs lifted
+    wholesale from a different item - scored **0/17 on every detector in the pipeline**, 17 of
+    its 28 total misses, and it was the only defect class with no detector at all.
+    `hint_ladder_monotonicity_violations` is verbatim containment between rungs and says so in
+    its own docstring; `check_no_answer_leakage` asks whether a rung states *this* item's
+    answer; and `SolverPayload` never carries a hint. Nothing compared a hint with its stem.
+
+    **Why this shape and not a quality score.** `HINT_SOLUTION_REVIEW.md` §1 records two hint
+    scorers that failed, both because they graded how good a hint *is*. This grades nothing:
+    it asks one closed question with a yes/no answer - does this ladder name a number that
+    occurs in the question it is attached to? A ladder that talks about $52.50 and $8.75
+    beside a question about 1/2 and 1/3 of a bag of flour is not a weak hint, it is a hint for
+    a different item, and a student following it is being coached toward numbers that are not
+    in front of them.
+
+    **Why disjointness and not a proportion.** The obvious stronger rule - fail when *most*
+    hint numerals are foreign - is measurably better on recall and measurably worse as a gate.
+    Over the 17 grafted ladders, the 102 E5.2 clean controls and the 958-item approved bank:
+    a threshold at 75% foreign catches 13 of 17 with no false positive anywhere, but the
+    highest ratio any approved item reaches is 0.714, so the knob would sit 0.036 above live
+    content. Plain disjointness catches 12 of 17 with the same zero false positives and no
+    knob at all, and the nearest approved item is 0.286 away from it. D-249's lesson one layer
+    down was that a fuzzy novelty rule punishes legitimate restatement; the same argument
+    applies to a tuned foreignness ratio, so the knobless rule is the one that ships.
+
+    **What it does not cover.** A ladder that shares one numeral with the question by
+    coincidence passes - that is the other 5 of 17, each of them a grafted ladder whose donor
+    happened to reuse a digit. And 127 of the 958 approved items have no numeral in their
+    hint ladder at all, so the check is silent on them by construction. This is a floor on
+    hint/stem coherence, not a measure of it; semantic hint quality remains
+    `HINT_SOLUTION_REVIEW.md` §3's LLM instrument and is not part of this gate.
+    """
+    hint_numerals: set[str] = set()
+    for level in item.hint_ladder:
+        hint_numerals |= _hint_numerals(level)
+    if not hint_numerals:
+        return set()
+
+    stated = _hint_numerals(item.stem)
+    stated |= _hint_numerals(item.context_block or "")
+    stated |= _hint_numerals(item.equation or "")
+    for option in _options(item).values():
+        stated |= _hint_numerals(option)
+    if figure is not None:
+        # A figure item states its numbers in the picture, not in the sentence - "what time
+        # does this clock show" is the whole stem. Without this a correct clock ladder ("the
+        # short hand has passed 3") is disjoint from its own question.
+        for value in figure.numbers():
+            stated.add(f"{float(value):g}")
+            stated.add(str(value))
+
+    if hint_numerals & _grounded_numerals(stated):
+        return set()
+    return hint_numerals
+
+
+def check_hint_ladder_is_about_this_question(
+    figure: FigureSpec | None,
+    item: AuthoredGeneratedItemResponse,
+    result: AuthoredValidationResult,
+) -> None:
+    foreign = hint_ladder_is_ungrounded(item, figure)
+    if foreign:
+        result.fail(
+            f"hint_ladder names {sorted(foreign)} and none of those numbers appears in the "
+            f"question, its equation, its options or its figure - the ladder is not about "
+            f"this item"
+        )
+
+
 def check_hint_solution_answer_agreement(
     item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
 ) -> None:
@@ -1893,6 +2025,7 @@ def validate_authored_item(
         check_exactly_one_correct_answer(item, result)
     check_no_answer_leakage(item, result)
     check_hint_ladder_monotonicity(item, result)
+    check_hint_ladder_is_about_this_question(figure, item, result)
     check_hint_solution_answer_agreement(item, result)
     check_difficulty_rubric_compliance(difficulty_label, item, result)
     check_age_appropriate_wording(item, result)

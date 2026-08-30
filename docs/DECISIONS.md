@@ -31434,3 +31434,41 @@ skip did not recur); coordinator re-ran the new tests (5 passed), confirmed the 
 live in CloudWatch, and confirmed alarm-action restoration. The only remaining terraform plan
 item is the pre-existing `ops_task` image-tag drift, deliberately not applied. Evidence:
 `docs/resume_evidence/06_eval_observability/post_remediation/R2_POSTFIX_REPORT.md`.
+
+## D-469 — R3 accepted: hint-ladder coherence detectable (0/17 → 12/17) and the arithmetic fingerprint wired into dedup; pipeline F1 0.837 → 0.949 (accepted, 2026-08-30)
+
+Third remediation, $0 (both checks deterministic, no model call). Measured on the FROZEN E5.2
+corpus (102 defects + 102 clean, byte-untouched) and the full 958-item approved bank.
+
+**R3a — `check_hint_ladder_is_about_this_question`** added to the SHARED deterministic gate
+(generation path + loader re-gate): `mismatched_hint_ladder` recall **0/17 → 12/17** at
+**0/102 pooled clean-control FPs and 0/958 approved-bank FPs** — the zero bank hits are why it
+could live in the shared gate rather than generation-only. The 5/17 misses are the honest
+residual of a deterministic rule (recorded per-case in the report).
+
+**R3b — `arithmetic_identity` wired into the dedup stage BEFORE the paid embedding call:**
+near-duplicate recall **8/17 → 17/17**. Combined pipeline on the same denominator:
+recall **72/100 → 94/100**, **F1 0.837 → 0.949**; the union's 4/102 clean-set flags are all the
+fingerprint catching the hand-verified *genuine* same-arithmetic duplicates the corpus had
+labeled clean (E5.2 finding 4) — 0 false positives on actual non-duplicates, so the nominal
+0.959 precision is effectively 1.0 on real defects.
+
+**The executor disproved this spec's E5.3 claim, correctly (escalation msg_50c763b60acd,
+coordinator option (a)).** E5.3's 4.60% residual is a **skeleton-collision** class ("same
+sentence, different numbers") — all 4 same-topic collision groups have DIFFERENT arithmetic
+identities, so the fingerprint provably cannot catch them (the 0-of-4 pair table is in the
+report). Closing it needs a same-topic skeleton instrument that would re-open D-286's
+cross-topic scoping — the executor measured that cost too: 8 same-topic skeleton groups /
+35 bank items, of which ≥22 are legitimate-by-design (options/figure-borne questions) — queued,
+not worked around.
+
+**Bank diagnostics (content untouched):** the full-bank fingerprint scan finds **58 identity
+groups / 133 items** (E5.2's "6 pairs" was its 102-item-sample count; the numbers don't
+conflict); dedup is not part of the loader re-gate (verified in code), and
+`make curriculum-load` reports templates_unchanged 958 / retired 0. Whether to de-duplicate any
+of the 133 is a content decision for the user.
+
+**Verification:** suite **2219 / 2 / 1** (baseline 2206 + 13 new tests, no flake); coordinator
+re-ran the new suites (26 passed), confirmed the frozen corpus byte-untouched, and cross-checked
+the postfix CSV. `QUESTION_GENERATION.md`'s deterministic-check list updated. Evidence:
+`docs/resume_evidence/05_content_generation/post_remediation/`.
