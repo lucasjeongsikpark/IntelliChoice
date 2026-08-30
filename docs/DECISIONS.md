@@ -31277,3 +31277,49 @@ final-tree full-suite re-run was abandoned at 26% when the host ran out of memor
 not code — the same host-pressure that halted E1 earlier). Coordinator independently confirmed:
 `git diff HEAD` empty, 28 E6.2 tests green on the final tree, no other module imports the harness.
 A coordinator full-suite run follows before the next experiment starts.
+
+## D-465 — E5.3 accepted: the controlled raw-vs-validated generation run, 14.85% → 4.60% defective, and the residual is the known dedup blind spot (accepted, 2026-08-29)
+
+The resume-evidence program's final experiment (Theme-5 Tier-3), the user-authorized isolated
+generation benchmark, `docs/resume_evidence/05_content_generation/e5_3/E5_3_REPORT.md`. ONE
+`run_plan` invocation of 204 candidates (34 skill/tier pairs × 6, 10 topics, tiers 1–5,
+seed-offset 20000000, repair off) into an isolated benchmark database, after re-probing both
+D-447 roster models as invocable. **204/204 completed, 174 machine-accepted (85.3%), 722.55¢ of
+the 1000¢ hard cap, 141.9 min at 1.44 candidates/min.** Isolation proven: dev DB row counts
+**1077/1827 before and after**, zero `curriculum/` diff, zero product-code diff; 25 new pure
+tests; suite 2195 / 2 / 1. D-342-clean: nothing generated was approved, exported, or counted
+toward coverage.
+
+**The headline before/after — the controlled version of D-276's accidental ablation.** Raw
+generation (every schema-valid generator output) carries a deterministic defect in **30/202
+(14.85%)**; the validated arm carries one in **8/174 (4.60%)** — a **3.2× reduction**, and every
+gate-checkable defect family goes to **exactly 0.00%**. The independent re-score reproduced the
+pipeline's own 22 validation-stage rejections item-for-item.
+
+**The residual 4.60% is entirely the known dedup blind spot, not a gate failure.** All 8
+validated survivors are within-run duplication — 7 collision groups, every one a same-skill
+different-tier pair that the dedup stage's three predicates structurally cannot see. This is the
+same gap E5.2 finding #3 measured (renamed/near clones the embedding threshold misses; the
+unwired `arithmetic_identity` check would catch them) — two independent experiments converging on
+one dedup limitation strengthens `CONTENT-GATE-HINT-COHERENCE`'s dedup sub-point.
+
+**The funnel overlap counterfactual is the reverse of D-276, as expected.** Of the 6 paid-stage
+rejections carrying a snapshot, the free deterministic gate would catch **0** — all are
+scenario-fidelity defects SymPy cannot express (the blind solvers and the gate catch disjoint
+defect sets; neither replaces the other, the standing D-276/E5.2 result).
+
+**One honest caveat that reframes a scary-looking number.** `alg1_quadratics` accepted **0/18**
+for one systematic reason: the generator wrote the `equation` field as a bare expression rather
+than `Eq(expr, 0)`, so `derive_answer` could not verify it. That means the raw arm's 9.41%
+"answer-key" rate is a **verifiability failure, not 19 wrong answers** — the items may be correct;
+the gate correctly refused to certify them. Stated, not smoothed.
+
+**Three observed-drift items for follow-up (not fixed here):** the E5.1 funnel harness crashes
+rendering a zero-acceptance slice (edge case; the real run at 85.3% acceptance rendered fine);
+`RunSummary.retiered=26` under-reports the 104/174 items actually stored at a non-requested tier
+(D-302); and `QUESTION_GENERATION.md` §4 still shows the removed `--mode authored` flag. Filed as
+documentation/tooling drift, not product defects.
+
+**Verification:** coordinator confirmed zero tracked-file diff, dev DB unchanged at 1077/1827,
+25 new tests green, headline numbers cross-checked against `scoring_summary.json`, and spend
+722.55¢ ≤ 1000¢; `make lint typecheck test` green.

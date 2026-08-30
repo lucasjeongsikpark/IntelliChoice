@@ -1,0 +1,36 @@
+{
+  "experiment": "E5.3",
+  "measured_at": "2026-08-29T23:34:29.835348+00:00",
+  "git_sha": "dd624d84bdc5ba0c43e02d25605b5b5d45524485",
+  "environment": "real Bedrock (bedrock-runtime converse, maxTokens=1)",
+  "aws_region": "us-east-1",
+  "aws_account": "320503430250",
+  "roster": {
+    "generator (authored)": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "solver_a": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "solver_b": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "judge": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "equation_design": "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+  },
+  "distinct_model_ids": [
+    "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+  ],
+  "results": {
+    "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+      "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "verdict": "invocable",
+      "error_code": null,
+      "error_message": "",
+      "probed_at": "2026-08-29T23:34:27.599077+00:00"
+    },
+    "us.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+      "model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "verdict": "invocable",
+      "error_code": null,
+      "error_message": "",
+      "probed_at": "2026-08-29T23:34:28.354265+00:00"
+    }
+  },
+  "all_invocable": true
+}

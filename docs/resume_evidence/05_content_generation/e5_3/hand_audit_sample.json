@@ -1,0 +1,46 @@
+{
+  "experiment": "E5.3",
+  "seed": 20260829,
+  "scores_file": "raw_arm_scores.jsonl",
+  "population": {
+    "rejected": 28,
+    "accepted": 174
+  },
+  "drawn": {
+    "machine_rejected": [
+      "afc436a6-9077-485d-bbda-d880a648dd6c",
+      "0084cf0e-b3f6-4e97-b16c-0dc091118cd0",
+      "3c1b065d-8103-431e-aa5d-fa52fba1ed7e",
+      "beba6e74-b4c3-4f26-88a9-e2640a4a4f09",
+      "e528c845-ad5e-432b-902c-d15e1274a03a",
+      "e90cb205-bd39-4257-bd3c-206476a6105d",
+      "168c1d9a-615c-4246-b4b0-c7bea1d20f8a",
+      "18c6f82b-ba0e-4d34-900e-95e3f395ca7b",
+      "3d8ec0d3-5f9c-42f3-9d64-564b86b4e9b1",
+      "93c70aa6-d055-46bb-bdf8-4a1c828f2928",
+      "ebb919aa-9543-491b-bf91-e94111efd17c",
+      "1bec466b-d574-4f43-b148-4bdac1efc2ad",
+      "66e03bd5-e657-4d04-a86e-27886f22e915",
+      "6f29199c-b763-4dbb-9021-3f39576528a3",
+      "cda3a211-b249-4880-b282-fb123e418dfc"
+    ],
+    "machine_accepted": [
+      "0bc6b693-bcfb-4e76-90c3-172ce85f46d2",
+      "44477f9f-9c6e-40ac-81e5-7ca26b304836",
+      "e37e2916-b627-4435-bcc0-c1d59f8441d8",
+      "0e365340-9a54-4a98-9657-5477929e2bc9",
+      "3224d9fd-3852-46f8-8be2-cc3e3f1ee139",
+      "b33f982d-e541-403c-b2d5-a98ab53375e3",
+      "fe923051-ca01-4691-9ce9-71b27a2eb775",
+      "0d6a32da-9e7a-4d6a-9661-70e32eee9ded",
+      "24aa1bbf-c4bc-45cc-96a7-b053c4f3ae21",
+      "5961a716-aea0-40a7-bb05-63d2bdbdb67a",
+      "6471b751-f547-4a50-87c0-c0f8e2f3fc82",
+      "4b29e62b-c97d-4c43-ba9c-7550f37878b1",
+      "814b05a0-a38e-48be-b2fb-5b69861cd7b2",
+      "59a25b98-cae2-41ba-ba1b-8a3e2689c5d0",
+      "a2366bfc-b275-4b10-97a9-d7000823529a"
+    ]
+  },
+  "stratification": "proportional over requested_difficulty within each arm"
+}
