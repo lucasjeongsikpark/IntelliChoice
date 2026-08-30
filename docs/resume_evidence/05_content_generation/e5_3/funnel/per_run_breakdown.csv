@@ -1,0 +1,2 @@
+pipeline_run_id,candidates,accepted,rejected,acceptance_rate,cost_cents,cost_cents_per_accepted,first_candidate_at,last_candidate_at,rejected_at_design,rejected_at_generator,rejected_at_validation,rejected_at_dedup,rejected_at_solver,rejected_at_judge,rejected_at_difficulty,rejected_at_budget,rejected_at_circuit_open
+0e111b3f-bd93-410e-a16c-6ee2b8e753a6,204,174,30,0.8529411764705882,722.5486,4.1526,2026-08-29T23:34:54.878786+00:00,2026-08-30T01:56:50.471990+00:00,0,2,22,0,2,4,0,0,0

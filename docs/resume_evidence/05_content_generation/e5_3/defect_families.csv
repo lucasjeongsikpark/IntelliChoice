@@ -1,0 +1,4 @@
+defect_family,raw_n,raw_denominator,raw_rate,validated_n,validated_denominator,validated_rate
+age-appropriate wording,3,202,0.0149,0,174,0.0000
+answer key: derived answer disagrees,19,202,0.0941,0,174,0.0000
+duplicate scenario (skeleton collision),14,202,0.0693,8,174,0.0460

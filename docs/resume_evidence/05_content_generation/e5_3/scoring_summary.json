@@ -1,0 +1,215 @@
+{
+  "experiment": "E5.3",
+  "measured_at": "2026-08-30T02:01:59.720221+00:00",
+  "git_sha": "dd624d84bdc5ba0c43e02d25605b5b5d45524485",
+  "environment": "real-model generation (D-447 roster), isolated local benchmark database",
+  "pipeline_run_id": "0e111b3f-bd93-410e-a16c-6ee2b8e753a6",
+  "duplicate_threshold": 0.75,
+  "run_totals": {
+    "validation_run_rows": 204,
+    "generator_returned_no_item": 2,
+    "unreconstructable": [],
+    "machine_accepted_rows": 174,
+    "rejected_rows": 30,
+    "total_cost_cents": 722.5486,
+    "first_candidate_at": "2026-08-29T23:34:54.878786+00:00",
+    "last_candidate_at": "2026-08-30T01:56:50.471990+00:00"
+  },
+  "raw_arm": {
+    "arm": "raw generation (every schema-valid generator output)",
+    "candidates": 202,
+    "scored": 202,
+    "scoring_errors": 0,
+    "defective": 30,
+    "invalid_content_rate": 0.1485148514851485,
+    "by_family": {
+      "answer key: derived answer disagrees": 19,
+      "duplicate scenario (skeleton collision)": 14,
+      "age-appropriate wording": 3
+    }
+  },
+  "validated_arm": {
+    "arm": "validated pipeline output (machine-accepted)",
+    "candidates": 174,
+    "scored": 174,
+    "scoring_errors": 0,
+    "defective": 8,
+    "invalid_content_rate": 0.04597701149425287,
+    "by_family": {
+      "duplicate scenario (skeleton collision)": 8
+    }
+  },
+  "acceptance": {
+    "machine_accepted": 174,
+    "generator_returned_items": 202,
+    "acceptance_rate_of_returned_items": 0.8613861386138614,
+    "acceptance_rate_of_all_attempts": 0.8529411764705882
+  },
+  "economics": {
+    "total_cost_cents": 722.5486,
+    "cost_cents_per_attempt": 3.541904901960784,
+    "cost_cents_per_machine_accepted": 4.15257816091954,
+    "elapsed_minutes": 141.92655340000002,
+    "candidates_per_minute": 1.4373631650523824
+  },
+  "duplicates": {
+    "skeleton_collision_groups": 7,
+    "candidates_in_a_skeleton_collision": 14,
+    "near_duplicate_pairs": 29,
+    "candidates_in_a_near_duplicate_pair": 35,
+    "accepted_candidates_in_a_skeleton_collision": 8,
+    "detail": {
+      "skeleton_collisions": [
+        [
+          "3c1b065d-8103-431e-aa5d-fa52fba1ed7e",
+          "ec31ff6d-c2fe-4ff5-b709-0b5df9eb1fc1"
+        ],
+        [
+          "0e96cf99-0800-46ca-8439-293cdbc08b8e",
+          "e528c845-ad5e-432b-902c-d15e1274a03a"
+        ],
+        [
+          "1c68e3fe-4e8c-4656-a043-56a426d9855e",
+          "cda3a211-b249-4880-b282-fb123e418dfc"
+        ],
+        [
+          "eee64f0e-3197-4074-b983-13327669f4e0",
+          "fb45b94f-3edc-4c89-bbb7-1796ca50a1b9"
+        ],
+        [
+          "ae7cdaf5-91b6-44df-a23e-8e35489a0139",
+          "db78d8ac-9aa3-40ee-b654-3825f17586e6"
+        ],
+        [
+          "89baed41-5c6a-4620-9199-3e736155332f",
+          "f85198e4-713c-4184-bfb7-97361382fbb3"
+        ],
+        [
+          "ddccadcf-29c9-45fd-8639-9f791e85d5c8",
+          "f209432a-3709-45d5-890e-9a2196d13439"
+        ]
+      ],
+      "near_duplicate_pairs": [
+        [
+          "06cff583-c49c-4471-bb81-4b7f22abbc30",
+          "0c16cb5a-0c56-43ed-b58c-ee4c1440100a"
+        ],
+        [
+          "0e96cf99-0800-46ca-8439-293cdbc08b8e",
+          "e528c845-ad5e-432b-902c-d15e1274a03a"
+        ],
+        [
+          "0ec1a3c2-f9c2-410e-8bf9-5bc3ac23ea03",
+          "5640d94c-d197-477c-a2b1-d6fe7519c407"
+        ],
+        [
+          "0f1db47e-7c42-4910-9e99-263dee16b913",
+          "7e2a3191-5988-473d-8354-6e1886e6a7fe"
+        ],
+        [
+          "18c6f82b-ba0e-4d34-900e-95e3f395ca7b",
+          "3c1b065d-8103-431e-aa5d-fa52fba1ed7e"
+        ],
+        [
+          "18c6f82b-ba0e-4d34-900e-95e3f395ca7b",
+          "ec31ff6d-c2fe-4ff5-b709-0b5df9eb1fc1"
+        ],
+        [
+          "1bec466b-d574-4f43-b148-4bdac1efc2ad",
+          "7092eff6-e636-44b2-9aa4-797847064d4d"
+        ],
+        [
+          "1bec466b-d574-4f43-b148-4bdac1efc2ad",
+          "b67787f9-089b-4165-896f-a1223e2661fb"
+        ],
+        [
+          "1c68e3fe-4e8c-4656-a043-56a426d9855e",
+          "58cb83b1-fdc7-4b5a-9266-b0079ad7162f"
+        ],
+        [
+          "1c68e3fe-4e8c-4656-a043-56a426d9855e",
+          "cda3a211-b249-4880-b282-fb123e418dfc"
+        ],
+        [
+          "1c68e3fe-4e8c-4656-a043-56a426d9855e",
+          "d2c1107a-445f-496d-853a-1827e9fe3f9a"
+        ],
+        [
+          "37e11036-9492-412a-be39-821119d85ad2",
+          "ae7cdaf5-91b6-44df-a23e-8e35489a0139"
+        ],
+        [
+          "37e11036-9492-412a-be39-821119d85ad2",
+          "db78d8ac-9aa3-40ee-b654-3825f17586e6"
+        ],
+        [
+          "3c1b065d-8103-431e-aa5d-fa52fba1ed7e",
+          "ec31ff6d-c2fe-4ff5-b709-0b5df9eb1fc1"
+        ],
+        [
+          "545ecde3-9326-4d63-9126-ce0de13aafd4",
+          "89baed41-5c6a-4620-9199-3e736155332f"
+        ],
+        [
+          "545ecde3-9326-4d63-9126-ce0de13aafd4",
+          "f85198e4-713c-4184-bfb7-97361382fbb3"
+        ],
+        [
+          "57a3ffed-db14-4740-a379-70c3336fd847",
+          "861a610d-5965-4a0a-8061-a1833b9bfe55"
+        ],
+        [
+          "58cb83b1-fdc7-4b5a-9266-b0079ad7162f",
+          "cda3a211-b249-4880-b282-fb123e418dfc"
+        ],
+        [
+          "58cb83b1-fdc7-4b5a-9266-b0079ad7162f",
+          "d2c1107a-445f-496d-853a-1827e9fe3f9a"
+        ],
+        [
+          "638016ec-154b-4548-aedc-42c8113f5ce8",
+          "7e2a3191-5988-473d-8354-6e1886e6a7fe"
+        ],
+        [
+          "7e2a3191-5988-473d-8354-6e1886e6a7fe",
+          "ddccadcf-29c9-45fd-8639-9f791e85d5c8"
+        ],
+        [
+          "7e2a3191-5988-473d-8354-6e1886e6a7fe",
+          "f209432a-3709-45d5-890e-9a2196d13439"
+        ],
+        [
+          "89baed41-5c6a-4620-9199-3e736155332f",
+          "f85198e4-713c-4184-bfb7-97361382fbb3"
+        ],
+        [
+          "a2366bfc-b275-4b10-97a9-d7000823529a",
+          "c75797cc-1548-462e-8159-c59e7536945d"
+        ],
+        [
+          "ae7cdaf5-91b6-44df-a23e-8e35489a0139",
+          "db78d8ac-9aa3-40ee-b654-3825f17586e6"
+        ],
+        [
+          "cda3a211-b249-4880-b282-fb123e418dfc",
+          "d2c1107a-445f-496d-853a-1827e9fe3f9a"
+        ],
+        [
+          "dc578b60-c48a-423e-b53d-7bc238c66620",
+          "e7549da6-8042-48dc-ac49-c3528d7eead3"
+        ],
+        [
+          "ddccadcf-29c9-45fd-8639-9f791e85d5c8",
+          "f209432a-3709-45d5-890e-9a2196d13439"
+        ],
+        [
+          "eee64f0e-3197-4074-b983-13327669f4e0",
+          "fb45b94f-3edc-4c89-bbb7-1796ca50a1b9"
+        ]
+      ]
+    }
+  },
+  "reconstruction_placeholders": [
+    "reasoning"
+  ]
+}

@@ -1,0 +1,24 @@
+{"event": "Found credentials in shared credentials file: %s", "level": "INFO", "timestamp": "2026-08-29T23:34:35.262986+00:00", "logger": "botocore.credentials", "message": "Found credentials in shared credentials file: ~/.aws/credentials"}
+provider:              bedrock
+generator model:       us.anthropic.claude-sonnet-4-5-20250929-v1:0
+design model:          us.anthropic.claude-sonnet-4-5-20250929-v1:0 (+calculator)
+solver A model:        us.anthropic.claude-haiku-4-5-20251001-v1:0
+solver B model:        us.anthropic.claude-sonnet-4-5-20250929-v1:0
+judge model:           us.anthropic.claude-haiku-4-5-20251001-v1:0
+embedding model:       amazon.titan-embed-text-v2:0
+topic:                 algebra_1, algebra_2, algebra_foundations, calculus, decimals, g1_addition, g1_subtraction, g1_word_problems, g2_addition, g2_subtraction, g2_word_problems, g3_word_problems, g4_multiplication_division, g4_word_problems, g5_word_problems, g68_word_problems, g6_fractions, g6_geometry_measurement, g6_word_problems, geometry_measures, linear_equations, measurement, number_sense, pre_algebra, statistics_advanced, trigonometry
+skills:                alg1_quadratics, g1_add_within_10, g2_sub_two_digit, g3_wp_mixed, g4_div_by_one_digit, g5_wp_ratios_mixed, g6_wp_rate_speed, linear_two_step, prealg_exponents, trig_functions
+difficulties:          1, 2, 3, 4, 5
+candidates per slot:   6
+max repair attempts:   0 (off - a rejected candidate is not retried)
+equation design:       3 attempts per candidate
+scheduled candidates:  204
+seed offset:           20000000
+planned template ids:  204 (authored-algebra_1-d3-20008300 .. authored-trigonometry-d5-20005505)
+already-used ids:      0
+run budget ceiling:    1000 cents (configured hard cap 1000)
+estimated max calls:   1020 (5 per candidate)
+estimated max spend:   not calculable - no per-token price table is configured; the run budget ceiling above is the enforced bound
+solver diversity:      PASS
+id availability:       PASS
+model access:          PASS
