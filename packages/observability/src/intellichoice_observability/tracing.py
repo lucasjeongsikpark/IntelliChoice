@@ -52,12 +52,45 @@ _tracer: Tracer = trace.get_tracer("intellichoice")
 # own access logger was unaffected: it records a templated `path` and drops the query
 # string, which is why S38's log scan was clean and is exactly why this needed a second,
 # independent scan of a second store.
+
+# The credential *parameter names* stripped out of a query string. Kept explicitly
+# reconciled with `logging_config._DENYLISTED_LOG_KEYS`: the two vocabularies had drifted
+# apart, which is E6.1's F-2 (D-458) - `refresh_token` and `id_token` were denylisted as log
+# keys while this layer did not name them, so an opaque-valued `?refresh_token=` reached the
+# trace store (a JWT-valued one was caught by the JWT pattern below, which is what kept the
+# gap quiet). `test_the_span_credential_vocabulary_covers_the_log_denylist_credential_keys`
+# fails the next time one list grows without the other.
+#
+# Deliberately a separate constant rather than an import of that set: the log denylist is a
+# denylist of *log record keys* and also names PII fields (`email`, `prompt`, `transcript`),
+# which are not URL parameters and are explicitly out of this layer's credential-only scope
+# (AUD-F-13). Sharing one object would silently hand each layer the other's semantics.
+_CREDENTIAL_QUERY_PARAMS: tuple[str, ...] = (
+    "access_token",
+    "api_key",
+    "bearer_token",
+    "id_token",
+    "oauth_token",
+    "refresh_token",
+    "token",
+)
+
 _REDACTIONS = (
-    # `?token=` / `&token=` in a URL - the SSE case above.
-    (re.compile(r"([?&](?:token|access_token|api_key)=)[^&\s]+", re.IGNORECASE), r"\1REDACTED"),
+    # `?token=` / `&token=` in a URL - the SSE case above. Anchoring on `?`/`&` is what keeps
+    # the pattern off ordinary prose and off `db.statement`; a bare `token=...` with no query
+    # context is therefore still not matched (E6.1's fourth span miss, left as measured).
+    (
+        re.compile(
+            rf"([?&](?:{'|'.join(_CREDENTIAL_QUERY_PARAMS)})=)[^&\s]+",
+            re.IGNORECASE,
+        ),
+        r"\1REDACTED",
+    ),
     # A bare JWT anywhere (header value, message, manually-set attribute).
     (re.compile(r"eyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\.?[A-Za-z0-9_-]*"), "REDACTED-JWT"),
-    (re.compile(r"([Bb]earer\s+)\S+"), r"\1REDACTED"),
+    # HTTP auth schemes are case-insensitive (RFC 7235), so `BEARER` is the same credential;
+    # the group keeps the original spelling and replaces only the value.
+    (re.compile(r"(bearer\s+)\S+", re.IGNORECASE), r"\1REDACTED"),
 )
 
 

@@ -1,0 +1,111 @@
+.....FF...........FFF.                                                   [100%]
+=================================== FAILURES ===================================
+_________ test_redacts_urls_whose_scheme_or_host_label_is_capitalised __________
+
+    def test_redacts_urls_whose_scheme_or_host_label_is_capitalised() -> None:
+        """E6.1 F-1 (D-458): `_URL_RE` was compiled without `re.IGNORECASE`, so `HTTP://`,
+        `Https://` and `WWW.` matched nothing at all - 6/6 of the corpus's
+        `url_uppercase_scheme` cases exported verbatim. Scheme and host labels are
+        case-insensitive by RFC 3986, and a phone keyboard autocapitalises the first word of a
+        message, which is exactly where a student pastes a link.
+        """
+        for text in (
+            "HTTP://EXAMPLE.ORG/help",
+            "HTTPS://EXAMPLE.ORG",
+            "Https://example.org/help",
+            "Http://school.example",
+            "WWW.EXAMPLE.ORG",
+            "Www.example.org/help",
+        ):
+>           assert redact_free_text(text) == "[redacted-url]", text
+E           AssertionError: HTTP://EXAMPLE.ORG/help
+E           assert 'HTTP://EXAMPLE.ORG/help' == '[redacted-url]'
+E             
+E             - [redacted-url]
+E             + HTTP://EXAMPLE.ORG/help
+
+packages/shared/tests/test_pii_redaction.py:52: AssertionError
+______ test_uppercase_urls_are_screened_by_the_consolidation_denylist_too ______
+
+    def test_uppercase_urls_are_screened_by_the_consolidation_denylist_too() -> None:
+        """`contains_pii_pattern` shares the same compiled patterns, so the flag has to move
+        both call sites at once - a model-generated fact holding `Www.example.org` must be
+        dropped, not stored.
+        """
+>       assert contains_pii_pattern("see Https://example.org/help")
+E       AssertionError: assert False
+E        +  where False = contains_pii_pattern('see Https://example.org/help')
+
+packages/shared/tests/test_pii_redaction.py:60: AssertionError
+_________ test_uppercase_bearer_credentials_are_redacted_before_export _________
+
+    def test_uppercase_bearer_credentials_are_redacted_before_export() -> None:
+        """E6.1 F-2 (D-458): the pattern named `[Bb]earer` only, so `BEARER abc123XYZ` - an
+        opaque token, so the JWT pattern cannot catch it either - was exported verbatim. HTTP
+        auth schemes are case-insensitive by RFC 7235, so the uppercased form is the same
+        credential, not a different one.
+        """
+        exporter = _install_test_provider()
+    
+        with traced_span("http.client", authorization="BEARER abc123XYZ"):
+            pass
+    
+        (span,) = exporter.get_finished_spans()
+        assert span.attributes is not None
+>       assert span.attributes["authorization"] == "BEARER REDACTED"
+E       AssertionError: assert 'BEARER abc123XYZ' == 'BEARER REDACTED'
+E         
+E         - BEARER REDACTED
+E         + BEARER abc123XYZ
+
+packages/observability/tests/test_tracing.py:273: AssertionError
+____ test_refresh_and_id_token_query_parameters_are_redacted_before_export _____
+
+    def test_refresh_and_id_token_query_parameters_are_redacted_before_export() -> None:
+        """E6.1 F-2's other half: the span redactor's query-parameter alternation named
+        `token|access_token|api_key` while the *log* denylist
+        (`_DENYLISTED_LOG_KEYS`) already listed `refresh_token` and `id_token` as keys. Two
+        credential vocabularies drifting apart is the finding; a JWT-valued parameter was still
+        caught by the JWT pattern, an opaque-valued one was not.
+        """
+        exporter = _install_test_provider()
+    
+        with traced_span(
+            "auth.exchange",
+            refresh="https://idp.example/t?refresh_token=abc123XYZ",
+            identity="https://idp.example/t?id_token=abc123XYZ",
+            oauth="https://idp.example/t?oauth_token=abc123XYZ",
+        ):
+            pass
+    
+        (span,) = exporter.get_finished_spans()
+        assert span.attributes is not None
+>       assert span.attributes["refresh"] == "https://idp.example/t?refresh_token=REDACTED"
+E       AssertionError: assert 'https://idp....ken=abc123XYZ' == 'https://idp....oken=REDACTED'
+E         
+E         - https://idp.example/t?refresh_token=REDACTED
+E         ?                                     ^^^^^^^^
+E         + https://idp.example/t?refresh_token=abc123XYZ
+E         ?                                     ^^^^^^^^^
+
+packages/observability/tests/test_tracing.py:295: AssertionError
+_ test_the_span_credential_vocabulary_covers_the_log_denylist_credential_keys __
+
+    def test_the_span_credential_vocabulary_covers_the_log_denylist_credential_keys() -> None:
+        """The reconciliation itself, asserted rather than left to the comment: every
+        credential-shaped key the log denylist filters is also a parameter name the span
+        redactor strips. This is the test that fails the next time one list grows and the
+        other does not - which is exactly how F-2 happened.
+        """
+        from intellichoice_observability.logging_config import _DENYLISTED_LOG_KEYS
+>       from intellichoice_observability.tracing import _CREDENTIAL_QUERY_PARAMS
+E       ImportError: cannot import name '_CREDENTIAL_QUERY_PARAMS' from 'intellichoice_observability.tracing' (/Users/jeongsikpark/Downloads/Desktop-local/github_repo/IntelliChoice/packages/observability/src/intellichoice_observability/tracing.py)
+
+packages/observability/tests/test_tracing.py:307: ImportError
+=========================== short test summary info ============================
+FAILED packages/shared/tests/test_pii_redaction.py::test_redacts_urls_whose_scheme_or_host_label_is_capitalised
+FAILED packages/shared/tests/test_pii_redaction.py::test_uppercase_urls_are_screened_by_the_consolidation_denylist_too
+FAILED packages/observability/tests/test_tracing.py::test_uppercase_bearer_credentials_are_redacted_before_export
+FAILED packages/observability/tests/test_tracing.py::test_refresh_and_id_token_query_parameters_are_redacted_before_export
+FAILED packages/observability/tests/test_tracing.py::test_the_span_credential_vocabulary_covers_the_log_denylist_credential_keys
+5 failed, 17 passed in 0.29s

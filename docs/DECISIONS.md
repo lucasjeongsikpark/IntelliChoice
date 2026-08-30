@@ -31472,3 +31472,32 @@ of the 133 is a content decision for the user.
 re-ran the new suites (26 passed), confirmed the frozen corpus byte-untouched, and cross-checked
 the postfix CSV. `QUESTION_GENERATION.md`'s deterministic-check list updated. Evidence:
 `docs/resume_evidence/05_content_generation/post_remediation/`.
+
+## D-470 — R4 accepted: PII F-1/F-2 fixed; corpus re-measured at recall 96.4% (was 94.2%) with zero new false positives — the remediation program is complete (accepted, 2026-08-30)
+
+Fourth and final remediation. `_URL_RE` now compiles with `re.IGNORECASE` (F-1: `HTTP://`,
+`Https://`, `WWW.` were 0/6) and the span-export redactor's credential vocabulary is reconciled
+with the log denylist via a shared `_CREDENTIAL_QUERY_PARAMS` constant + a case-insensitive
+Bearer pattern (F-2). Reproduced with failing tests first (5 failed pre-fix), plus two permanent
+false-positive-arm tests.
+
+**On the untouched 651-case + 46-span corpus (same denominators):** URL recall **68/74 → 74/74**,
+overall in-contract recall **261/277 → 267/277 (94.2% → 96.4%)**, F1 522/546 → **534/552
+(96.7%)**, span credential recall **18/22 → 21/22**, with **zero new false positives** (8/264
+adversarial-negative flags before and after; precision excluding them stays 267/267 = 1.000).
+Exactly 9 cases changed status, accounted case-by-case. The permanent lane's 12 affected RECORDED
+gates were updated to the new measurement (the lane's designed workflow).
+
+**Out of scope, documented:** F-3 (4 paren-phone), F-4 (6 exotic emails), and the one remaining
+span miss (`bare token=` with no `?`/`&` anchor — fixing it risks corrupting `db.statement`
+attributes, a semantics change deliberately not made). Historical E6.x artifacts untouched.
+
+**Verification:** suite **2226 / 2 / 1** (baseline 2219 + 7 new); coordinator re-ran the three
+PII test modules (54 passed) and cross-checked the postfix CSV. Evidence:
+`docs/resume_evidence/06_eval_observability/post_remediation/`.
+
+**Remediation program closed (D-467..D-470):** MEMORY-OUTPUT-TRUNCATION fixed and re-validated
+(facts 6→119); SILENT-500S + COLLECTOR-STATS-UNSCRAPED closed and staging-verified;
+CONTENT-GATE-HINT-COHERENCE largely fixed (F1 0.837→0.949, skeleton class honestly open);
+PII-REDACTION-GAPS' actionable half fixed. Deploy note: the D-467/D-468/D-469 app-side fixes
+reach staging with the next manual deploy (D-417).
