@@ -1,0 +1,193 @@
+{
+  "section": "E \u2014 deployed-revision health",
+  "as_of_utc": "2026-08-30T06:53:14Z",
+  "build_sha": "523b9f0",
+  "image_tag": "gha-523b9f036a53",
+  "revisions": {
+    "learning_api": {
+      "before": {
+        "revision": 154,
+        "image_tag": "gha-5fa15d491057",
+        "registered_utc": "2026-08-30T03:53:36Z"
+      },
+      "after": {
+        "revision": 155,
+        "image_tag": "gha-523b9f036a53",
+        "registered_utc": "2026-08-30T06:23:48Z"
+      },
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "rollout_state": "COMPLETED",
+      "steady_state_utc": "2026-08-30T06:26:57Z"
+    },
+    "chat_api": {
+      "before": {
+        "revision": 152,
+        "image_tag": "gha-5fa15d491057",
+        "registered_utc": "2026-08-30T03:53:36Z"
+      },
+      "after": {
+        "revision": 153,
+        "image_tag": "gha-523b9f036a53",
+        "registered_utc": "2026-08-30T06:26:56Z"
+      },
+      "desired": 1,
+      "running": 1,
+      "pending": 0,
+      "rollout_state": "COMPLETED",
+      "steady_state_utc": "2026-08-30T06:29:43Z"
+    },
+    "ops_task": {
+      "after": {
+        "revision": 147,
+        "image_tag": "gha-523b9f036a53",
+        "registered_utc": "2026-08-30T06:16:55Z"
+      }
+    }
+  },
+  "deployed_image_consistency": {
+    "verdict": "OK",
+    "all_agree_on": "gha-523b9f036a53",
+    "note": "the two terraform.tfvars bootstrap pins remain at gha-df79b290bf65 and are excluded from the verdict by design (adopt_deployed_image=true, D-244)"
+  },
+  "cloudfront_smoke": {
+    "guest_chat_turn": {
+      "host": "d222glidpp4azv.cloudfront.net",
+      "path": "POST /chat/sessions then POST /chat/sessions/{id}/messages",
+      "status": 200,
+      "latency_s": 14.56,
+      "answer_chars": 2437,
+      "citations": 1,
+      "started_utc": "2026-08-30T06:47:30Z",
+      "result": "PASS"
+    },
+    "authenticated_learning_flow": {
+      "host": "d35dfnjzmgrm01.cloudfront.net",
+      "auth": "POST /dev/token with X-Staging-Token-Secret (D-097), role=student sub=student-ext-1, 200",
+      "reads": [
+        {
+          "path": "/learning/students/{id}/dashboard",
+          "status": 200
+        },
+        {
+          "path": "/learning/students/{id}/sessions",
+          "status": 200
+        },
+        {
+          "path": "/learning/students/{id}/reports",
+          "status": 200
+        }
+      ],
+      "note": "read-only end to end: JWT verify -> MySQL ProfileAdapter -> Postgres -> response. No writes, so no state left behind.",
+      "result": "PASS"
+    },
+    "edge_routing_gate": {
+      "path": "GET /me on the chat domain",
+      "status": 401,
+      "expected": 401,
+      "note": "the deploy workflow's own assertion \u2014 API paths reach the ALB, not the S3 SPA origin",
+      "result": "PASS"
+    }
+  },
+  "error_rates_post_deploy_vs_prior_day_same_clock_window": {
+    "window_post_deploy_utc": "2026-08-30T06:30:00Z -> 06:53:14Z",
+    "window_baseline_utc": "2026-08-29T06:30:00Z -> 06:53:14Z",
+    "alb": {
+      "HTTPCode_ELB_5XX_Count": {
+        "post": 0,
+        "baseline": 0,
+        "verdict": "PASS \u2014 no 5xx at all"
+      },
+      "HTTPCode_Target_5XX_Count": {
+        "post": 0,
+        "baseline": 0,
+        "verdict": "PASS \u2014 no 5xx at all"
+      },
+      "HTTPCode_ELB_4XX_Count": {
+        "post": 0,
+        "baseline": 0,
+        "verdict": "PASS"
+      },
+      "HTTPCode_Target_4XX_Count": {
+        "post": 6,
+        "baseline": 0,
+        "verdict": "EXPLAINED, not a regression \u2014 all six are this task's own B1 safe-trigger probes (one 422, two 404, two 403, and the /me 401 edge gate). No 4xx was served to any other caller."
+      },
+      "RequestCount": {
+        "post": 19,
+        "baseline": 1353,
+        "verdict": "EXPLAINED \u2014 the prior day's window carried resume-evidence load-test traffic; this window carries only this task's probes."
+      },
+      "TargetResponseTime_avg_s": {
+        "post": 1.93,
+        "baseline": 0.51,
+        "verdict": "EXPLAINED \u2014 a 19-request sample dominated by the one intentional 14.6s real-Bedrock chat turn. Not comparable to a 1,353-request baseline."
+      }
+    },
+    "app_http_requests_total": {
+      "learning_api": {
+        "200": {
+          "post": 420,
+          "baseline": 1789
+        }
+      },
+      "chat_api": {
+        "200": {
+          "post": 211,
+          "baseline": 225
+        }
+      },
+      "verdict": "PASS \u2014 no non-200 status series carried any datapoint in either window on either service.",
+      "caveat": "the app-side counters for this task's own 403/404/422 had not yet surfaced in the EMF export at read time; the ALB Target_4XX count above is the authoritative reading for those six."
+    }
+  },
+  "rds": {
+    "instance": "intellichoice-staging-postgres",
+    "metric": "DatabaseConnections",
+    "post_deploy": {
+      "avg": 16.3,
+      "max": 20.0,
+      "datapoints": 4
+    },
+    "trailing_24h": {
+      "avg": 36.18,
+      "max": 62.0
+    },
+    "verdict": "PASS \u2014 post-deploy sits at the low end of the normal band, well under the 24h max of 62 (D-455/D-461 context). Lower than the 24h average because no load test is running and the consolidation task has exited."
+  },
+  "alarms": {
+    "total": 40,
+    "in_ALARM": [
+      "intellichoice-staging-chat-api-p95-latency-scale-in",
+      "intellichoice-staging-learning-api-p95-latency-scale-in"
+    ],
+    "in_ALARM_verdict": "KNOWN AND EXPECTED \u2014 these are the autoscaling scale-in alarms. They sit in ALARM whenever p95 latency is below the scale-in threshold, which is the normal resting state for an idle staging environment. Their actions are application-autoscaling policies, not SNS pages.",
+    "actions_disabled_before": [],
+    "actions_disabled_after": []
+  },
+  "persistent_data_written_by_this_task": [
+    {
+      "what": "semantic_memory rows from the Section A consolidation probe",
+      "count": 0,
+      "note": "the probe is the job's own normal weekly behaviour over FIXTURE students and would not be pollution even if it had written; it wrote nothing because all 8 calls truncated"
+    },
+    {
+      "what": "one guest chat session + turn (checkpoint / message rows) from the Section E smoke",
+      "note": "ordinary product traffic, the same shape the deploy workflow's own smoke produces; covered by the existing chat-purge (90d) and checkpoint retention posture"
+    },
+    {
+      "what": "one chat_turn_cancellations row from a B1 probe (POST /chat/sessions/not-a-uuid/turns/x/cancel -> 202)",
+      "note": "removed \u2014 see B4_cleanup.txt. This is the exact D-416 shape the repository already anticipates and bounds: the sweep is global and reaps every row older than 15 minutes on any subsequent Stop press."
+    }
+  ],
+  "bedrock_spend_whole_task_cents": {
+    "section_A_consolidation_probe": 13.4,
+    "section_E_chat_smoke": 1.8539,
+    "section_E_chat_smoke_source": "BedrockCostCents, namespace IntelliChoice/intellichoice-staging/chat-api, 06:47Z bucket, 3 calls",
+    "sections_B_C_D": 0,
+    "total": 15.25,
+    "ceiling": 120,
+    "verdict": "PASS \u2014 15.25c of a ~120c ceiling"
+  }
+}

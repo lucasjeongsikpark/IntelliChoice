@@ -1,0 +1,48 @@
+{
+  "section": "A — memory truncation fails closed (D-467), on-demand staging probe",
+  "probe": {
+    "mechanism": "aws ecs run-task of the existing intellichoice-staging-ops-task definition, same cluster/subnets/security-group/command as the weekly EventBridge schedule intellichoice-staging-memory-consolidate",
+    "task_arn": "arn:aws:ecs:us-east-1:320503430250:task/intellichoice-staging/f2aadb9bd3724f03b2bbc88d12290d53",
+    "task_definition": "intellichoice-staging-ops-task:147",
+    "image": "320503430250.dkr.ecr.us-east-1.amazonaws.com/learning-api:gha-523b9f036a53",
+    "command": ["python", "-m", "intellichoice_memory.consolidate_cli"],
+    "env_override": {"MEMORY_BEDROCK_RUN_BUDGET_CENTS": "60"},
+    "env_override_rationale": "spend guard only. The job's own default is 3000 cents, which is not a bound inside this task's ~120c ceiling; the job's own budget mechanism was tightened, nothing else changed. Guard was NOT reached (students_skipped=0).",
+    "started_utc": "2026-08-30T06:38:45Z",
+    "stopped_utc": "2026-08-30T06:49:29Z",
+    "exit_code": 1,
+    "window_consolidated": "rolling [now-7d, now) as computed by the CLI"
+  },
+  "job_report_D377": {
+    "event": "memory_consolidate_job_complete", "job": "memory-consolidate",
+    "students": 2, "students_skipped": 0, "added": 0, "expired": 0,
+    "spend_cents": 13.4, "model_calls": 8, "failed": 8, "dropped": 13872
+  },
+  "per_student": [
+    {"student": "student-ext-4", "added": 0, "reconfirmed": 0, "cost_cents": 5.3856, "calls_failed": "4/4", "events_dropped": 6647, "ceiling": 2688},
+    {"student": "student-ext-1", "added": 0, "reconfirmed": 0, "cost_cents": 8.0096, "calls_failed": "4/4", "events_dropped": 7225, "ceiling": "requested 5888, capped to 4000"}
+  ],
+  "invariants": {
+    "silent_truncations": 0,
+    "silent_truncation_proof": "0 successful `bedrock_call` records exist in the run's stream, so no call could have stopped on max_tokens and still been counted a success. All 8 attempted calls are matched 1:1 by a `bedrock_call_failed` record AND by a human-readable line naming the max_output_tokens ceiling it hit. 8 attempted = 8 failed = 8 truncations surfaced.",
+    "failures_surfaced": 8,
+    "truncation_reason_observed": "OutputTruncatedError — 'model hit max_output_tokens=N before completing the MemoryUpdateResponse response; not retrying under the same ceiling'",
+    "pre_D467_counterfactual": "this identical run would have reported added=0, calls_failed=0, exit 0 — the AUD-F-34 silent-zero shape",
+    "provenance": "structurally guaranteed and vacuously satisfied here (0 facts written). consolidation.py refuses to write any fact whose model-cited evidence ids do not re-verify against the (student, window) event set: `verified_ids = _verify_evidence(...)` then `if not verified_ids: continue`, and every write site passes `evidence_event_ids=verified_ids`. No DB read or write was performed by this verification.",
+    "circuit_breaker": "not tripped — a truncation is a schema-class failure and does not call _record_failure (D-115 blast-radius rule preserved); the run made all 8 attempts"
+  },
+  "spend": {"probe_cents": 13.4, "budget_guard_cents": 60, "guard_reached": false},
+  "alerting_consequence": {
+    "note": "TRUE POSITIVE, not a false page. Because every model call failed, the CLI exited 1 by design (AUD-F-34), so the intellichoice-staging-ops-task-failed EventBridge rule fired exactly once and sent one SNS notification to intellichoice-staging-alerts.",
+    "aws_events_rule_invocations": 1,
+    "aws_events_rule_failed_invocations": 0,
+    "bucket_utc": "2026-08-30T06:45:00Z (300s bucket covering the 06:49:29Z stop)"
+  },
+  "persistent_data_written": "none. 0 facts added and 0 reconfirmed, so no semantic_memory row was created or updated by this probe.",
+  "defect_found_report_not_fix": {
+    "id": "MEMORY-CEILING-STILL-SATURATED",
+    "summary": "On the real staging cohort at 523b9f0 the D-467 ceiling is still insufficient: 8 of 8 calls truncated and 0 facts were written. Two distinct shapes: (1) student-ext-4 at 1 existing fact got the derived 2688-token ceiling and truncated on all 4 calls; (2) student-ext-1 at ~26 existing facts derived 5888, which the gateway's _HARD_MAX_OUTPUT_TOKENS capped to 4000 (`bedrock_max_tokens_capped`, `memory_consolidation_payload_oversized`), i.e. past MAX_SAFE_EXISTING_FACTS=11 no ceiling can rescue it — exactly the 'finding under the finding' D-467's own docstring names as needing its own decision.",
+    "material_caveat": "The 7-day window includes this week's resume-evidence load-test traffic, so 13,872 events dropped over the per-student call cap is far above a normal week (the 2026-08-23 scheduled run: 8 students, 8 calls, 0 dropped, 9 facts added). The saturation is therefore partly a consequence of benchmark-generated event volume, not purely a product regression. Both readings need the next ordinary weekly run to separate them.",
+    "what_D467_DID_prove_here": "The failure is now loud. Under the pre-fix ordering this run is indistinguishable from 'a quiet week'; under 523b9f0 it exits non-zero, names the ceiling on every call, and pages."
+  }
+}

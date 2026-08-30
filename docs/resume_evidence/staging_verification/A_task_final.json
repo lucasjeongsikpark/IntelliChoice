@@ -1,0 +1,116 @@
+{
+    "tasks": [
+        {
+            "attachments": [
+                {
+                    "id": "b86ea97a-2e94-47a7-8f1c-7d53943aa32b",
+                    "type": "ElasticNetworkInterface",
+                    "status": "DELETED",
+                    "details": [
+                        {
+                            "name": "subnetId",
+                            "value": "subnet-0fab49a3bf8fc3a8f"
+                        },
+                        {
+                            "name": "networkInterfaceId",
+                            "value": "eni-04ebcf784b8048c98"
+                        },
+                        {
+                            "name": "macAddress",
+                            "value": "02:b3:4c:49:2b:f3"
+                        },
+                        {
+                            "name": "privateDnsName",
+                            "value": "ip-10-0-10-64.ec2.internal"
+                        },
+                        {
+                            "name": "privateIPv4Address",
+                            "value": "10.0.10.64"
+                        }
+                    ]
+                }
+            ],
+            "attributes": [
+                {
+                    "name": "ecs.cpu-architecture",
+                    "value": "arm64"
+                }
+            ],
+            "availabilityZone": "us-east-1a",
+            "clusterArn": "arn:aws:ecs:us-east-1:320503430250:cluster/intellichoice-staging",
+            "connectivity": "CONNECTED",
+            "connectivityAt": "2026-08-30T01:38:26.428000-05:00",
+            "containers": [
+                {
+                    "containerArn": "arn:aws:ecs:us-east-1:320503430250:container/intellichoice-staging/f2aadb9bd3724f03b2bbc88d12290d53/88316722-5467-4ada-92bd-98791d9f27b3",
+                    "taskArn": "arn:aws:ecs:us-east-1:320503430250:task/intellichoice-staging/f2aadb9bd3724f03b2bbc88d12290d53",
+                    "name": "ops-task",
+                    "image": "320503430250.dkr.ecr.us-east-1.amazonaws.com/learning-api:gha-523b9f036a53",
+                    "imageDigest": "sha256:97bb3c7378368bf2c758d893e61b3b200e56e47fbbe2978bcf4460b56e363ba0",
+                    "runtimeId": "f2aadb9bd3724f03b2bbc88d12290d53-2023483375",
+                    "lastStatus": "STOPPED",
+                    "exitCode": 1,
+                    "networkBindings": [],
+                    "networkInterfaces": [
+                        {
+                            "attachmentId": "b86ea97a-2e94-47a7-8f1c-7d53943aa32b",
+                            "privateIpv4Address": "10.0.10.64"
+                        }
+                    ],
+                    "healthStatus": "UNKNOWN",
+                    "cpu": "0"
+                }
+            ],
+            "cpu": "256",
+            "createdAt": "2026-08-30T01:38:22.088000-05:00",
+            "desiredStatus": "STOPPED",
+            "enableExecuteCommand": false,
+            "executionStoppedAt": "2026-08-30T01:49:06.578000-05:00",
+            "group": "family:intellichoice-staging-ops-task",
+            "healthStatus": "UNKNOWN",
+            "lastStatus": "STOPPED",
+            "launchType": "FARGATE",
+            "memory": "512",
+            "overrides": {
+                "containerOverrides": [
+                    {
+                        "name": "ops-task",
+                        "command": [
+                            "python",
+                            "-m",
+                            "intellichoice_memory.consolidate_cli"
+                        ],
+                        "environment": [
+                            {
+                                "name": "MEMORY_BEDROCK_RUN_BUDGET_CENTS",
+                                "value": "60"
+                            }
+                        ]
+                    }
+                ],
+                "inferenceAcceleratorOverrides": []
+            },
+            "platformVersion": "1.4.0",
+            "platformFamily": "Linux",
+            "pullStartedAt": "2026-08-30T01:38:33.357000-05:00",
+            "pullStoppedAt": "2026-08-30T01:38:44.975000-05:00",
+            "startedAt": "2026-08-30T01:38:45.425000-05:00",
+            "startedBy": "r5-smoke-A",
+            "stopCode": "EssentialContainerExited",
+            "stoppedAt": "2026-08-30T01:49:29.846000-05:00",
+            "stoppedReason": "Essential container in task exited",
+            "stoppingAt": "2026-08-30T01:49:16.610000-05:00",
+            "tags": [],
+            "taskArn": "arn:aws:ecs:us-east-1:320503430250:task/intellichoice-staging/f2aadb9bd3724f03b2bbc88d12290d53",
+            "taskDefinitionArn": "arn:aws:ecs:us-east-1:320503430250:task-definition/intellichoice-staging-ops-task:147",
+            "version": 5,
+            "ephemeralStorage": {
+                "sizeInGiB": 20
+            },
+            "fargateEphemeralStorage": {
+                "sizeInGiB": 20
+            }
+        }
+    ],
+    "failures": []
+}

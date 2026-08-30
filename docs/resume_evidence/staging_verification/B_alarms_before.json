@@ -1,0 +1,1330 @@
+{
+    "MetricAlarms": [
+        {
+            "AlarmName": "intellichoice-staging-chat-api-5xx-rate",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-5xx-rate",
+            "AlarmDescription": "S34: more than 5 5xx responses/min from chat-api for 2 consecutive minutes.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-07-24T14:28:44.179000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: no datapoints were received for 2 periods and 2 missing datapoints were treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-07-30T19:19:56.732+0000\",\"statistic\":\"Sum\",\"period\":60,\"recentDatapoints\":[],\"threshold\":5.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-07-30T19:16:00.000+0000\"}]}",
+            "StateUpdatedTimestamp": "2026-07-30T14:19:56.735000-05:00",
+            "MetricName": "HTTPCode_Target_5XX_Count",
+            "Namespace": "AWS/ApplicationELB",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "TargetGroup",
+                    "Value": "targetgroup/chat-api-tg/5b5db80da81e3fca"
+                },
+                {
+                    "Name": "LoadBalancer",
+                    "Value": "app/intellichoice-staging-alb/a1e99fb6d592d3d4"
+                }
+            ],
+            "Period": 60,
+            "EvaluationPeriods": 2,
+            "Threshold": 5.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-07-30T14:19:56.735000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-background-failures",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-background-failures",
+            "AlarmDescription": "D-377: chat-api background tasks are failing. These degrade silently on purpose - the student keeps canonical content - so nothing else will tell you. D-329 ran 117 failures over 48 hours undetected. Search the log group for `background_` at this timestamp.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-16T18:08:28.017000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [0.0 (16/08/26 22:09:00)] was not greater than the threshold (2.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-16T23:09:18.688+0000\",\"startDate\":\"2026-08-16T22:09:00.000+0000\",\"statistic\":\"Sum\",\"period\":3600,\"recentDatapoints\":[0.0],\"threshold\":2.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-16T22:09:00.000+0000\",\"sampleCount\":5.0,\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2026-08-16T18:09:18.689000-05:00",
+            "MetricName": "BackgroundTaskFailures",
+            "Namespace": "IntelliChoice/intellichoice-staging/chat-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 3600,
+            "EvaluationPeriods": 1,
+            "Threshold": 2.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-16T18:09:18.689000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-bedrock-call-failures",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-bedrock-call-failures",
+            "AlarmDescription": "D-244: chat-api has been failing Bedrock calls for 15 minutes with the circuit still closed. Requests keep returning 200 with degraded answers, so ALB 5xx and latency will both look healthy - this is the D-115 shape that went a week unnoticed.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:03.516000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 3 datapoints [0.0 (10/08/26 05:37:00), 0.0 (10/08/26 05:32:00), 0.0 (10/08/26 05:27:00)] were not greater than the threshold (5.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:42:11.636+0000\",\"startDate\":\"2026-08-10T05:27:00.000+0000\",\"statistic\":\"Sum\",\"period\":300,\"recentDatapoints\":[0.0,0.0,0.0],\"threshold\":5.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T05:37:00.000+0000\",\"sampleCount\":40.0,\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:42:11.638000-05:00",
+            "MetricName": "BedrockCallFailed",
+            "Namespace": "IntelliChoice/intellichoice-staging/chat-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 300,
+            "EvaluationPeriods": 3,
+            "Threshold": 5.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-10T00:42:11.638000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-bedrock-circuit-open",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-bedrock-circuit-open",
+            "AlarmDescription": "D-244: chat-api's Bedrock circuit breaker opened, so model calls are no longer being attempted. Both spend and failure count read zero while this is true, which is why neither can be used to detect it. Check `bedrock_call_failed` in /ecs/chat-api for the failures that opened it - D-238's was an invalid model id, and the breaker made the real cause invisible.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:03.427000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [0.0 (10/08/26 05:36:00)] was not greater than the threshold (0.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:41:58.739+0000\",\"startDate\":\"2026-08-10T05:36:00.000+0000\",\"statistic\":\"Sum\",\"period\":300,\"recentDatapoints\":[0.0],\"threshold\":0.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T05:36:00.000+0000\",\"sampleCount\":40.0,\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:41:58.743000-05:00",
+            "MetricName": "BedrockCircuitOpen",
+            "Namespace": "IntelliChoice/intellichoice-staging/chat-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 300,
+            "EvaluationPeriods": 1,
+            "Threshold": 0.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-10T00:41:58.743000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-bedrock-spend-spike",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-bedrock-spend-spike",
+            "AlarmDescription": "D-244: chat-api spent more than 200 cents on Bedrock in one hour. The monthly AWS budget reports at day granularity and cannot see an afternoon-shaped anomaly. Treat a cost spike as a production bug, not a bill.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:03.866000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [2.5970000000000004 (10/08/26 02:41:00)] was not greater than the threshold (200.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:41:46.534+0000\",\"startDate\":\"2026-08-10T02:41:00.000+0000\",\"statistic\":\"Sum\",\"period\":3600,\"recentDatapoints\":[2.5970000000000004],\"threshold\":200.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T02:41:00.000+0000\",\"sampleCount\":6.0,\"value\":2.5970000000000004}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:41:46.535000-05:00",
+            "MetricName": "BedrockCostCents",
+            "Namespace": "IntelliChoice/intellichoice-staging/chat-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 3600,
+            "EvaluationPeriods": 1,
+            "Threshold": 200.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-10T00:41:46.535000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-capacity-above-floor",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-capacity-above-floor",
+            "AlarmDescription": "AUD-F-33: chat-api has been above its capacity floor of 1 task(s) for 60 minutes - a scale-in may have silently not happened, which costs money with no traffic to justify it.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-18T15:20:42.338000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [1.0 (16/08/26 08:21:00)] was not greater than the threshold (1.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-16T08:26:39.769+0000\",\"startDate\":\"2026-08-16T07:26:00.000+0000\",\"statistic\":\"Maximum\",\"period\":300,\"recentDatapoints\":[3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0,2.0,1.0],\"threshold\":1.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-16T08:21:00.000+0000\",\"sampleCount\":5.0,\"value\":1.0}]}",
+            "StateUpdatedTimestamp": "2026-08-16T03:26:39.772000-05:00",
+            "MetricName": "DesiredTaskCount",
+            "Namespace": "ECS/ContainerInsights",
+            "Statistic": "Maximum",
+            "Dimensions": [
+                {
+                    "Name": "ServiceName",
+                    "Value": "intellichoice-staging-chat-api"
+                },
+                {
+                    "Name": "ClusterName",
+                    "Value": "intellichoice-staging"
+                }
+            ],
+            "Period": 300,
+            "EvaluationPeriods": 12,
+            "Threshold": 1.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-16T03:26:39.772000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-client-errors",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-client-errors",
+            "AlarmDescription": "D-377: chat-api's browser reported a crash. The payload carries a redacted stack and a `client_trace_id` that joins to the server-side span - search the log group for `client_error` at this timestamp. Until this alarm existed the report reached CloudWatch and nobody was told, which is the failure mode the sink was built to end.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-16T18:08:27.871000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [0.0 (16/08/26 22:54:00)] was not greater than the threshold (0.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-16T23:09:45.031+0000\",\"startDate\":\"2026-08-16T22:54:00.000+0000\",\"statistic\":\"Sum\",\"period\":900,\"recentDatapoints\":[0.0],\"threshold\":0.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-16T22:54:00.000+0000\",\"sampleCount\":5.0,\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2026-08-16T18:09:45.032000-05:00",
+            "MetricName": "ClientErrors",
+            "Namespace": "IntelliChoice/intellichoice-staging/chat-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 900,
+            "EvaluationPeriods": 1,
+            "Threshold": 0.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-16T18:09:45.032000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-collector-awsemf-export-failures",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-collector-awsemf-export-failures",
+            "AlarmDescription": "AUD-F-12/E6.2: chat-api's OTel collector failed to export - product KPIs are not reaching CloudWatch. Consequence: the twenty-two SPEC 5.32.4 KPIs stop arriving; dashboards keep rendering and simply stop advancing, which reads as 'nobody used the product' rather than as a fault. The collector is `essential: false` on purpose, so nothing else will tell you and the API stays healthy throughout. Check the `otel-collector` log stream in the service's log group at this timestamp; the EMF record carries `service_instance_id` if one task is at fault.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-29T22:53:23.451000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-30T03:54:47.656+0000\",\"statistic\":\"Sum\",\"period\":900,\"recentDatapoints\":[],\"threshold\":0.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-30T03:39:00.000+0000\"}]}",
+            "StateUpdatedTimestamp": "2026-08-29T22:54:47.657000-05:00",
+            "MetricName": "otelcol_exporter_send_failed_metric_points",
+            "Namespace": "IntelliChoice/intellichoice-staging/chat-api",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "exporter",
+                    "Value": "awsemf"
+                }
+            ],
+            "Period": 900,
+            "EvaluationPeriods": 1,
+            "Threshold": 0.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-29T22:54:47.657000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-collector-awsxray-export-failures",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-collector-awsxray-export-failures",
+            "AlarmDescription": "AUD-F-12/E6.2: chat-api's OTel collector failed to export - traces are not reaching X-Ray. Consequence: every trace for this window is gone - there is no retry after this counter moves, and X-Ray has no backfill. The collector is `essential: false` on purpose, so nothing else will tell you and the API stays healthy throughout. Check the `otel-collector` log stream in the service's log group at this timestamp; the EMF record carries `service_instance_id` if one task is at fault.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-29T22:53:23.481000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-30T03:53:53.213+0000\",\"statistic\":\"Sum\",\"period\":900,\"recentDatapoints\":[],\"threshold\":0.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-30T03:38:00.000+0000\"}]}",
+            "StateUpdatedTimestamp": "2026-08-29T22:53:53.214000-05:00",
+            "MetricName": "otelcol_exporter_send_failed_spans",
+            "Namespace": "IntelliChoice/intellichoice-staging/chat-api",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "exporter",
+                    "Value": "awsxray"
+                }
+            ],
+            "Period": 900,
+            "EvaluationPeriods": 1,
+            "Threshold": 0.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-29T22:53:53.214000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-langsmith-ingest-failed",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-langsmith-ingest-failed",
+            "AlarmDescription": "D-244: chat-api is failing to deliver traces to LangSmith. This ran for weeks undetected (D-242) because the client retries a 403 forever at WARNING and nothing watched it. The AI-observability leg is dark while this is firing; app traffic is unaffected, so nothing else will tell you.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-18T15:20:42.343000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [0.0 (29/08/26 00:54:00)] was not greater than the threshold (10.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-29T01:09:46.527+0000\",\"startDate\":\"2026-08-29T00:39:00.000+0000\",\"statistic\":\"Sum\",\"period\":900,\"recentDatapoints\":[126.0,0.0],\"threshold\":10.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-29T00:54:00.000+0000\",\"sampleCount\":430.0,\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2026-08-28T20:09:46.528000-05:00",
+            "MetricName": "LangSmithIngestFailed",
+            "Namespace": "IntelliChoice/intellichoice-staging/chat-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 900,
+            "EvaluationPeriods": 2,
+            "Threshold": 10.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-28T20:09:46.528000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-memory",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-memory",
+            "AlarmDescription": "D-244: chat-api memory is high. An OOM kill surfaces later as a short 5xx burst with no other explanation, so this is the signal that arrives in time to be useful.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:03.212000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 3 datapoints [153.0 (10/08/26 05:36:00), 153.0 (10/08/26 05:31:00), 153.0 (10/08/26 05:26:00)] were not greater than the threshold (716.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:41:27.436+0000\",\"startDate\":\"2026-08-10T05:26:00.000+0000\",\"statistic\":\"Average\",\"period\":300,\"recentDatapoints\":[153.0,153.0,153.0],\"threshold\":716.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T05:36:00.000+0000\",\"sampleCount\":4.0,\"value\":153.0}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:41:27.439000-05:00",
+            "MetricName": "MemoryUtilized",
+            "Namespace": "ECS/ContainerInsights",
+            "Statistic": "Average",
+            "Dimensions": [
+                {
+                    "Name": "ClusterName",
+                    "Value": "intellichoice-staging"
+                },
+                {
+                    "Name": "ServiceName",
+                    "Value": "intellichoice-staging-chat-api"
+                }
+            ],
+            "Period": 300,
+            "EvaluationPeriods": 3,
+            "Threshold": 716.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-10T00:41:27.439000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-p95-latency",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-p95-latency",
+            "AlarmDescription": "chat-api P95 response time over 20s for 3 consecutive minutes (S34; per-service since S43/AUD-X-13).",
+            "AlarmConfigurationUpdatedTimestamp": "2026-07-29T15:27:48.758000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 2 datapoints were received for 3 periods and 1 missing datapoint was treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-07-30T19:25:56.880+0000\",\"startDate\":\"2026-07-30T19:15:00.000+0000\",\"statistic\":\"p95\",\"period\":60,\"recentDatapoints\":[34.166381439053325,23.11473804178559],\"threshold\":20.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-07-30T19:22:00.000+0000\"}]}",
+            "StateUpdatedTimestamp": "2026-07-30T14:25:56.881000-05:00",
+            "MetricName": "TargetResponseTime",
+            "Namespace": "AWS/ApplicationELB",
+            "ExtendedStatistic": "p95",
+            "Dimensions": [
+                {
+                    "Name": "TargetGroup",
+                    "Value": "targetgroup/chat-api-tg/5b5db80da81e3fca"
+                },
+                {
+                    "Name": "LoadBalancer",
+                    "Value": "app/intellichoice-staging-alb/a1e99fb6d592d3d4"
+                }
+            ],
+            "Period": 60,
+            "EvaluationPeriods": 3,
+            "Threshold": 20.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-07-30T14:25:56.881000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-p95-latency-scale-in",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-p95-latency-scale-in",
+            "AlarmDescription": "AUD-F-14: chat-api p95 under 1s (or no traffic, filled as 0s) for 15 minutes - scale back in. AUD-F-33/D-182: the FILL is what makes this actionable.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-04T23:33:56.101000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [],
+            "AlarmActions": [
+                "arn:aws:autoscaling:us-east-1:320503430250:scalingPolicy:6e09452c-c026-43c7-9f27-cb58558d02f3:resource/ecs/service/intellichoice-staging/intellichoice-staging-chat-api:policyName/intellichoice-staging-chat-api-p95-latency-scale-in"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "ALARM",
+            "StateReason": "Threshold Crossed: 15 datapoints were less than the threshold (1.0). The most recent datapoints which crossed the threshold: [0.0 (29/08/26 01:08:00), 0.0 (29/08/26 01:07:00), 0.0 (29/08/26 01:06:00), 0.0 (29/08/26 01:05:00), 0.0 (29/08/26 01:04:00)].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-29T01:11:06.411+0000\",\"startDate\":\"2026-08-29T00:54:00.000+0000\",\"period\":60,\"recentDatapoints\":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],\"threshold\":1.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-29T01:08:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T01:07:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T01:06:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T01:05:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T01:04:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T01:03:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T01:02:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T01:01:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T01:00:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T00:59:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T00:58:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T00:57:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T00:56:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T00:55:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T00:54:00.000+0000\",\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2026-08-28T20:11:06.413000-05:00",
+            "Dimensions": [],
+            "EvaluationPeriods": 15,
+            "Threshold": 1.0,
+            "ComparisonOperator": "LessThanThreshold",
+            "TreatMissingData": "breaching",
+            "Metrics": [
+                {
+                    "Id": "e1",
+                    "Expression": "FILL(m1, 0)",
+                    "Label": "chat-api p95 latency, idle minutes as 0s",
+                    "ReturnData": true
+                },
+                {
+                    "Id": "m1",
+                    "MetricStat": {
+                        "Metric": {
+                            "Namespace": "AWS/ApplicationELB",
+                            "MetricName": "TargetResponseTime",
+                            "Dimensions": [
+                                {
+                                    "Name": "LoadBalancer",
+                                    "Value": "app/intellichoice-staging-alb/a1e99fb6d592d3d4"
+                                },
+                                {
+                                    "Name": "TargetGroup",
+                                    "Value": "targetgroup/chat-api-tg/5b5db80da81e3fca"
+                                }
+                            ]
+                        },
+                        "Period": 60,
+                        "Stat": "p95"
+                    },
+                    "ReturnData": false
+                }
+            ],
+            "StateTransitionedTimestamp": "2026-08-28T20:11:06.413000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-p95-latency-scale-out",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-p95-latency-scale-out",
+            "AlarmDescription": "AUD-F-14: chat-api p95 over 3s for 2 minutes - scale out (CPU cannot see this workload's saturation).",
+            "AlarmConfigurationUpdatedTimestamp": "2026-07-28T23:17:03.353000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [],
+            "AlarmActions": [
+                "arn:aws:autoscaling:us-east-1:320503430250:scalingPolicy:6e09452c-c026-43c7-9f27-cb58558d02f3:resource/ecs/service/intellichoice-staging/intellichoice-staging-chat-api:policyName/intellichoice-staging-chat-api-p95-latency-scale-out"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint was received for 2 periods and 1 missing datapoint was treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-29T01:02:06.179+0000\",\"startDate\":\"2026-08-29T00:53:00.000+0000\",\"statistic\":\"p95\",\"period\":60,\"recentDatapoints\":[14.414122910429224],\"threshold\":3.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-29T00:59:00.000+0000\"}]}",
+            "StateUpdatedTimestamp": "2026-08-28T20:02:06.180000-05:00",
+            "MetricName": "TargetResponseTime",
+            "Namespace": "AWS/ApplicationELB",
+            "ExtendedStatistic": "p95",
+            "Dimensions": [
+                {
+                    "Name": "LoadBalancer",
+                    "Value": "app/intellichoice-staging-alb/a1e99fb6d592d3d4"
+                },
+                {
+                    "Name": "TargetGroup",
+                    "Value": "targetgroup/chat-api-tg/5b5db80da81e3fca"
+                }
+            ],
+            "Period": 60,
+            "EvaluationPeriods": 2,
+            "Threshold": 3.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-28T20:02:06.180000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-chat-api-unhandled-tracebacks",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-chat-api-unhandled-tracebacks",
+            "AlarmDescription": "SILENT-500S: chat-api wrote a plain-text traceback - an exception escaped a route handler and the client got a 500. D-455 emitted 114 of these while every monitor read quiet, because the only structured line for this class is `level=INFO`. Search the log group for `Traceback` at this timestamp; on images built after the SILENT-500S fix the matching `unhandled_exception` JSON line carries the trace_id, route template and exception type.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-29T22:53:23.416000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [0.0 (30/08/26 03:39:00)] was not greater than the threshold (0.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-30T03:54:19.686+0000\",\"startDate\":\"2026-08-30T03:39:00.000+0000\",\"statistic\":\"Sum\",\"period\":900,\"recentDatapoints\":[0.0],\"threshold\":0.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-30T03:39:00.000+0000\",\"sampleCount\":6.0,\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2026-08-29T22:54:19.687000-05:00",
+            "MetricName": "UnhandledTracebacks",
+            "Namespace": "IntelliChoice/intellichoice-staging/chat-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 900,
+            "EvaluationPeriods": 1,
+            "Threshold": 0.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-29T22:54:19.687000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-job-chat-purge-heartbeat",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-job-chat-purge-heartbeat",
+            "AlarmDescription": "D-377: the chat-purge scheduled job has not reported a completion in 2 days. The exit-code alarm cannot see this - a job that never starts emits no task-state event, so no failure is recorded and the silence reads as health. Check `aws scheduler get-schedule` and the ops-task log group before assuming it ran.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-22T16:02:17.466000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [1.0 (20/08/26 19:00:00)] was not less than the threshold (1.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-22T19:05:51.044+0000\",\"startDate\":\"2026-08-20T19:00:00.000+0000\",\"statistic\":\"Sum\",\"period\":172800,\"recentDatapoints\":[1.0],\"threshold\":1.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-20T19:00:00.000+0000\",\"sampleCount\":1.0,\"value\":1.0}]}",
+            "StateUpdatedTimestamp": "2026-08-22T14:05:51.046000-05:00",
+            "MetricName": "JobCompletions",
+            "Namespace": "IntelliChoice/intellichoice-staging/pipeline",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "job",
+                    "Value": "chat-purge"
+                }
+            ],
+            "Period": 172800,
+            "EvaluationPeriods": 1,
+            "Threshold": 1.0,
+            "ComparisonOperator": "LessThanThreshold",
+            "TreatMissingData": "breaching",
+            "StateTransitionedTimestamp": "2026-08-22T14:05:51.046000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-job-memory-consolidate-heartbeat",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-job-memory-consolidate-heartbeat",
+            "AlarmDescription": "D-377: the memory-consolidate scheduled job has not reported a completion in 7 days. The exit-code alarm cannot see this - a job that never starts emits no task-state event, so no failure is recorded and the silence reads as health. Check `aws scheduler get-schedule` and the ops-task log group before assuming it ran.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-22T16:29:26.312000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [1.0 (16/08/26 19:00:00)] was not less than the threshold (1.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-23T19:32:55.109+0000\",\"startDate\":\"2026-08-16T19:00:00.000+0000\",\"statistic\":\"Sum\",\"period\":604800,\"recentDatapoints\":[1.0],\"threshold\":1.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-16T19:00:00.000+0000\",\"sampleCount\":1.0,\"value\":1.0}]}",
+            "StateUpdatedTimestamp": "2026-08-23T14:32:55.110000-05:00",
+            "MetricName": "JobCompletions",
+            "Namespace": "IntelliChoice/intellichoice-staging/pipeline",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "job",
+                    "Value": "memory-consolidate"
+                }
+            ],
+            "Period": 604800,
+            "EvaluationPeriods": 1,
+            "Threshold": 1.0,
+            "ComparisonOperator": "LessThanThreshold",
+            "TreatMissingData": "breaching",
+            "StateTransitionedTimestamp": "2026-08-23T14:32:55.110000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-job-retention-purge-heartbeat",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-job-retention-purge-heartbeat",
+            "AlarmDescription": "D-377: the retention-purge scheduled job has not reported a completion in 2 days. The exit-code alarm cannot see this - a job that never starts emits no task-state event, so no failure is recorded and the silence reads as health. Check `aws scheduler get-schedule` and the ops-task log group before assuming it ran.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-22T16:02:17.493000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [1.0 (20/08/26 19:00:00)] was not less than the threshold (1.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-22T19:11:05.619+0000\",\"startDate\":\"2026-08-20T19:00:00.000+0000\",\"statistic\":\"Sum\",\"period\":172800,\"recentDatapoints\":[1.0],\"threshold\":1.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-20T19:00:00.000+0000\",\"sampleCount\":1.0,\"value\":1.0}]}",
+            "StateUpdatedTimestamp": "2026-08-22T14:11:05.621000-05:00",
+            "MetricName": "JobCompletions",
+            "Namespace": "IntelliChoice/intellichoice-staging/pipeline",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "job",
+                    "Value": "retention-purge"
+                }
+            ],
+            "Period": 172800,
+            "EvaluationPeriods": 1,
+            "Threshold": 1.0,
+            "ComparisonOperator": "LessThanThreshold",
+            "TreatMissingData": "breaching",
+            "StateTransitionedTimestamp": "2026-08-22T14:11:05.621000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-job-session-consolidate-heartbeat",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-job-session-consolidate-heartbeat",
+            "AlarmDescription": "D-377: the session-consolidate scheduled job has not reported a completion in 2 days. The exit-code alarm cannot see this - a job that never starts emits no task-state event, so no failure is recorded and the silence reads as health. Check `aws scheduler get-schedule` and the ops-task log group before assuming it ran.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-22T16:02:17.487000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [1.0 (20/08/26 19:00:00)] was not less than the threshold (1.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-22T19:42:40.653+0000\",\"startDate\":\"2026-08-20T19:00:00.000+0000\",\"statistic\":\"Sum\",\"period\":172800,\"recentDatapoints\":[1.0],\"threshold\":1.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-20T19:00:00.000+0000\",\"sampleCount\":1.0,\"value\":1.0}]}",
+            "StateUpdatedTimestamp": "2026-08-22T14:42:40.654000-05:00",
+            "MetricName": "JobCompletions",
+            "Namespace": "IntelliChoice/intellichoice-staging/pipeline",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "job",
+                    "Value": "session-consolidate"
+                }
+            ],
+            "Period": 172800,
+            "EvaluationPeriods": 1,
+            "Threshold": 1.0,
+            "ComparisonOperator": "LessThanThreshold",
+            "TreatMissingData": "breaching",
+            "StateTransitionedTimestamp": "2026-08-22T14:42:40.654000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-5xx-rate",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-5xx-rate",
+            "AlarmDescription": "S34: more than 5 5xx responses/min from learning-api for 2 consecutive minutes.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-07-24T14:28:44.160000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [4.0 (29/08/26 00:39:00)] was not greater than the threshold (5.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-29T00:42:52.809+0000\",\"startDate\":\"2026-08-29T00:38:00.000+0000\",\"statistic\":\"Sum\",\"period\":60,\"recentDatapoints\":[27.0,4.0],\"threshold\":5.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-29T00:39:00.000+0000\",\"sampleCount\":4.0,\"value\":4.0}]}",
+            "StateUpdatedTimestamp": "2026-08-28T19:42:52.810000-05:00",
+            "MetricName": "HTTPCode_Target_5XX_Count",
+            "Namespace": "AWS/ApplicationELB",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "LoadBalancer",
+                    "Value": "app/intellichoice-staging-alb/a1e99fb6d592d3d4"
+                },
+                {
+                    "Name": "TargetGroup",
+                    "Value": "targetgroup/learning-api-tg/91d67e399fbed285"
+                }
+            ],
+            "Period": 60,
+            "EvaluationPeriods": 2,
+            "Threshold": 5.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-28T19:42:52.810000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-background-failures",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-background-failures",
+            "AlarmDescription": "D-377: learning-api background tasks are failing. These degrade silently on purpose - the student keeps canonical content - so nothing else will tell you. D-329 ran 117 failures over 48 hours undetected. Search the log group for `background_` at this timestamp.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-16T18:08:27.969000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-16T23:08:45.505+0000\",\"statistic\":\"Sum\",\"period\":3600,\"recentDatapoints\":[],\"threshold\":2.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-16T22:08:00.000+0000\"}]}",
+            "StateUpdatedTimestamp": "2026-08-16T18:08:45.506000-05:00",
+            "MetricName": "BackgroundTaskFailures",
+            "Namespace": "IntelliChoice/intellichoice-staging/learning-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 3600,
+            "EvaluationPeriods": 1,
+            "Threshold": 2.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-16T18:08:45.506000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-bedrock-call-failures",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-bedrock-call-failures",
+            "AlarmDescription": "D-244: learning-api has been failing Bedrock calls for 15 minutes with the circuit still closed. Requests keep returning 200 with degraded answers, so ALB 5xx and latency will both look healthy - this is the D-115 shape that went a week unnoticed.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:03.440000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 3 datapoints [0.0 (10/08/26 05:36:00), 0.0 (10/08/26 05:31:00), 0.0 (10/08/26 05:26:00)] were not greater than the threshold (5.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:41:39.165+0000\",\"startDate\":\"2026-08-10T05:26:00.000+0000\",\"statistic\":\"Sum\",\"period\":300,\"recentDatapoints\":[0.0,0.0,0.0],\"threshold\":5.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T05:36:00.000+0000\",\"sampleCount\":95.0,\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:41:39.166000-05:00",
+            "MetricName": "BedrockCallFailed",
+            "Namespace": "IntelliChoice/intellichoice-staging/learning-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 300,
+            "EvaluationPeriods": 3,
+            "Threshold": 5.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-10T00:41:39.166000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-bedrock-circuit-open",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-bedrock-circuit-open",
+            "AlarmDescription": "D-244: learning-api's Bedrock circuit breaker opened, so model calls are no longer being attempted. Both spend and failure count read zero while this is true, which is why neither can be used to detect it. Check `bedrock_call_failed` in /ecs/learning-api for the failures that opened it - D-238's was an invalid model id, and the breaker made the real cause invisible.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:03.402000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [0.0 (10/08/26 05:37:00)] was not greater than the threshold (0.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:42:27.852+0000\",\"startDate\":\"2026-08-10T05:37:00.000+0000\",\"statistic\":\"Sum\",\"period\":300,\"recentDatapoints\":[0.0],\"threshold\":0.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T05:37:00.000+0000\",\"sampleCount\":95.0,\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:42:27.854000-05:00",
+            "MetricName": "BedrockCircuitOpen",
+            "Namespace": "IntelliChoice/intellichoice-staging/learning-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 300,
+            "EvaluationPeriods": 1,
+            "Threshold": 0.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-10T00:42:27.854000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-bedrock-spend-spike",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-bedrock-spend-spike",
+            "AlarmDescription": "D-244: learning-api spent more than 200 cents on Bedrock in one hour. The monthly AWS budget reports at day granularity and cannot see an afternoon-shaped anomaly. Treat a cost spike as a production bug, not a bill.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:03.883000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [0.1781 (10/08/26 03:41:00)] was not greater than the threshold (200.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:41:27.142+0000\",\"startDate\":\"2026-08-10T03:41:00.000+0000\",\"statistic\":\"Sum\",\"period\":3600,\"recentDatapoints\":[0.1781],\"threshold\":200.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T03:41:00.000+0000\",\"sampleCount\":1.0,\"value\":0.1781}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:41:27.143000-05:00",
+            "MetricName": "BedrockCostCents",
+            "Namespace": "IntelliChoice/intellichoice-staging/learning-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 3600,
+            "EvaluationPeriods": 1,
+            "Threshold": 200.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-10T00:41:27.143000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-capacity-above-floor",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-capacity-above-floor",
+            "AlarmDescription": "AUD-F-33: learning-api has been above its capacity floor of 2 task(s) for 60 minutes - a scale-in may have silently not happened, which costs money with no traffic to justify it.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-18T15:20:42.317000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [2.0 (03/08/26 12:58:00)] was not greater than the threshold (2.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-03T13:03:58.412+0000\",\"startDate\":\"2026-08-03T12:03:00.000+0000\",\"statistic\":\"Maximum\",\"period\":300,\"recentDatapoints\":[3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0,2.0],\"threshold\":2.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-03T12:58:00.000+0000\",\"sampleCount\":5.0,\"value\":2.0}]}",
+            "StateUpdatedTimestamp": "2026-08-03T08:03:58.416000-05:00",
+            "MetricName": "DesiredTaskCount",
+            "Namespace": "ECS/ContainerInsights",
+            "Statistic": "Maximum",
+            "Dimensions": [
+                {
+                    "Name": "ServiceName",
+                    "Value": "intellichoice-staging-learning-api"
+                },
+                {
+                    "Name": "ClusterName",
+                    "Value": "intellichoice-staging"
+                }
+            ],
+            "Period": 300,
+            "EvaluationPeriods": 12,
+            "Threshold": 2.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-03T08:03:58.416000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-client-errors",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-client-errors",
+            "AlarmDescription": "D-377: learning-api's browser reported a crash. The payload carries a redacted stack and a `client_trace_id` that joins to the server-side span - search the log group for `client_error` at this timestamp. Until this alarm existed the report reached CloudWatch and nobody was told, which is the failure mode the sink was built to end.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-16T18:08:27.757000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-16T23:08:42.444+0000\",\"statistic\":\"Sum\",\"period\":900,\"recentDatapoints\":[],\"threshold\":0.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-16T22:53:00.000+0000\"}]}",
+            "StateUpdatedTimestamp": "2026-08-16T18:08:42.445000-05:00",
+            "MetricName": "ClientErrors",
+            "Namespace": "IntelliChoice/intellichoice-staging/learning-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 900,
+            "EvaluationPeriods": 1,
+            "Threshold": 0.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-16T18:08:42.445000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-collector-awsemf-export-failures",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-collector-awsemf-export-failures",
+            "AlarmDescription": "AUD-F-12/E6.2: learning-api's OTel collector failed to export - product KPIs are not reaching CloudWatch. Consequence: the twenty-two SPEC 5.32.4 KPIs stop arriving; dashboards keep rendering and simply stop advancing, which reads as 'nobody used the product' rather than as a fault. The collector is `essential: false` on purpose, so nothing else will tell you and the API stays healthy throughout. Check the `otel-collector` log stream in the service's log group at this timestamp; the EMF record carries `service_instance_id` if one task is at fault.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-29T22:53:23.448000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-30T03:55:13.943+0000\",\"statistic\":\"Sum\",\"period\":900,\"recentDatapoints\":[],\"threshold\":0.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-30T03:40:00.000+0000\"}]}",
+            "StateUpdatedTimestamp": "2026-08-29T22:55:13.945000-05:00",
+            "MetricName": "otelcol_exporter_send_failed_metric_points",
+            "Namespace": "IntelliChoice/intellichoice-staging/learning-api",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "exporter",
+                    "Value": "awsemf"
+                }
+            ],
+            "Period": 900,
+            "EvaluationPeriods": 1,
+            "Threshold": 0.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-29T22:55:13.945000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-collector-awsxray-export-failures",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-collector-awsxray-export-failures",
+            "AlarmDescription": "AUD-F-12/E6.2: learning-api's OTel collector failed to export - traces are not reaching X-Ray. Consequence: every trace for this window is gone - there is no retry after this counter moves, and X-Ray has no backfill. The collector is `essential: false` on purpose, so nothing else will tell you and the API stays healthy throughout. Check the `otel-collector` log stream in the service's log group at this timestamp; the EMF record carries `service_instance_id` if one task is at fault.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-29T22:53:23.434000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [NonBreaching].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-30T03:54:42.982+0000\",\"statistic\":\"Sum\",\"period\":900,\"recentDatapoints\":[],\"threshold\":0.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-30T03:39:00.000+0000\"}]}",
+            "StateUpdatedTimestamp": "2026-08-29T22:54:42.987000-05:00",
+            "MetricName": "otelcol_exporter_send_failed_spans",
+            "Namespace": "IntelliChoice/intellichoice-staging/learning-api",
+            "Statistic": "Sum",
+            "Dimensions": [
+                {
+                    "Name": "exporter",
+                    "Value": "awsxray"
+                }
+            ],
+            "Period": 900,
+            "EvaluationPeriods": 1,
+            "Threshold": 0.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-29T22:54:42.987000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-langsmith-ingest-failed",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-langsmith-ingest-failed",
+            "AlarmDescription": "D-244: learning-api is failing to deliver traces to LangSmith. This ran for weeks undetected (D-242) because the client retries a 403 forever at WARNING and nothing watched it. The AI-observability leg is dark while this is firing; app traffic is unaffected, so nothing else will tell you.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-18T15:20:42.323000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts-info"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [0.0 (29/08/26 19:57:00)] was not greater than the threshold (10.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-29T20:12:52.845+0000\",\"startDate\":\"2026-08-29T19:42:00.000+0000\",\"statistic\":\"Sum\",\"period\":900,\"recentDatapoints\":[1260.0,0.0],\"threshold\":10.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-29T19:57:00.000+0000\",\"sampleCount\":404.0,\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2026-08-29T15:12:52.846000-05:00",
+            "MetricName": "LangSmithIngestFailed",
+            "Namespace": "IntelliChoice/intellichoice-staging/learning-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 900,
+            "EvaluationPeriods": 2,
+            "Threshold": 10.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-29T15:12:52.846000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-memory",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-memory",
+            "AlarmDescription": "D-244: learning-api memory is high. An OOM kill surfaces later as a short 5xx burst with no other explanation, so this is the signal that arrives in time to be useful.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:03.379000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 3 datapoints [177.66666666666666 (10/08/26 05:37:00), 177.5 (10/08/26 05:32:00), 177.5 (10/08/26 05:27:00)] were not greater than the threshold (716.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:42:35.910+0000\",\"startDate\":\"2026-08-10T05:27:00.000+0000\",\"statistic\":\"Average\",\"period\":300,\"recentDatapoints\":[177.5,177.5,177.66666666666666],\"threshold\":716.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T05:37:00.000+0000\",\"sampleCount\":9.0,\"value\":177.66666666666666}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:42:35.911000-05:00",
+            "MetricName": "MemoryUtilized",
+            "Namespace": "ECS/ContainerInsights",
+            "Statistic": "Average",
+            "Dimensions": [
+                {
+                    "Name": "ClusterName",
+                    "Value": "intellichoice-staging"
+                },
+                {
+                    "Name": "ServiceName",
+                    "Value": "intellichoice-staging-learning-api"
+                }
+            ],
+            "Period": 300,
+            "EvaluationPeriods": 3,
+            "Threshold": 716.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-10T00:42:35.911000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-p95-latency",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-p95-latency",
+            "AlarmDescription": "learning-api P95 response time over 3s for 3 consecutive minutes (S34; per-service since S43/AUD-X-13).",
+            "AlarmConfigurationUpdatedTimestamp": "2026-07-29T15:27:48.757000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [1.927168327373064 (29/08/26 19:37:00)] was not greater than the threshold (3.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-29T19:40:18.348+0000\",\"startDate\":\"2026-08-29T19:33:00.000+0000\",\"statistic\":\"p95\",\"period\":60,\"recentDatapoints\":[10.560219479269696,8.578375454348045,null,null,1.927168327373064],\"threshold\":3.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-29T19:37:00.000+0000\",\"sampleCount\":327.0,\"value\":1.927168327373064}]}",
+            "StateUpdatedTimestamp": "2026-08-29T14:40:18.351000-05:00",
+            "MetricName": "TargetResponseTime",
+            "Namespace": "AWS/ApplicationELB",
+            "ExtendedStatistic": "p95",
+            "Dimensions": [
+                {
+                    "Name": "TargetGroup",
+                    "Value": "targetgroup/learning-api-tg/91d67e399fbed285"
+                },
+                {
+                    "Name": "LoadBalancer",
+                    "Value": "app/intellichoice-staging-alb/a1e99fb6d592d3d4"
+                }
+            ],
+            "Period": 60,
+            "EvaluationPeriods": 3,
+            "Threshold": 3.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-29T14:40:18.351000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-p95-latency-scale-in",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-p95-latency-scale-in",
+            "AlarmDescription": "AUD-F-14: learning-api p95 under 1s (or no traffic, filled as 0s) for 15 minutes - scale back in. AUD-F-33/D-182: the FILL is what makes this actionable.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-04T23:33:56.117000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [],
+            "AlarmActions": [
+                "arn:aws:autoscaling:us-east-1:320503430250:scalingPolicy:ba6a18c7-794d-4390-b733-c0034e55e017:resource/ecs/service/intellichoice-staging/intellichoice-staging-learning-api:policyName/intellichoice-staging-learning-api-p95-latency-scale-in"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "ALARM",
+            "StateReason": "Threshold Crossed: 15 datapoints were less than the threshold (1.0). The most recent datapoints which crossed the threshold: [0.0 (29/08/26 20:11:00), 0.0 (29/08/26 20:10:00), 0.0 (29/08/26 20:09:00), 0.0 (29/08/26 20:08:00), 0.0 (29/08/26 20:07:00)].",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-29T20:14:07.321+0000\",\"startDate\":\"2026-08-29T19:57:00.000+0000\",\"period\":60,\"recentDatapoints\":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],\"threshold\":1.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-29T20:11:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T20:10:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T20:09:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T20:08:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T20:07:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T20:06:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T20:05:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T20:04:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T20:03:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T20:02:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T20:01:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T20:00:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T19:59:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T19:58:00.000+0000\",\"value\":0.0},{\"timestamp\":\"2026-08-29T19:57:00.000+0000\",\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2026-08-29T15:14:07.323000-05:00",
+            "Dimensions": [],
+            "EvaluationPeriods": 15,
+            "Threshold": 1.0,
+            "ComparisonOperator": "LessThanThreshold",
+            "TreatMissingData": "breaching",
+            "Metrics": [
+                {
+                    "Id": "m1",
+                    "MetricStat": {
+                        "Metric": {
+                            "Namespace": "AWS/ApplicationELB",
+                            "MetricName": "TargetResponseTime",
+                            "Dimensions": [
+                                {
+                                    "Name": "TargetGroup",
+                                    "Value": "targetgroup/learning-api-tg/91d67e399fbed285"
+                                },
+                                {
+                                    "Name": "LoadBalancer",
+                                    "Value": "app/intellichoice-staging-alb/a1e99fb6d592d3d4"
+                                }
+                            ]
+                        },
+                        "Period": 60,
+                        "Stat": "p95"
+                    },
+                    "ReturnData": false
+                },
+                {
+                    "Id": "e1",
+                    "Expression": "FILL(m1, 0)",
+                    "Label": "learning-api p95 latency, idle minutes as 0s",
+                    "ReturnData": true
+                }
+            ],
+            "StateTransitionedTimestamp": "2026-08-29T15:14:07.323000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-p95-latency-scale-out",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-p95-latency-scale-out",
+            "AlarmDescription": "AUD-F-14: learning-api p95 over 3s for 2 minutes - scale out (CPU cannot see this workload's saturation).",
+            "AlarmConfigurationUpdatedTimestamp": "2026-07-30T13:32:11.304000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [],
+            "AlarmActions": [
+                "arn:aws:autoscaling:us-east-1:320503430250:scalingPolicy:ba6a18c7-794d-4390-b733-c0034e55e017:resource/ecs/service/intellichoice-staging/intellichoice-staging-learning-api:policyName/intellichoice-staging-learning-api-p95-latency-scale-out"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [2.653603366890467 (29/08/26 19:56:00)] was not greater than the threshold (3.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-29T19:59:00.514+0000\",\"startDate\":\"2026-08-29T19:55:00.000+0000\",\"statistic\":\"p95\",\"period\":60,\"recentDatapoints\":[3.5573895794284613,2.653603366890467],\"threshold\":3.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-29T19:56:00.000+0000\",\"sampleCount\":1362.0,\"value\":2.653603366890467}]}",
+            "StateUpdatedTimestamp": "2026-08-29T14:59:00.516000-05:00",
+            "MetricName": "TargetResponseTime",
+            "Namespace": "AWS/ApplicationELB",
+            "ExtendedStatistic": "p95",
+            "Dimensions": [
+                {
+                    "Name": "LoadBalancer",
+                    "Value": "app/intellichoice-staging-alb/a1e99fb6d592d3d4"
+                },
+                {
+                    "Name": "TargetGroup",
+                    "Value": "targetgroup/learning-api-tg/91d67e399fbed285"
+                }
+            ],
+            "Period": 60,
+            "EvaluationPeriods": 2,
+            "Threshold": 3.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-29T14:59:00.516000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-learning-api-unhandled-tracebacks",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-learning-api-unhandled-tracebacks",
+            "AlarmDescription": "SILENT-500S: learning-api wrote a plain-text traceback - an exception escaped a route handler and the client got a 500. D-455 emitted 114 of these while every monitor read quiet, because the only structured line for this class is `level=INFO`. Search the log group for `Traceback` at this timestamp; on images built after the SILENT-500S fix the matching `unhandled_exception` JSON line carries the trace_id, route template and exception type.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-29T23:21:26.433000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 1 datapoint [0.0 (30/08/26 04:06:00)] was not greater than the threshold (0.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-30T04:21:05.805+0000\",\"startDate\":\"2026-08-30T04:06:00.000+0000\",\"statistic\":\"Sum\",\"period\":900,\"recentDatapoints\":[0.0],\"threshold\":0.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-30T04:06:00.000+0000\",\"sampleCount\":270.0,\"value\":0.0}]}",
+            "StateUpdatedTimestamp": "2026-08-29T23:21:05.806000-05:00",
+            "MetricName": "UnhandledTracebacks",
+            "Namespace": "IntelliChoice/intellichoice-staging/learning-api",
+            "Statistic": "Sum",
+            "Dimensions": [],
+            "Period": 900,
+            "EvaluationPeriods": 1,
+            "Threshold": 0.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-29T23:21:05.806000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-mysql-connections",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-mysql-connections",
+            "AlarmDescription": "D-244: mysql connection count is high. This presents as request timeouts with normal CPU, so the latency alarms will point at the application rather than here.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:04.223000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 3 datapoints [6.0 (10/08/26 05:36:00), 6.0 (10/08/26 05:31:00), 6.0 (10/08/26 05:26:00)] were not greater than the threshold (40.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:41:32.387+0000\",\"startDate\":\"2026-08-10T05:26:00.000+0000\",\"statistic\":\"Maximum\",\"period\":300,\"recentDatapoints\":[6.0,6.0,6.0],\"threshold\":40.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T05:36:00.000+0000\",\"sampleCount\":5.0,\"value\":6.0}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:41:32.388000-05:00",
+            "MetricName": "DatabaseConnections",
+            "Namespace": "AWS/RDS",
+            "Statistic": "Maximum",
+            "Dimensions": [
+                {
+                    "Name": "DBInstanceIdentifier",
+                    "Value": "intellichoice-staging-mysql"
+                }
+            ],
+            "Period": 300,
+            "EvaluationPeriods": 3,
+            "Threshold": 40.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-10T00:41:32.388000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-mysql-cpu",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-mysql-cpu",
+            "AlarmDescription": "D-244: mysql above 80% CPU for 15 minutes.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:04.224000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 3 datapoints [3.593260364148424 (10/08/26 05:36:00), 3.487086299442756 (10/08/26 05:31:00), 3.8263213866618444 (10/08/26 05:26:00)] were not greater than the threshold (80.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:42:24.800+0000\",\"startDate\":\"2026-08-10T05:26:00.000+0000\",\"statistic\":\"Average\",\"period\":300,\"recentDatapoints\":[3.8263213866618444,3.487086299442756,3.593260364148424],\"threshold\":80.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T05:36:00.000+0000\",\"sampleCount\":5.0,\"value\":3.593260364148424}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:42:24.801000-05:00",
+            "MetricName": "CPUUtilization",
+            "Namespace": "AWS/RDS",
+            "Statistic": "Average",
+            "Dimensions": [
+                {
+                    "Name": "DBInstanceIdentifier",
+                    "Value": "intellichoice-staging-mysql"
+                }
+            ],
+            "Period": 300,
+            "EvaluationPeriods": 3,
+            "Threshold": 80.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-10T00:42:24.801000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-mysql-free-storage",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-mysql-free-storage",
+            "AlarmDescription": "D-244: mysql is below 20% free storage. A full RDS volume rejects writes outright - this is an outage, not a slowdown - and storage autoscaling has a cooldown, so this threshold is set to leave room to act rather than to report the fact.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:04.199000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 2 datapoints [1.9498160128E10 (10/08/26 05:37:00), 1.9498160128E10 (10/08/26 05:32:00)] were not less than the threshold (4.294967296E9).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:42:45.162+0000\",\"startDate\":\"2026-08-10T05:32:00.000+0000\",\"statistic\":\"Minimum\",\"period\":300,\"recentDatapoints\":[1.9498160128E10,1.9498160128E10],\"threshold\":4.294967296E9,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T05:37:00.000+0000\",\"sampleCount\":5.0,\"value\":1.9498160128E10}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:42:45.164000-05:00",
+            "MetricName": "FreeStorageSpace",
+            "Namespace": "AWS/RDS",
+            "Statistic": "Minimum",
+            "Dimensions": [
+                {
+                    "Name": "DBInstanceIdentifier",
+                    "Value": "intellichoice-staging-mysql"
+                }
+            ],
+            "Period": 300,
+            "EvaluationPeriods": 2,
+            "Threshold": 4294967296.0,
+            "ComparisonOperator": "LessThanThreshold",
+            "TreatMissingData": "missing",
+            "StateTransitionedTimestamp": "2026-08-10T00:42:45.164000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-postgres-connections",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-postgres-connections",
+            "AlarmDescription": "D-244: postgres connection count is high. This presents as request timeouts with normal CPU, so the latency alarms will point at the application rather than here.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:04.245000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 3 datapoints [14.0 (10/08/26 05:36:00), 14.0 (10/08/26 05:31:00), 14.0 (10/08/26 05:26:00)] were not greater than the threshold (80.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:41:57.731+0000\",\"startDate\":\"2026-08-10T05:26:00.000+0000\",\"statistic\":\"Maximum\",\"period\":300,\"recentDatapoints\":[14.0,14.0,14.0],\"threshold\":80.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T05:36:00.000+0000\",\"sampleCount\":5.0,\"value\":14.0}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:41:57.732000-05:00",
+            "MetricName": "DatabaseConnections",
+            "Namespace": "AWS/RDS",
+            "Statistic": "Maximum",
+            "Dimensions": [
+                {
+                    "Name": "DBInstanceIdentifier",
+                    "Value": "intellichoice-staging-postgres"
+                }
+            ],
+            "Period": 300,
+            "EvaluationPeriods": 3,
+            "Threshold": 80.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-10T00:41:57.732000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-postgres-cpu",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-postgres-cpu",
+            "AlarmDescription": "D-244: postgres above 80% CPU for 15 minutes.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:04.211000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 3 datapoints [3.646734824964824 (10/08/26 05:35:00), 3.3196519903093966 (10/08/26 05:30:00), 3.2499393991691767 (10/08/26 05:25:00)] were not greater than the threshold (80.0).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:41:10.574+0000\",\"startDate\":\"2026-08-10T05:25:00.000+0000\",\"statistic\":\"Average\",\"period\":300,\"recentDatapoints\":[3.2499393991691767,3.3196519903093966,3.646734824964824],\"threshold\":80.0,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T05:35:00.000+0000\",\"sampleCount\":5.0,\"value\":3.646734824964824}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:41:10.575000-05:00",
+            "MetricName": "CPUUtilization",
+            "Namespace": "AWS/RDS",
+            "Statistic": "Average",
+            "Dimensions": [
+                {
+                    "Name": "DBInstanceIdentifier",
+                    "Value": "intellichoice-staging-postgres"
+                }
+            ],
+            "Period": 300,
+            "EvaluationPeriods": 3,
+            "Threshold": 80.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "StateTransitionedTimestamp": "2026-08-10T00:41:10.575000-05:00"
+        },
+        {
+            "AlarmName": "intellichoice-staging-postgres-free-storage",
+            "AlarmArn": "arn:aws:cloudwatch:us-east-1:320503430250:alarm:intellichoice-staging-postgres-free-storage",
+            "AlarmDescription": "D-244: postgres is below 20% free storage. A full RDS volume rejects writes outright - this is an outage, not a slowdown - and storage autoscaling has a cooldown, so this threshold is set to leave room to act rather than to report the fact.",
+            "AlarmConfigurationUpdatedTimestamp": "2026-08-10T00:41:04.395000-05:00",
+            "ActionsEnabled": true,
+            "OKActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "AlarmActions": [
+                "arn:aws:sns:us-east-1:320503430250:intellichoice-staging-alerts"
+            ],
+            "InsufficientDataActions": [],
+            "StateValue": "OK",
+            "StateReason": "Threshold Crossed: 2 datapoints [1.8018648064E10 (10/08/26 05:36:00), 1.8018648064E10 (10/08/26 05:31:00)] were not less than the threshold (4.294967296E9).",
+            "StateReasonData": "{\"version\":\"1.0\",\"queryDate\":\"2026-08-10T05:41:39.844+0000\",\"startDate\":\"2026-08-10T05:31:00.000+0000\",\"statistic\":\"Minimum\",\"period\":300,\"recentDatapoints\":[1.8018648064E10,1.8018648064E10],\"threshold\":4.294967296E9,\"evaluatedDatapoints\":[{\"timestamp\":\"2026-08-10T05:36:00.000+0000\",\"sampleCount\":5.0,\"value\":1.8018648064E10}]}",
+            "StateUpdatedTimestamp": "2026-08-10T00:41:39.847000-05:00",
+            "MetricName": "FreeStorageSpace",
+            "Namespace": "AWS/RDS",
+            "Statistic": "Minimum",
+            "Dimensions": [
+                {
+                    "Name": "DBInstanceIdentifier",
+                    "Value": "intellichoice-staging-postgres"
+                }
+            ],
+            "Period": 300,
+            "EvaluationPeriods": 2,
+            "Threshold": 4294967296.0,
+            "ComparisonOperator": "LessThanThreshold",
+            "TreatMissingData": "missing",
+            "StateTransitionedTimestamp": "2026-08-10T00:41:39.847000-05:00"
+        }
+    ],
+    "CompositeAlarms": [],
+    "LogAlarms": []
+}

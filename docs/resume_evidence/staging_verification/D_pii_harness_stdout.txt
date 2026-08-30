@@ -1,0 +1,23 @@
+### D lane: PII harness (frozen 651-case + 46-span corpus), UTC 2026-08-30T06:41:11Z
+positive controls: 11/11 fired
+corpus: 651 cases (277 in-contract, 110 out-of-contract, 264 negative) + 49 log keys + 46 spans
+
+layer 1 (regex free text):
+  precision 267/275 (97.1%)
+  recall    267/277 (96.4%)
+  F1        534/552 (96.7%)
+  email  recall 119/125 (95.2%)  precision 119/119 (100.0%)
+  url    recall 74/74 (100.0%)  precision 74/74 (100.0%)
+  phone  recall 62/66 (93.9%)  precision 62/70 (88.6%)
+  out-of-scope caught anyway 4/110 (3.6%)
+layer 2 (json log formatter):
+  denylist keys 36/36 (100.0%)  control keys survived 12/12 (100.0%)
+  message recall 267/277 (96.4%)  exc_info recall 267/277 (96.4%)
+layer 3 (span export):
+  credential recall 21/22 (95.5%)  precision 21/21 (100.0%)
+  student PII redacted at this layer 0/8 (0.0%) (by design)
+
+artifacts:
+  results    /tmp/r5-pii/pii_probe_results.json
+  metrics    /tmp/r5-pii/pii_probe_metrics.csv
+  report     /tmp/r5-pii/E6_1_REPORT.md

@@ -1,0 +1,28 @@
+{
+  "section": "D — PII redaction (D-470)",
+  "measured_utc": "2026-08-30T06:41:11Z",
+  "repo_head": "523b9f0",
+  "cost": "$0 — no model call, no network, no database, no AWS",
+  "harness": "benchmarks/resume_evidence/06_eval_observability/pii_probe_harness.py --out-dir /tmp/r5-pii",
+  "corpus": {"cases": 651, "in_contract": 277, "out_of_contract": 110, "negative": 264, "log_keys": 49, "spans": 46},
+  "positive_controls": "11/11 fired",
+  "layer1_regex_free_text": {
+    "recall": "267/277 (96.4%)", "precision": "267/275 (97.1%)", "F1": "534/552 (96.7%)",
+    "email": {"recall": "119/125 (95.2%)", "precision": "119/119 (100.0%)"},
+    "url": {"recall": "74/74 (100.0%)", "precision": "74/74 (100.0%)"},
+    "phone": {"recall": "62/66 (93.9%)", "precision": "62/70 (88.6%)"},
+    "out_of_scope_caught_anyway": "4/110 (3.6%)"
+  },
+  "layer2_json_log_formatter": {"denylist_keys": "36/36 (100.0%)", "control_keys_survived": "12/12 (100.0%)",
+    "message_recall": "267/277 (96.4%)", "exc_info_recall": "267/277 (96.4%)"},
+  "layer3_span_export": {"credential_recall": "21/22 (95.5%)", "credential_precision": "21/21 (100.0%)",
+    "student_pii_redacted_at_this_layer": "0/8 (0.0%) — by design"},
+  "comparison_to_frozen_R4_postfix": {
+    "method": "byte-diff of the fresh pii_probe_metrics.csv against docs/resume_evidence/06_eval_observability/post_remediation/pii_probe_metrics_postfix.csv (git_sha line excluded)",
+    "result": "IDENTICAL — zero delta on every metric",
+    "new_non_adversarial_false_positives": 0
+  },
+  "permanent_regression_lanes_local": {
+    "test_pii_probe_corpus.py + test_pii_redaction.py + test_tracing.py": {"passed": 54, "failed": 0}
+  }
+}

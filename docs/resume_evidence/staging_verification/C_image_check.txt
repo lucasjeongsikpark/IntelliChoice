@@ -1,0 +1,10 @@
+eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
+	  uv run python -u scripts/check_deployed_image_consistency.py
+running  intellichoice-staging-learning-api: gha-523b9f036a53  (intellichoice-staging-learning-api:155)
+running  intellichoice-staging-chat-api: gha-523b9f036a53  (intellichoice-staging-chat-api:153)
+latest   intellichoice-staging-learning-api: gha-523b9f036a53  (revision 155)
+latest   intellichoice-staging-chat-api: gha-523b9f036a53  (revision 153)
+latest   intellichoice-staging-ops-task: gha-523b9f036a53  (revision 147)
+bootstrap pin  learning_api_image_tag: gha-df79b290bf65 (stale, and harmless — see this script's docstring)
+bootstrap pin  chat_api_image_tag: gha-df79b290bf65 (stale, and harmless — see this script's docstring)
+VERDICT: OK — every deployed image agrees: gha-523b9f036a53

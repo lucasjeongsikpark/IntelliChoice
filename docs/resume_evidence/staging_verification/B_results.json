@@ -1,0 +1,79 @@
+{
+  "section": "B — observability (D-468), on the deployed 523b9f0 image",
+  "as_of_utc": "2026-08-30T07:11:26Z",
+  "B1_safe_test_500": {
+    "verdict": "NO SAFE TRIGGER EXISTS — spec-authorised fallback taken",
+    "probes_attempted": 16,
+    "unhandled_500s_produced": 0,
+    "statuses_observed": ["200", "202", "401", "403", "404", "422"],
+    "why_structural": [
+      "no UUID/Uuid column exists anywhere in packages/db/src/intellichoice_db/models/ — every column is String/Text, so the 'non-UUID string into a uuid column -> asyncpg DataError -> 500' class is absent by construction",
+      "malformed query values are rejected by Pydantic at the boundary (422), never inside a handler",
+      "missing rows become explicit HTTPExceptions (404/409)",
+      "authorisation refuses before any handler work (403)"
+    ],
+    "fallback_a_deployed_image_consistency": {"verdict": "OK", "tag": "gha-523b9f036a53",
+      "note": "523b9f0 is the commit that contains request_logging._log_unhandled_exception"},
+    "fallback_b_permanent_tests": {"file": "packages/observability/tests/test_unhandled_exception_logging.py", "passed": 5, "failed": 0},
+    "bonus_c_deployed_filter_vs_the_new_json_line": {
+      "method": "wrote one plain-text uvicorn traceback AND one JSON unhandled_exception line (exc_info present) into the live learning-api log group",
+      "UnhandledTracebacks_datapoint": 1.0,
+      "expected": 1.0,
+      "verdict": "PASS — the deployed filter's `-exc_info` exclusion behaves correctly against the exact line shape D-468 ships"
+    }
+  },
+  "B2_metric_filter_and_alarm_without_paging": {
+    "log_group": "/ecs/intellichoice-staging-learning-api",
+    "filter_name": "intellichoice-staging-learning-api-unhandled-tracebacks",
+    "filter_pattern": "\"Traceback (most recent call last):\" -exc_info",
+    "metric": "UnhandledTracebacks",
+    "alarm": "intellichoice-staging-learning-api-unhandled-tracebacks",
+    "alarm_config": {"statistic": "Sum", "period_s": 900, "evaluation_periods": 1,
+      "operator": "GreaterThanThreshold", "threshold": 0.0, "treat_missing_data": "notBreaching"},
+    "timeline_utc": {
+      "actions_disabled": "06:51:39Z",
+      "synthetic_events_written": "06:51:51Z",
+      "datapoint_observed": {"bucket": "06:51:00Z", "value": 1.0},
+      "alarm_OK_to_ALARM": "06:52:07Z",
+      "notification_sent": false,
+      "alarm_ALARM_to_OK_self_resolved": "07:07:30Z",
+      "ok_notification_sent": false,
+      "actions_re_enabled": "07:07:47Z",
+      "synthetic_stream_deleted": "07:07:48Z"
+    },
+    "verdict": "PASS — detection proven end to end with zero paging in either direction"
+  },
+  "B3_adot_exporter_metrics": {
+    "required_dimension": "exporter",
+    "gotcha": "an undimensioned get_metric_statistics returns EMPTY on these series and would read as a regression; proved on a known-good pre-deploy control window before trusting anything",
+    "post_deploy_window_utc": "2026-08-30T06:30:00Z -> 06:49:37Z",
+    "control_window_utc": "2026-08-30T04:00:00Z -> 05:00:00Z",
+    "series_with_fresh_datapoints": "8/8",
+    "datapoints_per_series_post_deploy": 19,
+    "latest_datapoint_utc": "2026-08-30T06:48:00Z",
+    "send_failed_spans_total": 0,
+    "send_failed_metric_points_total": 0,
+    "export_failure_alarms": {
+      "count": 4,
+      "names": ["intellichoice-staging-learning-api-collector-awsxray-export-failures",
+                "intellichoice-staging-learning-api-collector-awsemf-export-failures",
+                "intellichoice-staging-chat-api-collector-awsxray-export-failures",
+                "intellichoice-staging-chat-api-collector-awsemf-export-failures"],
+      "all_actions_enabled": true, "all_state": "OK"
+    },
+    "verdict": "PASS"
+  },
+  "B4_nothing_left_behind": {
+    "alarms_before": 40, "alarms_after": 40, "alarm_set_identical": true,
+    "alarms_with_actions_disabled_after": 0,
+    "actions_enabled_differences": "none",
+    "alarm_actions_differences": "none",
+    "synthetic_log_streams_remaining_under_r5_prefix": 0,
+    "chat_turn_cancellations_row_from_B1_probe": "swept at 07:11:11Z via the D-416 global 15-minute sweep (no-op insert + global delete); table back to zero",
+    "alarm_state_change_before_to_after": {
+      "intellichoice-staging-learning-api-p95-latency-scale-in": "ALARM -> OK",
+      "note": "caused by this task's own request traffic raising p95 above the scale-in threshold; an ordinary self-resolving autoscaling signal, not a page"
+    },
+    "verdict": "PASS"
+  }
+}

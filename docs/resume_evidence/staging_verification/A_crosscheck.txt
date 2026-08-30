@@ -1,0 +1,35 @@
+R5 SECTION A — on-demand staging memory-consolidation probe (D-467)
+task            : arn .../intellichoice-staging/f2aadb9bd3724f03b2bbc88d12290d53
+task definition : intellichoice-staging-ops-task:147  (image learning-api:gha-523b9f036a53)
+window (UTC)    : started 2026-08-30T06:38:45Z, stopped 2026-08-30T06:49:29Z, exit code 1
+command         : python -m intellichoice_memory.consolidate_cli  (identical to the weekly schedule)
+env override    : MEMORY_BEDROCK_RUN_BUDGET_CENTS=60 (spend guard only; job default is 3000)
+
+=== job report (D-377 structured record) ===
+    {"event": "memory_consolidate_job_complete", "level": "INFO", "job": "memory-consolidate", "students": 2, "students_skipped": 0, "added": 0, "expired": 0, "spend_cents": 13.4, "model_calls": 8, "failed": 8, "dropped": 13872}
+
+=== per-student lines ===
+    student-ext-4: +0 facts, 0 reconfirmed, 0 contested, 0 expired (5.3856 cents) [4/4 call(s) FAILED] [6647 event(s) dropped over the call cap]
+    student-ext-1: +0 facts, 0 reconfirmed, 0 contested, 0 expired (8.0096 cents) [4/4 call(s) FAILED] [7225 event(s) dropped over the call cap]
+
+=== SILENT-TRUNCATION CROSS-CHECK ===
+  calls attempted (job report model_calls)     : 8
+  calls failed    (job report failed)          : 8
+  `bedrock_call_failed` records in the stream  : 8
+  truncation lines naming a max_output_tokens  : 8  ceilings=[2688, 4000]
+  successful `bedrock_call` records            : 0
+  facts added / reconfirmed                    : 0 / 0
+  SILENT truncations (a max_tokens stop counted successful) : 0
+     proof: the successful-call set is EMPTY (0 `bedrock_call` records), so no call
+     could have stopped on max_tokens and still been counted a success; and every one
+     of the 8 attempted calls is matched 1:1 by a `bedrock_call_failed` marker AND a
+     truncation line that names its ceiling. 8 attempted = 8 failed = 8 truncations.
+     Pre-D-467 this same run would have reported added=0, calls_failed=0, exit 0.
+
+=== ceiling saturation (the finding under the finding, D-467's own §) ===
+    bedrock_max_tokens_capped task=memory_consolidation requested=5888 capped_to=4000
+  events dropped over the per-student call cap : 13872
+
+=== spend ===
+  run spend (job report spend_cents)           : 13.4 cents
+  budget guard                                 : 60 cents (not reached; 0 students skipped)

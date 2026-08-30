@@ -31501,3 +31501,44 @@ PII test modules (54 passed) and cross-checked the postfix CSV. Evidence:
 CONTENT-GATE-HINT-COHERENCE largely fixed (F1 0.837→0.949, skeleton class honestly open);
 PII-REDACTION-GAPS' actionable half fixed. Deploy note: the D-467/D-468/D-469 app-side fixes
 reach staging with the next manual deploy (D-417).
+
+## D-471 — the remediation deploy and its staging smoke verification; the resume-evidence program is closed (accepted, 2026-08-30)
+
+**The deploy.** `523b9f0` (D-467..D-470 + the nltk PYSEC-2026-3726 fix) shipped to staging via
+run 33296426748 through every normal gate. Verified from the ECS API, not CI: learning-api
+`:154 → :155` (2/2), chat-api `:152 → :153` (1/1), ops-task `:147`, image
+`gha-5fa15d491057 → gha-523b9f036a53`, rollout COMPLETED. **Repo and staging agree again.**
+
+**R5 targeted smoke (34 checks, all pass or honestly dispositioned; 15.25¢ total spend;
+evidence `docs/resume_evidence/staging_verification/`).** Highlights:
+
+- **D-467 proven live:** one on-demand consolidation run — 8/8 calls truncated and ALL 8
+  surfaced (`bedrock_call_failed` + the exact ceiling each hit), **0 silent** (zero successful
+  call records — the silent shape cannot exist), job exited non-zero and the AUD-F-34 failure
+  alarm **legitimately paged once** (a true positive doing its job). Pre-fix this identical run
+  read `added=0/failed=0/exit 0`.
+- **D-468 proven live:** the Traceback filter counted a synthetic event (and correctly EXCLUDED
+  a real JSON `unhandled_exception` line — 1 datapoint, not 2); alarm OK→ALARM→self-resolved
+  with actions disabled, then **0/40 alarms left with actions disabled**; ADOT export metrics
+  fresh (19 datapoints × 8 series, failures 0), 4/4 failure alarms enabled. **No safe real
+  unhandled-500 trigger exists on staging (0/16 probes)** — the app-side line's staging proof is
+  image-consistency + the 5 permanent tests, stated honestly.
+- **D-469/D-470:** deployed image carries the fixes (consistency check); permanent lanes
+  146/146 and 54/54 green; the PII re-run is **byte-identical** to R4's frozen post-fix CSV.
+- **Health:** ALB 5xx 0 vs 0 baseline; 4xx = 6 (all the task's own probes); RDS connections
+  avg 16.3/max 20; one guest chat turn and the authenticated learning reads green through
+  CloudFront.
+
+**New finding, reported not fixed — `MEMORY-CEILING-STILL-SATURATED`:** the staging fixture
+cohort (~26 existing facts, a 7-day window bloated by this week's load-test events — 13,872
+dropped vs 0 on 2026-08-23) derives a 5,888-token budget, hard-capped at 4,000; past
+`MAX_SAFE_EXISTING_FACTS=11` no ceiling helps. This is D-467's already-named open design
+decision (bound the response shape / choose which facts to drop), now with live evidence.
+Also minor: the ops-task log configuration does not render the gateway's structured extras.
+
+**Program closure.** The three closing documents are written from artifacts:
+`docs/resume_evidence/POST_REMEDIATION_STAGING_VERIFICATION.md` (the claim table, environments
+never blurred), `FINAL_RESUME_BULLETS.md` (Version A agentic/platform, Version B RAG/GenAI,
+each bullet with evidence/environment/caveat notes), and `RESUME_INTERVIEW_DEFENSE.md`
+(per-bullet 30s/60s defenses + the likely-questions answers, repository-evidence-only).
+**Resume evidence program closed — no further benchmarking recommended.**

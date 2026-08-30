@@ -1,0 +1,79 @@
+{
+    "tasks": [
+        {
+            "attachments": [
+                {
+                    "id": "b86ea97a-2e94-47a7-8f1c-7d53943aa32b",
+                    "type": "ElasticNetworkInterface",
+                    "status": "PRECREATED",
+                    "details": [
+                        {
+                            "name": "subnetId",
+                            "value": "subnet-0fab49a3bf8fc3a8f"
+                        }
+                    ]
+                }
+            ],
+            "attributes": [
+                {
+                    "name": "ecs.cpu-architecture",
+                    "value": "arm64"
+                }
+            ],
+            "availabilityZone": "us-east-1a",
+            "clusterArn": "arn:aws:ecs:us-east-1:320503430250:cluster/intellichoice-staging",
+            "containers": [
+                {
+                    "containerArn": "arn:aws:ecs:us-east-1:320503430250:container/intellichoice-staging/f2aadb9bd3724f03b2bbc88d12290d53/88316722-5467-4ada-92bd-98791d9f27b3",
+                    "taskArn": "arn:aws:ecs:us-east-1:320503430250:task/intellichoice-staging/f2aadb9bd3724f03b2bbc88d12290d53",
+                    "name": "ops-task",
+                    "image": "320503430250.dkr.ecr.us-east-1.amazonaws.com/learning-api:gha-523b9f036a53",
+                    "lastStatus": "PENDING",
+                    "networkInterfaces": [],
+                    "cpu": "0"
+                }
+            ],
+            "cpu": "256",
+            "createdAt": "2026-08-30T01:38:22.088000-05:00",
+            "desiredStatus": "RUNNING",
+            "enableExecuteCommand": false,
+            "group": "family:intellichoice-staging-ops-task",
+            "lastStatus": "PROVISIONING",
+            "launchType": "FARGATE",
+            "memory": "512",
+            "overrides": {
+                "containerOverrides": [
+                    {
+                        "name": "ops-task",
+                        "command": [
+                            "python",
+                            "-m",
+                            "intellichoice_memory.consolidate_cli"
+                        ],
+                        "environment": [
+                            {
+                                "name": "MEMORY_BEDROCK_RUN_BUDGET_CENTS",
+                                "value": "60"
+                            }
+                        ]
+                    }
+                ],
+                "inferenceAcceleratorOverrides": []
+            },
+            "platformVersion": "1.4.0",
+            "platformFamily": "Linux",
+            "startedBy": "r5-smoke-A",
+            "tags": [],
+            "taskArn": "arn:aws:ecs:us-east-1:320503430250:task/intellichoice-staging/f2aadb9bd3724f03b2bbc88d12290d53",
+            "taskDefinitionArn": "arn:aws:ecs:us-east-1:320503430250:task-definition/intellichoice-staging-ops-task:147",
+            "version": 1,
+            "ephemeralStorage": {
+                "sizeInGiB": 20
+            },
+            "fargateEphemeralStorage": {
+                "sizeInGiB": 20
+            }
+        }
+    ],
+    "failures": []
+}

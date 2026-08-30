@@ -1,0 +1,48 @@
+R5 SECTION B1 — safe-500 trigger search against the deployed 523b9f0 image (UTC 2026-08-30T06:54:03Z)
+
+VERDICT: no safe trigger for an UNHANDLED exception exists on the reachable staging surface.
+Falling back to the spec-authorised (a) deployed-image consistency + (b) local permanent tests.
+
+== probes attempted (all read-only; no write, no mutation) ==
+  200  /learning/students/student-ext-1/dashboard
+  200  /learning/students/student-ext-1/dashboard?start=2026-01-01T00:00:00
+  200  /learning/students/student-ext-1/dashboard?start=2026-01-01T00:00:00Z
+  200  /learning/students/student-ext-1/dashboard?start=2026-08-01T00:00:00&end=2026-01-01T00:00:00
+  200  /learning/students/student-ext-1/dashboard?start=0001-01-01T00:00:00Z
+  200  /learning/students/student-ext-1/dashboard?start=9999-12-31T23:59:59Z
+  422  /learning/students/student-ext-1/dashboard?start=2026-01-01T00:00:00%2B99:00
+  200  /learning/students/student-ext-1/dashboard?start=2026-01-01T00:00:00&start=2026-02-01T00:00:00Z
+  200  /learning/students/student-ext-1/reports
+  200  /learning/students/student-ext-1/sessions
+  404  /learning/sessions/not-a-real-session/topics
+  404  /learning/sessions/00000000-0000-0000-0000-000000000000/results
+  403  /learning/parents/me/children
+  403  /learning/students/<900-char id>/dashboard
+  202  POST /chat/sessions/not-a-uuid/turns/x/cancel
+  401  GET /chat /me (edge-routing gate)
+
+== why no trigger exists (structural, read from source at 523b9f0) ==
+  - Every path/query parameter that reaches the database is typed `str` and every DB column is
+    `String`/`Text`: `grep -rn "UUID|Uuid" packages/db/src/intellichoice_db/models/*.py` returns
+    NOTHING. The usual "non-UUID string into a uuid column -> asyncpg DataError -> 500" class is
+    therefore absent by construction.
+  - Malformed query values are rejected by Pydantic at the boundary (422), never in the handler.
+  - Missing rows are converted to explicit HTTPExceptions (404/409) rather than raising.
+  - Authorisation refuses before any handler work (403).
+  Forcing a 500 would require an unsafe trigger, which the Frozen Spec forbids.
+
+== fallback evidence (a): the code IS deployed ==
+  scripts/check_deployed_image_consistency.py -> VERDICT: OK, every deployed image agrees on
+  gha-523b9f036a53, and 523b9f0 is the commit that contains request_logging's
+  `_log_unhandled_exception`. See C_image_check.txt.
+
+== fallback evidence (b): the permanent tests ==
+  packages/observability/tests/test_unhandled_exception_logging.py -> 5 passed. See
+  B1_permanent_tests.txt.
+
+== fallback evidence (c), stronger than the spec asked for: the deployed FILTER was proven
+   against a real JSON `unhandled_exception` line ==
+  The B2 synthetic pair put one plain-text uvicorn traceback AND one JSON `unhandled_exception`
+  line (exc_info present) into the live learning-api log group. `UnhandledTracebacks` recorded
+  exactly 1.0 (not 2.0), so the deployed filter's `-exc_info` exclusion behaves correctly against
+  the exact line shape D-468 now ships. See B2_timeline.txt.

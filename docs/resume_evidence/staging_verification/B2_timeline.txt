@@ -1,0 +1,36 @@
+2026-08-30T06:51:39Z step1: disable actions on intellichoice-staging-learning-api-unhandled-tracebacks
+{
+    "name": "intellichoice-staging-learning-api-unhandled-tracebacks",
+    "actionsEnabled": false,
+    "state": "OK"
+}
+2026-08-30T06:51:51Z step2: put 2 synthetic events (1 plain traceback -> should count; 1 JSON unhandled_exception with exc_info -> must NOT count)
+{
+    "nextSequenceToken": "49677066167036982405155914297996142529206813239069902098"
+}
+06:52:01Z datapoints=[('2026-08-30T01:45:00-05:00', 0.0), ('2026-08-30T01:46:00-05:00', 0.0), ('2026-08-30T01:47:00-05:00', 0.0), ('2026-08-30T01:48:00-05:00', 0.0), ('2026-08-30T01:49:00-05:00', 0.0), ('2026-08-30T01:50:00-05:00', 0.0), ('2026-08-30T01:51:00-05:00', 1.0)] alarm=OK
+06:52:32Z datapoints=[('2026-08-30T01:45:00-05:00', 0.0), ('2026-08-30T01:46:00-05:00', 0.0), ('2026-08-30T01:47:00-05:00', 0.0), ('2026-08-30T01:48:00-05:00', 0.0), ('2026-08-30T01:49:00-05:00', 0.0), ('2026-08-30T01:50:00-05:00', 0.0), ('2026-08-30T01:51:00-05:00', 1.0)] alarm=ALARM
+[
+    {
+        "t": "2026-08-30T01:52:07.980000-05:00",
+        "s": "Alarm updated from OK to ALARM"
+    },
+    {
+        "t": "2026-08-29T23:21:05.806000-05:00",
+        "s": "Alarm updated from ALARM to OK"
+    },
+    {
+        "t": "2026-08-29T23:07:05.806000-05:00",
+        "s": "Alarm updated from OK to ALARM"
+    },
+    {
+        "t": "2026-08-29T22:53:52.991000-05:00",
+        "s": "Alarm updated from INSUFFICIENT_DATA to OK"
+    }
+]
+{
+    "actionsEnabled": false,
+    "state": "ALARM",
+    "reason": "Threshold Crossed: 1 datapoint [1.0 (30/08/26 06:37:00)] was greater than the threshold (0.0).",
+    "updated": "2026-08-30T01:52:07.980000-05:00"
+}
