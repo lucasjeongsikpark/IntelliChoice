@@ -282,3 +282,89 @@ resource "aws_cloudwatch_metric_alarm" "nightly_job_heartbeat" {
   ok_actions    = [aws_sns_topic.alerts.arn]
   tags          = var.tags
 }
+
+# --- The 500s nothing could see (SILENT-500S) --------------------------------------------
+#
+# **Measured, not hypothesised: 114 traceback lines in staging while every monitor read
+# quiet** (D-455, the 2026-08-29 RDS secret-rotation incident). Every one of them was an
+# `asyncpg.InvalidPasswordError` escaping a route handler, and the observability layer's
+# summary for that window was "no errors".
+#
+# The reason is a severity, and it survived a fix aimed at this exact class. D-393 gave
+# unhandled 500s a JSON access line, a `trace_id` and a `status="500"` counter - and the access
+# line is `logger.info`, so the only structured record of the worst failure this system has
+# reads `"level": "INFO"`. The exception itself reached CloudWatch only as uvicorn's plain-text
+# ASGI traceback: prose, in the same log group, arriving as **one event per line** because the
+# awslogs driver splits on newlines and no `awslogs-multiline-pattern` is set.
+#
+# The application-side fix (`request_logging._log_unhandled_exception`) emits a real
+# `level=ERROR` line - and **it is inert until the next manual deploy** (D-417 §C9; the
+# `push` trigger stays commented out). This filter is the half that works on the image
+# staging is running *now*, and it keeps working afterwards, because uvicorn writes its own
+# traceback whether or not the app also logged one.
+#
+# **`-exc_info` is the whole design of the pattern, and it was validated against real events
+# with `aws logs test-metric-filter` rather than reasoned about.** Two other line shapes in
+# these groups contain the same phrase and must not be counted here:
+#
+#   - the new `unhandled_exception` JSON line, whose redacted `exc_info` field embeds the
+#     formatted traceback - counting it would double every exception after the next deploy;
+#   - `background_*_failed` lines, whose `logger.exception` call does the same, and which
+#     already have their own filter and alarm above.
+#
+# Neither a plain-text traceback line nor its `Exception Group` variants contain the token
+# `exc_info`, and every JSON line carrying a traceback does. Verified: 5 of 7 sample events
+# matched without the exclusion, exactly the 3 plain-text ones with it.
+#
+# **This counts traceback *lines*, not exceptions**, and that is stated rather than smoothed
+# over: one chained or grouped exception writes up to three matching lines (`Traceback (most
+# recent call last):`, `  + Exception Group Traceback ...`, `    | Traceback ...`). It is a
+# presence signal with a threshold at zero, not a rate to be tuned - which is also how D-455's
+# own "114 traceback lines" is phrased.
+resource "aws_cloudwatch_log_metric_filter" "unhandled_tracebacks" {
+  for_each       = var.log_group_names
+  name           = "${var.name_prefix}-${each.key}-unhandled-tracebacks"
+  log_group_name = each.value
+  pattern        = "\"Traceback (most recent call last):\" -exc_info"
+
+  metric_transformation {
+    name      = "UnhandledTracebacks"
+    namespace = local.metric_namespace[each.key]
+    value     = "1"
+    unit      = "None"
+    # A quiet hour is a real zero, like `ClientErrors`: no traceback is the healthy state and
+    # must plot as one rather than as a gap indistinguishable from "nothing collected".
+    default_value = 0
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "unhandled_tracebacks" {
+  for_each            = var.log_group_names
+  alarm_name          = "${var.name_prefix}-${each.key}-unhandled-tracebacks"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "UnhandledTracebacks"
+  namespace           = local.metric_namespace[each.key]
+  period              = 900
+  statistic           = "Sum"
+  # Zero, and for `ClientErrors`' reason rather than a stricter one: an unhandled exception is
+  # an event, not a rate. One of them is a 500 served to a student on a request the code did
+  # not expect to be able to fail, and the D-455 incident's shape - a credential that stopped
+  # working - produces one per request from the first second, so nothing is gained by waiting
+  # for a second datapoint. `evaluation_periods = 1` over 15 minutes for the same reason.
+  threshold          = var.unhandled_traceback_alarm_threshold
+  treat_missing_data = "notBreaching"
+  alarm_description = join(" ", [
+    "SILENT-500S: ${each.key} wrote a plain-text traceback - an exception escaped a route",
+    "handler and the client got a 500. D-455 emitted 114 of these while every monitor read",
+    "quiet, because the only structured line for this class is `level=INFO`. Search the log",
+    "group for `Traceback` at this timestamp; on images built after the SILENT-500S fix the",
+    "matching `unhandled_exception` JSON line carries the trace_id, route template and",
+    "exception type.",
+  ])
+  # The page channel. Users are affected - this is a served 500 - which is exactly the
+  # criterion `alerts_info` excludes.
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
+  tags          = var.tags
+}

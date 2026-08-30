@@ -174,15 +174,51 @@ locals {
       }
       prometheus = {
         config = {
-          scrape_configs = [{
-            job_name = var.name
-            # 60s, not the Prometheus default 15s: these are business counters read on a
-            # dashboard, not an autoscaling signal, and the EMF record count is what the
-            # ingestion bill is priced on.
-            scrape_interval = "60s"
-            metrics_path    = "/metrics"
-            static_configs  = [{ targets = ["localhost:${var.container_port}"] }]
-          }]
+          scrape_configs = [
+            {
+              job_name = var.name
+              # 60s, not the Prometheus default 15s: these are business counters read on a
+              # dashboard, not an autoscaling signal, and the EMF record count is what the
+              # ingestion bill is priced on.
+              scrape_interval = "60s"
+              metrics_path    = "/metrics"
+              static_configs  = [{ targets = ["localhost:${var.container_port}"] }]
+            },
+            # **COLLECTOR-STATS-UNSCRAPED (E6.2): the collector was the one component in this
+            # pipeline that reported on everything except itself.**
+            #
+            # It has always served its own telemetry - the startup line reads
+            # `Serving metrics {"address": "localhost:8888", "metrics level": "Normal"}` - and
+            # the scrape config above named the app port only. So `otelcol_exporter_sent_spans`
+            # and `otelcol_exporter_send_failed_spans` were computed every second and read by
+            # nothing: **no export success or failure rate existed anywhere in AWS.**
+            #
+            # That is AUD-F-12's exact shape. The collector is `essential: false` on purpose (a
+            # collector that dies must not take a healthy API down with it), which means the
+            # failure mode it is designed to have - dying, or failing every export - is silent
+            # by construction unless something watches. E6.2 proved the *reader* worked and
+            # found zero failures in both windows; it could not close the detection gap, because
+            # the gap is that nobody is watching between measurements.
+            #
+            # `localhost:8888` is reachable for the same reason the app port is: one Fargate
+            # `awsvpc` network namespace per task. It is a loopback bind, so it is reachable
+            # *only* from inside the task - the collector scraping itself is the whole
+            # mechanism, and no port needs opening.
+            #
+            # Metric names verified against this exact pinned image
+            # (`aws-otel-collector:v0.43.3`, collector core v0.117.0) rather than from the
+            # documentation: **no `_total` suffix**, and the labels are
+            # `exporter`/`service_instance_id`/`service_name`/`service_version`. The allowlist
+            # below is `strict`, so a guessed name would have silently matched nothing.
+            {
+              job_name = "${var.name}-collector"
+              # Same 60s as the app scrape, and for the same reason. These four counters are
+              # cumulative, and `awsemf` deltas them on export, so a 60s scrape is a 60s bucket.
+              scrape_interval = "60s"
+              metrics_path    = "/metrics"
+              static_configs  = [{ targets = ["localhost:8888"] }]
+            },
+          ]
         }
       }
     }
@@ -221,6 +257,16 @@ locals {
               "qa_conversation_cost_cents",
               "http_requests_total",
               "http_request_duration_seconds",
+              # The collector's own export counters (E6.2's COLLECTOR-STATS-UNSCRAPED). Four
+              # names, not the whole `otelcol_*` surface: `metrics level: Normal` serves several
+              # dozen series (queue sizes, per-receiver accept/refuse counts, process memory),
+              # and every one of them is separately billed once promoted. These four are the
+              # ones that answer "is telemetry reaching AWS at all", which is the question
+              # nothing could answer.
+              "otelcol_exporter_sent_spans",
+              "otelcol_exporter_send_failed_spans",
+              "otelcol_exporter_sent_metric_points",
+              "otelcol_exporter_send_failed_metric_points",
             ]
           }
         }
@@ -284,6 +330,24 @@ locals {
           {
             dimensions            = [["status"]]
             metric_name_selectors = ["http_requests_total"]
+          },
+          # One label, `exporter`, per the rule above - and it is the label that carries the
+          # answer: `awsxray` failing is a dark trace leg, `awsemf` failing is every product
+          # KPI silently stopping, and the two have different causes and different fixes.
+          #
+          # **`service_instance_id` is deliberately not a dimension.** It is a UUID the
+          # collector regenerates on every start, so indexing it would mint a fresh set of
+          # CloudWatch series on every task replacement - unbounded cardinality on a metric
+          # added to make cost-free failures visible. It stays an EMF field, readable in the
+          # record when a specific task needs identifying.
+          {
+            dimensions = [["exporter"]]
+            metric_name_selectors = [
+              "otelcol_exporter_sent_spans",
+              "otelcol_exporter_send_failed_spans",
+              "otelcol_exporter_sent_metric_points",
+              "otelcol_exporter_send_failed_metric_points",
+            ]
           },
         ]
       }

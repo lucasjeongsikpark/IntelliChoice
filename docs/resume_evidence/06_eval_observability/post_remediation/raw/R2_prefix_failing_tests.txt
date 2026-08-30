@@ -1,0 +1,12 @@
+        )
+>       error = next(line for line in _lines(stream) if line["level"] == "ERROR")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       StopIteration
+
+packages/observability/tests/test_unhandled_exception_logging.py:200: StopIteration
+=========================== short test summary info ============================
+FAILED packages/observability/tests/test_unhandled_exception_logging.py::test_an_unhandled_exception_emits_a_json_error_line
+FAILED packages/observability/tests/test_unhandled_exception_logging.py::test_the_error_line_carries_the_trace_id_of_the_failed_request
+FAILED packages/observability/tests/test_unhandled_exception_logging.py::test_the_traceback_goes_through_the_redactor
+FAILED packages/observability/tests/test_unhandled_exception_logging.py::test_a_denylisted_extra_on_the_error_line_is_still_redacted
+4 failed, 1 passed in 0.30s
