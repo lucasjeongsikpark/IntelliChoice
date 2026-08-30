@@ -1,0 +1,48 @@
+arm,metric,numerator,denominator,value,unit,note
+real,students,,,10,count,
+real,events_total,,,2264,count,
+real,events_dropped_over_call_cap,0,2264,,events,
+real,students_with_dropped_events,0,10,,students,
+real,model_calls_failed,11,30,,calls,
+real,compression_ratio_p10,,8,7.1034,raw_tokens/live_fact_tokens,
+real,compression_ratio_median,,8,11.4858,raw_tokens/live_fact_tokens,
+real,compression_ratio_p90,,8,16.6734,raw_tokens/live_fact_tokens,
+real,scenario_status_correct:mastery_conflict_strength,10,10,,students,
+real,scenario_served_correct:mastery_conflict_strength,10,10,,students,
+real,scenario_any_fact_on_skill:mastery_conflict_strength,0,10,,students,coverage: the pipeline learned SOMETHING about the planted skill
+real,scenario_polarity_match:mastery_conflict_strength,10,10,,students,direction: a live fact on the planted skill carries the planted polarity
+real,scenario_status_correct:mastery_conflict_weak,10,10,,students,
+real,scenario_served_correct:mastery_conflict_weak,10,10,,students,
+real,scenario_any_fact_on_skill:mastery_conflict_weak,0,10,,students,coverage: the pipeline learned SOMETHING about the planted skill
+real,scenario_polarity_match:mastery_conflict_weak,10,10,,students,direction: a live fact on the planted skill carries the planted polarity
+real,scenario_status_correct:polarity_flip,3,10,,students,
+real,scenario_served_correct:polarity_flip,0,10,,students,
+real,scenario_any_fact_on_skill:polarity_flip,4,10,,students,coverage: the pipeline learned SOMETHING about the planted skill
+real,scenario_polarity_match:polarity_flip,0,10,,students,direction: a live fact on the planted skill carries the planted polarity
+real,scenario_status_correct:repeated_strength,0,10,,students,
+real,scenario_served_correct:repeated_strength,0,10,,students,
+real,scenario_any_fact_on_skill:repeated_strength,2,10,,students,coverage: the pipeline learned SOMETHING about the planted skill
+real,scenario_polarity_match:repeated_strength,2,10,,students,direction: a live fact on the planted skill carries the planted polarity
+real,scenario_status_correct:repeated_weak,0,10,,students,
+real,scenario_served_correct:repeated_weak,0,10,,students,
+real,scenario_any_fact_on_skill:repeated_weak,0,10,,students,coverage: the pipeline learned SOMETHING about the planted skill
+real,scenario_polarity_match:repeated_weak,0,10,,students,direction: a live fact on the planted skill carries the planted polarity
+real,scenario_status_correct:under_evidenced,0,10,,students,
+real,scenario_served_correct:under_evidenced,10,10,,students,
+real,scenario_any_fact_on_skill:under_evidenced,0,10,,students,coverage: the pipeline learned SOMETHING about the planted skill
+real,scenario_polarity_match:under_evidenced,0,10,,students,direction: a live fact on the planted skill carries the planted polarity
+real,provenance_all_evidence_resolves,119,119,,facts,
+real,facts_with_no_resolving_evidence,0,119,,facts,
+real,unplanted_extra_live_facts,,,111,facts,
+real,students_stopped_by_per_student_ceiling,0,10,,students,
+real,lifecycle:active,50,119,,facts,
+real,lifecycle:provisional,68,119,,facts,
+real,lifecycle:superseded,1,119,,facts,
+real,windows_over_32k_input_ceiling,0,30,,windows,
+real,students_cumulative_history_over_ceiling,0,10,,students,
+real,windows_with_oversized_existing_fact_payload,4,30,,windows,existing facts > MAX_SAFE_EXISTING_FACTS=11
+real,calls_hit_output_ceiling,0,30,,calls,stop_reason=max_tokens; the response validated as an EMPTY update
+real,students_with_a_truncated_call,0,10,,students,
+real,cost_total_conservative,,,43.3161,cents,includes cache-write/read tokens the gateway's own cost_cents omits
+real,cost_per_student,,10,3.6295,cents,measured
+real,cost_total,,,36.295,cents,measured

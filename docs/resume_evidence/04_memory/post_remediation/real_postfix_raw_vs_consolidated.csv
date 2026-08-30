@@ -1,0 +1,11 @@
+student_external_id,student_class,events,raw_history_tokens,live_memory_tokens,served_fact_tokens,compression_ratio_vs_live_memory,compression_ratio_vs_served_fact,raw_exceeds_input_ceiling,raw_input_cents_per_request,live_memory_input_cents_per_request
+bench-student-00000,standard,176,17356,1547,105,11.219,165.295,False,1.7356,0.1547
+bench-student-00001,standard,252,23670,0,0,,,False,2.367,0.0
+bench-student-00002,standard,252,23825,1239,0,19.229,,False,2.3825,0.1239
+bench-student-00004,standard,309,28589,1972,119,14.497,240.244,False,2.8589,0.1972
+bench-student-00005,standard,304,28025,1799,104,15.578,269.471,False,2.8025,0.1799
+bench-student-00006,standard,158,15950,2083,109,7.657,146.33,False,1.595,0.2083
+bench-student-00007,standard,184,17992,2237,169,8.043,106.462,False,1.7992,0.2237
+bench-student-00008,standard,215,20703,0,0,,,False,2.0703,0.0
+bench-student-00009,standard,243,22976,1955,136,11.752,168.941,False,2.2976,0.1955
+bench-student-00010,standard,171,16899,2908,139,5.811,121.576,False,1.6899,0.2908

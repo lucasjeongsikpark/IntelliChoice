@@ -576,6 +576,14 @@ class MeteringGateway:
         # the budget - and an unattributable number is not a measurement.
         #
         # **Arm B is not the shipped configuration** and every artifact it produces says so.
+        #
+        # **Post-D-460/R1 the gap this wrapper opens is much smaller, on purpose.** The
+        # shipped floor is now 2,560 at zero existing facts, so arm B no longer separates
+        # "truncated" from "had room" - it separates "2,560" from "4,000". The paragraph
+        # above is kept verbatim because it is the reasoning the E4 artifacts were written
+        # under, and rewriting it would make those artifacts unreadable against their own
+        # harness. A post-fix run uses arm A (no floor); arm B remains available as the
+        # same ablation against the new base.
         self._output_token_floor = output_token_floor
         self.calls: list[CallRecord] = []
 
@@ -981,10 +989,16 @@ def aggregate(results: list[StudentResult], *, arm: str, config, model_id: str) 
             "failed": sum(r.total_failed_calls for r in results),
             "max_calls_per_student_per_window": _MAX_CALLS_PER_STUDENT,
             "max_event_tokens_per_call": _MAX_EVENT_TOKENS_PER_CALL,
-            # The real arm's headline. A call that stops on `max_tokens` returns an empty
-            # tool input, validates as an empty update, and is reported as `added=0` with
-            # zero failures - so this count is the only place a silently truncated
-            # consolidation is visible.
+            # The real arm's headline, and E4's finding (D-460): a call that stopped on
+            # `max_tokens` returned an empty tool input, validated as an empty update, and
+            # was reported as `added=0` with ZERO failures - so this count was the only
+            # place a silently truncated consolidation was visible anywhere.
+            #
+            # Post-D-460/R1 the gateway fails closed on the stop reason, so a truncated call
+            # now also appears in `calls.failed`. This count is kept, and is still the more
+            # informative of the two: it separates "truncated" from every other failure
+            # class, and on a healthy post-fix run it should be ~0 rather than merely
+            # matching `failed`.
             "hit_output_ceiling": sum(r.total_calls_hit_output_ceiling for r in results),
             "students_with_a_truncated_call": sum(
                 1 for r in results if r.total_calls_hit_output_ceiling

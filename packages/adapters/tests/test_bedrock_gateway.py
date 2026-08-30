@@ -29,6 +29,9 @@ from intellichoice_shared.bedrock import (
     GeneratorPayload,
     HintResponse,
     InputBudgetExceededError,
+    MemoryConsolidationPayload,
+    MemoryUpdateResponse,
+    OutputTruncatedError,
     SolverPayload,
     SolverResponse,
     StructuredOutputError,
@@ -39,6 +42,10 @@ from pydantic import BaseModel
 EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0"
 
 MODEL_ID = "anthropic.claude-test"
+
+
+def _memory_payload() -> MemoryConsolidationPayload:
+    return MemoryConsolidationPayload(events=[], existing_facts=[], allowed_fact_types=["skill"])
 
 
 def _payload() -> BedrockTutorPayload:
@@ -88,6 +95,25 @@ class _ScriptedProvider:
                 output_tokens=10,
                 truncated=True,
                 stop_reason="max_tokens",
+            )
+        if action == "truncated_empty":
+            # The OTHER shape real Bedrock returns on `max_tokens`, and the one E4 (D-460)
+            # caught: Converse hands back the *partial* `toolUse` input, and when the model
+            # was cut off before it emitted the first key that partial is `{}` - valid JSON,
+            # and valid against any response model whose fields all default. Byte-for-byte
+            # what `real_shipped_run.log` recorded on 29 of 30 consolidation calls.
+            return RawGeneration(
+                text="{}",
+                input_tokens=10,
+                output_tokens=10,
+                truncated=True,
+                stop_reason="max_tokens",
+            )
+        if action == "empty_complete":
+            # `{}` again, but the model *finished* - stopReason=end_turn/tool_use. The
+            # control for the truncated_empty case above.
+            return RawGeneration(
+                text="{}", input_tokens=10, output_tokens=10, stop_reason="tool_use"
             )
         assert action == "valid"
         return RawGeneration(
@@ -267,6 +293,105 @@ def test_a_truncated_response_is_not_repaired_under_the_same_ceiling() -> None:
         assert provider.calls == 1  # no repair attempt at all
         assert "max_output_tokens=200" in str(exc_info.value)
         assert exc_info.value.cost_cents > 0  # the truncated call still cost money
+
+    asyncio.run(run())
+
+
+def test_a_truncation_that_happens_to_validate_still_fails_closed() -> None:
+    """E4/D-460's silent-success path: truncation must be judged by the stop reason, never
+    by whether the fragment survived Pydantic.
+
+    Bedrock returns the partial `toolUse` input on `max_tokens`, and when the model was cut
+    off before its first key that partial is `{}`. `MemoryUpdateResponse`'s three fields all
+    default to `[]`, so `{}` validates *cleanly* - and `_validate_or_repair` used to return
+    it as a successful, legitimately-empty update because `_try_validate` ran before the
+    `if truncated:` guard ever did. Measured cost of that ordering: 29 of 30 real
+    consolidation calls stopped on `max_tokens`, 10 of 10 students got a truncated call,
+    and the run reported `added=0, calls_failed=0, exit 0` - indistinguishable from a
+    student who genuinely had nothing to consolidate.
+
+    Fail-closed here is SPEC 5.25.3's own rule: a response the model never finished is not
+    a result, whatever shape the fragment happens to have.
+    """
+
+    async def run() -> None:
+        provider = _ScriptedProvider(["truncated_empty"])
+        gateway = ResilientBedrockGateway(
+            provider=provider,
+            model_registry={BedrockTask.MEMORY_CONSOLIDATION: MODEL_ID},
+            max_retries=0,
+        )
+        with pytest.raises(OutputTruncatedError) as exc_info:
+            await gateway.generate_structured(
+                task=BedrockTask.MEMORY_CONSOLIDATION,
+                system_prompt="system",
+                payload=_memory_payload(),
+                response_model=MemoryUpdateResponse,
+                max_output_tokens=1280,
+                session_spend_cents=0.0,
+            )
+        # D-115 is preserved: still exactly one call, still no repair under the same ceiling.
+        assert provider.calls == 1
+        assert "max_output_tokens=1280" in str(exc_info.value)
+        assert exc_info.value.cost_cents > 0
+
+    asyncio.run(run())
+
+
+def test_a_truncated_empty_response_does_not_trip_the_circuit_breaker() -> None:
+    """Truncation is a schema-class failure, not provider ill-health (D-115): the call
+    reached Bedrock and came back. Counting it toward the breaker would let one caller's
+    undersized output budget open the circuit on every other task - the exact blast radius
+    D-115 fixed. Failing closed changes what the caller sees, not the error taxonomy.
+    """
+
+    async def run() -> None:
+        provider = _ScriptedProvider(["truncated_empty"] * 10)
+        gateway = ResilientBedrockGateway(
+            provider=provider,
+            model_registry={BedrockTask.MEMORY_CONSOLIDATION: MODEL_ID},
+            max_retries=0,
+            circuit_failure_threshold=3,
+        )
+        for _ in range(6):
+            with pytest.raises(OutputTruncatedError):
+                await gateway.generate_structured(
+                    task=BedrockTask.MEMORY_CONSOLIDATION,
+                    system_prompt="system",
+                    payload=_memory_payload(),
+                    response_model=MemoryUpdateResponse,
+                    max_output_tokens=1280,
+                    session_spend_cents=0.0,
+                )
+        assert provider.calls == 6  # never short-circuited by an open breaker
+
+    asyncio.run(run())
+
+
+def test_an_untruncated_empty_response_is_still_a_valid_empty_update() -> None:
+    """The other half of the contract, so the fix cannot be read as "empty means broken".
+
+    A student with nothing worth consolidating is a real, common outcome and must stay a
+    success - what makes the E4 shape a failure is `stopReason=max_tokens`, not `{}`.
+    """
+
+    async def run() -> None:
+        provider = _ScriptedProvider(["empty_complete"])
+        gateway = ResilientBedrockGateway(
+            provider=provider,
+            model_registry={BedrockTask.MEMORY_CONSOLIDATION: MODEL_ID},
+            max_retries=0,
+        )
+        result = await gateway.generate_structured(
+            task=BedrockTask.MEMORY_CONSOLIDATION,
+            system_prompt="system",
+            payload=_memory_payload(),
+            response_model=MemoryUpdateResponse,
+            max_output_tokens=1280,
+            session_spend_cents=0.0,
+        )
+        assert result.value.facts_to_add == []
+        assert result.repaired is False
 
     asyncio.run(run())
 

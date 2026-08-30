@@ -1,0 +1,12 @@
+{
+  "students": 10,
+  "students_raw_over_ceiling": 0,
+  "hard_max_input_tokens": 32000,
+  "median_raw_tokens": 21839.5,
+  "median_live_tokens": 1877.0,
+  "median_compression_vs_live": 11.4855,
+  "median_compression_vs_served": 165.295,
+  "projected_cents_per_request_raw_median": 2.184,
+  "projected_cents_per_request_live_median": 0.1877,
+  "note": "Arm B is priced, never called. Every token count is measured from the same serialisation the gateway sends; the cents columns are a PROJECTION at the published Haiku 4.5 input rate (0.1 cents/1k), not a billed number."
+}
