@@ -21,7 +21,7 @@ dependencies = [
     # "'cryptography' package is required for sha256_password or caching_sha2_password
     # auth methods" without it. No local test can catch its absence (warm auth cache);
     # only a fresh-database connection can.
-    "cryptography>=42",
+    "cryptography>=50.0.1",
     "boto3>=1.43.79",
     "icalendar>=7.3.0",
     "httpx>=0.28",
