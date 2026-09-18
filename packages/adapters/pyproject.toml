@@ -5,7 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "intellichoice-shared",
     "intellichoice-observability",
-    "pyjwt>=2.9",
+    "pyjwt>=2.14.0",
     "sqlalchemy[asyncio]>=2.0.52",
     "aiomysql>=0.2.0",
     # aiomysql's optional RSA-based full-auth path for MySQL 8's default
