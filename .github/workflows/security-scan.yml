@@ -35,8 +35,15 @@ jobs:
       # `intellichoice-*`/`learning-api`/`chat-api` workspace packages are correctly
       # skipped (not published to PyPI, nothing to look up) - confirmed clean locally
       # (0 known vulnerabilities) before wiring this as a hard gate.
+      # D-474 (2026-09-25): PYSEC-2026-3740 / CVE-2026-81726 - path traversal in nltk's
+      # model-artifact loaders (TransitionParser, PerceptronTagger, maxent parameter APIs)
+      # on caller-controlled paths. nltk is transitive only (llama-index-core -> chat-api),
+      # nothing in this repository imports nltk, and no code path loads a model artifact
+      # from a caller-supplied path. No fixed release exists (3.10.3 is the latest and the
+      # flagged version), so the ignore is the honest disposition rather than an admin
+      # bypass of the gate. Remove this flag the moment nltk > 3.10.3 lands via dependabot.
       - name: pip-audit
-        run: uv run --with pip-audit pip-audit
+        run: uv run --with pip-audit pip-audit --ignore-vuln PYSEC-2026-3740
 
   learning-web-dependency-audit:
     runs-on: ubuntu-latest

@@ -360,13 +360,17 @@ Every item carries its register key. These are the headline live risks, not the 
 - **⏰ The RDS rotation clock (D-455 / UD-14): every managed-secret rotation re-breaks every new
   staging DB connection unless a deploy or task restart follows it.** As of 2026-09-24 three
   windows (≈ 09-04, 09-11, 09-18) have passed with **no AWS read** in either September session —
-  staging's current health is unknown, and the first act of the next live session is that read. Both RDS instances auto-rotate their master secrets (~7-day cadence); ECS
+  **read 2026-09-25:** both secrets rotated 2026-09-24 and all three API tasks (started 09-22/09-23) predate it — the D-455 condition is latent, with zero `InvalidPasswordError` in 48 h only because staging is idle; the D-473 deploy refreshes the tasks. Both RDS instances auto-rotate their master secrets (~7-day cadence); ECS
   resolves them once at task start; established pooled connections survive rotation, so the
   break is invisible until the pool grows — the signature is intermittent
   `InvalidPasswordError` 500s that worsen under load after a quiet period. Mitigation, safe
   for an agent to run on that signature: `aws ecs update-service --force-new-deployment` on
   both services. Detection is currently weak on two counts: the 500s log no JSON ERROR line
   (`SILENT-500S`, §4.1) and no alarm watches new-connection failures.
+- **`python-dependency-audit` carries one ignored advisory (D-474, 2026-09-25):** PYSEC-2026-3740,
+  nltk 3.10.3, transitive via `llama-index-core`, unreachable (no nltk import anywhere), **no fixed
+  release exists**. Remove `--ignore-vuln PYSEC-2026-3740` from `security-scan.yml` when the
+  dependabot bump past 3.10.3 lands; until then the gate is green by exception, not by absence.
 - **All four heartbeat alarms are confirmed end-to-end** (RD-01 closed, D-435): the nightly
   three cleared 2026-08-22 (`chat-purge` 19:05Z, `retention-purge` 19:11Z,
   `session-consolidate` 19:42Z) and the weekly `memory-consolidate` cleared on its first
