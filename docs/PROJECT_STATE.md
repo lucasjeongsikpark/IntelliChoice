@@ -10,11 +10,11 @@ when the documentation reconciliation migration executed. Precedence:
 
 | Field | Value |
 |---|---|
-| Snapshot date | **2026-09-23** (D-472: the execution queue reconciled after the program closed — its row 1 was the completed program; then `MEMORY-CONSOLIDATION-DEFECTS` #2/#3 fixed: ability polarity code-derived, read path recency-first, `add_fact` clock fix; E4 `polarity_flip` served-correct 0/985 → 985/985 at $0. **Implemented locally, uncommitted at session end, not deployed.** Previous snapshot 2026-08-29 — D-455..D-458: the stress test found and mitigated the **RDS secret-rotation incident** and measured the ceilings; `SILENT-500S` queued; UD-14 opened; dependabot batch #3 + the nltk advisory landed; the **resume-evidence measurement program** commissioned and all nine measurement experiments — E5.1/E6.1/E3/E4/E1/E2/E5.2/E6.2/E5.3 — accepted, D-458..D-465 (only the two synthesis report documents remain), with E4/E1/E5.2/E6.2 surfacing memory-consolidation, staging-connection-ceiling, content-gate-hint-coherence, and observability-trace defects, E2 the first IR-metric retrieval ablation, and E5.3 the controlled raw-vs-validated generation run at 14.85%->4.60% defective) |
-| Last product-code commit | **`523b9f0`** (2026-08-30, D-470 PII fixes; the remediation program D-467..D-470 complete and **deployed + smoke-verified**, D-471) |
+| Snapshot date | **2026-09-24** (D-473: `STAGING-CONN-CEILING` fixed — per-task pool 5 + 5 under a written connection budget, `6 × (10 + 3) + 2 × 10 = 98 ≤ 109`, settings-driven per service, budget test parses the terraform replica ceilings; D-472 and the CLAUDE.md operating model committed as `c90fce7` / `fea58e2`. **D-473 implemented locally, uncommitted at session end, not deployed.** Previous snapshot 2026-09-23 — D-472: the execution queue reconciled after the program closed; `MEMORY-CONSOLIDATION-DEFECTS` #2/#3 fixed: ability polarity code-derived, read path recency-first, `add_fact` clock fix; E4 `polarity_flip` served-correct 0/985 → 985/985 at $0. Before that, 2026-08-29 — D-455..D-458: the stress test found and mitigated the **RDS secret-rotation incident** and measured the ceilings; `SILENT-500S` queued; UD-14 opened; dependabot batch #3 + the nltk advisory landed; the **resume-evidence measurement program** commissioned and all nine measurement experiments — E5.1/E6.1/E3/E4/E1/E2/E5.2/E6.2/E5.3 — accepted, D-458..D-465 (only the two synthesis report documents remain), with E4/E1/E5.2/E6.2 surfacing memory-consolidation, staging-connection-ceiling, content-gate-hint-coherence, and observability-trace defects, E2 the first IR-metric retrieval ablation, and E5.3 the controlled raw-vs-validated generation run at 14.85%->4.60% defective) |
+| Last product-code commit | **`c90fce7`** (2026-09-24, D-472 memory polarity/recency fix — **not deployed**). Last deployed product commit `523b9f0` (2026-08-30, D-470; the remediation program D-467..D-470 deployed + smoke-verified, D-471) |
 | Deployed staging image (both ECS services) | **`gha-523b9f036a53`** = head `523b9f0`, deployed 2026-08-30 (D-471, run 33296426748) — all remediations D-467..D-470 + the nltk security fix live; R5 smoke verified (34 checks) |
 | Deployed task definitions | learning `:155` (2/2 running), chat `:153` (1/1 running), ops-task `:147` — compare images, not revision numbers (`ARCH-34-REVISION-DRIFT`) |
-| Repo-vs-deployed gap | **Working tree ahead of `523b9f0` by D-472 (uncommitted as of 2026-09-23); staging still at `523b9f0`, so the gap becomes one product commit once D-472 lands.** Before D-472: 0 — repo and staging agreed at `523b9f0` (D-471). The scheduled-job metric filters, heartbeat alarm windows, deploy-role statements, and the D-468 Traceback/collector terraform remain applied via control-plane targeted `terraform apply` (§8) |
+| Repo-vs-deployed gap | **One product commit (`c90fce7`, D-472) plus the uncommitted D-473 working tree; staging still at `523b9f0`.** Before D-472: 0 — repo and staging agreed at `523b9f0` (D-471). The scheduled-job metric filters, heartbeat alarm windows, deploy-role statements, and the D-468 Traceback/collector terraform remain applied via control-plane targeted `terraform apply` (§8) |
 | Deploy trigger | **MANUAL** — the workflow `push` trigger stays commented out (D-417 §C9) |
 
 **LB-05 rule (standing discipline).** "Implemented locally" is not "deployed". **Every live number
@@ -22,7 +22,7 @@ must be stated with the build SHA it was measured on.** Any claim about current 
 differs between HEAD and staging carries both statuses, explicitly, in §3.
 
 **Staleness rule.** If this snapshot is more than **14 days** old, or if any **product-code**
-commit lands after `f2731a1`, or if the deployed staging image tag no longer matches this
+commit lands after `c90fce7`, or if the deployed staging image tag no longer matches this
 header's snapshot, **re-verify §3, §4.3 and §8 before trusting them.** A dated claim can go
 stale; an undated claim lies. Primary evidence (code, tests, config, live AWS reads) always
 beats this file.
@@ -90,7 +90,7 @@ D-116's 16.68 s); at 10, the single shared anonymous rate-limit bucket returns 4
 
 ## 4. Active engineering work
 
-7 open engineering entries (6 in §4.1, 1 in §4.2). Full evidence per entry:
+6 open engineering entries (5 in §4.1, 1 in §4.2). Full evidence per entry:
 [reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md](reference/reconciliation-2026-08/FINAL_OPEN_WORK_REGISTER.md).
 If any row here and the register disagree, **the register wins** — rows are re-derived from it,
 never patched independently. Every key below is a heading anchor in the register (append `#` + the
@@ -103,13 +103,12 @@ resume-evidence program added `OBSERVABILITY-TRACE-GAPS`, `CONTENT-GATE-HINT-COH
 defects the audit established by code reading only (REQ-27, SEC-13, COST-06) gained executed
 tests on 2026-08-21/22.
 
-### 4.1 ACTIVE_REMEDIATION (6) — something built is wrong or silently ineffective
+### 4.1 ACTIVE_REMEDIATION (5) — something built is wrong or silently ineffective
 
 | Register key | What it is | Remaining action | Owner |
 |---|---|---|---|
 | `OBSERVABILITY-TRACE-GAPS` (post-migration discovery; evidence: `docs/resume_evidence/06_eval_observability/E6_2_REPORT.md`, D-464) | E6.2 measured 100% per-hop trace coverage (12,888/12,888) and, in doing so, found three gaps: **TRACE-ID-COLLISION** (medium) — 0.14% of requests (19/13,550, replicated 1/424 in chat) share an OTel `trace_id` with another request in the same task, so X-Ray merges them and one trace nests two requests; mechanism is a labelled keep-alive-context-leak hypothesis, not verified. **COLLECTOR-STATS-UNSCRAPED: CLOSED 2026-08-30 (D-468)** — the collector's self-telemetry is scraped and four export counters + failure alarms exist in CloudWatch. **CHECKPOINTER-UNINSTRUMENTED** (low) — `AsyncPostgresSaver` uses psycopg directly, so checkpoint I/O has no span | For TRACE-ID-COLLISION: reproduce locally to confirm the context-leak mechanism, then ensure a fresh trace_id per request (the merge silently corrupts trace analysis and any per-request billing/latency join). CHECKPOINTER: optional span. Not started | engineering |
 | `CONTENT-GATE-HINT-COHERENCE` (post-migration discovery; evidence: E5.2/E5.3 reports, D-463; **largely FIXED 2026-08-30, D-469** — hint coherence 0/17→12/17 at 0 FP incl. 0/958 bank, arithmetic fingerprint wired into dedup 8/17→17/17, pipeline F1 0.837→0.949; evidence `docs/resume_evidence/05_content_generation/post_remediation/`) | Residuals: (a) **E5.3's skeleton-collision class stays open** — "same sentence, different numbers" is provably outside the fingerprint (0/4 groups); closing it needs a same-topic skeleton instrument that re-opens D-286's scoping (measured cost: 8 same-topic groups / 35 bank items, ≥22 legitimate-by-design); (b) the 5/17 hint-check misses; (c) the full-bank fingerprint diagnostic found **58 identity groups / 133 items** — whether to de-duplicate any is a USER content decision | Decide the D-286 follow-up instrument and the 133-item bank-duplicate question; both low urgency. Not started | engineering + user |
-| `STAGING-CONN-CEILING` (post-migration discovery; evidence: `docs/resume_evidence/01_platform/E1_REPORT.md`, D-461) | The E1 staging load sweep found **scale-out reducing availability**: at 50 VUs the ALB p95 step policy scales learning-api 2→3 tasks, and the third replica's connection pool (10+10 SQLAlchemy overflow + 2 D-335 relay conns) pushes total demand past **db.t4g.micro's ~112 `max_connections`** (shared learning-api + chat-api + ops) → `asyncpg.TooManyConnectionsError`, 2× HTTP 500 on `POST /answers`. Structurally D-334's shape; **not** D-455 (slot exhaustion, not auth). CloudWatch's ~1/min `DatabaseConnections` sampling (peak 62) never sees the sub-minute refusal — only the app log witnesses it | Decide the fix: cap the SQLAlchemy pool per task so `max_replicas × (pool+overflow+relay) < max_connections`, and/or raise the RDS instance/`max_connections`, and/or lower the autoscaling ceiling. Low live exposure today (needs a 50-VU burst that scales to 3 tasks); no student-facing traffic at that level yet. Not started | engineering |
 | `MEMORY-CONSOLIDATION-DEFECTS` (post-migration discovery; evidence: `docs/resume_evidence/04_memory/E4_REPORT.md` §7, D-460; **#1 FIXED 2026-08-30, D-467**; **#2 + #3 FIXED 2026-09-23, D-472** — ability polarity code-derived from the fact type, prompt/schema define polarity for the other ten types, `top_fact_for_skill` recency-first, `add_fact` stamps Python-clock timestamps; E4 mock `polarity_flip` served-correct 0/985→985/985, all else unchanged, $0; evidence `docs/resume_evidence/04_memory/post_remediation/R6_POSTFIX_REPORT.md`) | Remaining: **MEMORY-CACHE-WRITE-UNBILLED** (#4: `cost_cents` omits cache-write tokens, ~2.8× under-report, and a never-read prompt cache on unique payloads — a real cost bug); **MEMORY-CEILING-STILL-SATURATED** (D-471 live evidence: ~26-fact cohort derives 5,888 tokens vs the 4,000 cap, 8/8 calls truncated and all surfaced; R6's mock re-run adds **1,659/3,135 windows** over D-467's honest `MAX_SAFE_EXISTING_FACTS = 11`; bounding the response shape / choosing which facts to drop is the open design decision); and the real model's polarity quality on the ten non-ability types is **unmeasured post-fix** (E4 arm A re-run, ~36¢, would measure it — spend not authorised) | Fix #4 next (cost accounting, engineering-decidable). The ceiling bound is a behaviour decision to put to the user before building. Cross-type demotion (weak_skill demoting an active strength) was offered and declined 2026-09-23 — not open | engineering (+ user for the ceiling bound) |
 | `HITL-INTERRUPT-HARDENING` (post-migration discovery; evidence: `docs/resume_evidence/03_gateway_agents/E3_REPORT.md` §4.4, D-459) | The E3 bypass suite (84 attempts, 0 side effects) surfaced two non-blocking gaps: **HB-CHAT-F1** — a pending interrupt has no expiry (neither `/respond` checks a pause's age; a stale pause stays resumable indefinitely); **HB-LEARN-F1** — the graph layer does not serialize resumes on its own, the route's `pg_try_advisory_xact_lock` turn claim is the only gate (sufficient for the HTTP surface, not for a future non-route caller). Both are today defended by existing gates | Decide whether to add a pending-interrupt TTL and/or graph-level resume serialization; low urgency — no live exposure through the current routes. Not started | engineering |
 | `D310-RESIDUALS` | One follow-up surviving the executed D-310 rotation: stale dead secrets in operator-browser `localStorage` | See 4.3 — a user action on operator machines; the (b) `ps` measurement and (c) README fix landed 2026-08-24 (D-437) | user |
@@ -164,19 +163,19 @@ only **after** coordinator acceptance and canonical-document reconciliation — 
 that deletes the item's §4 row. Entries are register keys plus minimal ordering metadata; the
 descriptions stay in §4 and the register.
 
-**Ordering (re-derived 2026-09-23; initial derivation 2026-08-21 from the register's explicit
+**Ordering (re-derived 2026-09-23, cursor advanced 2026-09-24; initial derivation 2026-08-21 from the register's explicit
 priority statements, the documents' own batching/prerequisite couplings, security/privacy/cost
 severity, and the two UD-constrained tails; every startable §4 key appears exactly once):**
 
 | # | Item(s) | Ordering evidence |
 |---|---|---|
-| 1 | `STAGING-CONN-CEILING` | Availability defect (scale-out produced 2× HTTP 500, D-461); the fix is pool/replica/`max_connections` arithmetic — engineering-decidable, no UD. Promoted to row 1 on 2026-09-23 (see the reordering log) |
-| 2 | `MEMORY-CONSOLIDATION-DEFECTS` — finding #4 (`MEMORY-CACHE-WRITE-UNBILLED`) | #2/#3 fixed 2026-09-23 (D-472). #4 is a cost-accounting correctness fix (a real cost bug under the project's rules, but no availability or safety exposure) — below an availability defect. The ceiling bound is a user behaviour decision and does not enter the queue until answered |
-| 3 | `OBSERVABILITY-TRACE-GAPS` — `TRACE-ID-COLLISION`, then `CHECKPOINTER-UNINSTRUMENTED` | Medium: a merged trace silently corrupts per-request latency/billing joins (D-464); mechanism unverified, so reproduce-first |
-| 4 | `HITL-INTERRUPT-HARDENING` | Low: both gaps are defended by existing gates today (D-459); no live exposure through current routes |
-| 5 | `CONTENT-GATE-HINT-COHERENCE` residuals | Low, and half is a USER content decision (the 133-item bank duplicates); the engineering half re-opens D-286's scoping (D-469) — last because it is the least severe and the most decision-entangled |
+| 1 | `MEMORY-CONSOLIDATION-DEFECTS` — finding #4 (`MEMORY-CACHE-WRITE-UNBILLED`) | #2/#3 fixed 2026-09-23 (D-472). #4 is a cost-accounting correctness fix (a real cost bug under the project's rules, but no availability or safety exposure) — row 1 since D-473 closed the availability defect above it. The ceiling bound is a user behaviour decision and does not enter the queue until answered |
+| 2 | `OBSERVABILITY-TRACE-GAPS` — `TRACE-ID-COLLISION`, then `CHECKPOINTER-UNINSTRUMENTED` | Medium: a merged trace silently corrupts per-request latency/billing joins (D-464); mechanism unverified, so reproduce-first |
+| 3 | `HITL-INTERRUPT-HARDENING` | Low: both gaps are defended by existing gates today (D-459); no live exposure through current routes |
+| 4 | `CONTENT-GATE-HINT-COHERENCE` residuals | Low, and half is a USER content decision (the 133-item bank duplicates); the engineering half re-opens D-286's scoping (D-469) — last because it is the least severe and the most decision-entangled |
 
-**Reordering log.** 2026-09-23 (later the same session) — `MEMORY-CONSOLIDATION-DEFECTS` #2/#3
+**Reordering log.** 2026-09-24 — row 1 `STAGING-CONN-CEILING` completed (D-473) and deleted;
+no reordering, the cursor advanced positionally. 2026-09-23 (later the same session) — `MEMORY-CONSOLIDATION-DEFECTS` #2/#3
 completed (D-472); the row's remaining engineering item (#4, cost accounting) is less severe than
 `STAGING-CONN-CEILING`'s availability defect, so the two swapped: conn-ceiling is row 1, memory #4
 row 2. The row's ceiling-bound question is a user decision and stays out of the queue.
@@ -358,9 +357,10 @@ close only by user action or a policy change, never by reading.
 
 Every item carries its register key. These are the headline live risks, not the full list.
 
-- **⏰ The RDS rotation clock (D-455 / UD-14): the next managed-secret rotation, expected
-  ≈ 2026-09-04, re-breaks every new staging DB connection unless a deploy or task restart
-  follows it.** Both RDS instances auto-rotate their master secrets (~7-day cadence); ECS
+- **⏰ The RDS rotation clock (D-455 / UD-14): every managed-secret rotation re-breaks every new
+  staging DB connection unless a deploy or task restart follows it.** As of 2026-09-24 three
+  windows (≈ 09-04, 09-11, 09-18) have passed with **no AWS read** in either September session —
+  staging's current health is unknown, and the first act of the next live session is that read. Both RDS instances auto-rotate their master secrets (~7-day cadence); ECS
   resolves them once at task start; established pooled connections survive rotation, so the
   break is invisible until the pool grows — the signature is intermittent
   `InvalidPasswordError` 500s that worsen under load after a quiet period. Mitigation, safe

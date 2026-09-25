@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from intellichoice_adapters.fake_auth import DEV_JWT_SECRET
+from intellichoice_db.engine import DEFAULT_MAX_OVERFLOW, DEFAULT_POOL_SIZE
 from intellichoice_knowledge.retrieval import MIN_RERANK_RELEVANCE_SCORE
 from intellichoice_shared.access_probe_policy import ACCESS_PROBE_MAX_DISTANCE
 from pydantic import model_validator
@@ -29,6 +30,12 @@ class Settings(BaseSettings):
     mysql_db_password: str | None = None
     mysql_db_host: str | None = None
     mysql_db_port: str | None = None
+
+    # D-473: mirrors `learning_api.config.Settings`'s identical fields
+    # (`CHAT_DB_POOL_SIZE` / `CHAT_DB_MAX_OVERFLOW`) - see that class's comment and
+    # `intellichoice_db.engine`'s connection budget before raising either.
+    db_pool_size: int = DEFAULT_POOL_SIZE
+    db_max_overflow: int = DEFAULT_MAX_OVERFLOW
 
     @model_validator(mode="after")
     def _build_dsns_from_managed_secret_components(self) -> "Settings":

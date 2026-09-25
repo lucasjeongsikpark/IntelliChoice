@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from intellichoice_adapters.fake_auth import DEV_JWT_SECRET
+from intellichoice_db.engine import DEFAULT_MAX_OVERFLOW, DEFAULT_POOL_SIZE
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
@@ -35,6 +36,14 @@ class Settings(BaseSettings):
     mysql_db_password: str | None = None
     mysql_db_host: str | None = None
     mysql_db_port: str | None = None
+
+    # D-473 (`STAGING-CONN-CEILING`): the SQLAlchemy pool shape per task, env-overridable
+    # (`LEARNING_DB_POOL_SIZE` / `LEARNING_DB_MAX_OVERFLOW`) so terraform can retune one
+    # service without a code change. The defaults are the connection budget's - see
+    # `intellichoice_db.engine` for the arithmetic; raising them here without re-deriving
+    # that budget is how the E1 defect (scale-out exhausting `max_connections`) comes back.
+    db_pool_size: int = DEFAULT_POOL_SIZE
+    db_max_overflow: int = DEFAULT_MAX_OVERFLOW
 
     @model_validator(mode="after")
     def _build_dsns_from_managed_secret_components(self) -> "Settings":
