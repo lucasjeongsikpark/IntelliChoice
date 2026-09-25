@@ -73,7 +73,7 @@ class AnthropicBedrockProvider:
             }
         }
         all_tools = [*(tools or []), emit_spec]
-        # Two cache points, at the two prefixes that actually repeat (D-203):
+        # Up to two cache points, at the two prefixes that actually repeat (D-203):
         #
         #   after `system` - identical for every candidate in a run, so an 11-slot batch
         #     writes it once and reads it ten times;
@@ -83,12 +83,19 @@ class AnthropicBedrockProvider:
         #
         # Measured on Haiku 4.5: 4188 billed input tokens became 3 billed + 4185 cache-read,
         # and a cache read is roughly a tenth of the normal input rate.
+        #
+        # **The second one only when there are tools (D-460 finding #4).** Without tools
+        # there is exactly one round, and the gateway's repair changes the user text, so
+        # nothing can ever read what that cache point writes - and a cache write bills at
+        # 1.25x input. E4 measured it on consolidation: a unique ~7k-token payload written
+        # to the cache on every call and read on none.
         cacheable = _supports_prompt_caching(model_id)
         system_blocks: list[dict[str, Any]] = [{"text": system_prompt}]
         first_user: list[dict[str, Any]] = [{"text": user_message}]
         if cacheable:
             system_blocks.append({"cachePoint": {"type": "default"}})
-            first_user.append({"cachePoint": {"type": "default"}})
+            if tools:
+                first_user.append({"cachePoint": {"type": "default"}})
         messages: list[dict[str, Any]] = [{"role": "user", "content": first_user}]
         total_input = 0
         total_output = 0

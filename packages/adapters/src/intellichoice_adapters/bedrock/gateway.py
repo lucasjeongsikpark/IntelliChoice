@@ -13,6 +13,7 @@ import json
 import logging
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, TypeVar
 
 from intellichoice_observability.tracing import traced_span
@@ -33,7 +34,7 @@ from intellichoice_shared.bedrock import (
 )
 from pydantic import BaseModel, ValidationError
 
-from .provider import BedrockProvider, EmbeddingProvider, ProviderCallError
+from .provider import BedrockProvider, EmbeddingProvider, ProviderCallError, RawGeneration
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,16 @@ _MODEL_RATES_PER_1K_CENTS: dict[str, tuple[float, float]] = {
     "us.anthropic.claude-sonnet-4-5-20250929-v1:0": (0.3, 1.5),
 }
 _DEFAULT_RATE_PER_1K_CENTS = (0.3, 1.5)
+
+# Prompt-cache tokens, priced as multiples of the model's *input* rate above (D-460 finding
+# #4). Placeholders in the same sense as that table - not an invoice - but the ratios are
+# the published Anthropic-on-Bedrock ones, and the E4 harness's "conservative cost" used
+# exactly these numbers. They matter because a cold cached call reports almost its whole
+# payload under `cache_write_tokens` and only a few dozen tokens under `input_tokens`: E4's
+# 30 consolidation calls were gateway-priced at 19.97 cents against a conservative 56.41
+# while only `input_tokens` was billed.
+_CACHE_WRITE_RATE_MULTIPLIER = 1.25
+_CACHE_READ_RATE_MULTIPLIER = 0.1
 
 # Titan Text Embeddings V2 bills input tokens only - placeholder rate, not tied to a
 # real invoice (same caveat as _MODEL_RATES_PER_1K_CENTS above).
@@ -125,6 +136,32 @@ _RESERVE_INPUT_TOKENS = 2000
 # The batch total needs no second ceiling: the session-budget check below already prices the
 # whole batch, and embeddings bill 0.002 cents/1k, so cost is not what breaks this path.
 _HARD_MAX_EMBEDDING_INPUT_TOKENS_PER_TEXT = 8_000
+
+
+@dataclass(frozen=True)
+class _Usage:
+    """Everything one `generate_structured` call has been billed for so far.
+
+    One value threaded to every exit, rather than a pair of ints beside two loose cache
+    counters, because the pair is how cache tokens went unpriced on the failure exits: each
+    exit priced what it was handed, and it was only ever handed input and output.
+    """
+
+    input_tokens: int
+    output_tokens: int
+    cache_read_tokens: int
+    cache_write_tokens: int
+
+    def plus(self, raw: RawGeneration) -> "_Usage":
+        return _Usage(
+            input_tokens=self.input_tokens + raw.input_tokens,
+            output_tokens=self.output_tokens + raw.output_tokens,
+            cache_read_tokens=self.cache_read_tokens + raw.cache_read_tokens,
+            cache_write_tokens=self.cache_write_tokens + raw.cache_write_tokens,
+        )
+
+
+_NO_USAGE = _Usage(input_tokens=0, output_tokens=0, cache_read_tokens=0, cache_write_tokens=0)
 
 
 class ResilientBedrockGateway:
@@ -219,9 +256,51 @@ class ResilientBedrockGateway:
     def _rate_for(model_id: str) -> tuple[float, float]:
         return _MODEL_RATES_PER_1K_CENTS.get(model_id, _DEFAULT_RATE_PER_1K_CENTS)
 
-    def _cost_cents(self, model_id: str, input_tokens: int, output_tokens: int) -> float:
+    def _cost_cents(
+        self,
+        model_id: str,
+        input_tokens: int,
+        output_tokens: int,
+        *,
+        cache_read_tokens: int = 0,
+        cache_write_tokens: int = 0,
+    ) -> float:
         input_rate, output_rate = self._rate_for(model_id)
-        return (input_tokens / 1000) * input_rate + (output_tokens / 1000) * output_rate
+        return (
+            (input_tokens / 1000) * input_rate
+            + (cache_write_tokens / 1000) * input_rate * _CACHE_WRITE_RATE_MULTIPLIER
+            + (cache_read_tokens / 1000) * input_rate * _CACHE_READ_RATE_MULTIPLIER
+            + (output_tokens / 1000) * output_rate
+        )
+
+    def _usage_cost_cents(self, model_id: str, usage: _Usage) -> float:
+        """What `usage` actually cost - the single pricing of a spent call, so every exit
+        from `generate_structured` bills the same four numbers."""
+        return self._cost_cents(
+            model_id,
+            usage.input_tokens,
+            usage.output_tokens,
+            cache_read_tokens=usage.cache_read_tokens,
+            cache_write_tokens=usage.cache_write_tokens,
+        )
+
+    def _worst_case_input_cost_cents(
+        self, model_id: str, estimated_input_tokens: int, max_output_tokens: int
+    ) -> float:
+        """The most a call of this size can cost, with its input priced as a cold cache
+        *write* - the dearest way Bedrock can bill an input token (D-460 finding #4).
+
+        Shared by the reservation and the admission check so they cannot disagree about how
+        input is priced. Over-reserving is the only tolerable failure direction here
+        (AUD-X-08), and pricing the input flat under-reserves every cold cached call.
+        """
+        return self._cost_cents(
+            model_id,
+            0,
+            max_output_tokens,
+            cache_read_tokens=0,
+            cache_write_tokens=estimated_input_tokens,
+        )
 
     @staticmethod
     def _embedding_cost_cents(model_id: str, input_tokens: int) -> float:
@@ -274,6 +353,9 @@ class ResilientBedrockGateway:
         costs nothing, because a reservation is replaced by the call's real usage at `settle`
         and over-reserving only ever costs per-day concurrency. A caller that already knows
         its payload size can pass it and reserve honestly.
+
+        **The input is priced as a cold cache write (1.25x the input rate)**, because that is
+        what a cold cached call bills it as, and a reservation may only ever err high.
         """
         model_id = self._model_registry.get(task)
         if model_id is None:
@@ -281,7 +363,7 @@ class ResilientBedrockGateway:
         input_tokens = (
             _RESERVE_INPUT_TOKENS if estimated_input_tokens is None else estimated_input_tokens
         )
-        return self._cost_cents(
+        return self._worst_case_input_cost_cents(
             model_id, input_tokens, min(max_output_tokens, _HARD_MAX_OUTPUT_TOKENS)
         )
 
@@ -370,7 +452,9 @@ class ResilientBedrockGateway:
                     f"than sending it"
                 )
 
-            worst_case_cost = self._cost_cents(model_id, estimated_input, capped_max_tokens)
+            worst_case_cost = self._worst_case_input_cost_cents(
+                model_id, estimated_input, capped_max_tokens
+            )
             if session_spend_cents + worst_case_cost > self._session_budget_cents:
                 self._log_failure(
                     task=task,
@@ -397,12 +481,9 @@ class ResilientBedrockGateway:
             raw_text: str | None = None
             truncated = False
             stop_reason = ""
-            total_input = 0
-            total_output = 0
-            # D-217: prompt-cache tokens, accumulated so a warm-cache hit is visible in the
-            # log (D-203 measured the saving but the gateway dropped these).
-            total_cache_read = 0
-            total_cache_write = 0
+            # D-217 made the prompt-cache tokens visible in the log; D-460 finding #4 made
+            # them priced - which is why they travel in the same value as input and output.
+            usage = _NO_USAGE
             attempts = 0
             for attempt in range(self._max_retries + 1):
                 attempts = attempt + 1
@@ -440,23 +521,13 @@ class ResilientBedrockGateway:
                     raw_text = raw.text
                     truncated = raw.truncated
                     stop_reason = raw.stop_reason
-                    total_input += raw.input_tokens
-                    total_output += raw.output_tokens
-                    total_cache_read += raw.cache_read_tokens
-                    total_cache_write += raw.cache_write_tokens
+                    usage = usage.plus(raw)
                     break
 
             assert raw_text is not None
 
             try:
-                (
-                    value,
-                    repaired,
-                    repair_input,
-                    repair_output,
-                    repair_cache_read,
-                    repair_cache_write,
-                ) = await self._validate_or_repair(
+                value, repaired, usage = await self._validate_or_repair(
                     raw_text=raw_text,
                     response_model=response_model,
                     model_id=model_id,
@@ -464,7 +535,7 @@ class ResilientBedrockGateway:
                     user_message=user_message,
                     json_schema=json_schema,
                     max_output_tokens=capped_max_tokens,
-                    tokens_so_far=(total_input, total_output),
+                    usage_so_far=usage,
                     truncated=truncated,
                 )
             except StructuredOutputError as exc:
@@ -478,24 +549,20 @@ class ResilientBedrockGateway:
                     max_output_tokens=capped_max_tokens,
                 )
                 raise
-            total_input += repair_input
-            total_output += repair_output
-            total_cache_read += repair_cache_read
-            total_cache_write += repair_cache_write
             self._record_success()
 
-            cost_cents = self._cost_cents(model_id, total_input, total_output)
+            cost_cents = self._usage_cost_cents(model_id, usage)
             logger.info(
                 "bedrock_call",
                 extra={
                     "task": task.value,
                     "model_id": model_id,
-                    "input_tokens": total_input,
-                    "output_tokens": total_output,
+                    "input_tokens": usage.input_tokens,
+                    "output_tokens": usage.output_tokens,
                     # D-217: a warm-cache hit shows as a large `cache_read_tokens` beside a
                     # small `input_tokens` (D-203 measured 4185 read / 3 billed on Haiku).
-                    "cache_read_tokens": total_cache_read,
-                    "cache_write_tokens": total_cache_write,
+                    "cache_read_tokens": usage.cache_read_tokens,
+                    "cache_write_tokens": usage.cache_write_tokens,
                     "cost_cents": cost_cents,
                     "repaired": repaired,
                     "duration_ms": round((time.monotonic() - started_at) * 1000, 2),
@@ -503,14 +570,14 @@ class ResilientBedrockGateway:
             )
             return BedrockGenerationResult(
                 value=value,
-                input_tokens=total_input,
-                output_tokens=total_output,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
                 cost_cents=cost_cents,
                 model_id=model_id,
                 repaired=repaired,
                 stop_reason=stop_reason,
-                cache_read_tokens=total_cache_read,
-                cache_write_tokens=total_cache_write,
+                cache_read_tokens=usage.cache_read_tokens,
+                cache_write_tokens=usage.cache_write_tokens,
             )
 
     async def create_embedding(
@@ -654,10 +721,11 @@ class ResilientBedrockGateway:
         user_message: str,
         json_schema: dict,
         max_output_tokens: int,
-        tokens_so_far: tuple[int, int],
+        usage_so_far: _Usage,
         truncated: bool = False,
-    ) -> tuple[T, bool, int, int, int, int]:
-        already_in, already_out = tokens_so_far
+    ) -> tuple[T, bool, _Usage]:
+        """Returns the value, whether a repair produced it, and the call's *total* usage
+        including any repair - every exception raised here prices that same total."""
         # **Checked BEFORE validation, and that ordering is the whole fix (D-460/R1).**
         #
         # It used to run after, so a truncated response only failed when its fragment also
@@ -684,12 +752,12 @@ class ResilientBedrockGateway:
             raise OutputTruncatedError(
                 f"model hit max_output_tokens={max_output_tokens} before completing the "
                 f"{response_model.__name__} response; not retrying under the same ceiling",
-                cost_cents=self._cost_cents(model_id, already_in, already_out),
+                cost_cents=self._usage_cost_cents(model_id, usage_so_far),
             )
 
         value, _ = self._try_validate(raw_text, response_model)
         if value is not None:
-            return value, False, 0, 0, 0, 0
+            return value, False, usage_so_far
 
         # D-217: the correction goes in the *user* turn, leaving `system_prompt` byte-for-
         # byte identical to the first call - so the system cache point (D-203) still hits on
@@ -714,8 +782,10 @@ class ResilientBedrockGateway:
             self._record_failure()
             raise StructuredOutputError(
                 f"structured output invalid and repair call failed: {exc}",
-                cost_cents=self._cost_cents(model_id, already_in, already_out),
+                cost_cents=self._usage_cost_cents(model_id, usage_so_far),
             ) from exc
+
+        total_usage = usage_so_far.plus(repaired_raw)
 
         value, schema_errors = self._try_validate(repaired_raw.text, response_model)
         if value is None:
@@ -728,21 +798,10 @@ class ResilientBedrockGateway:
             # it got wrong the second time is the defect that survived being told (D-243).
             raise StructuredOutputError(
                 "structured output still invalid after one repair retry",
-                cost_cents=self._cost_cents(
-                    model_id,
-                    already_in + repaired_raw.input_tokens,
-                    already_out + repaired_raw.output_tokens,
-                ),
+                cost_cents=self._usage_cost_cents(model_id, total_usage),
                 schema_errors=schema_errors,
             )
-        return (
-            value,
-            True,
-            repaired_raw.input_tokens,
-            repaired_raw.output_tokens,
-            repaired_raw.cache_read_tokens,
-            repaired_raw.cache_write_tokens,
-        )
+        return value, True, total_usage
 
     @staticmethod
     def _try_validate(raw_text: str, response_model: type[T]) -> tuple[T | None, list[str]]:

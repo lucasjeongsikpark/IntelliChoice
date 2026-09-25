@@ -1439,8 +1439,9 @@ class BedrockGenerationResult[T: BaseModel]:
     # D-217: prompt-cache accounting (D-203 measured the saving but the gateway dropped
     # these). Carried and logged so a cache hit is *visible* rather than only inferable
     # from `input_tokens` collapsing. Defaulted, so existing construction sites are
-    # unaffected. Not yet billed off separately - the cost above still rates every input
-    # token the same, which slightly over-states the cost of a warm-cache call.
+    # unaffected. `cost_cents` above already prices them (D-460 finding #4): cache writes
+    # at 1.25x the input rate, cache reads at 0.1x. These fields stay informational, for
+    # logs and measurement - nothing needs to re-price them.
     cache_read_tokens: int = 0
     cache_write_tokens: int = 0
 

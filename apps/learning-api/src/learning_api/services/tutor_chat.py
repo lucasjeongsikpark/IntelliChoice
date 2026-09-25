@@ -147,15 +147,18 @@ _RETRY_CHAT_REPLY_TOKENS = 800
 # change nor another retry can silently make this too small - which is exactly what
 # happened when the retry was added and the constant was not revisited.
 #
-# 3.825 cents is the worst case on the most expensive priced model (Sonnet 5), which is
-# also the unpriced-model fallback rate; the deployed model (Haiku 4.5) is 1.275. Rounded
-# up to 4.0. Against the 100-cent ceiling that still allows 25 simultaneous turns before
-# any student is degraded, and `settle` returns the difference as soon as the turn ends.
+# 4.275 cents is the worst case on the most expensive priced model (Sonnet 5), which is
+# also the unpriced-model fallback rate; the deployed model (Haiku 4.5) is 1.425. Each of
+# the three calls' ~2000 input tokens is priced as a cold prompt-cache write, 1.25x the
+# input rate (D-476, after D-460 finding #4): 3 x 0.75 input + 2.025 output. Rounded up to
+# 4.5 (it was 4.0 at 3.825 under flat input pricing). Against the 100-cent ceiling that
+# still allows 22 simultaneous turns before any student is degraded, and `settle` returns
+# the difference as soon as the turn ends.
 INTENT_CLASSIFICATION_TOKENS = 150
 MAX_TURN_CONTENT_TOKENS = 800
 # The two content calls a truncated-then-retried chat turn makes, in order.
 CHAT_RETRY_CONTENT_TOKENS = (_MAX_CHAT_REPLY_TOKENS, _RETRY_CHAT_REPLY_TOKENS)
-TURN_RESERVATION_ESTIMATE_CENTS = 4.0
+TURN_RESERVATION_ESTIMATE_CENTS = 4.5
 
 
 def screen_for_safety_concern(message: str) -> bool:

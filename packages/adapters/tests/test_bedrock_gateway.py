@@ -1307,3 +1307,263 @@ def test_create_embedding_admits_a_text_at_the_per_text_ceiling() -> None:
         assert len(result.vectors) == 1
 
     asyncio.run(run())
+
+
+# --- Prompt-cache pricing (MEMORY-CACHE-WRITE-UNBILLED, D-460 finding #4) --------------
+#
+# With cache points in play Bedrock reports a cold call's payload almost entirely under
+# `cacheWriteInputTokens` and a few dozen tokens under `inputTokens`. The gateway priced
+# `inputTokens` only, so E4's 30 real consolidation calls reported 19.97 cents against a
+# conservative 56.41 - a 2.8x under-report on the one number the session budget trusts.
+
+HAIKU_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"  # (0.1, 0.5) cents per 1k
+
+_VALID_HINT = (
+    '{"hint_text": "h", "concept_reminder": "c", "next_step_prompt": "n", '
+    '"answer_revealed": false, "difficulty": 1}'
+)
+
+
+class _UsageProvider:
+    """Returns the scripted `RawGeneration`s in order - usage numbers chosen per test."""
+
+    def __init__(self, script: list[RawGeneration | Exception]) -> None:
+        self._script = list(script)
+        self.calls = 0
+
+    async def raw_generate(
+        self,
+        *,
+        model_id: str,
+        system_prompt: str,
+        user_message: str,
+        json_schema: dict,
+        max_output_tokens: int,
+    ) -> RawGeneration:
+        self.calls += 1
+        step = self._script.pop(0)
+        if isinstance(step, Exception):
+            raise step
+        return step
+
+
+def _haiku_gateway(provider: _UsageProvider, **kwargs: float) -> ResilientBedrockGateway:
+    return ResilientBedrockGateway(
+        provider=provider,
+        model_registry={BedrockTask.TUTOR: HAIKU_ID},
+        max_retries=0,
+        backoff_base_s=0.0,
+        **kwargs,  # type: ignore[arg-type]
+    )
+
+
+async def _generate(gateway: ResilientBedrockGateway):
+    return await gateway.generate_structured(
+        task=BedrockTask.TUTOR,
+        system_prompt="system",
+        payload=_payload(),
+        response_model=HintResponse,
+        max_output_tokens=1000,
+        session_spend_cents=0.0,
+    )
+
+
+def _haiku_cents(*, input: int, output: int, cache_write: int = 0, cache_read: int = 0) -> float:
+    """The arithmetic restated independently of the gateway, so the tests below cannot be
+    satisfied by the implementation re-deriving its own numbers."""
+    return (
+        input / 1000 * 0.1
+        + cache_write / 1000 * 0.1 * 1.25
+        + cache_read / 1000 * 0.1 * 0.1
+        + output / 1000 * 0.5
+    )
+
+
+def test_a_cold_cached_call_bills_its_cache_write_tokens() -> None:
+    """E4's measured shape: a 12,113-char payload came back `inputTokens=24`,
+    `cacheWriteInputTokens=6785`. Billed as 24 input tokens it looks nearly free."""
+    provider = _UsageProvider(
+        [
+            RawGeneration(
+                text=_VALID_HINT,
+                input_tokens=24,
+                output_tokens=800,
+                cache_write_tokens=6785,
+                stop_reason="tool_use",
+            )
+        ]
+    )
+    result = asyncio.run(_generate(_haiku_gateway(provider)))
+    assert result.cost_cents == pytest.approx(_haiku_cents(input=24, output=800, cache_write=6785))
+    assert result.cost_cents == pytest.approx(1.250525)
+    # Not the old, input-only number.
+    assert result.cost_cents != pytest.approx(0.4024)
+    assert result.cache_write_tokens == 6785
+    assert result.input_tokens == 24
+
+
+def test_a_warm_cached_call_bills_its_cache_reads_at_a_tenth() -> None:
+    """D-203's measured warm hit: 3 billed + 4185 read. Cheaper than billing all 4188 as
+    input, and dearer than ignoring the read entirely."""
+    provider = _UsageProvider(
+        [
+            RawGeneration(
+                text=_VALID_HINT,
+                input_tokens=3,
+                output_tokens=100,
+                cache_read_tokens=4185,
+                stop_reason="tool_use",
+            )
+        ]
+    )
+    result = asyncio.run(_generate(_haiku_gateway(provider)))
+    expected = _haiku_cents(input=3, output=100, cache_read=4185)
+    assert result.cost_cents == pytest.approx(expected)
+    assert result.cost_cents > _haiku_cents(input=3, output=100)
+    assert result.cost_cents < _haiku_cents(input=4188, output=100)
+
+
+def test_a_repaired_call_bills_the_cache_tokens_of_both_attempts() -> None:
+    provider = _UsageProvider(
+        [
+            RawGeneration(
+                text="not json", input_tokens=20, output_tokens=50, cache_write_tokens=5000
+            ),
+            RawGeneration(
+                text=_VALID_HINT,
+                input_tokens=30,
+                output_tokens=60,
+                cache_read_tokens=200,
+                cache_write_tokens=5100,
+                stop_reason="tool_use",
+            ),
+        ]
+    )
+    result = asyncio.run(_generate(_haiku_gateway(provider)))
+    assert result.repaired is True
+    assert result.cost_cents == pytest.approx(
+        _haiku_cents(input=50, output=110, cache_write=10_100, cache_read=200)
+    )
+
+
+def test_a_truncated_call_bills_its_cache_write_tokens() -> None:
+    """The E4 failure exit itself: 29 of 30 calls stopped on `max_tokens` after writing a
+    ~7k-token cache entry, and the exception's `cost_cents` is what the caller charges."""
+    provider = _UsageProvider(
+        [
+            RawGeneration(
+                text="{}",
+                input_tokens=24,
+                output_tokens=1000,
+                cache_write_tokens=6785,
+                truncated=True,
+                stop_reason="max_tokens",
+            )
+        ]
+    )
+    with pytest.raises(OutputTruncatedError) as exc_info:
+        asyncio.run(_generate(_haiku_gateway(provider)))
+    assert exc_info.value.cost_cents == pytest.approx(
+        _haiku_cents(input=24, output=1000, cache_write=6785)
+    )
+
+
+def test_a_failed_repair_bills_the_cache_tokens_of_both_attempts() -> None:
+    provider = _UsageProvider(
+        [
+            RawGeneration(
+                text="not json", input_tokens=20, output_tokens=50, cache_write_tokens=5000
+            ),
+            RawGeneration(
+                text="still not json",
+                input_tokens=30,
+                output_tokens=60,
+                cache_read_tokens=100,
+                cache_write_tokens=5100,
+            ),
+        ]
+    )
+    with pytest.raises(StructuredOutputError) as exc_info:
+        asyncio.run(_generate(_haiku_gateway(provider)))
+    assert exc_info.value.cost_cents == pytest.approx(
+        _haiku_cents(input=50, output=110, cache_write=10_100, cache_read=100)
+    )
+
+
+def test_a_repair_that_never_answers_bills_the_first_attempts_cache_tokens() -> None:
+    provider = _UsageProvider(
+        [
+            RawGeneration(
+                text="not json", input_tokens=20, output_tokens=50, cache_write_tokens=5000
+            ),
+            ProviderCallError("simulated transient failure"),
+        ]
+    )
+    with pytest.raises(StructuredOutputError) as exc_info:
+        asyncio.run(_generate(_haiku_gateway(provider)))
+    assert exc_info.value.cost_cents == pytest.approx(
+        _haiku_cents(input=20, output=50, cache_write=5000)
+    )
+
+
+def test_the_bedrock_call_log_line_carries_the_cache_priced_cost(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    provider = _UsageProvider(
+        [
+            RawGeneration(
+                text=_VALID_HINT,
+                input_tokens=24,
+                output_tokens=800,
+                cache_write_tokens=6785,
+                stop_reason="tool_use",
+            )
+        ]
+    )
+    with caplog.at_level(logging.INFO, logger="intellichoice_adapters.bedrock.gateway"):
+        result = asyncio.run(_generate(_haiku_gateway(provider)))
+    [record] = [r for r in caplog.records if r.message == "bedrock_call"]
+    assert record.cost_cents == pytest.approx(result.cost_cents)  # type: ignore[attr-defined]
+    assert record.cost_cents == pytest.approx(1.250525)  # type: ignore[attr-defined]
+    # The token fields are reported raw, exactly as before.
+    assert record.input_tokens == 24  # type: ignore[attr-defined]
+    assert record.output_tokens == 800  # type: ignore[attr-defined]
+    assert record.cache_write_tokens == 6785  # type: ignore[attr-defined]
+    assert record.cache_read_tokens == 0  # type: ignore[attr-defined]
+
+
+def test_worst_case_cost_prices_the_input_as_a_cold_cache_write() -> None:
+    """A cold cached call is the true worst case for input, and a reservation may only
+    ever err high (AUD-X-08), so both the reserve and the admission price it at 1.25x."""
+    gateway = _haiku_gateway(_UsageProvider([]))
+    assert gateway.worst_case_cost_cents(BedrockTask.TUTOR, 800, 6785) == pytest.approx(
+        _haiku_cents(input=0, output=800, cache_write=6785)
+    )
+    assert gateway.worst_case_cost_cents(BedrockTask.TUTOR, 800) == pytest.approx(
+        _haiku_cents(input=0, output=800, cache_write=_RESERVE_INPUT_TOKENS)
+    )
+
+
+def test_the_admission_check_prices_the_input_as_a_cold_cache_write() -> None:
+    """Discriminating: a budget between the flat-input and the cache-write price of the
+    same call admits it under the old arithmetic and refuses it under the new one."""
+    payload_tokens = 20_000
+    output = 1000
+    flat = _haiku_cents(input=payload_tokens, output=output)
+    cold = _haiku_cents(input=0, output=output, cache_write=payload_tokens)
+    provider = _UsageProvider([])
+    gateway = _haiku_gateway(provider, session_budget_cents=(flat + cold) / 2)
+
+    async def run() -> None:
+        with pytest.raises(CostBudgetExceededError):
+            await gateway.generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt="system",
+                payload=_sized_payload(payload_tokens, system_prompt="system"),
+                response_model=HintResponse,
+                max_output_tokens=output,
+                session_spend_cents=0.0,
+            )
+
+    asyncio.run(run())
+    assert provider.calls == 0
