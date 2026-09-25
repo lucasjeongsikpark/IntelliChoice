@@ -31664,3 +31664,27 @@ not a code finding.
 work under UD-2's e2e-lane rider, not spent here. The metric blind spot E1 named (one-minute
 `DatabaseConnections` sampling never sees a sub-minute refusal) is unchanged and remains part of
 `OBSERVABILITY-TRACE-GAPS`'s neighbourhood rather than this row.
+
+## D-474 — `python-dependency-audit` red on a transitive nltk advisory with no fixed release; one advisory ID ignored with a dated justification, not the gate (accepted, 2026-09-25)
+
+The landing PR for D-472/D-473 (#473) failed one of nine required checks:
+`python-dependency-audit` reported **PYSEC-2026-3740** (CVE-2026-81726, GHSA-8mgp-746c-j5xp)
+against nltk 3.10.3 with an empty *Fix Versions* column. The last green audit on `main` was
+2026-08-30 (`398cd6f`); the advisory text reads "NLTK through 3.10.3", so the database entry
+widened after that date. PyPI's latest nltk is 3.10.3 — **there is nothing to upgrade to**,
+which is the difference from D-457's PYSEC-2026-3726 (fixed by `uv lock --upgrade-package`).
+
+**Reachability, read from the repository.** `uv tree --invert --package nltk`: nltk enters only
+through `llama-index-core` → `intellichoice-knowledge` → `chat-api`. `grep nltk` over every
+`src/` tree: zero hits — the code never imports it. The advisory's surface is nltk's
+model-artifact loaders (`TransitionParser`, `AveragedPerceptron`, `PerceptronTagger`, maxent
+parameter APIs) reading or writing caller-controlled paths; no code path here hands a
+caller-supplied path to any nltk API, and the ingestion pipeline is offline and operator-run.
+
+**Disposition.** `pip-audit --ignore-vuln PYSEC-2026-3740` in `security-scan.yml`, with the
+reasoning as a comment beside the flag. Rejected alternatives: an admin bypass of the required
+check (silent, and it leaves the next PR just as red); dropping the audit (the gate is what
+caught D-457 on a docs-only PR, exactly as designed). Verified locally:
+`No known vulnerabilities found, 1 ignored`. **Removal condition:** the flag goes the moment a
+nltk release above 3.10.3 lands — dependabot's weekly PR is the trigger; carried in
+`PROJECT_STATE` §8 as a dated risk so it is not forgotten behind a green check.
