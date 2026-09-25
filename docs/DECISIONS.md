@@ -31603,3 +31603,64 @@ D-460 #2/#3 carry backward pointers here (H1 convention).
 **Still open on the row:** #4 `MEMORY-CACHE-WRITE-UNBILLED`; the ceiling bound (design decision,
 D-467/D-471); real-model polarity quality on non-ability types (unmeasured). **Implemented
 locally, not deployed** (LB-05) — ships with the next manual deploy (D-417).
+
+## D-473 — `STAGING-CONN-CEILING` fixed: the per-task pool is 5 + 5 under a written connection budget that a test re-derives from the terraform replica ceilings (accepted, 2026-09-24)
+
+`PROJECT_STATE` §4.4 row 1 after D-472's reordering. The E1 defect (D-461): at 50 VUs the ALB p95
+step policy scaled learning-api 2 → 3 tasks and the third replica's `10 + 10` SQLAlchemy pool
+pushed total demand past `db.t4g.micro`'s ≈112 `max_connections` —
+`asyncpg.TooManyConnectionsError`, 2× HTTP 500 on `POST /answers`. Scale-out reduced
+availability, D-334's shape.
+
+**The arithmetic, read from code rather than assumed.** Per API task: pool 10 + overflow 10, plus
+the D-335 relay's two dedicated LISTEN/NOTIFY connections (`session_event_relay.py`), plus **one**
+psycopg connection for the checkpointer — `AsyncPostgresSaver.from_conn_string` opens a single
+`AsyncConnection`, not a pool (verified in the installed `langgraph-checkpoint-postgres`; S34's
+"checkpoint pool" wording overstated it). So 23 per task. Both services default to
+`autoscaling_max_capacity = 3` (the ecs-service module default; D-344's staging override was
+retracted), so six API tasks × 23 = 138, plus the ops task's bare `create_engine()` pool of 20,
+against ~109 non-superuser slots. The observed 62 in CloudWatch's one-minute sampling was the
+average the metric could see, not the spike Postgres refused.
+
+**Why the pool moved, not the ceiling or the replicas.** Raising the instance is not available:
+this account's Free Tier restrictions rejected `db.t4g.small` outright (S32/D-084). Lowering the
+replica ceiling throws away the +41% throughput / −40% p95 the third replica measurably gave
+(E1). The pool is a per-task constant sized in S34 for *one* process serving 150 concurrent
+sessions, and S34 itself wrote "revisit if RDS connection exhaustion is ever observed live" — it
+was. ARCHITECTURE's demand rule (D-348/D-356: a request holds one pooled connection for its
+transaction, an SSE stream holds none) makes `pool_size ≈ concurrent requests per task`; at E1's
+failing level (50 VUs / 3 tasks ≈ 17 per task) a 10-connection pool queues the excess for up to
+`pool_timeout` — fail-slow — where 20 failed hard, and E1 showed the service CPU-bound (92–99%
+ECS CPU) well before it is connection-bound. **The user chose 5 + 5 (2026-09-24).**
+
+**The budget:** 6 API tasks × (10 + 3) + 2 concurrent ops tasks × 10 = **98 ≤ 109**, headroom 11
+for `rdsadmin`, an operator's psql, the UD-2 read-only session and Alembic during a deploy. Two
+ops tasks because the daily `session-consolidate` (18:00) and `chat-purge` (18:10) schedules can
+overlap. The constants and the formula (`connection_budget`) live in one place,
+`intellichoice_db.engine`, next to the reasoning.
+
+**Shape of the change.** `create_engine` takes `pool_size` / `max_overflow` keywords with the
+budget defaults; bare calls (every ops CLI, `test_standalone_clis_use_the_env_fallback.py`'s
+guard) are unchanged in kind. Both apps' `Settings` gain `db_pool_size` / `db_max_overflow`
+(`LEARNING_DB_POOL_SIZE`, `CHAT_DB_POOL_SIZE`, …) defaulting to the engine constants and pass
+them from `main.py`, so terraform can retune one service without a code change. No terraform
+change: the replica ceilings stay 3 + 3.
+
+**The test that keeps it true.** `packages/db/tests/test_engine_pool_budget.py` parses the
+effective `autoscaling_max_capacity` of both staging service modules (an uncommented override in
+the staging block, else the module default — comment lines skipped so D-344's retracted override
+does not read as live) and asserts `demand + 8 ≤ available`; it also asserts that S34's 10 + 10
+would **not** have fit at the same ceilings, so the file is a regression test of the defect and
+not only of the constant. A capacity bump now fails a test instead of staging. `pool_timeout`
+stays at SQLAlchemy's 30 s default — not tuned, because nothing measured it.
+
+**Verification:** ruff + format clean; pyright 0 errors; focused 27 passed (budget, engine DSN,
+CLI guard, both apps' settings); full suite **2241 passed / 2 skipped / 1 xfailed** (baseline 2231 + the 10 new tests, no flake). Docker Desktop's daemon had
+stopped between the baseline and the focused run (connection refused on 5432) and was restarted —
+not a code finding.
+
+**Not verified live (LB-05).** The fix is implemented locally and not deployed; staging is still
+`523b9f0`. Live confirmation is a deploy plus a 50-VU burst that scales to three tasks — paid
+work under UD-2's e2e-lane rider, not spent here. The metric blind spot E1 named (one-minute
+`DatabaseConnections` sampling never sees a sub-minute refusal) is unchanged and remains part of
+`OBSERVABILITY-TRACE-GAPS`'s neighbourhood rather than this row.

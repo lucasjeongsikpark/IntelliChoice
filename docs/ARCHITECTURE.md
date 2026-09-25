@@ -385,6 +385,17 @@ to rot, because nothing fails when it does.)*
   implies. **⚠️ And a resize has lead time that is not money:** this account's Free Tier
   restrictions rejected `db.t4g.small` outright with a real `CreateDBInstance` failure in S32/D-084,
   so anything above `micro` is a prerequisite to check before it is a line item.
+- **The pool is now 5 + 5 per task under a written connection budget (D-473, 2026-09-24;
+  implemented locally, not deployed).** E1 (D-461) observed exactly the failure the bullet above
+  predicted: the ALB p95 step policy scaled learning-api 2 → 3 at 50 VUs and the third replica's
+  10 + 10 pool crossed the ceiling (`asyncpg.TooManyConnectionsError`, 2× HTTP 500). Per task the
+  real count is pool + 2 relay connections (D-335, outside the pool) + **one** psycopg connection
+  for the checkpointer (`from_conn_string` is a single `AsyncConnection`, not a pool). The budget
+  is `6 API tasks × (10 + 3) + 2 overlappable ops tasks × 10 = 98 ≤ 109` non-superuser slots;
+  constants and formula live in `intellichoice_db.engine`, both apps pass settings-driven values
+  (`LEARNING_DB_POOL_SIZE` / `CHAT_DB_POOL_SIZE`, …), and `test_engine_pool_budget.py` re-derives
+  the arithmetic from the terraform replica ceilings so a capacity bump fails locally. The
+  replica ceilings (3 + 3) and the instance class are unchanged; `pool_timeout` is untuned.
 - **The backend's keep-alive must outlive the load balancer's idle timeout** (D-364). The ALB's
   `idle_timeout.timeout_seconds` is **120**; uvicorn's `--timeout-keep-alive` defaults to **5**,
   and neither Dockerfile set it — so the ALB could hold a pooled backend connection for two
@@ -796,7 +807,8 @@ to rot, because nothing fails when it does.)*
 - **An SSE stream does not hold a request-scoped database session** (D-348) — a
   dependency-with-yield is torn down after the response finishes, and an SSE response never
   finishes, so `chat-api`'s stream kept a connection idle-in-transaction for the life of the browser
-  tab. At a 10+10 pool that is 20 concurrent streams to exhaustion. The initial snapshot now runs in
+  tab. At the then 10+10 pool that was 20 concurrent streams to exhaustion (5 + 5 per task since
+  D-473, which makes the rule below more load-bearing, not less). The initial snapshot now runs in
   a short-lived session and releases before the keep-alive loop, which touches no database at all.
   learning-api's stream has the identical shape and is carry-over.
 - **An SSE stream subscribes before it reads its initial snapshot, never after** (AUD-F-36, D-145) —
@@ -2395,7 +2407,9 @@ per-request work of pinning an SSE stream to a replica real rather than theoreti
 **not** deployed at all (D-087). The projection's "known gap" about the single-instance SSE bus was
 answered, but not the way it predicted: `SessionEventBus` is still an in-process dict, and what
 closed the gap is the Postgres `LISTEN`/`NOTIFY` relay (D-334/D-335, D-349) rather than a pub/sub
-service or a bigger single task.
+service or a bigger single task. Both services' `autoscaling_max_capacity` (3 and 3) is the
+number D-473's Postgres connection budget is derived from — see the cost-and-capacity bullets
+above — and a test now reads it from the terraform files.
 
 **Numbers here are measured; two labels are repository-configured.** Task-definition revisions,
 desired/running counts, task sizes, AZ placement, RDS instances and database names, NAT and VPC

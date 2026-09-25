@@ -19,6 +19,64 @@ DEFAULT_DATABASE_URL = (
     "postgresql+asyncpg://intellichoice:intellichoice@localhost:5432/intellichoice"
 )
 
+# ---------------------------------------------------------------------------------------
+# The Postgres connection budget (D-473, `STAGING-CONN-CEILING`).
+#
+# Every number here is a *maximum*, because bursts reach maximums: E1 (D-461) watched the
+# ALB p95 step policy scale learning-api 2 -> 3 tasks at 50 VUs, and the third replica's
+# pool crossed `db.t4g.micro`'s ceiling with `asyncpg.TooManyConnectionsError` - 2x HTTP
+# 500 on `POST /answers`. Scale-out reduced availability. The pool used to be 10 + 10 per
+# task, sized in S34 for ONE process; it is a per-task constant, so autoscaling multiplied
+# it. The ceiling cannot be raised: this account's Free Tier restrictions reject any
+# instance above `micro` outright (S32/D-084), and lowering the replica ceiling would
+# throw away the +41% throughput the third replica measurably gave (E1). So the pool is
+# what moves.
+#
+# Demand rule (ARCHITECTURE, D-348/D-356): a request holds one pooled connection for its
+# transaction and an SSE stream holds none, so `pool_size ~ concurrent requests per task`.
+# At E1's failing level (50 VUs / 3 tasks ~ 17 concurrent per task) a 10-connection pool
+# queues the excess for up to `pool_timeout` (30s default) - fail-slow, where 10 + 10 failed
+# hard. E1 also showed the service is CPU-bound (92-99% ECS CPU) well before it is
+# connection-bound, so the smaller pool is not the throughput limiter.
+#
+# `test_engine_pool_budget.py` re-derives this arithmetic against the replica ceilings
+# parsed from the terraform files, so a future `autoscaling_max_capacity` bump fails a test
+# instead of silently re-opening the defect.
+# ---------------------------------------------------------------------------------------
+
+# `db.t4g.micro` (1 GiB): Postgres' default `LEAST({DBInstanceClassMemory/9531392}, 5000)`.
+RDS_MAX_CONNECTIONS = 112
+# Postgres' `superuser_reserved_connections` default; RDS's own `rdsadmin` role sits there.
+RDS_SUPERUSER_RESERVED = 3
+# Per API task, outside the SQLAlchemy pool: the D-335 relay's dedicated LISTEN and NOTIFY
+# connections (`session_event_relay.py`) plus the single psycopg connection
+# `AsyncPostgresSaver.from_conn_string` opens (it is one `AsyncConnection`, not a pool).
+API_TASK_FIXED_CONNECTIONS = 2 + 1
+# Two ops-task CLIs can overlap (the daily 18:00 `session-consolidate` and 18:10
+# `chat-purge` schedules); each calls `create_engine()` bare and gets this same pool.
+OPS_TASKS_CONCURRENT = 2
+
+DEFAULT_POOL_SIZE = 5
+DEFAULT_MAX_OVERFLOW = 5
+
+
+def connection_budget(
+    *,
+    api_task_ceiling: int,
+    pool_size: int = DEFAULT_POOL_SIZE,
+    max_overflow: int = DEFAULT_MAX_OVERFLOW,
+) -> tuple[int, int]:
+    """Return `(worst_case_demand, available)` for `api_task_ceiling` API tasks in total
+    (learning-api's maximum plus chat-api's maximum) at the given per-task pool shape.
+
+    Pure arithmetic, exposed so the budget test and this module agree on one formula.
+    """
+    per_pool = pool_size + max_overflow
+    demand = api_task_ceiling * (per_pool + API_TASK_FIXED_CONNECTIONS)
+    demand += OPS_TASKS_CONCURRENT * per_pool
+    available = RDS_MAX_CONNECTIONS - RDS_SUPERUSER_RESERVED
+    return demand, available
+
 
 def database_url_from_component_env_vars() -> str | None:
     """D-092: RDS's native `manage_master_user_password` (real auto-rotation, S33) makes
@@ -72,7 +130,12 @@ def ssl_connect_args(database_url: str) -> dict[str, object]:
     return {}
 
 
-def create_engine(database_url: str | None = None) -> AsyncEngine:
+def create_engine(
+    database_url: str | None = None,
+    *,
+    pool_size: int = DEFAULT_POOL_SIZE,
+    max_overflow: int = DEFAULT_MAX_OVERFLOW,
+) -> AsyncEngine:
     """Callers that already have a real settings-derived URL (both FastAPI apps' own
     `main.py`) should keep passing it explicitly - unaffected by the env vars below.
     Standalone CLI scripts (curriculum loader, knowledge ingest, etc.) call this bare,
@@ -87,14 +150,12 @@ def create_engine(database_url: str | None = None) -> AsyncEngine:
     (5+10=15) - a real local k6 run of 150 concurrent learning sessions
     (load-tests/k6/learning_sessions.js) pushed average request latency to ~1.7s
     (SPEC §5.33.4 targets "near one second" P95) with a 15-connection ceiling shared
-    across every concurrent request this one process handles. 10+10=20 is a deliberately
-    moderate bump, not "as large as possible": staging's RDS instance is a Free Tier
-    `db.t4g.micro` (T4g.micro ~1GB RAM caps Postgres' own `max_connections` around
-    ~110, shared across *both* apps' pools plus each app's separate LangGraph
-    `AsyncPostgresSaver` checkpoint pool, per `main.py`'s lifespan) - a much larger pool
-    here risks exhausting that real, small ceiling instead of just being slow. Revisit
-    together with the checkpoint pool's own sizing if RDS connection exhaustion is ever
-    observed live (see DECISIONS.md's S34 entry). `pool_pre_ping=True` is unrelated to
+    across every concurrent request this one process handles. S34 chose 10+10=20 as a
+    deliberately moderate bump for one process and wrote: "revisit ... if RDS connection
+    exhaustion is ever observed live". **It was, in E1 (D-461)** - the defaults are now
+    `DEFAULT_POOL_SIZE + DEFAULT_MAX_OVERFLOW` under the connection budget documented
+    above (D-473), and the two FastAPI apps pass their settings-driven values so a
+    deployment can retune per service without a code change. `pool_pre_ping=True` is unrelated to
     the sizing finding - added alongside it since S34 also ran a real DB-connection-loss
     drill (load-tests/drills/db_connection_loss.sh); without it, a connection that went
     stale while Postgres was down could be handed back out of the pool once Postgres
@@ -108,8 +169,8 @@ def create_engine(database_url: str | None = None) -> AsyncEngine:
     )
     return create_async_engine(
         resolved,
-        pool_size=10,
-        max_overflow=10,
+        pool_size=pool_size,
+        max_overflow=max_overflow,
         pool_pre_ping=True,
         connect_args=ssl_connect_args(resolved),
     )

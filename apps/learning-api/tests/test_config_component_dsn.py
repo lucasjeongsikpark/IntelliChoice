@@ -4,6 +4,7 @@ var rather than a ready DSN string. See `Settings._build_dsns_from_managed_secre
 components`'s docstring on the fields themselves.
 """
 
+import pytest
 from learning_api.config import Settings
 
 
@@ -45,3 +46,22 @@ def test_mysql_url_is_built_from_components_when_all_four_are_present() -> None:
     assert settings.mysql_url == (
         "mysql+aiomysql://intellichoice:s3cr3t@staging-mysql.example.rds.amazonaws.com:3306"
     )
+
+
+# D-473 (`STAGING-CONN-CEILING`): the pool shape is settings-driven so a deployment can
+# retune one service; the defaults are the connection budget's, not a copied number.
+def test_db_pool_defaults_are_the_connection_budget_defaults() -> None:
+    from intellichoice_db.engine import DEFAULT_MAX_OVERFLOW, DEFAULT_POOL_SIZE
+
+    settings = Settings()
+    assert settings.db_pool_size == DEFAULT_POOL_SIZE
+    assert settings.db_max_overflow == DEFAULT_MAX_OVERFLOW
+
+
+def test_db_pool_shape_is_overridable_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LEARNING_DB_POOL_SIZE", "3")
+    monkeypatch.setenv("LEARNING_DB_MAX_OVERFLOW", "2")
+    settings = Settings()
+    assert (settings.db_pool_size, settings.db_max_overflow) == (3, 2)

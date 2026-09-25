@@ -228,7 +228,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             session_budget_cents=settings.bedrock_session_budget_cents,
         )
 
-    engine = create_engine(settings.database_url)
+    engine = create_engine(
+        settings.database_url,
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
+    )
     app.state.db_engine = engine
     app.state.db_session_factory = create_session_factory(engine)
     app.state.consolidation_scheduler = BackgroundConsolidationScheduler(

@@ -2,6 +2,7 @@
 that file's docstring.
 """
 
+import pytest
 from chat_api.config import Settings
 
 
@@ -36,3 +37,21 @@ def test_mysql_url_is_built_from_components_when_all_four_are_present() -> None:
     assert settings.mysql_url == (
         "mysql+aiomysql://intellichoice:s3cr3t@staging-mysql.example.rds.amazonaws.com:3306"
     )
+
+
+# D-473 (`STAGING-CONN-CEILING`): mirrors learning-api's pool-shape tests.
+def test_db_pool_defaults_are_the_connection_budget_defaults() -> None:
+    from intellichoice_db.engine import DEFAULT_MAX_OVERFLOW, DEFAULT_POOL_SIZE
+
+    settings = Settings()
+    assert settings.db_pool_size == DEFAULT_POOL_SIZE
+    assert settings.db_max_overflow == DEFAULT_MAX_OVERFLOW
+
+
+def test_db_pool_shape_is_overridable_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CHAT_DB_POOL_SIZE", "3")
+    monkeypatch.setenv("CHAT_DB_MAX_OVERFLOW", "2")
+    settings = Settings()
+    assert (settings.db_pool_size, settings.db_max_overflow) == (3, 2)
