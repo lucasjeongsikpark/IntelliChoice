@@ -1,7 +1,8 @@
 # IntelliChoice — Project Instructions
 
-> Last reviewed: 2026-08-21 (execution-mode adapter added; content baseline: the 2026-08-20
-> documentation reconciliation migration). This file has drifted silently before (rule 1 said
+> Last reviewed: 2026-09-23 (Orca operating model adopted: Fable 5.1 coordinator / Opus 5.5
+> executor, delegation, review, correction-loop and completion policies; content baseline: the
+> 2026-08-20 documentation reconciliation migration). This file has drifted silently before (rule 1 said
 > "MongoDB" until D-082/D-111) — if this date is old, distrust the descriptions below and verify
 > against `docs/PROJECT_STATE.md`.
 
@@ -177,22 +178,59 @@ modes stay within the chosen item's / Frozen Spec's scope; new discoveries becom
 A workflow adapter only. Project memory stays in the documents indexed above — nothing in this
 section restates project state, and it must never grow a second copy of it.
 
+### Operating model
+
+| Role / setting | Default |
+|---|---|
+| Coordinator | **Claude Fable 5.1** — the top-level user-facing session |
+| Executor | **Claude Opus 5.5**, high effort, one persistent Orca worker |
+| Orchestration runtime | Orca (Runs, Tasks, Dispatches, workers, messages, completion tracking, questions) |
+| Topology | sequential — one implementation executor at a time |
+| Default worktree | the coordinator's current worktree (`--worktree current`) |
+| Evaluation | executor self-verification, then independent coordinator review |
+| Separate evaluator agent | disabled by default |
+
+**The coordinator owns reasoning and judgment; the executor owns implementation and
+execution.** Keep judgment with the coordinator — never delegate architectural ownership merely
+to reduce coordinator work.
+
 **Coordinator responsibilities:** understand the user goal (a generic continue/resume request
 means: the first eligible item of `docs/PROJECT_STATE.md` §4.4's execution queue — see "Task
-selection" below); investigate project context; make
+selection" below); investigate the repository and project context; identify the root cause of a
+bug before specifying its fix; resolve technical ambiguity that the codebase can resolve; make
 implementation/technical-design choices only where existing project authority (SPEC as amended,
-accepted decisions, ARCHITECTURE) legitimately determines them; create the Frozen Spec; delegate
-non-trivial implementation through Orca; answer executor technical questions; independently
-review the actual diff and verification evidence; accept or reject the implementation; reconcile
-canonical docs only after acceptance. The coordinator must NOT independently create or resolve a
-new product, business, policy, safety, or USER decision — if existing authority cannot determine
+accepted decisions, ARCHITECTURE) legitimately determines them; define scope and non-goals;
+create the Frozen Spec; delegate non-trivial implementation through Orca; answer executor
+questions that are technical and resolvable from available context; independently review the
+actual diff and verification evidence; decide whether acceptance criteria are met and whether
+another executor revision is needed; reconcile canonical docs only after acceptance; report the
+final result to the user. The coordinator must NOT independently create or resolve a new
+product, business, policy, safety, or USER decision — if existing authority cannot determine
 such a question, escalate to the user (AUTHORITY_MODEL §4.6).
 
-**Executor responsibilities:** implementation; tests; debugging; lint/typecheck/build and other
-relevant verification; self-review; concrete evidence. An executor must not reinterpret
-project-level decisions, answer USER decisions, reconcile canonical documentation, or silently
-choose between conflicting documentation and primary evidence — a conflict is returned to the
-coordinator as a finding (AUTHORITY_MODEL §6.2).
+**Executor responsibilities:** read the Frozen Spec; inspect implementation-relevant code;
+implement; write or update tests; run tests, lint, typecheck, build and other relevant
+validation; debug and correct defects; self-review before reporting; return concrete
+verification evidence; surface conflicts between the Frozen Spec and actual repository
+constraints; ask the coordinator when a new architectural decision is required. An executor
+must not reinterpret project-level decisions, change product requirements, redesign the agreed
+architecture without escalation, answer USER decisions, reconcile canonical documentation, or
+silently choose between conflicting documentation and primary evidence — a conflict is returned
+to the coordinator as a finding (AUTHORITY_MODEL §6.2). **An executor must not create additional
+agents unless the coordinator explicitly authorizes it.**
+
+### Delegation policy
+
+Delegate to the executor: feature implementation; bug fixes once the intended behavior is
+understood; refactors; migrations; test implementation; repetitive code changes; build, lint and
+type-check fixes; any implementation-heavy repository change.
+
+Keep with the coordinator: architecture decisions; ambiguous requirements; root-level design
+trade-offs; scope decisions; Frozen Spec creation; final review; acceptance; user-facing
+escalation.
+
+Tiny changes may be performed directly by the coordinator when orchestration overhead would
+clearly exceed the work.
 
 ### Role selection and handoff
 
@@ -232,36 +270,81 @@ Before creating or mutating Orca orchestration state, the coordinator must:
 1. load the installed, version-matched orchestration instructions:
    `orca skills get orchestration --full`;
 2. confirm Orca is reachable: `orca status --json`;
-3. use the lifecycle and commands from the installed skill, never memorized Orca CLI syntax.
+3. use the lifecycle and commands from the installed skill, never memorized Orca CLI syntax,
+   and never retired Orca orchestration commands.
 
-For the current sequential workflow: exactly **one implementation executor per task**; target
-**Claude Opus 5 with high effort** when that model is available in the installed Orca runtime;
-verify the effective executor/model from Orca's launch receipt when available, and never
-silently substitute another executor model if the requested one was not actually selected;
-preserve the **same persistent executor** across ordinary correction rounds whenever Orca
-supports it; do not launch a separate evaluator by default — the coordinator remains the
-independent final reviewer.
+**Worker launch policy.** Launch exactly **one implementation executor per task** unless the
+user explicitly requests parallel execution. Default launch intent:
 
-The normal flow: user goal → coordinator context investigation → Frozen Spec → Orca persistent
-executor → executor implementation/self-verification → coordinator independent review →
-same-executor correction loop if needed → coordinator acceptance → coordinator-owned
-canonical-doc reconciliation. The user is never required to manually create Orca tasks, launch
-the executor, relay messages between coordinator and executor, or mediate routine correction
-rounds.
+```text
+agent: claude
+model: claude-opus-5-5
+effort: high
+worktree: current
+```
+
+Verify the effective agent/model/effort from Orca's launch receipt (`requested` must equal
+`effective`). If the requested model was not actually selected, do not silently continue with a
+different executor model — correct the launch configuration or report the issue. A bare `opus`
+alias is acceptable only when the receipt resolves it to Opus 5.5.
+
+**Persistent executor policy.** The executor is not a disposable one-shot subagent. For a given
+task: start one executor → let it implement and self-verify → receive its completion report →
+review → if corrections are needed, reuse the **same executor session/terminal** wherever Orca
+supports it, send precise feedback, and let it revise and re-verify → repeat until acceptance or
+escalation. Preserve the executor's accumulated context across correction rounds; never start a
+fresh executor merely because the first implementation needs corrections. Do not launch a
+separate evaluator by default — the coordinator remains the independent final reviewer.
+
+### Supervised execution loop
+
+For each non-trivial task:
+
+1. **Understand** — investigate the repository and request until the problem is understood. No
+   implementation in this phase.
+2. **Decide** — resolve architecture, scope, interfaces and implementation constraints.
+3. **Specify** — write the Frozen Spec.
+4. **Dispatch** — create the Orca Run/Task state and launch the executor through Orca.
+5. **Execute** — the executor implements, tests, debugs, self-reviews and produces evidence. The
+   coordinator does not duplicate the executor's implementation while it is actively working.
+6. **Review** — on completion, the coordinator independently inspects the Frozen Spec, the actual
+   git diff, modified files and surrounding code, test changes, verification evidence, and any
+   warnings, skipped tests or unresolved issues. The executor's statement that the task is
+   complete is never sufficient evidence by itself.
+7. **Decide** — all acceptance criteria met: accept, conclude the orchestration task, reconcile
+   canonical docs, report to the user. Correctable issues remain: run the correction loop below.
+   The architecture or specification is wrong: revise it at the coordinator level, communicate the
+   new contract explicitly, and continue only after it is explicit.
+
+The user is never required to manually create Orca tasks, launch the executor, relay messages
+between coordinator and executor, inspect routine worker status, copy executor responses back, or
+request ordinary correction rounds. The coordinator owns that workflow and keeps the user informed
+of material discoveries, scope changes, blockers and final results.
 
 ### Frozen Spec contract
 
 For every non-trivial Orca task the coordinator creates `tasks/<descriptive-task-name>.md` with
 these sections: Objective; Authoritative References; Current Relevant State; Intended Behavior;
 Repository Evidence; Deployed-State Relevance; Decision Boundaries; Known Drift / Uncertainty;
-Current Context; Required Behavior; Scope; Non-Goals; Constraints; Acceptance Criteria;
-Verification. The Frozen Spec must give the executor enough task-scoped context that it never
-needs to reconstruct project-wide truth independently. Files under `tasks/` are task-scoped
-working artifacts, not project documentation — they sit outside the docs index above and are
-never a source of current project truth after their task closes. After coordinator acceptance
-and canonical-document reconciliation, delete the completed Frozen Spec unless it is still
-needed for an active correction or an explicitly retained follow-up; durable outcomes belong
-in canonical docs, `docs/log/`, and git history.
+Current Context (only implementation-relevant findings, including the causal reasoning the
+executor needs to avoid rediscovering critical constraints); Required Behavior; Scope; Non-Goals
+(adjacent work that must not be performed); Constraints (compatibility, security, performance,
+data, API, migration, architecture); Acceptance Criteria (objective wherever possible);
+Verification (the evidence required before completion — targeted and regression tests, the
+relevant suite, lint, typecheck, build, integration/E2E when applicable). The Frozen Spec must
+give the executor enough task-scoped context that it never needs to reconstruct project-wide
+truth independently.
+
+The Frozen Spec is the contract between coordinator and executor. **Never silently change it
+while the executor is working.** If implementation reveals the spec is technically invalid, stop
+the affected execution path, revise the spec explicitly, and communicate the revised
+requirements to the executor.
+
+Files under `tasks/` are task-scoped working artifacts, not project documentation — they sit
+outside the docs index above and are never a source of current project truth after their task
+closes. After coordinator acceptance and canonical-document reconciliation, delete the completed
+Frozen Spec unless it is still needed for an active correction or an explicitly retained
+follow-up; durable outcomes belong in canonical docs, `docs/log/`, and git history.
 
 ### Executor completion evidence
 
@@ -269,14 +352,80 @@ The executor reports: Files Changed; Verification Performed; Verification Result
 Drift; Documentation Impact; New Decision Required; Remaining Uncertainty. When no new decision
 is needed, write `New Decision Required: none` explicitly.
 
-### Coordinator acceptance
+### Verification policy
 
-After executor completion, the coordinator independently compares the Frozen Spec vs. the actual
-diff vs. the verification evidence. If implementation corrections are needed, send them back to
-the same persistent executor where the Orca runtime supports that. Only after accepting the
-implementation may the coordinator reconcile canonical project docs. A `PROJECT_STATE` item is
-deleted only when its actual completion condition is satisfied; partial progress restates the
-row rather than falsely resolving it. Session chronology never goes in `PROJECT_STATE`.
+Prefer deterministic evidence over model confidence. Discover validation commands from this
+repository's `Makefile`, CI workflows, package scripts and existing developer scripts — the
+baseline is `make lint typecheck test` — rather than running generic examples. Acceptable
+evidence looks like `ruff: passed`, `pyright: 0 errors`, `pytest: <n> passed`, `build: passed`,
+`targeted regression test: passed`. "The implementation looks correct" is not a substitute for
+executable verification when executable verification exists.
+
+### Coordinator review and acceptance
+
+After executor completion, the coordinator independently compares **Frozen Spec vs. actual diff
+vs. verification evidence**, looking specifically for: acceptance criteria not implemented;
+unintended scope expansion; regression risk; missing error handling; missing tests; incorrect
+assumptions; compatibility breakage; security or data-boundary violations (rule 1 above is
+absolute); skipped or weakened tests; unrelated modifications.
+
+Only after accepting the implementation may the coordinator reconcile canonical project docs. A
+`PROJECT_STATE` item is deleted only when its actual completion condition is satisfied; partial
+progress restates the row rather than falsely resolving it. Session chronology never goes in
+`PROJECT_STATE`.
+
+### Correction loop
+
+If review fails: state exactly what is wrong; explain the expected behavior; reference the
+relevant acceptance criterion; send the feedback to the **same** executor; require the fix and
+the relevant verification to be rerun; review again. Do not ask the user to mediate ordinary
+implementation corrections.
+
+Default maximum: **3 coordinator → executor correction rounds**. If the task has not converged
+after three rounds, diagnose why before continuing. Continue autonomously when a clear technical
+resolution exists and the user goal is unchanged; escalate to the user when the failure indicates
+a genuine decision that cannot responsibly be inferred.
+
+### Escalation hierarchy
+
+```text
+Implementation problem
+        ↓
+Executor solves it
+        ↓ if blocked
+Coordinator decides
+        ↓ if no legitimate basis exists
+User decides
+```
+
+The coordinator resolves: implementation details; architecture; repository conventions;
+technical trade-offs; test strategy; compatibility choices inferable from existing behavior.
+Escalate to the user only for: genuinely ambiguous product requirements; mutually exclusive
+user-visible behaviors with no existing source of truth; business or policy decisions (the
+project's USER decisions, AUTHORITY_MODEL §4.6); missing credentials or external permissions;
+destructive operations requiring authorization; changes that materially exceed the requested
+scope; failure to converge after repeated correction attempts.
+
+### Worktree, git and scope safety
+
+- Default to the coordinator's current worktree. Only one implementation executor modifies that
+  worktree at a time; the coordinator may inspect files and diffs while coordinating but must not
+  edit the same implementation concurrently. If parallel executors are ever introduced, move them
+  to isolated worktrees.
+- Do not commit, push, merge, open pull requests, or modify remote resources unless the user
+  explicitly requests it or existing project instructions clearly authorize it.
+- Do not discard unrelated user changes; when unrelated pre-existing changes exist, preserve them.
+  Do not reset or clean the repository merely to simplify agent work.
+- Do not modify files unrelated to the task unless necessary to satisfy the Frozen Spec.
+
+### Completion definition
+
+A task is complete only when **all** of the following hold: the requested behavior is
+implemented; the Frozen Spec's acceptance criteria are satisfied; required verification has
+passed or any unavoidable limitation is explicitly documented; the coordinator has independently
+reviewed the implementation; no known material blocker remains; relevant executor questions are
+resolved; the executor has reported completion through the Orca worker lifecycle; the coordinator
+has accepted the result. Only then report completion to the user.
 
 ## Stack
 
