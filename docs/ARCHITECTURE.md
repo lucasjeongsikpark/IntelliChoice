@@ -386,7 +386,7 @@ to rot, because nothing fails when it does.)*
   restrictions rejected `db.t4g.small` outright with a real `CreateDBInstance` failure in S32/D-084,
   so anything above `micro` is a prerequisite to check before it is a line item.
 - **The pool is now 5 + 5 per task under a written connection budget (D-473, 2026-09-24;
-  implemented locally, not deployed).** E1 (D-461) observed exactly the failure the bullet above
+  deployed 2026-09-25 in `gha-61fc8a528418`, D-475 — its behaviour under a 3-task burst is still unmeasured live).** E1 (D-461) observed exactly the failure the bullet above
   predicted: the ALB p95 step policy scaled learning-api 2 → 3 at 50 VUs and the third replica's
   10 + 10 pool crossed the ceiling (`asyncpg.TooManyConnectionsError`, 2× HTTP 500). Per task the
   real count is pool + 2 relay connections (D-335, outside the pool) + **one** psycopg connection
