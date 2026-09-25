@@ -83,17 +83,21 @@ DAILY_REPORT_COST_CEILING_CENTS = 50.0
 # own `worst_case_cost_cents` for PARENT_REPORT at `_MAX_OUTPUT_TOKENS`, so a model or
 # pricing change that invalidates it fails the suite rather than quietly under-counting.
 #
-# 2.136 cents is the worst case on the most expensive priced model (Sonnet 5 at 0.3/1.5
+# 2.286 cents is the worst case on the most expensive priced model (Sonnet 5 at 0.3/1.5
 # per 1K, over the gateway's 2000-input-token assumption plus `_MAX_OUTPUT_TOKENS`), which
-# is also the unpriced-model fallback rate. Rounded up. The deployed model (Haiku 4.5) is
-# ~0.7. The over-estimate is only charged while the call is in flight - `settle` replaces
-# it with the real cost within the same request - so it costs throughput nothing in
-# practice.
+# is also the unpriced-model fallback rate: 0.75 input + 1.536 output. Rounded up. The
+# deployed model (Haiku 4.5) is ~0.76. The over-estimate is only charged while the call is
+# in flight - `settle` replaces it with the real cost within the same request - so it costs
+# throughput nothing in practice.
 #
 # S43: raised from 1.5 alongside `_MAX_OUTPUT_TOKENS` 500 -> 1024. The guard test caught
 # the coupling before the change shipped, which is what it is for. The daily ceiling below
 # is unchanged and still permits ~70 reports/student/day at the deployed model's real rate.
-REPORT_RESERVATION_ESTIMATE_CENTS = 2.25
+#
+# D-476: raised from 2.25 when the gateway began pricing that input as a cold prompt-cache
+# write (1.25x the input rate, D-460 finding #4) - 0.6 input became 0.75, and the old
+# constant sat under the new 2.286. The guard test caught it, as above.
+REPORT_RESERVATION_ESTIMATE_CENTS = 2.5
 
 _SYSTEM_PROMPT = (
     "You are writing a short progress report for a K-12 math tutoring app. Write two "

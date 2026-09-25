@@ -83,12 +83,15 @@ WORST_CASE_CALLS = worst_case_calls(candidate_limit=DEFAULT_CANDIDATE_LIMIT, top
 # was already covered was "wrong twice over" (see `tutor_chat.TURN_RESERVATION_ESTIMATE_CENTS`).
 REPAIR_RETRY_MULTIPLIER = 2
 
-# 24.192 cents on the most expensive priced model (Sonnet 5, which is also the unpriced-model
-# fallback rate): 1.368 + 2.952 + 4.824 + 2.952 = 12.096 for the four calls above, doubled for
-# the repair. The deployed model is Haiku 4.5 at a third of that. Rounded up to 25.
+# 25.392 cents on the most expensive priced model (Sonnet 5, which is also the unpriced-model
+# fallback rate): 1.518 + 3.102 + 4.974 + 3.102 = 12.696 for the four calls above, doubled for
+# the repair. Each call's ~2000 input tokens are priced as a cold prompt-cache write, 1.25x
+# the input rate (D-476, after D-460 finding #4) - 0.75 cents of input per call where flat
+# pricing gave 0.6, which is what moved this from 24.192 and the constant from 25. The
+# deployed model is Haiku 4.5 at about a third of that. Rounded up to 26.
 #
-# Against the 1500-cent per-day ceiling this allows 60 turns to be *simultaneously in flight*
-# before one is refused - not 60 turns per day, because `settle` replaces the estimate with
+# Against the 1500-cent per-day ceiling this allows 57 turns to be *simultaneously in flight*
+# before one is refused - not 57 turns per day, because `settle` replaces the estimate with
 # the turn's real 2-6 cents the moment it finishes. Over-counting is the safe direction for a
 # ceiling, and it only ever costs concurrency.
-TURN_RESERVATION_ESTIMATE_CENTS = 25.0
+TURN_RESERVATION_ESTIMATE_CENTS = 26.0

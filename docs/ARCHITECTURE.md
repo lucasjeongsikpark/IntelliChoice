@@ -674,7 +674,11 @@ to rot, because nothing fails when it does.)*
   the one repository bound to the session *factory* rather than to a session**, and that is the
   point: a reservation written on the request's session would be invisible to exactly the callers it
   exists to stop. Unsettled reservations stay charged at their estimate — over-counting, which is the
-  safe direction for a spend control. The per-session gateway budget is *not* covered and remains
+  safe direction for a spend control. **Since D-476 the estimate prices its input as a cold prompt-cache
+  write (1.25× the input rate) and `cost_cents` itself prices cache writes at 1.25× and reads at
+  0.1× on every gateway exit** — before that, a cold cached call billed only its few dozen
+  `inputTokens` and E4 measured a 2.8× under-report on consolidation (D-460 #4); the provider now
+  attaches D-203's first-user cache point only to tool calls, the sole shape that can read it. The per-session gateway budget is *not* covered and remains
   stateless by design (D-072).
 - **A paid-API call needs an *input* bound, not only spend and output bounds — and the bound must be
   sized against the timeout, not the context window** (AUD-F-34/AUD-F-36, D-141). The gateway has

@@ -39,8 +39,9 @@ class RawGeneration:
     # Prompt-cache accounting (D-203). Carried separately from `input_tokens` because they
     # are billed at different rates - a cache read is roughly a tenth of normal input - so
     # collapsing them would make a cached run look cheaper than it is in one direction and
-    # dearer in the other. Nothing costs off these yet; they exist so the saving can be
-    # measured rather than assumed.
+    # dearer in the other. The gateway prices them (D-476, after D-460 finding #4): writes
+    # at 1.25x the input rate, reads at 0.1x - so a cold cached call is no longer billed as
+    # if its payload were free.
     cache_read_tokens: int = 0
     cache_write_tokens: int = 0
 

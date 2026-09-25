@@ -31082,7 +31082,8 @@ distinct path to the same outcome and would not show as a failure).
 4. **`MEMORY-CACHE-WRITE-UNBILLED`.** `cost_cents` omits cache-write tokens (~2.8× under-report
    on this workload); and because every consolidation payload is unique, the prompt cache is
    written every call and read never — a ~25% input surcharge on a cache that structurally
-   cannot hit.
+   cannot hit. *(→ **fixed 2026-09-25, D-476**: cache tokens priced on every exit; the
+   first-user cache point is attached only to tool calls.)*
 5. **Payload-oversize headroom is 1–3 facts wide** (U7's real anchor 20 live facts; corpus peak
    19; `MAX_SAFE_EXISTING_FACTS` 21).
 
@@ -31724,3 +31725,67 @@ are fresh, D-473's pool shape is the deployed configuration. **Not verified:** D
 behaviour under the burst that found the defect (a 50-VU run that scales to three tasks) —
 paid work under UD-2's e2e-lane rider; the budget is proven by arithmetic and test, not by
 load. The next rotation is **2026-10-02**; UD-14 remains the open decision.
+
+## D-476 — `MEMORY-CACHE-WRITE-UNBILLED` fixed: the gateway prices prompt-cache tokens (write 1.25×, read 0.1×) on every exit, reservations price input as a cold cache write, and the first-user cache point is attached only to tool calls (accepted, 2026-09-25)
+
+`PROJECT_STATE` §4.4 row 1 after D-473; D-460 finding #4, the last engineering item on the
+`MEMORY-CONSOLIDATION-DEFECTS` row. First task run under the CLAUDE.md Orca operating model:
+this Fable 5.1 session as coordinator, one Claude Opus 5.5 (high) executor in the current
+worktree (`run_5bb9e2d4e019`, `task_dc4dd2825946`, `ctx_67ae312fde8b`; launch receipt
+`requested == effective`), Frozen Spec `tasks/memory-cache-write-unbilled.md` (deleted after
+reconciliation, per the contract).
+
+**Root cause, both halves, read from code.** (1) With cache points in play Bedrock reports a
+cold call's payload almost entirely under `cacheWriteInputTokens` and a few dozen tokens under
+`inputTokens`; `_cost_cents` priced `inputTokens` only, so E4's 30 real consolidation calls
+reported 19.97¢ against a conservative 56.41¢ (D-460). The failure exits inherited the omission
+because `_validate_or_repair` was handed only `(input, output)`. (2) D-203's *second* cache point
+(after the first user message) exists for the tool loop, where Converse resends that message every
+round. Without tools there is exactly one round, and the D-217 repair changes the user text, so
+that cache point can never be read — while consolidation's ≈249-token system prompt is under the
+model's cacheable minimum, so the prefix through the first-user point (system + a unique
+~7k-token payload) was what got written, on every call, and read on none. A 1.25× surcharge on
+every non-tool task, not only consolidation.
+
+**Decisions (coordinator).** D1 `_CACHE_WRITE_RATE_MULTIPLIER = 1.25`,
+`_CACHE_READ_RATE_MULTIPLIER = 0.1` of the model's input rate — published Anthropic-on-Bedrock
+ratios, the same numbers E4's harness used; placeholders in the same sense as the rate table.
+D2 one frozen `_Usage(input, output, cache_read, cache_write)` threaded to every exit — success,
+`OutputTruncatedError`, both `StructuredOutputError` exits, repair success — so no exit can be
+handed fewer than four numbers again. D3 `worst_case_cost_cents` and the admission check share
+`_worst_case_input_cost_cents`, pricing the estimated input as a cold cache write: AUD-X-08's
+reserve-then-settle tolerates only over-reserving. D4 a provider rule, not a knob:
+`AnthropicBedrockProvider` attaches the first-user `cachePoint` only when `tools` is non-empty;
+the system cache point and D-203's tool-loop path are unchanged; the `BedrockProvider` Protocol
+stays narrow (D-202). D5 the `BedrockGenerationResult` comment now says the fields are priced.
+
+**The conflict the executor returned instead of resolving (AUTHORITY_MODEL §6.2, correct).** D3
+made three app-level reservation constants under-reserve, and their guard tests
+(`test_cost_reservation_estimates.py`, `test_turn_cost_estimate.py`) exist to catch exactly that:
+"a pricing change that invalidates it fails the suite rather than quietly under-counting — raise
+the constant". Weakening the tests was refused; Scope was extended (spec Revision 1) and the
+constants raised per each file's round-up convention: `REPORT_RESERVATION_ESTIMATE_CENTS`
+2.25 → **2.5** (worst 2.286), tutor `TURN_RESERVATION_ESTIMATE_CENTS` 4.0 → **4.5** (4.275),
+chat `TURN_RESERVATION_ESTIMATE_CENTS` 25.0 → **26.0** (25.392). Derived concurrency headroom
+moves with them: chat 60 → 57 turns in flight, tutor 25 → 22; the daily ceilings are unchanged.
+
+**Reproduce-first honoured.** Nine new gateway tests failed on the pre-change code (cold call
+0.4024¢ vs the expected 1.250525¢; the admission test reached the provider), one provider test
+failed (an extra `cachePoint` on `messages[0]`), two provider tests pin unchanged behaviour; with
+the new gateway and the *old* constants, 8 guard tests failed — with the raised constants, 0. No
+existing test was modified. The one comment outside Scope the executor flagged as drifted
+(`provider.py` `RawGeneration`: "nothing costs off these yet") was corrected by the coordinator.
+
+**Verification.** Executor: focused 82, guards 18, memory 65, ruff/pyright clean, full suite
+**2253 passed / 2 skipped / 1 xfailed**. Coordinator, independently: focused 165 passed, ruff +
+format clean, pyright 0 errors, full suite **2253 / 2 / 1** (baseline 2241 + 12). Implemented
+locally, **not deployed** (LB-05; staging is `gha-61fc8a528418`).
+
+**Consequences and what stays open.** Every `cost_cents` consumer (session budgets, per-day
+ceilings, the curriculum pipeline's spend accounting) now sees honest cold-call costs — higher
+than before for cold cached calls, lower for warm ones. The consolidation scheduler's budget may
+be reached sooner on the same workload; that is the bug being fixed, not a regression. The live
+effect on consolidation spend is unmeasured (no paid run authorised). The
+`MEMORY-CONSOLIDATION-DEFECTS` row's remaining items are user-gated: the ceiling bound
+(**UD-15**) and the unmeasured real-model polarity quality on non-ability types (UD-2 spend) —
+no engineering-startable item remains, so the row leaves the execution queue.
