@@ -77,7 +77,20 @@ class MemoryRepository:
     async def add_fact(self, fact: SemanticMemory) -> SemanticMemory:
         """Inserts a brand-new fact row - never call this for a fact the caller already
         has a `semantic_memory_id` for (use `update_fact`/`reconfirm_fact` instead).
+
+        Stamps `first_observed_at`/`last_confirmed_at` from Python's clock when the caller
+        left them unset, instead of the column's `now()` server default. Postgres freezes
+        `now()` at TRANSACTION start while `reconfirm_fact` stamps the wall clock, so inside
+        one transaction a fact added *after* a reconfirmation used to sort as *older* than
+        it - which would defeat `top_fact_for_skill`'s recency ordering for any caller that
+        consolidates several windows per transaction (D-460 #3's fix; the E4 harness is such
+        a caller).
         """
+        stamped_at = datetime.now(UTC)
+        if fact.first_observed_at is None:
+            fact.first_observed_at = stamped_at
+        if fact.last_confirmed_at is None:
+            fact.last_confirmed_at = stamped_at
         self._session.add(fact)
         await self._session.flush()
         return fact
@@ -114,11 +127,19 @@ class MemoryRepository:
     async def top_fact_for_skill(
         self, student_id: str, skill_id: str, *, now: datetime | None = None
     ) -> SemanticMemory | None:
-        """Read path (`tutor.py`/`tutor_chat.py`'s `relevant_learning_fact`): the
-        highest-confidence `active`, non-expired fact for this skill, or `None`.
-        `provisional`/`contested`/`superseded` facts are never returned here - only a
-        fact that cleared the minimum-evidence bar and hasn't been demoted is trusted
-        enough to reach a Bedrock payload.
+        """Read path (`tutor.py`/`tutor_chat.py`'s `relevant_learning_fact` and the hint
+        personalization scheduler): the most recently confirmed `active`, non-expired fact
+        for this skill, or `None`. `provisional`/`contested`/`superseded` facts are never
+        returned here - only a fact that cleared the minimum-evidence bar and hasn't been
+        demoted is trusted enough to reach a Bedrock payload.
+
+        Ordering is `last_confirmed_at` first, confidence second (D-460 #3,
+        `MEMORY-STALE-FACT-SERVED`). It used to be confidence alone, and confidence is
+        monotone in reconfirmation, so after a sustained regression the older `strength`
+        fact outranked the newer, correctly evidenced `weak_skill` fact by construction -
+        E4 measured 985/985 students served the stale fact. The newest evidence about a
+        skill is what a tutor turn should hear about; confidence only breaks ties between
+        facts confirmed in the same window.
         """
         as_of = now or datetime.now(UTC)
         stmt = (
@@ -128,7 +149,11 @@ class MemoryRepository:
                 SemanticMemory.skill_id == skill_id,
                 SemanticMemory.status == "active",
             )
-            .order_by(SemanticMemory.confidence.desc())
+            .order_by(
+                SemanticMemory.last_confirmed_at.desc(),
+                SemanticMemory.confidence.desc(),
+                SemanticMemory.first_observed_at.desc(),
+            )
         )
         result = await self._session.execute(stmt)
         for fact in result.scalars().all():

@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from intellichoice_db.models.assessment import (
@@ -788,6 +788,132 @@ def test_memory_repository_round_trip() -> None:
             top = await memory.top_fact_for_skill("student-ext-1", chain.skill_id)
             assert top is not None
             assert top.fact_text == "Solves one-step equations independently"
+
+    asyncio.run(run())
+
+
+def test_top_fact_for_skill_serves_the_most_recently_confirmed_fact() -> None:
+    """E4 §3.4 / D-460 finding #3 (`MEMORY-STALE-FACT-SERVED`): after a sustained regression
+    the correctly-evidenced negative fact was written and promoted, and the tutor was still
+    served the older positive one in 985/985 students, because the read path ordered by
+    confidence alone and confidence is monotone in reconfirmation. Recency
+    (`last_confirmed_at`) is the first ranking term now; confidence only breaks ties.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            chain = await _seed_question_chain(session)
+            memory = MemoryRepository(session)
+            now = datetime.now(UTC)
+            week_ago = now - timedelta(days=7)
+
+            await memory.add_fact(
+                SemanticMemory(
+                    student_external_id="student-ext-1",
+                    fact_type="strength",
+                    skill_id=chain.skill_id,
+                    fact_text="Solved one-step equations independently (older)",
+                    structured_value={"polarity": "positive"},
+                    confidence=0.9,
+                    status="active",
+                    evidence_event_ids=["evt-1", "evt-2", "evt-3"],
+                    first_observed_at=week_ago - timedelta(days=14),
+                    last_confirmed_at=week_ago,
+                )
+            )
+            await memory.add_fact(
+                SemanticMemory(
+                    student_external_id="student-ext-1",
+                    fact_type="weak_skill",
+                    skill_id=chain.skill_id,
+                    fact_text="Recent attempts went unresolved (newer)",
+                    structured_value={"polarity": "negative"},
+                    confidence=0.6,
+                    status="active",
+                    evidence_event_ids=["evt-4", "evt-5", "evt-6"],
+                    first_observed_at=now,
+                    last_confirmed_at=now,
+                )
+            )
+
+            top = await memory.top_fact_for_skill("student-ext-1", chain.skill_id)
+            assert top is not None
+            assert top.fact_type == "weak_skill"
+
+            # Confidence still decides between facts confirmed at the same moment.
+            await memory.add_fact(
+                SemanticMemory(
+                    student_external_id="student-ext-1",
+                    fact_type="hint_dependence",
+                    skill_id=chain.skill_id,
+                    fact_text="Same-moment, higher-confidence fact",
+                    confidence=0.8,
+                    status="active",
+                    evidence_event_ids=["evt-7", "evt-8", "evt-9"],
+                    first_observed_at=now,
+                    last_confirmed_at=now,
+                )
+            )
+            tied = await memory.top_fact_for_skill("student-ext-1", chain.skill_id)
+            assert tied is not None
+            assert tied.fact_type == "hint_dependence"
+
+    asyncio.run(run())
+
+
+def test_add_fact_stamps_its_timestamps_from_the_clock_reconfirm_fact_uses() -> None:
+    """`first_observed_at`/`last_confirmed_at` used to rely on the column's server default,
+    `now()`, which Postgres freezes at TRANSACTION start - while `reconfirm_fact` stamps
+    Python's wall clock. Inside one transaction a fact added AFTER a reconfirmation therefore
+    sorted as OLDER than it, so a recency-first read path would still serve the stale fact
+    for any caller that runs several windows in one transaction (the E4 harness does; the
+    weekly CLI commits once per run). `add_fact` now stamps both timestamps from the same
+    clock when the caller left them unset.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            chain = await _seed_question_chain(session)
+            memory = MemoryRepository(session)
+
+            older = await memory.add_fact(
+                SemanticMemory(
+                    student_external_id="student-ext-1",
+                    fact_type="strength",
+                    skill_id=chain.skill_id,
+                    fact_text="Established strength",
+                    structured_value={"polarity": "positive"},
+                    confidence=0.6,
+                    status="active",
+                    evidence_event_ids=["evt-1", "evt-2", "evt-3"],
+                )
+            )
+            assert older.first_observed_at is not None
+            assert older.last_confirmed_at is not None
+
+            await memory.reconfirm_fact(
+                older.semantic_memory_id,
+                fact_text="Established strength, reconfirmed",
+                confidence=0.7,
+                evidence_event_ids=["evt-4"],
+            )
+            newer = await memory.add_fact(
+                SemanticMemory(
+                    student_external_id="student-ext-1",
+                    fact_type="weak_skill",
+                    skill_id=chain.skill_id,
+                    fact_text="Later regression",
+                    structured_value={"polarity": "negative"},
+                    confidence=0.6,
+                    status="active",
+                    evidence_event_ids=["evt-5", "evt-6", "evt-7"],
+                )
+            )
+            assert newer.last_confirmed_at >= older.last_confirmed_at
+
+            top = await memory.top_fact_for_skill("student-ext-1", chain.skill_id)
+            assert top is not None
+            assert top.semantic_memory_id == newer.semantic_memory_id
 
     asyncio.run(run())
 
