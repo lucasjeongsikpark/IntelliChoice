@@ -31688,3 +31688,39 @@ caught D-457 on a docs-only PR, exactly as designed). Verified locally:
 `No known vulnerabilities found, 1 ignored`. **Removal condition:** the flag goes the moment a
 nltk release above 3.10.3 lands — dependabot's weekly PR is the trigger; carried in
 `PROJECT_STATE` §8 as a dated risk so it is not forgotten behind a green check.
+
+## D-475 — D-472/D-473/D-474 landed and deployed: `gha-61fc8a528418` on staging, all gates green; the deploy also cleared the latent 2026-09-24 rotation break (accepted, 2026-09-25)
+
+**Landing.** Protected `main` refused `gh pr merge --merge` ("Merge commits are not allowed")
+despite the repository setting allowing them — linear history is enforced at the branch. PR #473
+was rebase-merged, which **rewrote the SHAs the docs had already cited**: `fea58e2` → `675e00c`
+(CLAUDE.md), `c90fce7` → `5d55a99` (D-472), `47dd292` → `7d46630` (D-473), `c5c3073` →
+`d80f197`, plus `93532fc` → `61fc8a5` (D-474). `PROJECT_STATE` was rewritten to the landed
+SHAs; the 2026-09-24 log entry keeps the pre-rebase ones (append-only, DQ-1) and this entry is
+the mapping. **Standing rule from this:** cite a SHA in canonical docs only after it lands.
+
+**The pre-deploy read (2026-09-25, build `gha-523b9f036a53`).** Both services steady
+(learning 2/2 `:155`, chat 1/1 `:153`), `GET /me` → 401 JSON through CloudFront, **but both RDS
+secrets had rotated 2026-09-24 (19:17 / 22:17 CDT) and all three API tasks predated it**
+(started 09-22 / 09-23) — the D-455 condition, latent: 0 `InvalidPasswordError` in 48 h only
+because nothing had grown a pool. The user chose push + deploy over a bare forced redeploy, so
+one action shipped the fixes and refreshed the credentials.
+
+**The deploy.** `gh workflow run deploy-staging.yml --ref main` at `61fc8a5`, run
+**36190231233**, 21:12 → 21:31 UTC. Every step green: images built (ECR cache miss, as
+expected for a new SHA), ops-task `:148` patched, Alembic no-op (no migration in the window),
+curriculum/bank load, MySQL fixture re-seed, provenance-aware re-embed, suggestions upsert,
+learning-api `:156`, chat-api `:154`, deployed-version gate, `/dev/token` edge gate, the
+180 s canary bake with no alarm breach (**rollback skipped**), deployed-image consistency gate,
+both SPAs built + synced + invalidated, CloudFront smoke.
+
+**The post-deploy read (build `gha-61fc8a528418`).** learning 2/2 on `:156` (tasks started
+16:22:51 and 16:23:24 CDT), chat 1/1 on `:154` (16:26:25 CDT), ops-task `:148` — every task
+younger than the rotation. `GET /me` → 401 JSON; both SPA roots 200. `InvalidPasswordError`,
+`Traceback`, `TooManyConnections`: **0 / 0 / 0 in all three log groups** since dispatch.
+
+**What is and is not verified.** Verified: the images run, the gates passed, the credentials
+are fresh, D-473's pool shape is the deployed configuration. **Not verified:** D-473's
+behaviour under the burst that found the defect (a 50-VU run that scales to three tasks) —
+paid work under UD-2's e2e-lane rider; the budget is proven by arithmetic and test, not by
+load. The next rotation is **2026-10-02**; UD-14 remains the open decision.
