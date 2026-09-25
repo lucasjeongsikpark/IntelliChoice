@@ -31789,3 +31789,56 @@ effect on consolidation spend is unmeasured (no paid run authorised). The
 `MEMORY-CONSOLIDATION-DEFECTS` row's remaining items are user-gated: the ceiling bound
 (**UD-15**) and the unmeasured real-model polarity quality on non-ability types (UD-2 spend) —
 no engineering-startable item remains, so the row leaves the execution queue.
+
+## D-477 — the SSE-harness CI flake recurred (n=2) and D-451's signature was wrong: it is a non-200 `POST /exam/finalize` body with the server's logs lost, not a mis-read frame (recorded, 2026-09-25)
+
+PR #475 (D-476) failed `lint-typecheck-test` once on
+`apps/learning-api/tests/test_stream_personalized_hint_over_http.py::test_a_personalized_hint_arrives_on_the_http_stream_a_student_is_holding_open`
+with `KeyError: 'phase'`; the file is untouched by the PR, the suite passed in two local runs
+of the same tree, and `gh run rerun --failed` was green — D-451's n=1 exactly, now **n=2**.
+
+**The corrected signature.** D-451 read the failure as "the D-433 real-uvicorn SSE harness
+reading a frame that was not the finalize snapshot" and pointed the fix at the D-288-§4 class
+(wait for the right frame). That is wrong: at the failing line `finalize` is
+`client.post(".../exam/finalize", ...).json()` — an **HTTP response body**, not a frame. The
+endpoint returned a body without `phase`, i.e. one of its three non-200 shapes: 409 "select a
+student first", 422 `{"unanswered_item_ids": [...]}`, or 503 (StudyPlanBuildError). All three
+follow from a setup POST (`/student`, `/answers` × n) that the test fires without checking its
+status. **And the server-side cause is unrecoverable from CI:** the harness starts uvicorn on a
+thread with `log_level="warning"` logging into pytest's capture stream, which is closed by the
+time the failure is reported — the CI log is a wall of `ValueError: I/O operation on closed
+file` and nothing else. No frame-waiting fix can touch this.
+
+**Disposition.** Rerun accepted as the merge path (twice now); not a reason to delete or skip
+the only end-to-end SSE delivery proof in the suite. Queued as `SSE-HARNESS-FINALIZE-FLAKE`
+(`PROJECT_STATE` §4.1, queue last): make the harness diagnosable before chasing the cause —
+assert `status_code == 200` on every setup POST with the body in the failure message, and give
+the uvicorn thread a log sink that survives capture (a `logging` handler writing to a list or
+to `sys.__stderr__`). Only then does a third occurrence tell us *which* of the three bodies it
+is. D-451 keeps its text; this entry is the backward-pointing correction (H1 convention).
+
+## D-478 — D-476 landed (PR #475, `63f9d59`) and deployed: `gha-63f9d59f0ddc` on staging, all gates green (accepted, 2026-09-25)
+
+**Landing.** `land/d476-cache-billing` → PR #475; eight of nine checks green on the first run,
+`lint-typecheck-test` red on the D-451/D-477 flake (one test, `KeyError: 'phase'`; 2252 passed
+beside it); `gh run rerun --failed` green; rebase-merged as **`63f9d59`** (the docs in that
+commit already cite no pre-rebase SHA — the D-475 lesson applied).
+
+**Deploy.** `gh workflow run deploy-staging.yml --ref main` at `63f9d59`, run
+**36198370659**, 22:47 → 23:07 UTC. Every step green: images built, ops-task `:149`, Alembic
+no-op, curriculum/bank load, MySQL fixture re-seed, provenance-aware re-embed, suggestions
+upsert, learning-api `:157`, chat-api `:155`, deployed-version gate, `/dev/token` edge gate,
+180 s canary bake with no alarm breach (**rollback skipped**), deployed-image consistency
+gate, both SPAs built + synced + invalidated, CloudFront smoke.
+
+**Post-deploy read (build `gha-63f9d59f0ddc`).** learning 2/2 on `:157` (tasks started
+17:58:04 / 17:58:39 CDT), chat 1/1 on `:155` (18:01:22 CDT), ops-task `:149`; `GET /me` → 401
+JSON through CloudFront; both SPA roots 200; `InvalidPasswordError` / `Traceback` /
+`TooManyConnections` **0 / 0 / 0** in all three log groups since dispatch. Credentials are
+fresh until the 2026-10-02 rotation (UD-14 still open).
+
+**What is now live and what is not verified.** Live: D-476's pricing and cache-point rule, so
+the next consolidation run's `cost_cents` and the per-day ceilings see honest cold-call costs
+and the consolidation payload is no longer cache-written. Not verified live: the spend effect
+on a real consolidation run (no paid run authorised) and D-473's pool under a 3-task burst
+(unchanged from D-475).
