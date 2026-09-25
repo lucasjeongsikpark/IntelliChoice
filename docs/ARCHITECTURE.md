@@ -2043,6 +2043,26 @@ promotion path, so screening only new candidates would leave the one route to a 
 open. `WEAK_SKILL_THRESHOLD` lives in `intellichoice_shared.mastery_policy` so this floor
 and learning-api's own weak-skill classification cannot drift apart.
 
+**Polarity and the read path (D-472, 2026-09-23 — closes D-460's findings #2 and #3).** The
+contradiction protocol keys on `polarity`, and E4 (D-460) measured the real model leaving it at
+the schema default on 98/120 `weak_skill` facts — neither the prompt nor the schema had ever
+named the field. Two changes: for the two *ability* types the direction is now **code-derived**
+from the fact type (`_effective_polarity` reads the same `_ABILITY_FACT_TYPES` table the mastery
+floor uses — `strength` is positive, `weak_skill` is negative — and the model's value is ignored),
+and for the other ten types, where the model still chooses, the system prompt and the field's
+schema description now say what polarity means. A corollary: a `weak_skill` candidate can no
+longer "contradict" a `weak_skill` fact, so the demote/supersede edges below are reachable only
+through the model-polarity types (the E4 scripted lane exercises them via `improvement`); a
+regression after an established `strength` is a *second live fact* on the skill, and the **read
+path decides which one a tutor turn hears**: `MemoryRepository.top_fact_for_skill` orders by
+`last_confirmed_at` first and confidence second (it was confidence alone, which is monotone in
+reconfirmation — E4's `polarity_flip` served the stale strength to 985/985 students). `add_fact`
+stamps both timestamps from Python's clock rather than the `now()` server default, because
+Postgres freezes `now()` at transaction start while `reconfirm_fact` uses the wall clock — inside
+one transaction a later-added fact sorted as older. Cross-type demotion (a `weak_skill` demoting
+an active `strength`) was offered and **not** chosen (user, 2026-09-23); recency-first is the
+whole of the served-fact rule.
+
 ```mermaid
 flowchart LR
     EVENTS["learning_events rows<br/>(session-scoped or<br/>window-scoped)"] --> RENDER["render_event_summary<br/>(code-owned, deterministic;<br/>chat_turn also joins in<br/>tutor_chat_messages' redacted<br/>text, D-074 #5)"]

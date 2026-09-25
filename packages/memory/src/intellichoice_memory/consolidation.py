@@ -31,6 +31,7 @@ from intellichoice_shared.bedrock import (
     MemoryConsolidationPayload,
     MemoryEventSummary,
     MemoryExistingFact,
+    MemoryFactCandidate,
     MemoryUpdateResponse,
 )
 from intellichoice_shared.mastery_policy import WEAK_SKILL_THRESHOLD
@@ -74,7 +75,10 @@ _SYSTEM_PROMPT = (
     "to their long-term memory. Only propose a fact when the events genuinely support "
     "it - do not speculate. Never infer personality, medical, or psychological traits. "
     "Only cite event_id values that appear in the events you were given. Use only the "
-    "allowed fact types."
+    "allowed fact types. Set polarity on every fact: 'negative' when the fact describes a "
+    "difficulty, gap, weakness, misconception, or dependence; 'positive' when it describes "
+    "a strength, an improvement, or something that works for the student. Polarity is how "
+    "the system detects when a new fact contradicts an existing one for the same skill."
 )
 
 
@@ -279,6 +283,24 @@ def _batch_summaries(
 # Screening those on mastery would silence the fact types that carry the most teaching
 # value for exactly the struggling student this floor exists to protect.
 _ABILITY_FACT_TYPES = {"strength": "positive", "weak_skill": "negative"}
+
+
+def _effective_polarity(candidate: MemoryFactCandidate) -> str:
+    """The polarity the contradiction protocol keys on - code-derived for the two ability
+    types, the model's own value for every other fact type.
+
+    D-460 #2 (`MEMORY-POLARITY-DEFAULT`): the real model left `polarity` at its schema
+    default on 98 of 120 `weak_skill` facts, so a weakness was stored as "positive" and
+    could never be recognised as contradicting anything - `contested` fired 2 times in 20
+    students where the scripted lane reaches it 40/40. For `strength` and `weak_skill` the
+    direction is a property of the fact type, not a judgement, and `_ABILITY_FACT_TYPES`
+    already states it for the mastery floor; reading it from there keeps the contradiction
+    key in the deterministic core (CLAUDE.md rule 2) instead of trusting a field the model
+    was never told about. Other types keep the model's value, which the prompt and the
+    schema description now explain.
+    """
+    derived = _ABILITY_FACT_TYPES.get(candidate.fact_type)
+    return derived if derived is not None else candidate.polarity
 
 
 def _contradicts_measured_mastery(
@@ -608,6 +630,7 @@ async def _consolidate_one_batch(
         if not verified_ids:
             continue
 
+        polarity = _effective_polarity(candidate)
         status = "active" if _meets_stability_bar(verified_ids, events_by_id) else "provisional"
         existing_live = await memory_repo.find_live_fact(
             student_external_id, candidate.fact_type, candidate.skill_id
@@ -621,7 +644,7 @@ async def _consolidate_one_batch(
                     topic_id=candidate.topic_id,
                     skill_id=candidate.skill_id,
                     fact_text=candidate.fact_text,
-                    structured_value={**candidate.structured_value, "polarity": candidate.polarity},
+                    structured_value={**candidate.structured_value, "polarity": polarity},
                     confidence=candidate.confidence,
                     evidence_event_ids=verified_ids,
                     status=status,
@@ -630,7 +653,7 @@ async def _consolidate_one_batch(
             added += 1
             continue
 
-        if existing_live.structured_value.get("polarity", "positive") == candidate.polarity:
+        if existing_live.structured_value.get("polarity", "positive") == polarity:
             # Same-direction duplicate proposal - treat as reconfirmation, not a new
             # row. Reconfirming a `contested` fact returns it to `active` (D-074).
             await memory_repo.reconfirm_fact(
@@ -660,7 +683,7 @@ async def _consolidate_one_batch(
                 topic_id=candidate.topic_id,
                 skill_id=candidate.skill_id,
                 fact_text=candidate.fact_text,
-                structured_value={**candidate.structured_value, "polarity": candidate.polarity},
+                structured_value={**candidate.structured_value, "polarity": polarity},
                 confidence=candidate.confidence,
                 evidence_event_ids=verified_ids,
                 status=status,

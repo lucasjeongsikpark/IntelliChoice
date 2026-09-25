@@ -31073,11 +31073,12 @@ distinct path to the same outcome and would not show as a failure).
    `if truncated:` guard from ever seeing it.
 2. **`MEMORY-POLARITY-DEFAULT`.** The model leaves `polarity` at its schema default on 98/120
    `weak_skill` facts, so the polarity-keyed contradiction protocol almost never fires — neither
-   the prompt nor the schema says what the field is for.
+   the prompt nor the schema says what the field is for. *(→ **fixed 2026-09-23, D-472**: ability
+   polarity is code-derived from the fact type; prompt + schema now explain the field.)*
 3. **`MEMORY-STALE-FACT-SERVED`.** After a sustained regression the correctly-evidenced negative
    fact is written and promoted, but `top_fact_for_skill` still serves the older positive one in
    985/985 students — ranking is by confidence, which grows with reconfirmation; recency is not
-   a term.
+   a term. *(→ **fixed 2026-09-23, D-472**: `last_confirmed_at` is the first ranking term.)*
 4. **`MEMORY-CACHE-WRITE-UNBILLED`.** `cost_cents` omits cache-write tokens (~2.8× under-report
    on this workload); and because every consolidation payload is unique, the prompt cache is
    written every call and read never — a ~25% input surcharge on a cache that structurally
@@ -31542,3 +31543,63 @@ never blurred), `FINAL_RESUME_BULLETS.md` (Version A agentic/platform, Version B
 each bullet with evidence/environment/caveat notes), and `RESUME_INTERVIEW_DEFENSE.md`
 (per-bullet 30s/60s defenses + the likely-questions answers, repository-evidence-only).
 **Resume evidence program closed — no further benchmarking recommended.**
+
+## D-472 — R6 accepted: ability-fact polarity is code-derived and the memory read path is recency-first; E4's `polarity_flip` served-correct 0/985 → 985/985 at $0 (accepted, 2026-09-23)
+
+First task after the resume-evidence program closed — `PROJECT_STATE` §4.4's row 1 was the
+completed program (D-466/D-471), failed eligibility gate (a) at dispatch, and was reconciled
+before this row was taken (queue re-derived from the five §4.1 remediation rows by D-466's
+severity ranking; `MEMORY-CONSOLIDATION-DEFECTS` first as the one high-severity leftover). Scope:
+D-460 findings **#2 `MEMORY-POLARITY-DEFAULT`** and **#3 `MEMORY-STALE-FACT-SERVED`**. Evidence:
+`docs/resume_evidence/04_memory/post_remediation/R6_POSTFIX_REPORT.md`.
+
+**The judgement, and the user's decision inside it.** Offered two shapes for #3 — recency-first
+ranking alone, or recency plus cross-type demotion (a `weak_skill` candidate demoting an active
+`strength` on the same skill). **The user chose recency-first** (2026-09-23). So the served-fact
+rule is: the most recently confirmed `active`, non-expired fact for the skill wins; confidence
+breaks ties within a window. Cross-type demotion is *not* adopted and the protocol's
+demote/supersede edges remain reachable only through the ten model-polarity fact types.
+
+**#2 — why derive rather than instruct.** `_ABILITY_FACT_TYPES` already told the mastery floor
+that `strength` is positive and `weak_skill` is negative; the contradiction key was the only
+place still trusting the model for the same fact. Reading it from the table keeps the key in
+the deterministic core (CLAUDE.md rule 2) and makes the E4 failure mode (98/120 weaknesses
+stored as positive) impossible for the two types that matter most, regardless of prompt
+adherence. The prompt and the field's schema description now define polarity for the other ten
+types, where the model still chooses — that half is a $0 change whose real-model effect is
+unmeasured (would need E4 arm A's ~36¢ re-run; not authorised here).
+
+**The third defect, found while reproducing #3.** `add_fact` relied on the `now()` server default
+for `first_observed_at`/`last_confirmed_at`; Postgres freezes `now()` at transaction start while
+`reconfirm_fact` stamps Python's clock, so a fact added after a reconfirmation in the same
+transaction sorted as *older* (failing test: `13.104988 < 13.128904`). Recency ranking alone
+would have left the E4 harness — and any caller batching windows in one transaction — still
+serving the stale fact. `add_fact` now stamps both timestamps from the same clock when unset.
+
+**Reproduce-first honoured.** Five new tests shown failing on unfixed code, then passing; one
+pre-existing test (`test_contradiction_demotes_then_supersedes_on_second_contradiction`) scripted
+its contradiction as a `weak_skill` flipping positive — the very shape the fix normalises — and
+was re-pointed at `hint_dependence`, asserting the same demote → supersede path.
+
+**Re-measured on E4's own instruments, $0** (isolated `bench` database, created and dropped):
+
+| metric | E4 mock (D-460, `a6c80fa`) | R6 (`398cd6f` + tree) |
+|---|---|---|
+| `polarity_flip` served_correct | **0/985** | **985/985** |
+| `polarity_flip` status_correct | 985/985 | 985/985 |
+| the other five scenarios, served_correct | 985/985 each | 985/985 each |
+| calls total / failed | 3,135 / 0 | 3,135 / 0 |
+| scripted transition lane | 400/400 | 400/400 |
+
+Token/compression columns moved ~1.8% between the two SHAs on an identical corpus — attributed
+to D-467 (which lies between them), *inferred not bisected*. New evidence for the open
+`MEMORY-CEILING-STILL-SATURATED`: with D-467's honest `MAX_SAFE_EXISTING_FACTS = 11`, **1,659
+mock windows** carry an oversized existing-fact payload (was 0 under the fictitious 21).
+
+**Verification:** lint/typecheck clean; focused files 71 passed; full suite **2231 passed / 2 skipped / 1 xfailed** — baseline 2226 + the 5 new tests, no flake
+(baseline 2226 / 2 / 1). Historical E4 artifacts byte-untouched. ARCHITECTURE §8 updated;
+D-460 #2/#3 carry backward pointers here (H1 convention).
+
+**Still open on the row:** #4 `MEMORY-CACHE-WRITE-UNBILLED`; the ceiling bound (design decision,
+D-467/D-471); real-model polarity quality on non-ability types (unmeasured). **Implemented
+locally, not deployed** (LB-05) — ships with the next manual deploy (D-417).

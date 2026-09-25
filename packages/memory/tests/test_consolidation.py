@@ -11,7 +11,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
@@ -25,9 +25,11 @@ from intellichoice_db.repositories.mastery import MasteryRepository
 from intellichoice_db.repositories.memory import MemoryRepository
 from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_memory.consolidation import (
+    _ABILITY_FACT_TYPES,
     _MAX_CALLS_PER_STUDENT,
     _MAX_EVENT_CHARS_PER_CALL,
     _MAX_EVENT_TOKENS_PER_CALL,
+    _SYSTEM_PROMPT,
     _batch_summaries,
     _summary_chars,
     consolidate_student_session,
@@ -147,16 +149,16 @@ async def _add_event(
     payload: dict | None = None,
     occurred_at: datetime | None = None,
 ) -> LearningEvent:
-    return await memory_repo.record_event(
-        LearningEvent(
-            student_external_id=STUDENT_ID,
-            session_id=session_id,
-            event_type=event_type,
-            skill_id=skill_id,
-            structured_payload=payload
-            or {"outcome_label": "unresolved", "target_skill_id": skill_id},
-        )
+    event = LearningEvent(
+        student_external_id=STUDENT_ID,
+        session_id=session_id,
+        event_type=event_type,
+        skill_id=skill_id,
+        structured_payload=payload or {"outcome_label": "unresolved", "target_skill_id": skill_id},
     )
+    if occurred_at is not None:
+        event.occurred_at = occurred_at
+    return await memory_repo.record_event(event)
 
 
 def _weak_skill_candidate(skill_id: str, event_ids: list[str]) -> MemoryFactCandidate:
@@ -642,6 +644,13 @@ def test_the_floor_treats_the_threshold_itself_as_proficient() -> None:
 def test_contradiction_demotes_then_supersedes_on_second_contradiction() -> None:
     """Plan §9: an opposite-polarity conflict demotes the existing fact to `contested`
     rather than overwriting it; only a *second* consecutive contradiction supersedes.
+
+    Scripted on `hint_dependence`, a fact type whose polarity the model chooses. It used
+    to script a `weak_skill` fact flipping to "positive", which D-460 #2's fix now
+    normalises away: for the two ability types polarity is derived from the fact type, so
+    a `weak_skill` candidate can never contradict a `weak_skill` fact - a regression after
+    a strength is a *new* `weak_skill` fact, and the read path's recency ordering decides
+    what is served (`test_a_later_regression_is_served_over_an_older_strength`).
     """
 
     async def run() -> None:
@@ -657,8 +666,26 @@ def test_contradiction_demotes_then_supersedes_on_second_contradiction() -> None
             window_start = events[0].occurred_at - timedelta(minutes=1)
             window_end = events[-1].occurred_at + timedelta(minutes=1)
 
-            # Round 1: establishes an active weak_skill (negative) fact.
-            gateway = _FakeGateway([_weak_skill_response(seed.skill_id, event_ids)])
+            def hint_dependence(polarity: str, text: str) -> MemoryFactCandidate:
+                return MemoryFactCandidate(
+                    fact_type="hint_dependence",
+                    skill_id=seed.skill_id,
+                    fact_text=text,
+                    polarity=polarity,  # type: ignore[arg-type]
+                    confidence=0.6,
+                    supporting_event_ids=event_ids,
+                )
+
+            # Round 1: establishes an active hint_dependence (negative) fact.
+            gateway = _FakeGateway(
+                [
+                    MemoryUpdateResponse(
+                        facts_to_add=[
+                            hint_dependence("negative", "Relies on the full hint ladder.")
+                        ]
+                    )
+                ]
+            )
             await consolidate_student_window(
                 memory_repo=memory_repo,
                 mastery_repo=MasteryRepository(session),
@@ -673,13 +700,8 @@ def test_contradiction_demotes_then_supersedes_on_second_contradiction() -> None
             assert original.status == "active"
             assert original.contradicts_event_count == 0
 
-            strength_candidate = MemoryFactCandidate(
-                fact_type="weak_skill",
-                skill_id=seed.skill_id,
-                fact_text="Now solves this skill independently.",
-                polarity="positive",
-                confidence=0.6,
-                supporting_event_ids=event_ids,
+            strength_candidate = hint_dependence(
+                "positive", "Now works through this skill without hints."
             )
 
             # Round 2: opposite-polarity candidate -> demote to contested.
@@ -718,6 +740,178 @@ def test_contradiction_demotes_then_supersedes_on_second_contradiction() -> None
             assert twice_refreshed is not None
             assert twice_refreshed.status == "superseded"
             assert twice_refreshed.superseded_by_id is not None
+
+    asyncio.run(run())
+
+
+def test_ability_fact_polarity_is_derived_from_the_fact_type_not_the_model() -> None:
+    """E4 §4.3 / D-460 finding #2 (`MEMORY-POLARITY-DEFAULT`): the real model left
+    `polarity` at its schema default on 98/120 `weak_skill` facts, so the contradiction
+    protocol - which keys on polarity - almost never fired. For the two ability types the
+    direction is not the model's to choose: `strength` IS positive and `weak_skill` IS
+    negative (`_ABILITY_FACT_TYPES`, the same table the mastery floor already reads), so
+    code sets it and the model's value is ignored. Deterministic core (CLAUDE.md rule 2).
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            tutor_chat_repo = TutorChatMessageRepository(session)
+            events = [
+                await _add_event(memory_repo, skill_id=seed.skill_id, session_id=f"s{i % 2}")
+                for i in range(3)
+            ]
+            event_ids = [e.event_id for e in events]
+            window_start = events[0].occurred_at - timedelta(minutes=1)
+            window_end = events[-1].occurred_at + timedelta(minutes=1)
+
+            def defaulted_weak_skill() -> MemoryFactCandidate:
+                # What the real model actually emits ~82% of the time: a weakness in the
+                # text, `polarity` untouched at the "positive" default.
+                return MemoryFactCandidate(
+                    fact_type="weak_skill",
+                    skill_id=seed.skill_id,
+                    fact_text="May need extra support with this skill.",
+                    confidence=0.6,
+                    supporting_event_ids=event_ids,
+                )
+
+            assert defaulted_weak_skill().polarity == "positive"
+
+            gateway = _FakeGateway([MemoryUpdateResponse(facts_to_add=[defaulted_weak_skill()])])
+            await consolidate_student_window(
+                memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
+                tutor_chat_repo=tutor_chat_repo,
+                gateway=gateway,
+                student_external_id=STUDENT_ID,
+                window_start=window_start,
+                window_end=window_end,
+                session_spend_cents=0.0,
+            )
+            fact = await _sole_active_fact(memory_repo)
+            assert fact.fact_type == "weak_skill"
+            assert fact.structured_value["polarity"] == "negative"
+
+            # A second defaulted weak_skill candidate is the SAME direction, so it must
+            # reconfirm - not read as an opposite-polarity contradiction of itself.
+            gateway = _FakeGateway([MemoryUpdateResponse(facts_to_add=[defaulted_weak_skill()])])
+            result = await consolidate_student_window(
+                memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
+                tutor_chat_repo=tutor_chat_repo,
+                gateway=gateway,
+                student_external_id=STUDENT_ID,
+                window_start=window_start,
+                window_end=window_end,
+                session_spend_cents=0.0,
+            )
+            assert result.updated == 1
+            assert result.contested == 0
+            refreshed = await memory_repo.get_fact(fact.semantic_memory_id)
+            assert refreshed is not None
+            assert refreshed.status == "active"
+            assert refreshed.structured_value["polarity"] == "negative"
+
+    asyncio.run(run())
+
+
+def test_polarity_is_explained_to_the_model_in_prompt_and_schema() -> None:
+    """The other half of finding #2: neither the system prompt nor the schema told the model
+    what `polarity` was for. Ability types are now code-derived (above); for every other
+    fact type the model still chooses, so both the prompt and the field description must
+    say what the field means. Descriptions travel to the model - the gateway sends
+    `model_json_schema()` as the tool's `inputSchema`.
+    """
+    assert "polarity" in _SYSTEM_PROMPT
+    description = MemoryFactCandidate.model_json_schema()["properties"]["polarity"].get(
+        "description", ""
+    )
+    assert "negative" in description
+    assert set(_ABILITY_FACT_TYPES) == {"strength", "weak_skill"}
+
+
+def test_a_later_regression_is_served_over_an_older_strength() -> None:
+    """E4 §3.4 end to end through the write path (`polarity_flip`, 985/985 served the stale
+    fact): an active `strength` established first, then an evidenced `weak_skill` on the
+    same skill a window later. The tutor read path must hand back the regression - the
+    most recently confirmed fact - not the older, higher-confidence strength.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            tutor_chat_repo = TutorChatMessageRepository(session)
+            base = datetime.now(UTC) - timedelta(days=14)
+            success_events = [
+                await _add_event(
+                    memory_repo,
+                    skill_id=seed.skill_id,
+                    session_id=f"early-s{i % 2}",
+                    payload={"outcome_label": "correct", "target_skill_id": seed.skill_id},
+                    occurred_at=base + timedelta(hours=i),
+                )
+                for i in range(3)
+            ]
+            strength = MemoryFactCandidate(
+                fact_type="strength",
+                skill_id=seed.skill_id,
+                fact_text="Solves this skill independently.",
+                polarity="positive",
+                confidence=0.7,
+                supporting_event_ids=[e.event_id for e in success_events],
+            )
+            gateway = _FakeGateway([MemoryUpdateResponse(facts_to_add=[strength])])
+            await consolidate_student_window(
+                memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
+                tutor_chat_repo=tutor_chat_repo,
+                gateway=gateway,
+                student_external_id=STUDENT_ID,
+                window_start=success_events[0].occurred_at - timedelta(minutes=1),
+                window_end=success_events[-1].occurred_at + timedelta(minutes=1),
+                session_spend_cents=0.0,
+            )
+            served_before = await memory_repo.top_fact_for_skill(STUDENT_ID, seed.skill_id)
+            assert served_before is not None and served_before.fact_type == "strength"
+
+            regression_events = [
+                await _add_event(
+                    memory_repo,
+                    skill_id=seed.skill_id,
+                    session_id=f"late-s{i % 2}",
+                    occurred_at=base + timedelta(days=7, hours=i),
+                )
+                for i in range(4)
+            ]
+            weak = MemoryFactCandidate(
+                fact_type="weak_skill",
+                skill_id=seed.skill_id,
+                fact_text="Recent attempts on this skill went unresolved.",
+                polarity="negative",
+                confidence=0.6,
+                supporting_event_ids=[e.event_id for e in regression_events],
+            )
+            gateway = _FakeGateway([MemoryUpdateResponse(facts_to_add=[weak])])
+            result = await consolidate_student_window(
+                memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
+                tutor_chat_repo=tutor_chat_repo,
+                gateway=gateway,
+                student_external_id=STUDENT_ID,
+                window_start=regression_events[0].occurred_at - timedelta(minutes=1),
+                window_end=regression_events[-1].occurred_at + timedelta(minutes=1),
+                session_spend_cents=0.0,
+            )
+            assert result.added == 1
+
+            active = await memory_repo.list_facts_for_student(STUDENT_ID, statuses=("active",))
+            assert {f.fact_type for f in active} == {"strength", "weak_skill"}
+            served_after = await memory_repo.top_fact_for_skill(STUDENT_ID, seed.skill_id)
+            assert served_after is not None
+            assert served_after.fact_type == "weak_skill"
 
     asyncio.run(run())
 

@@ -1034,7 +1034,17 @@ class MemoryFactCandidate(BaseModel):
     topic_id: str | None = None
     fact_text: str
     structured_value: dict = {}
-    polarity: Literal["positive", "negative"] = "positive"
+    # D-460 #2: the description travels to the model as part of the tool's inputSchema -
+    # without it the model left the field at its default on 82% of weakness facts. For
+    # `strength`/`weak_skill` the consolidation code overrides whatever the model sends.
+    polarity: Literal["positive", "negative"] = Field(
+        default="positive",
+        description=(
+            "Direction of the fact for contradiction detection. 'negative' for a difficulty, "
+            "gap, weakness, misconception, or dependence; 'positive' for a strength, an "
+            "improvement, or something that works for the student. Always set it."
+        ),
+    )
     confidence: float
     supporting_event_ids: list[str]
 
