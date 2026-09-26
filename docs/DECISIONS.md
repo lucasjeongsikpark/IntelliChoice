@@ -31905,3 +31905,41 @@ ASGI task always starts in a fresh `Context()`), but only a post-deploy E6.2 re-
 (read-only AWS, the harness's §12 commands on a new window) shows the 0.14% going to 0; that
 is coordinator-owned follow-up after the deploy. `CHECKPOINTER-UNINSTRUMENTED` (low) remains
 the row's last item.
+
+## D-480 — D-479 landed (PR #477, `c2ab834`) and deployed as `gha-c2ab834a990e`; the collision rate re-measured live at **0 / 10,012** (accepted, 2026-09-26)
+
+**Landing and deploy.** `land/d479-reset-contextvars` → PR #477, nine of nine checks green
+first time, rebase-merged as **`c2ab834`**. `gh workflow run deploy-staging.yml --ref main`,
+run **36217159769**, 04:13 → 04:32 UTC 2026-09-26, every step green, canary bake without an
+alarm breach, rollback skipped. Post-deploy read: learning 2/2 on `:158` (tasks 23:22:29 /
+23:22:45 CDT), chat 1/1 on `:156` (23:25:57 CDT), ops-task `:150`, all on
+`gha-c2ab834a990e`; the task definitions carry **no command override**, so the image `CMD`
+with `--reset-contextvars` is what runs; `GET /me` → 401 JSON through CloudFront; both SPA
+roots 200; `InvalidPasswordError` / `Traceback` / `TooManyConnections` 0 / 0 / 0 since dispatch.
+
+**The live re-measurement, user-authorised (2026-09-26).** Staging was idle, so a window was
+generated: 10,000 unauthenticated requests through both CloudFront domains on 16 keep-alive
+connections at 69 rps (under the 6,000/min per-IP middleware cap), four routes round-robin per
+connection so the "next route on the same connection" shape of E6.2 is present. Composition, from
+the access log: learning `POST /learning/sessions` 401 ×2,500 and an unmatched `GET` 404
+×2,500; chat `GET /me` 401 ×2,500 and `POST /chat/sessions` **200** ×2,500 — the last was not
+the 401 the plan described: SPEC §5.19.1 makes anonymous session creation first-class, and
+`create_session` returns a fresh UUID and **persists nothing**, so no rows, no Bedrock, no PII;
+cost was cents of CloudFront/X-Ray. The collision metric is E6.2's own (access lines sharing a
+`trace_id`, `trace_coverage.py`'s correlation section), computed read-only from CloudWatch Logs
+over 04:34:00–04:37:30Z:
+
+| log group | traced access lines | trace_ids shared by >1 request | rate |
+|---|---:|---:|---:|
+| learning-api | 5,008 | **0** | 0.000% |
+| chat-api | 5,004 | **0** | 0.000% |
+
+E6.2's pre-fix rate (19/13,550 = 0.14%) predicts ≈14 collisions in this window; the
+probability of observing 0 at that rate is ≈ e⁻¹⁴. The probabilistic path (paused-then-resumed
+reads) that the local repro could not exercise is therefore closed live, not only by
+construction. Caveat, stated: one window, one build, synthetic 401/404/UUID-mint traffic — the
+same traffic shape that produced E6.2's collisions (keep-alive, sub-second, mixed routes), but
+not organic load.
+
+**Row state.** `TRACE-ID-COLLISION` is closed end to end (reproduced locally, fixed, deployed,
+re-measured). `OBSERVABILITY-TRACE-GAPS` keeps `CHECKPOINTER-UNINSTRUMENTED` (low) only.
