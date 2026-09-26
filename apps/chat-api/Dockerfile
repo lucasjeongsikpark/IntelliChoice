@@ -80,4 +80,7 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
 # three hours of load, on a fire-and-forget `POST /exam/viewed`, with zero task restarts and a
 # clean application log. 125 > 120 makes the backend outlive the reuse window, so the ALB is
 # always the side that closes.
-CMD ["uvicorn", "chat_api.main:app", "--host", "0.0.0.0", "--port", "8002", "--proxy-headers", "--forwarded-allow-ips=*", "--timeout-keep-alive", "125"]
+# **`--reset-contextvars`** (D-464): see the matching comment in apps/learning-api/Dockerfile -
+# without it the next request on a keep-alive connection can inherit the previous request's
+# OTel span and join its trace (E6.2: 1/424 chat requests on staging, 19/13,550 learning).
+CMD ["uvicorn", "chat_api.main:app", "--host", "0.0.0.0", "--port", "8002", "--proxy-headers", "--forwarded-allow-ips=*", "--timeout-keep-alive", "125", "--reset-contextvars"]
