@@ -396,6 +396,15 @@ to rot, because nothing fails when it does.)*
   (`LEARNING_DB_POOL_SIZE` / `CHAT_DB_POOL_SIZE`, …), and `test_engine_pool_budget.py` re-derives
   the arithmetic from the terraform replica ceilings so a capacity bump fails locally. The
   replica ceilings (3 + 3) and the instance class are unchanged; `pool_timeout` is untuned.
+- **Every request is served in a fresh `contextvars.Context`** (`--reset-contextvars`, D-479;
+  implemented locally 2026-09-25, not yet deployed). uvicorn can start the next request on a
+  keep-alive connection from inside the previous request's asyncio task — a pipelined request, or
+  a socket reader re-registered by `resume_reading()` — so without the flag the new task inherits
+  the previous request's OTel span and the new request becomes an `INTERNAL` child of it: same
+  `trace_id`, no SERVER span of its own, and X-Ray nests one request inside another (E6.2 measured
+  0.14% on staging, D-464). uvicorn names this CPython #140947 and ships the flag, off by default;
+  `test_trace_id_isolation_across_keepalive.py` pins both the leak and the fix, and
+  `test_uvicorn_serves_with_reset_contextvars.py` keeps the flag on both `CMD`s and the dev targets.
 - **The backend's keep-alive must outlive the load balancer's idle timeout** (D-364). The ALB's
   `idle_timeout.timeout_seconds` is **120**; uvicorn's `--timeout-keep-alive` defaults to **5**,
   and neither Dockerfile set it — so the ALB could hold a pooled backend connection for two

@@ -129,11 +129,12 @@ fmt:
 typecheck:
 	uv run pyright
 
+# --reset-contextvars: serve the way the containers do (D-464, see apps/learning-api/Dockerfile).
 dev-learning:
-	uv run uvicorn learning_api.main:app --reload --port 8001
+	uv run uvicorn learning_api.main:app --reload --port 8001 --reset-contextvars
 
 dev-chat:
-	uv run uvicorn chat_api.main:app --reload --port 8002
+	uv run uvicorn chat_api.main:app --reload --port 8002 --reset-contextvars
 
 dev-learning-web:
 	cd apps/learning-web && npm install && npm run dev

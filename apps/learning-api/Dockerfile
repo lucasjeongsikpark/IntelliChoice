@@ -122,4 +122,15 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
 # three hours of load, on a fire-and-forget `POST /exam/viewed`, with zero task restarts and a
 # clean application log. 125 > 120 makes the backend outlive the reuse window, so the ALB is
 # always the side that closes.
-CMD ["uvicorn", "learning_api.main:app", "--host", "0.0.0.0", "--port", "8001", "--proxy-headers", "--forwarded-allow-ips=*", "--timeout-keep-alive", "125"]
+# **`--reset-contextvars`: every request starts in a fresh `contextvars.Context`** (D-464).
+# Without it, uvicorn can start the next request on a keep-alive connection from inside the
+# *previous* request's asyncio task (a pipelined request, or a socket reader re-registered by
+# `resume_reading()`), so the new task inherits the previous request's OTel span and the new
+# request becomes an INTERNAL child of it - same `trace_id`, and X-Ray nests one request's whole
+# span tree inside another's. Measured on staging by E6.2: 0.14% of requests (19/13,550
+# learning, 1/424 chat), e.g. `POST /dev/token` nested inside `POST .../answers`. uvicorn names
+# this CPython #140947 and ships this flag, off by default, as the workaround; reproduced and
+# pinned by packages/observability/tests/test_trace_id_isolation_across_keepalive.py. Safe here
+# because the app sets no ContextVar of its own, so "hides context set in the lifespan" (the
+# flag's documented cost) hides nothing.
+CMD ["uvicorn", "learning_api.main:app", "--host", "0.0.0.0", "--port", "8001", "--proxy-headers", "--forwarded-allow-ips=*", "--timeout-keep-alive", "125", "--reset-contextvars"]

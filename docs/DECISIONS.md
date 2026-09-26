@@ -31264,7 +31264,8 @@ task**, so X-Ray merges them (one real trace has an entire `POST /dev/token` nes
 `POST .../answers`). The nested-route counts match the per-route shortfall exactly (15 answers /
 3 dev-token / 1 topics vs −15/−3/−1), it replicates independently in the chat window (1/424), and
 all 38 colliding span_ids are present in X-Ray → measured export loss is 0. The mechanism (a
-keep-alive context leak) is a **labelled hypothesis, not verified** — it needs a local repro.
+keep-alive context leak) is a **labelled hypothesis, not verified** — it needs a local repro. *(→ **reproduced and fixed 2026-09-25, D-479**: uvicorn's per-request
+context leak, CPython #140947; `--reset-contextvars` on both containers.)*
 
 **Two things could not be measured, stated as such rather than filled in.** The **MCP hop** — 0
 MCP spans exist anywhere in retention because no traffic exercises it (no spend was incurred; 210
@@ -31842,3 +31843,65 @@ the next consolidation run's `cost_cents` and the per-day ceilings see honest co
 and the consolidation payload is no longer cache-written. Not verified live: the spend effect
 on a real consolidation run (no paid run authorised) and D-473's pool under a 3-task burst
 (unchanged from D-475).
+
+## D-479 — `TRACE-ID-COLLISION` reproduced locally and closed: uvicorn's `--reset-contextvars` on both containers; the leaked request was never a SERVER span at all (accepted, 2026-09-25)
+
+`PROJECT_STATE` §4.4 row 1 after D-476, the `TRACE-ID-COLLISION` half of
+`OBSERVABILITY-TRACE-GAPS` (D-464). Second task under the Orca coordinator/executor model
+(`run_5641f9a3e94d`, `task_df949a141f14`, `ctx_df403493e8a0`; launch receipt
+`requested == effective`, Claude Opus 5.5 high); Frozen Spec `tasks/trace-id-collision.md`,
+deleted after reconciliation.
+
+**The mechanism, from hypothesis to primary evidence.** D-464 recorded "OTel context leaking
+across two requests on one keep-alive connection" as a labelled hypothesis. The coordinator's
+read of the installed uvicorn 0.52.4 found the mechanism already named upstream:
+`_start_asgi_task` carries an opt-in branch — *"Opt-in workaround for
+https://github.com/python/cpython/issues/140947: asyncio can leak context vars between
+tasks"* — behind `Config(reset_contextvars=...)` / `--reset-contextvars`, **off by default**.
+The leak path: `contextvars` are copied into a task from whoever calls `create_task`, and
+uvicorn starts the next request on a keep-alive connection in two ways that both run **inside
+the previous request's ASGI task** with its OTel span still current — (1) a pipelined request
+popped from the queue in `on_response_complete()` (deterministic), and (2) a socket reader
+re-registered by `transport.resume_reading()` after a paused read, which captures a copy of
+the current context for every later `data_received` on that connection (probabilistic; the
+path k6 hit, hence 0.14%).
+
+**Reproduced, deterministically and in-process.** The executor's
+`packages/observability/tests/test_trace_id_isolation_across_keepalive.py` instruments a
+test-owned FastAPI app with `FastAPIInstrumentor.instrument_app` against an
+`InMemorySpanExporter`, runs real uvicorn (httptools) on a thread, and writes two complete
+requests to **one raw socket before reading anything**. With `reset_contextvars=False`:
+`POST /first` is a SERVER root, `GET /second` shares its `trace_id`, its parent is the first's
+span id, and it is **`SpanKind.INTERNAL`** — OTel's `_start_internal_or_server_span` sees a
+current span and never creates a SERVER span for the second request at all. With `True`: two
+SERVER roots, distinct traces. The `False` variant is kept as a pinned known-leak test so the
+mechanism stays legible and a uvicorn/OTel upgrade that changes it is noticed.
+
+**The refinement the executor returned as drift.** The spec said the leaked request's
+"server span" becomes a child; the truth is sharper — the leaked request has **no SERVER span
+of its own**. E6.2's request counts by server span therefore under-count leaked requests by
+construction, which is consistent with its 13,550-vs-13,531 gap and worth carrying into the
+post-deploy re-measurement.
+
+**Decisions.** D1 the fix is uvicorn's documented workaround, not an app-level context reset:
+`"--reset-contextvars"` appended to both Dockerfile `CMD`s (D-364-style comment: what leaked,
+the E6.2 numbers, the CPython issue, why safe — the app sets no `ContextVar`; the one grep hit
+is a comment about request-scoped `suppress_instrumentation()`, set inside the request task)
+and to the Makefile `dev-learning` / `dev-chat` targets. D2 reproduce-first as above. D3 a
+source-level guard (`test_uvicorn_serves_with_reset_contextvars.py`) parses each Dockerfile's
+exec-form `CMD` as JSON argv and each dev recipe, so the flag must be a real argument, not a
+word in a comment; shown failing against HEAD copies of the three files. D4 out of scope:
+`CHECKPOINTER-UNINSTRUMENTED`, `tracing.py`, the E6.2 harness, the SSE harness test.
+
+**Verification.** Executor: observability 138 passed, SSE + healthz 4 passed, ruff/format
+clean, pyright 0 errors, `make test` **2259 / 2 / 1**; the fixed-variant contract shown failing
+when pointed at the `False` spans. Coordinator, independently: ruff/format clean, pyright 0
+errors, full suite **2259 / 2 / 1** (baseline 2253 + 6 new). **Implemented locally, not
+deployed** (LB-05); the container image is not rebuilt until the next manual deploy, and the
+guard test is what carries the flag to it.
+
+**Still open.** Path (2) is not reproduced locally — the fix covers it by construction (the
+ASGI task always starts in a fresh `Context()`), but only a post-deploy E6.2 re-measurement
+(read-only AWS, the harness's §12 commands on a new window) shows the 0.14% going to 0; that
+is coordinator-owned follow-up after the deploy. `CHECKPOINTER-UNINSTRUMENTED` (low) remains
+the row's last item.
