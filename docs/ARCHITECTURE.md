@@ -397,7 +397,8 @@ to rot, because nothing fails when it does.)*
   the arithmetic from the terraform replica ceilings so a capacity bump fails locally. The
   replica ceilings (3 + 3) and the instance class are unchanged; `pool_timeout` is untuned.
 - **Every request is served in a fresh `contextvars.Context`** (`--reset-contextvars`, D-479;
-  implemented locally 2026-09-25, not yet deployed). uvicorn can start the next request on a
+  deployed 2026-09-26 in `gha-c2ab834a990e` and re-measured live at 0 shared trace ids in 10,012
+  traced requests, D-480). uvicorn can start the next request on a
   keep-alive connection from inside the previous request's asyncio task — a pipelined request, or
   a socket reader re-registered by `resume_reading()` — so without the flag the new task inherits
   the previous request's OTel span and the new request becomes an `INTERNAL` child of it: same
