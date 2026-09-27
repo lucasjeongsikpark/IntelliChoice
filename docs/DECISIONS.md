@@ -32099,3 +32099,21 @@ pause node routes to `END` with no model call, to revisit if a pause node ever c
 paid node. (e) The committed E3 inventory JSON under `docs/resume_evidence/03_gateway_agents/`
 is stale until regenerated (counts above, $0). None of these is live-verified — the row's fix
 reaches staging at the next deploy.
+
+## D-484 — D-483 landed (PR #481, `faddc34`) and deployed as `gha-faddc34e6d9c`; the 24-hour approval expiry is live (accepted, 2026-09-27)
+
+**Landing and deploy.** `land/d483-hitl-hardening` → PR #481, nine of nine checks green first
+time, rebase-merged as **`faddc34`**. `gh workflow run deploy-staging.yml --ref main`, run
+**36349971331**, 20:58 → 21:17 UTC 2026-09-27, every step green (Alembic no-op — the expiry
+needs no column), canary bake without an alarm breach, rollback skipped. Post-deploy read:
+learning 2/2 on `:160` (tasks 16:08:35 / 16:08:58 CDT), chat 1/1 on `:158` (16:12:03 CDT),
+ops-task `:152`, all on `gha-faddc34e6d9c`; `GET /me` → 401 JSON through CloudFront; both SPA
+roots 200; `InvalidPasswordError` / `Traceback` / `TooManyConnections` 0 / 0 / 0 since dispatch.
+
+**What is live and what is not verified.** Live: the SPEC §5.1.4 rule as amended — an
+external-action approval left unanswered for 24 h is declined by the next turn that meets it,
+the `hitl_pause_expired` event, and the graph-invocation allowlist (a test, so "live" means it
+guards the next change). Not verified live: an actual expiry on staging needs a pause a day old
+and a real turn on it; the local E3 suites prove the behaviour with an injected clock, and the
+first staging expiry will show as a `hitl_pause_expired` line in the app log — the read to make
+when a pause has been left open overnight. No paid call was involved anywhere in this cycle.

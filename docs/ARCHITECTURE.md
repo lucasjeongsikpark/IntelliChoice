@@ -427,7 +427,7 @@ to rot, because nothing fails when it does.)*
   purpose: learning ended up with neither while chat had both, and the way that recurs is a new
   `ainvoke` picking up one and missing the other. A test asserts exactly one direct
   `graph.ainvoke` remains — the helper's own.
-  Since D-483 (2026-09-27, implemented locally) that contract is enumerated rather than counted:
+  Since D-483 (2026-09-27, deployed in `gha-faddc34e6d9c`, D-484) that contract is enumerated rather than counted:
   `test_graph_invocations_take_the_turn_claim.py` pins every graph call site in `apps/*/src`
   and the claim that guards it, so a non-route caller cannot appear unreviewed (E3's HB-LEARN-F1:
   the graph layer is not concurrency-safe by itself; the route is the gate). The same decision
