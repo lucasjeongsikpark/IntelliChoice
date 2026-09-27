@@ -427,6 +427,15 @@ to rot, because nothing fails when it does.)*
   purpose: learning ended up with neither while chat had both, and the way that recurs is a new
   `ainvoke` picking up one and missing the other. A test asserts exactly one direct
   `graph.ainvoke` remains — the helper's own.
+  Since D-483 (2026-09-27, implemented locally) that contract is enumerated rather than counted:
+  `test_graph_invocations_take_the_turn_claim.py` pins every graph call site in `apps/*/src`
+  and the claim that guards it, so a non-route caller cannot appear unreviewed (E3's HB-LEARN-F1:
+  the graph layer is not concurrency-safe by itself; the route is the gate). The same decision
+  gives external-action approvals a **24 h lifetime** (user decision, SPEC §5.1.4): a pending
+  `email_approval` / `calendar_action` / `location_consent` older than a day is resumed with its
+  decline value under the turn claim by the next `/respond`, chat `/messages` or learning
+  mutation route that meets it (`hitl_pause_expired` logged); selection pauses never expire and
+  nothing sweeps — reads leave a stale pause in place until a turn clears it.
 - **A log line is not observability; a metric filter and an alarm are** (D-377). The
   infrastructure layer here has been thoroughly alarmed for a long time while the application
   layer was thoroughly *logged* and almost entirely unalarmed — every application-level P1 in the

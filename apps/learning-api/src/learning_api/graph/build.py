@@ -8,6 +8,9 @@ fresh top-level entry, or (if the previous turn paused) a `Command(resume=...)` 
 LangGraph routes directly to the paused task, bypassing `_route_entry` entirely. There is
 no long-running execution to keep alive, mirroring the HTTP API's one-request-per-user-
 action shape.
+
+**Not safe to invoke concurrently on one thread; every caller takes the route's turn claim
+(D-346 / D-376) - `test_graph_invocations_take_the_turn_claim.py` enumerates the callers.**
 """
 
 from intellichoice_observability.tracing import traced_node
