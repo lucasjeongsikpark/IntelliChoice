@@ -10,8 +10,9 @@ Backed by the QAState LangGraph workflow (SPEC §5.19.2) +
 import asyncio
 import logging
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response, status
@@ -34,6 +35,7 @@ from intellichoice_db.repositories.rag import RagRepository
 from intellichoice_observability.langsmith_config import langsmith_correlation_metadata
 from intellichoice_shared.auth import TokenClaims
 from intellichoice_shared.bedrock import BedrockGateway
+from intellichoice_shared.hitl_expiry import pause_age, pause_expired
 from intellichoice_shared.mcp import McpToolRegistry
 from intellichoice_shared.pii_redaction import redact_free_text
 from intellichoice_shared.profiles import ProfileAdapter
@@ -346,6 +348,58 @@ def _result_interrupt(result: dict) -> Interrupt | None:
     return interrupts[0] if interrupts else None
 
 
+def _utcnow() -> datetime:
+    """The clock the pending-approval TTL reads (HB-CHAT-F1). A seam so a test can age a
+    pause by a day without waiting one; production never replaces it.
+    """
+    return datetime.now(UTC)
+
+
+#: What an expired external-action pause is resumed with (`intellichoice_shared.hitl_expiry`)
+#: - each one the value its node already reads as a decline: `admin_escalation` and
+#: `branch_locator_consent` send/look up nothing unless `approved` is truthy, and
+#: `calendar_action`'s `"cancel"` is the choice that creates nothing. No location in the
+#: locator's decline, so there is nothing for `purge_resume_writes` to have to remove.
+_EXPIRED_DECLINE_RESUME: dict[str, dict] = {
+    "email_approval": {"approved": False, "note": None},
+    "calendar_action": {"choice": "cancel"},
+    "location_consent": {
+        "approved": False,
+        "zip_code": None,
+        "city": None,
+        "address": None,
+        "latitude": None,
+        "longitude": None,
+    },
+}
+
+
+def _expired_pause_age(snapshot: StateSnapshot, pending: Interrupt, now: datetime) -> float | None:
+    """Seconds since `pending` paused, if it is past the pending-approval TTL; else None."""
+    interrupt_type = pending.value.get("type")
+    if not isinstance(interrupt_type, str) or not pause_expired(
+        snapshot.created_at, now=now, interrupt_type=interrupt_type
+    ):
+        return None
+    age = pause_age(snapshot.created_at, now=now)
+    assert age is not None  # `pause_expired` is only True for a parsed timestamp
+    return age.total_seconds()
+
+
+def _log_pause_expired(interrupt_type: str, age_seconds: float) -> None:
+    """The one signal that a decision was made *for* the caller rather than by them. Fields
+    only - the pause carries a draft and possibly a location, and none of it belongs here.
+    """
+    logger.info(
+        "hitl_pause_expired",
+        extra={
+            "source_app": "chat",
+            "interrupt_type": interrupt_type,
+            "age_seconds": round(age_seconds),
+        },
+    )
+
+
 async def _suggested_followups(
     db: AsyncSession, result: dict, citations: list[CitationResponse]
 ) -> list[str]:
@@ -416,7 +470,11 @@ def _assert_session_access(snapshot_values: dict, claims: TokenClaims | None) ->
 
 
 async def _reject_if_paused(
-    graph: QAGraph, chat_session_id: str, claims: TokenClaims | None
+    graph: QAGraph,
+    chat_session_id: str,
+    claims: TokenClaims | None,
+    *,
+    expire_with: Callable[[], TurnContext] | None = None,
 ) -> dict:
     """`/messages` is the one entry point that may legitimately see *no* prior state
     (a session's first message) - unlike `learning_api`'s `_get_state_values`, this
@@ -432,12 +490,42 @@ async def _reject_if_paused(
     them: that field is a running *session* total, so this turn's own cost - what D-345's
     reservation settles at - is the difference across the invoke, and this read is already
     happening.
+
+    **An expired external-action pause is not a 409** (HB-CHAT-F1) when `expire_with` is
+    given: it is resumed with its decline value - a `Command(resume=...)`, never the fresh
+    invoke that would discard it (D-021 #2) - and the caller's turn then proceeds. The caller
+    must already hold the turn claim, which `/messages` takes before calling this, so the
+    read, the decline and the turn after it are one serialized unit. `expire_with` builds the
+    resume's `TurnContext`; the declining node only records the decision, and every pause
+    node routes straight to `END`, so the decline makes no model call.
     """
     snapshot = await graph.aget_state(_graph_config(chat_session_id))
     if not snapshot.values:
         return {}
     _assert_session_access(snapshot.values, claims)
+    pending = _pending_task_interrupt(snapshot)
+    if pending is None:
+        return snapshot.values
+    age_seconds = (
+        _expired_pause_age(snapshot, pending, _utcnow()) if expire_with is not None else None
+    )
+    if age_seconds is None or expire_with is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=PENDING_INTERRUPT_MESSAGE,
+        )
+    interrupt_type = pending.value["type"]
+    _log_pause_expired(interrupt_type, age_seconds)
+    await _run_turn(
+        graph,
+        Command(resume=_EXPIRED_DECLINE_RESUME[interrupt_type]),
+        chat_session_id=chat_session_id,
+        ctx=expire_with(),
+    )
+    snapshot = await graph.aget_state(_graph_config(chat_session_id))
     if _pending_task_interrupt(snapshot) is not None:
+        # Unreachable today (every pause node ends the turn), and kept that way loudly: a
+        # decline that paused again must not be followed by a fresh invoke on top of it.
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=PENDING_INTERRUPT_MESSAGE,
@@ -672,7 +760,23 @@ async def post_message(
     # abuser reusing one id per message would have walked straight past it.
     await _reject_if_over_caller_limit(message_limiter, _caller_key(claims, request))
     await _claim_turn(db, chat_session_id)
-    before = await _reject_if_paused(graph, chat_session_id, claims)
+    before = await _reject_if_paused(
+        graph,
+        chat_session_id,
+        claims,
+        # HB-CHAT-F1: the context an expired pause's decline resumes under - the same one
+        # `/respond` builds (no query: a resume carries a decision, not a question).
+        expire_with=lambda: _turn_context(
+            claims=claims,
+            profile_adapter=profile_adapter,
+            db=db,
+            bedrock_gateway=bedrock_gateway,
+            mcp_registry=mcp_registry,
+            rate_limiter=rate_limiter,
+            escalation_sends=escalation_sends,
+            client_ip=request.client.host if request.client else None,
+        ),
+    )
     # AUD-C-24 (D-072's "How to apply" clause): the caller's typed text is redacted here,
     # at the request boundary - the only place free text enters this graph - before it
     # reaches `TurnContext`, the checkpointed `QAState`, or any Bedrock payload
@@ -847,13 +951,20 @@ async def respond_to_interrupt(
             f"{body.interrupt_type!r}",
         )
 
-    if isinstance(body, EmailApprovalChoice):
+    # HB-CHAT-F1: a pause older than the pending-approval TTL is declined whatever the body
+    # says. Decided here, under the claim taken above and after the ownership and
+    # discriminator checks, so an expiry never answers a caller those checks would refuse.
+    expired_age = _expired_pause_age(snapshot, pending, _utcnow())
+    if expired_age is not None:
+        _log_pause_expired(body.interrupt_type, expired_age)
+        resume_value: object = _EXPIRED_DECLINE_RESUME[body.interrupt_type]
+    elif isinstance(body, EmailApprovalChoice):
         # D-420: redacted **here**, at the request boundary, exactly where `/messages` redacts
         # the typed question (AUD-C-24, and that comment already noted "escalation forwards the
         # redacted text too"). Doing it in the node instead would let the raw string through the
         # resume payload and therefore past LangGraph's checkpointer - the residual
         # `branch_locator_consent` documents and this must not widen.
-        resume_value: object = {
+        resume_value = {
             "approved": body.approved,
             "note": redact_free_text(body.note) if body.note else None,
         }

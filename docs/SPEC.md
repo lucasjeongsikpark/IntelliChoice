@@ -28,6 +28,10 @@ its decision id(s) or register key; the reasoning stays in `DECISIONS.md`. Marke
 Markers added **2026-08-20 by explicit user sign-off** (the two sections previously held pending):
 
 - **§5.1.4** — "sensitive information in an email" is subsumed by `email_approval`, not a distinct unbuilt gate (DRIFT-16, Reading A).
+
+Markers added **2026-09-27 by user decision**:
+
+- **§5.1.4** — an unanswered external-action approval expires after 24 h and counts as declined; selection pauses never expire (D-483, `HITL-INTERRUPT-HARDENING`).
 - **§5.29** — the dead-letter queue and smaller-model fallback are removed as requirements (never built; reintroduction requires a new decision); coverage note: 4 of 19 rows sampled, 15 unverified (DRIFT-15/REQ-49, Option A).
 
 Earlier markers, left as they stand: **§5.19.4** (amended 2026-08-15, D-351) and **§5.35**'s staging
@@ -166,6 +170,15 @@ Processing rules:
 > approval with the full preview visible, and free text is redacted unconditionally
 > before the node — not as a distinct, never-built sensitivity gate. No second
 > sensitivity-specific approval gate is required.
+
+> **Amended 2026-09-27 by user decision (D-483, `HITL-INTERRUPT-HARDENING`).** A pending
+> approval for an external action (`email_approval`, `calendar_action`, `location_consent`)
+> that is not answered within **24 hours** is treated as **declined**: the next turn or
+> `/respond` that meets it resumes the pause with that action's decline value under the turn
+> claim, records the decline, logs `hitl_pause_expired`, and continues. Selection-type pauses
+> (`child_selection`, `intervention_choice`) never expire. Nothing sweeps — an expired pause is
+> cleared by the next mutation, not by reads. Rationale: an approval is consent to the action as
+> previewed then, not an open cheque.
 
 Explicit approval is required before:
 

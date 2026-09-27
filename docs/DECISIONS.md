@@ -31019,10 +31019,12 @@ reclassified to the passing case HB-LEARN-30.
 **Two findings recorded, not fixed (queued as `HITL-INTERRUPT-HARDENING`):**
 
 - **HB-CHAT-F1 — a pending interrupt has no expiry.** Neither `/respond` checks a pause's
-  age; there is no TTL column or sweep, so a pause left open is resumable indefinitely.
+  age; there is no TTL column or sweep, so a pause left open is resumable indefinitely. *(→ **fixed
+  2026-09-27, D-483**: 24 h auto-decline for external-action pauses, user decision.)*
 - **HB-LEARN-F1 — the graph layer itself does not serialize resumes.** Two simultaneous
   `ainvoke`s both send; the route's turn claim is the only gate — which is sufficient for
-  the HTTP surface today but would not protect a future non-route caller.
+  the HTTP surface today but would not protect a future non-route caller. *(→ **contract made
+  executable 2026-09-27, D-483**: an allowlist test pins every graph call site and its claim.)*
 - **HB-MCP-A1 (architecture note, not a defect).** `McpToolRegistry` has no approval
   concept by design; the "0 external actions without approval" property belongs to the
   four graph call sites, documented as an executable test rather than asserted of the
@@ -32026,3 +32028,74 @@ text only, no parameters.
 **Row state.** `OBSERVABILITY-TRACE-GAPS` is closed end to end and was deleted from
 `PROJECT_STATE` in D-481; nothing remains on it. The D-481 caveat stands: the E6.2 harness would
 count these subsegments as the SQLAlchemy hop until it learns to split them.
+
+## D-483 — `HITL-INTERRUPT-HARDENING` closed: a 24-hour auto-decline for external-action pauses (user decision) and an executable graph-invocation allowlist (accepted, 2026-09-27)
+
+`PROJECT_STATE` §4.4 row 1 after D-481, the E3 findings HB-CHAT-F1 and HB-LEARN-F1 (D-459).
+Fourth task under the Orca coordinator/executor model (`run_73459cd4bb2e`,
+`task_f593a8484515`, `ctx_d19068660b4a`; launch receipt `requested == effective`, Claude Opus
+5.5 high); Frozen Spec `tasks/hitl-interrupt-hardening.md` with two coordinator revisions,
+deleted after reconciliation.
+
+**The user decision inside it (2026-09-27).** SPEC §5.1.4 was silent on how long an approval
+may wait, so the coordinator put it to the user with three options; **the user chose 24 hours,
+auto-decline**: a pending `email_approval` / `calendar_action` / `location_consent` older than
+24 h is treated as declined and cleared on the next mutation that meets it, no sweep job;
+`child_selection` / `intervention_choice` never expire. SPEC §5.1.4 carries the dated marker.
+The rationale, written into the shared module: an approval is consent to the action as previewed
+then, not an open cheque. (E3 bounded the severity — owner-only resume, no privilege beyond the
+composed message — which is why "no expiry" was a real option and not a defect.)
+
+**Shape.** One pure rule, `intellichoice_shared/hitl_expiry.py` (`PENDING_APPROVAL_TTL`,
+`EXPIRING_INTERRUPT_TYPES`, `pause_expired` — strictly older than 24 h; fails *open* on a
+missing or unparseable timestamp with a fields-only WARNING), reading the pause's age from the
+paused checkpoint's `StateSnapshot.created_at` — no column, no migration. Applied only on
+mutation paths and only under the turn claim, always as a `Command(resume=<decline value>)`
+(D-021 #2: a fresh invoke would silently discard the pause): both `/respond` routes (the body's
+decision is ignored, after the ownership and discriminator checks so an expiry never answers a
+caller those would refuse), chat `/messages` (`_reject_if_paused` declines then the message
+turn proceeds), and learning's `_get_state_values` gate for the four graph-invoking mutation
+routes. Decline values are the ones each node already reads as a decline (chat calendar:
+`"cancel"`, read from the node). An injectable `_utcnow` seam per router keeps the tests
+deterministic. The `hitl_pause_expired` event (`source_app`, `interrupt_type`, `age_seconds`)
+is the only signal that a decision was made *for* the caller.
+
+**Two conflicts the executor returned instead of resolving (AUTHORITY_MODEL §6.2).** (1)
+Learning's gate serves nine routes, five of which cannot build a turn context and two are GETs;
+learning also claims the turn *inside* `_invoke_with_deadline`, after the state read (D-376),
+unlike chat. Revision 1: only the four mutation routes (`select_topic`,
+`resolve_attendance_choice`, `submit_answer`, `finalize_exam`) auto-decline; `list_topics` and
+the `_exam_phase_state` routes keep the 409 (a read cannot take a turn, a GET must not mutate);
+on the expiry path only, the claim is taken and the state re-read under it before deciding —
+the xact advisory lock is re-entrant, so D-376's placement is otherwise untouched. (2)
+`test_turn_deadline.py` pinned the routed call count at seven; the decline helper is a
+legitimate eighth. Revision 2: count 7 → 8 with a comment, test renamed to stop hard-coding
+the number.
+
+**HB-LEARN-F1 as an executable contract.** `packages/shared/tests/
+test_graph_invocations_take_the_turn_claim.py` parses `apps/*/src` and pins the graph call
+sites (chat's single `_run_turn` `astream`, learning's single `_invoke_with_deadline` `ainvoke`),
+the callers of each wrapper and how each holds the claim, and that learning's callers all pass
+`db`; a throwaway fifth call site was shown to fail it. Both `graph/build.py` modules say so
+in their docstrings. The graph layer itself is still not concurrency-safe — by design, the
+route is the gate; HB-LEARN-F1 stays in the E3 suite as the finding that names it.
+
+**Reproduce-first.** Pre-change: chat 4 failed / 2 passed (an expired approval sent the email,
+`/messages` 409'd, a stale location consent was used), learning 3 failed / 4 passed; the
+controls passed pre-change as they should. Post-change: HITL suites + shared 318 passed; app
+suites 905 / 1 / 1; E3 inventory consistent at 99 cases. **Verification:** executor `make test`
+**2301 / 2 / 1**; coordinator, independently, ruff/format clean, pyright 0 errors, full suite
+**2301 / 2 / 1** (baseline 2262 + 39 new). **Implemented locally, not deployed** (LB-05).
+
+**Residuals, documented.** (a) Learning's report-only routes and its read routes still show
+or 409 on an expired pause until a mutation clears it. (b) `calendar_action` expiry has no HTTP
+test (the pause needs a seeded org chunk); the decline value is pinned against the node's
+vocabulary and "cancel creates nothing" is already tested. (c) An auto-decline is recorded
+through the node's ordinary path — `interrupt_approvals.decision = 'cancelled'`, decided-by the
+session owner whose request met it — indistinguishable in the table from an explicit decline;
+the `hitl_pause_expired` log is what distinguishes it (a schema change was out of scope). (d)
+The chat `/messages` decline runs outside the turn's cost reservation; safe today because every
+pause node routes to `END` with no model call, to revisit if a pause node ever continues into a
+paid node. (e) The committed E3 inventory JSON under `docs/resume_evidence/03_gateway_agents/`
+is stale until regenerated (counts above, $0). None of these is live-verified — the row's fix
+reaches staging at the next deploy.

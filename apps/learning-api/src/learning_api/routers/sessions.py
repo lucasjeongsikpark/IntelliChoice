@@ -8,8 +8,10 @@ import asyncio
 import logging
 import random
 import uuid
-from dataclasses import asdict
+from collections.abc import Callable
+from dataclasses import asdict, replace
 from datetime import UTC, datetime
+from functools import partial
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -33,6 +35,7 @@ from intellichoice_observability.langsmith_config import langsmith_correlation_m
 from intellichoice_observability.metrics import CHECKPOINT_REPAIRS, SESSION_STARTS
 from intellichoice_shared.auth import TokenClaims
 from intellichoice_shared.bedrock import BedrockGateway, ChatVizSpec
+from intellichoice_shared.hitl_expiry import pause_age, pause_expired
 from intellichoice_shared.mcp import McpToolRegistry
 from intellichoice_shared.pii_redaction import redact_free_text
 from intellichoice_shared.profiles import ProfileAdapter
@@ -696,6 +699,109 @@ async def _claim_turn(db: AsyncSession, learning_session_id: str) -> None:
         )
 
 
+def _utcnow() -> datetime:
+    """The clock the pending-approval TTL reads (HB-CHAT-F1). A seam so a test can age a
+    pause by a day without waiting one; production never replaces it.
+    """
+    return datetime.now(UTC)
+
+
+#: What an expired external-action pause is resumed with (`intellichoice_shared.hitl_expiry`),
+#: and the `TurnContext` fields its node reads *before* `interrupt()` that the resume must
+#: supply again (D-021 #1). `email_approval` is the only expiring type learning raises;
+#: `resolve_attendance` sends nothing unless `approved` is truthy.
+_EXPIRED_DECLINE: dict[str, tuple[dict, dict]] = {
+    "email_approval": ({"approved": False}, {"attendance_choice": "ask_branch_manager"}),
+}
+
+
+def _expired_pause_age(snapshot: StateSnapshot, pending: Interrupt, now: datetime) -> float | None:
+    """Seconds since `pending` paused, if it is past the pending-approval TTL; else None."""
+    interrupt_type = pending.value.get("type")
+    if not isinstance(interrupt_type, str) or not pause_expired(
+        snapshot.created_at, now=now, interrupt_type=interrupt_type
+    ):
+        return None
+    age = pause_age(snapshot.created_at, now=now)
+    assert age is not None  # `pause_expired` is only True for a parsed timestamp
+    return age.total_seconds()
+
+
+def _log_pause_expired(interrupt_type: str, age_seconds: float) -> None:
+    """The one signal that a decision was made *for* the caller rather than by them. Fields
+    only - the pause names a student, and none of it belongs here.
+    """
+    logger.info(
+        "hitl_pause_expired",
+        extra={
+            "source_app": "learning",
+            "interrupt_type": interrupt_type,
+            "age_seconds": round(age_seconds),
+        },
+    )
+
+
+async def _claim_if_pause_expired(
+    graph: LearningGraph,
+    db: AsyncSession,
+    learning_session_id: str,
+    snapshot: StateSnapshot,
+    now: datetime,
+) -> StateSnapshot:
+    """The snapshot an expiry may be decided on: `snapshot` itself when it shows no expired
+    pause, otherwise a fresh read taken **under the turn claim**.
+
+    Learning claims the turn inside `_invoke_with_deadline` (D-376), after the state read -
+    fine for a caller-supplied decision, which the invoke then serializes, but an expiry is
+    a decision the *server* makes from what it read. So only on this path the claim moves
+    ahead of the read; the advisory lock is re-entrant within the request's transaction, so
+    the claim `_invoke_with_deadline` takes afterwards is a no-op. Every other path keeps
+    D-376's placement untouched.
+    """
+    pending = _pending_task_interrupt(snapshot)
+    if pending is None or _expired_pause_age(snapshot, pending, now) is None:
+        return snapshot
+    await _claim_turn(db, learning_session_id)
+    return await graph.aget_state(_graph_config(learning_session_id))
+
+
+async def _decline_expired_pause(
+    graph: LearningGraph,
+    db: AsyncSession,
+    learning_session_id: str,
+    snapshot: StateSnapshot,
+    pending: Interrupt,
+    age_seconds: float,
+    ctx: TurnContext,
+) -> None:
+    """Resume an expired pause with its decline value - a `Command(resume=...)`, never the
+    fresh invoke that would silently discard it (D-021 #2).
+
+    Authorized first, exactly as `/resume` authorizes: the gate runs before its caller's own
+    `resolve_target_student`, and a stranger holding the session id must not be able to
+    settle someone else's pause, even as a decline, or be recorded as its decider.
+    """
+    state = snapshot.values
+    if state.get("student_external_id") is not None:
+        await resolve_target_student(
+            ctx.claims, state["student_external_id"], ctx.profile_adapter, access="write"
+        )
+    elif ctx.claims.sub != state.get("user_external_id"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="token does not match this session"
+        )
+    interrupt_type = pending.value["type"]
+    resume_value, replay_fields = _EXPIRED_DECLINE[interrupt_type]
+    _log_pause_expired(interrupt_type, age_seconds)
+    await _invoke_with_deadline(
+        graph,
+        Command(resume=resume_value),
+        learning_session_id,
+        replace(ctx, **replay_fields),
+        db,
+    )
+
+
 async def _invoke_with_deadline(graph, payload, learning_session_id: str, ctx, db=None):
     """Every `graph.ainvoke` in this router, under SPEC §5.25.1's outer bound (D-374).
 
@@ -715,8 +821,9 @@ async def _invoke_with_deadline(graph, payload, learning_session_id: str, ctx, d
     a chat turn — an exam answer commits before the narrative work that overruns.
 
     **The concurrency claim lives here too, deliberately** (D-376). Both bounds now apply at
-    exactly the same seven call sites, so an eighth `ainvoke` added later cannot pick up one
-    and miss the other — which is how learning came to have neither while chat had both.
+    exactly the same call sites (D-376's seven routes, plus the HB-CHAT-F1 expiry decline), so
+    a new `ainvoke` added later cannot pick up one and miss the other — which is how learning
+    came to have neither while chat had both.
     `db` is optional only so a test can drive the deadline without a session; every route
     passes it.
     """
@@ -760,22 +867,54 @@ async def _reconcile_checkpoint(
 
 
 async def _get_state_values(
-    graph: LearningGraph, learning_session_id: str, db: AsyncSession
+    graph: LearningGraph,
+    learning_session_id: str,
+    db: AsyncSession,
+    *,
+    expire_with: Callable[[], TurnContext] | None = None,
 ) -> dict:
+    """The 404 and the pending-interrupt 409 every graph-invoking route reads state through.
+
+    `expire_with` (HB-CHAT-F1) is passed only by the routes that go on to take a turn -
+    `select_topic`, `resolve_attendance_choice`, `submit_answer`, `finalize_exam`. For them an
+    expired external-action pause is declined under the turn claim and the route proceeds.
+    The read-only callers (`list_topics`, the `_exam_phase_state` routes) leave it None and
+    keep the 409 on any pending pause, expired or not: a read cannot take a turn and a GET
+    must not mutate, so an expired pause is cleared by the next *turn*, not by reads.
+    """
     snapshot = await graph.aget_state(_graph_config(learning_session_id))
+    now = _utcnow()
+    if expire_with is not None:
+        snapshot = await _claim_if_pause_expired(graph, db, learning_session_id, snapshot, now)
     if not snapshot.values:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="learning session not found"
         )
-    if _pending_task_interrupt(snapshot) is not None:
-        # A fresh (non-`Command`) `ainvoke` on a thread with a paused task silently
-        # discards it instead of resuming it - reject here rather than letting a client
-        # accidentally abandon an unresolved interrupt (SPEC §5.1.4 wants every
-        # approval-sensitive pause actually resolved, not skippable by moving on).
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="a pending interrupt must be resolved via /respond before continuing",
+    pending = _pending_task_interrupt(snapshot)
+    if pending is not None:
+        age_seconds = (
+            _expired_pause_age(snapshot, pending, now) if expire_with is not None else None
         )
+        if age_seconds is None or expire_with is None:
+            # A fresh (non-`Command`) `ainvoke` on a thread with a paused task silently
+            # discards it instead of resuming it - reject here rather than letting a client
+            # accidentally abandon an unresolved interrupt (SPEC §5.1.4 wants every
+            # approval-sensitive pause actually resolved, not skippable by moving on).
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="a pending interrupt must be resolved via /respond before continuing",
+            )
+        await _decline_expired_pause(
+            graph, db, learning_session_id, snapshot, pending, age_seconds, expire_with()
+        )
+        snapshot = await graph.aget_state(_graph_config(learning_session_id))
+        if _pending_task_interrupt(snapshot) is not None:
+            # Unreachable today (`resolve_attendance` ends the turn), and kept that way
+            # loudly: a decline that paused again must not be followed by a fresh invoke.
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="a pending interrupt must be resolved via /respond before continuing",
+            )
     return await _reconcile_checkpoint(graph, learning_session_id, snapshot.values, db)
 
 
@@ -1029,7 +1168,21 @@ async def select_topic(
     graph: Annotated[LearningGraph, Depends(get_graph)],
     events: Annotated[SessionEventBus, Depends(get_session_events)],
 ) -> TopicSelectionResponse:
-    state = await _get_state_values(graph, learning_session_id, db)
+    state = await _get_state_values(
+        graph,
+        learning_session_id,
+        db,
+        expire_with=partial(
+            _turn_context,
+            claims=claims,
+            profile_adapter=profile_adapter,
+            db=db,
+            mcp_registry=mcp_registry,
+            bedrock_gateway=bedrock_gateway,
+            cost_ledger=cost_ledger,
+            consolidation_scheduler=consolidation_scheduler,
+        ),
+    )
     if state.get("student_external_id") is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="select a student before a topic"
@@ -1121,7 +1274,21 @@ async def resolve_attendance_choice(
     events: Annotated[SessionEventBus, Depends(get_session_events)],
 ) -> TopicSelectionResponse:
     """SPEC §5.6.3's two choices, offered after `/topics` returns `phase="blocked"`."""
-    state = await _get_state_values(graph, learning_session_id, db)
+    state = await _get_state_values(
+        graph,
+        learning_session_id,
+        db,
+        expire_with=partial(
+            _turn_context,
+            claims=claims,
+            profile_adapter=profile_adapter,
+            db=db,
+            mcp_registry=mcp_registry,
+            bedrock_gateway=bedrock_gateway,
+            cost_ledger=cost_ledger,
+            consolidation_scheduler=consolidation_scheduler,
+        ),
+    )
     if state.get("student_external_id") is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="select a student first")
     await resolve_target_student(
@@ -1226,7 +1393,21 @@ async def submit_answer(
     ],
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
 ) -> AnswerResponse:
-    state = await _get_state_values(graph, learning_session_id, db)
+    state = await _get_state_values(
+        graph,
+        learning_session_id,
+        db,
+        expire_with=partial(
+            _turn_context,
+            claims=claims,
+            profile_adapter=profile_adapter,
+            db=db,
+            mcp_registry=mcp_registry,
+            bedrock_gateway=bedrock_gateway,
+            cost_ledger=cost_ledger,
+            consolidation_scheduler=consolidation_scheduler,
+        ),
+    )
     if state.get("student_external_id") is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="select a student before answering"
@@ -1670,7 +1851,21 @@ async def finalize_exam(
     so this guard deliberately allows those two phases through as well, not just
     `EXAM_PHASES` itself.
     """
-    state = await _get_state_values(graph, learning_session_id, db)
+    state = await _get_state_values(
+        graph,
+        learning_session_id,
+        db,
+        expire_with=partial(
+            _turn_context,
+            claims=claims,
+            profile_adapter=profile_adapter,
+            db=db,
+            mcp_registry=mcp_registry,
+            bedrock_gateway=bedrock_gateway,
+            cost_ledger=cost_ledger,
+            consolidation_scheduler=consolidation_scheduler,
+        ),
+    )
     if state.get("student_external_id") is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="select a student first")
     await resolve_target_student(
@@ -1843,8 +2038,18 @@ async def respond_to_interrupt(
     Phase 8 §6.9) - child selection, attendance-email approval, or hint/solution/video
     choice. `body.interrupt_type` must match the actually-pending interrupt so a stale or
     mismatched client request fails clearly instead of silently resuming the wrong node.
+
+    A pause older than the pending-approval TTL (HB-CHAT-F1) is declined whatever the body
+    says - decided on a read taken under the turn claim (`_claim_if_pause_expired`).
     """
-    snapshot = await graph.aget_state(_graph_config(learning_session_id))
+    now = _utcnow()
+    snapshot = await _claim_if_pause_expired(
+        graph,
+        db,
+        learning_session_id,
+        await graph.aget_state(_graph_config(learning_session_id)),
+        now,
+    )
     if not snapshot.values:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="learning session not found"
@@ -1868,7 +2073,13 @@ async def respond_to_interrupt(
         )
 
     resume_value: object
-    if isinstance(body, ChildSelectionChoice):
+    # After the discriminator and authorization checks, so an expiry never answers a caller
+    # those checks would refuse.
+    expired_age = _expired_pause_age(snapshot, pending, now)
+    if expired_age is not None:
+        _log_pause_expired(body.interrupt_type, expired_age)
+        resume_value = _EXPIRED_DECLINE[body.interrupt_type][0]
+    elif isinstance(body, ChildSelectionChoice):
         resume_value = body.student_id
     elif isinstance(body, EmailApprovalChoice):
         resume_value = {"approved": body.approved}

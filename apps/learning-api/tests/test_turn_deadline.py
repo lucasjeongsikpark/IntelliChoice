@@ -154,7 +154,7 @@ def test_different_sessions_do_not_block_each_other() -> None:
     assert asyncio.run(contend()) == (True, True)
 
 
-def test_the_lock_and_the_deadline_are_applied_at_the_same_seven_call_sites() -> None:
+def test_the_lock_and_the_deadline_are_applied_at_the_same_call_sites() -> None:
     """**Why both bounds live in one helper**, asserted rather than trusted to review.
 
     learning came to have neither while chat had both, so the failure mode to design against
@@ -169,4 +169,7 @@ def test_the_lock_and_the_deadline_are_applied_at_the_same_seven_call_sites() ->
         f"{direct} direct `graph.ainvoke` calls; exactly one is expected (the helper's own). "
         "A new call site bypassing the helper gets neither the deadline nor the lock."
     )
-    assert routed == 7, f"expected 7 routed call sites, found {routed}"
+    # Seven routes (D-376), plus `_decline_expired_pause` (HB-CHAT-F1): declining an expired
+    # approval resumes the paused task, so it is a turn and needs the deadline and the claim
+    # exactly as a route's own invoke does.
+    assert routed == 8, f"expected 8 routed call sites, found {routed}"

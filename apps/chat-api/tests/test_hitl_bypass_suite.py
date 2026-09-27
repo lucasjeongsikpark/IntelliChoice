@@ -36,9 +36,12 @@ are two different promises.
 """
 
 import asyncio
-import time
+import logging
 import uuid
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
+from typing import get_args
 
 import pytest
 from chat_api.config import get_settings
@@ -48,12 +51,15 @@ from chat_api.graph.nodes import (
     LOCATION_DECLINED_MESSAGE,
 )
 from chat_api.main import app
+from chat_api.routers import sessions as sessions_router
+from chat_api.routers.sessions import CalendarActionChoice
 from chat_api.services.admin_escalation import MAX_NOTE_CHARS
 from fastapi.testclient import TestClient
 from intellichoice_adapters.fake_auth import FakeTokenIssuer
 from intellichoice_db.engine import create_engine, create_session_factory
 from intellichoice_db.models.interrupts import InterruptApproval
 from intellichoice_shared.auth import Audience, Role
+from intellichoice_shared.hitl_expiry import EXPIRING_INTERRUPT_TYPES, PENDING_APPROVAL_TTL
 from sqlalchemy import select, text
 
 from .conftest import postgres_skip_reason
@@ -527,17 +533,56 @@ BYPASS_CASES = [
         "payload": {"interrupt_type": "email_approval", "approved": True, "note": "n"},
         "expected_status": [200],
     },
-    # -------------------------------------------------------------------------- finding
+    # ------------------------------------------------------------ pending-approval TTL
+    # HB-CHAT-F1 was a finding ("no TTL exists on a pending interrupt"); the user's
+    # 2026-09-27 decision closed it with `intellichoice_shared.hitl_expiry`, so it is now a
+    # bypass case like any other. The id is kept so the E3 history stays traceable.
     {
         "id": "HB-CHAT-F1",
-        "kind": "finding",
-        "group": "finding",
+        "kind": "bypass",
+        "group": "expiry",
         "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
-        "attack": "resume an approval left pending for an arbitrary length of time",
+        "attack": "approve an escalation email whose pause is 24 h + 1 s old",
         "invariant": (
-            "FINDING: no TTL exists on a pending interrupt - a stale pause stays "
-            "resumable indefinitely. Test pins the current behaviour."
+            "200 as a decline; no email sent; one interrupt_approvals row, "
+            "decision='cancelled'; hitl_pause_expired logged"
         ),
+        "payload": {"interrupt_type": "email_approval", "approved": True},
+        "expected_status": [200],
+    },
+    {
+        "id": "HB-CHAT-39",
+        "kind": "bypass",
+        "group": "expiry",
+        "surface": "chat-api POST /chat/sessions/{id}/messages (email_approval pending)",
+        "attack": "ask a new question on a thread whose email pause is 24 h + 1 s old",
+        "invariant": (
+            "no 409: the stale pause is declined in the same request and the new question "
+            "is answered; no email sent; decision='cancelled'"
+        ),
+        "payload": None,
+        "expected_status": [200],
+    },
+    {
+        "id": "HB-CHAT-40",
+        "kind": "bypass",
+        "group": "expiry",
+        "surface": "chat-api POST /chat/sessions/{id}/respond (location_consent pending)",
+        "attack": "consent to share a location on a pause that is 24 h + 1 s old",
+        "invariant": (
+            "200 as a decline; the supplied location is never used; decision='cancelled'; "
+            "no __resume__ write survives"
+        ),
+        "payload": {"interrupt_type": "location_consent", "approved": True, "zip_code": "62701"},
+        "expected_status": [200],
+    },
+    {
+        "id": "HB-CHAT-C3",
+        "kind": "control",
+        "group": "expiry",
+        "surface": "chat-api POST /chat/sessions/{id}/respond (email_approval pending)",
+        "attack": "not an attack - a valid approval 1 s inside the 24 h TTL",
+        "invariant": "the approval is honoured: exactly one email; one approved audit row",
         "payload": {"interrupt_type": "email_approval", "approved": True},
         "expected_status": [200],
     },
@@ -1016,37 +1061,159 @@ def test_a_legitimate_approval_still_works(case: dict) -> None:
 
 
 # --------------------------------------------------------------------------------------
-# Findings - documented weaknesses, kept out of the "0 side effects" claim
+# The pending-approval TTL (HB-CHAT-F1, closed) - driven through the router's clock seam
 # --------------------------------------------------------------------------------------
 
 
-def test_hb_chat_f1_a_pending_approval_has_no_expiry() -> None:
-    """**Finding, not a passing guard.** Nothing in either app expires a pending
-    `interrupt()`: `/respond` checks the session exists, that the caller owns it, and that
-    the discriminator matches the pending type - never how old the pause is, and no TTL
-    column or sweep exists for a live thread.
+def _paused_between(pause: Callable[[], str]) -> tuple[str, datetime, datetime]:
+    """Run `pause` and return its session id with wall-clock bounds either side of it.
 
-    So a pause left open is resumable later, and this test pins that rather than pretending
-    otherwise. It uses a short idle gap because a test cannot wait out a plausible real
-    delay; the *absence of any expiry check* is the evidence, and the gap only demonstrates
-    that time passing changes nothing. Reported in `E3_REPORT.md`; deliberately excluded
-    from the "N attempts, 0 side effects" denominator.
+    The paused checkpoint's `created_at` lies inside `[before, after]`, so a clock pinned at
+    `after + TTL + 1 s` is past the TTL and one pinned at `before + TTL - 1 s` is inside it,
+    however long the pausing request itself took. No sleeping, no reading the checkpoint.
     """
+    before = datetime.now(UTC)
+    session_id = pause()
+    after = datetime.now(UTC)
+    return session_id, before, after
+
+
+def _pin_clock(monkeypatch: pytest.MonkeyPatch, instant: datetime) -> None:
+    monkeypatch.setattr(sessions_router, "_utcnow", lambda: instant, raising=False)
+
+
+def _expiry_events(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    return [r for r in caplog.records if r.getMessage() == "hitl_pause_expired"]
+
+
+def test_hb_chat_f1_an_expired_email_approval_is_declined(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The body says yes; the pause is a day and a second old, so the route resumes it with
+    the decline value instead. What must hold is the same pair of facts every bypass case
+    asserts - nothing left the system, and the audit row says what really happened - plus
+    the structured event that makes an expiry visible in the logs.
+    """
+    case = _case("HB-CHAT-F1")
     with TestClient(app) as client:
-        session_id = _paused_email_thread(client)
+        session_id, _, paused_by = _paused_between(lambda: _paused_email_thread(client))
         before = len(_sent(client))
-        time.sleep(1.0)
-        response = client.post(
-            f"/chat/sessions/{session_id}/respond",
-            json={"interrupt_type": "email_approval", "approved": True},
-        )
+        _pin_clock(monkeypatch, paused_by + PENDING_APPROVAL_TTL + timedelta(seconds=1))
+        with caplog.at_level(logging.INFO, logger="chat_api.routers.sessions"):
+            response = client.post(
+                f"/chat/sessions/{session_id}/respond", json=_expand(case["payload"])
+            )
         after = len(_sent(client))
 
-    assert response.status_code == 200, response.text
-    assert after == before + 1, (
-        "the stale pause was refused - if this now fails, an expiry has been added and "
-        "the finding in E3_REPORT.md should be closed"
+    assert response.status_code in case["expected_status"], response.text
+    assert after == before, "an expired approval still sent the escalation email"
+    assert response.json()["answer"] == EMAIL_DECLINED_MESSAGE
+    assert response.json()["pending_interrupt"] is None
+    assert [r.decision for r in _approvals(session_id)] == ["cancelled"]
+    [event] = _expiry_events(caplog)
+    assert event.source_app == "chat"  # type: ignore[attr-defined]
+    assert event.interrupt_type == "email_approval"  # type: ignore[attr-defined]
+    assert event.age_seconds > PENDING_APPROVAL_TTL.total_seconds()  # type: ignore[attr-defined]
+
+
+def test_hb_chat_c3_an_approval_inside_the_ttl_is_honoured(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    case = _case("HB-CHAT-C3")
+    with TestClient(app) as client:
+        session_id, paused_from, _ = _paused_between(lambda: _paused_email_thread(client))
+        before = len(_sent(client))
+        _pin_clock(monkeypatch, paused_from + PENDING_APPROVAL_TTL - timedelta(seconds=1))
+        with caplog.at_level(logging.INFO, logger="chat_api.routers.sessions"):
+            response = client.post(
+                f"/chat/sessions/{session_id}/respond", json=_expand(case["payload"])
+            )
+        after = len(_sent(client))
+
+    assert response.status_code in case["expected_status"], response.text
+    assert after == before + 1, "an approval 1 s inside the TTL was not honoured"
+    assert response.json()["answer"] == EMAIL_SENT_MESSAGE
+    assert [r.decision for r in _approvals(session_id)] == ["approved"]
+    assert _expiry_events(caplog) == []
+
+
+def test_hb_chat_39_a_new_message_clears_an_expired_pause_instead_of_409(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Before the TTL, `/messages` on a paused thread is a 409 until `/respond` resolves it.
+    Past it, the pause is declined under the same turn claim and the question is answered in
+    the same request - the session continues rather than staying wedged on a stale draft.
+    """
+    case = _case("HB-CHAT-39")
+    with TestClient(app) as client:
+        session_id, _, paused_by = _paused_between(lambda: _paused_email_thread(client))
+        before = len(_sent(client))
+        _pin_clock(monkeypatch, paused_by + PENDING_APPROVAL_TTL + timedelta(seconds=1))
+        with caplog.at_level(logging.INFO, logger="chat_api.routers.sessions"):
+            response = client.post(
+                f"/chat/sessions/{session_id}/messages",
+                json={"query": "What's the best recipe for chocolate chip cookies?"},
+            )
+        after = len(_sent(client))
+
+    assert response.status_code in case["expected_status"], response.text
+    body = response.json()
+    assert body["pending_interrupt"] is None
+    assert body["answer"] not in (EMAIL_DECLINED_MESSAGE, EMAIL_SENT_MESSAGE), (
+        "the response is the decline's, not the new question's"
     )
+    assert after == before, "clearing the expired pause sent the escalation email"
+    assert [r.decision for r in _approvals(session_id)] == ["cancelled"]
+    assert len(_expiry_events(caplog)) == 1
+
+
+def test_hb_chat_39_mirror_a_live_pause_still_409s_a_new_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with TestClient(app) as client:
+        session_id, paused_from, _ = _paused_between(lambda: _paused_email_thread(client))
+        _pin_clock(monkeypatch, paused_from + PENDING_APPROVAL_TTL - timedelta(seconds=1))
+        response = client.post(
+            f"/chat/sessions/{session_id}/messages",
+            json={"query": "What's the best recipe for chocolate chip cookies?"},
+        )
+    assert response.status_code == 409, response.text
+    assert _approvals(session_id) == []
+
+
+def test_hb_chat_40_an_expired_location_consent_is_declined(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _case("HB-CHAT-40")
+    with TestClient(app) as client:
+        session_id, _, paused_by = _paused_between(lambda: _paused_locator_thread(client))
+        _pin_clock(monkeypatch, paused_by + PENDING_APPROVAL_TTL + timedelta(seconds=1))
+        response = client.post(
+            f"/chat/sessions/{session_id}/respond", json=_expand(case["payload"])
+        )
+
+    assert response.status_code in case["expected_status"], response.text
+    assert response.json()["answer"] == LOCATION_DECLINED_MESSAGE
+    assert [r.decision for r in _approvals(session_id)] == ["cancelled"]
+    _assert_no_resume_writes(session_id)
+
+
+def test_every_expiring_type_has_a_decline_the_node_accepts() -> None:
+    """The route declines by resuming with a value; that value must be one the node reads
+    as a decline. `calendar_action` has no HTTP journey here (its pause needs a seeded org
+    chunk), so its value is pinned against the node's own vocabulary instead - and
+    `test_calendar_action.py::test_cancel_choice_takes_no_action` proves `"cancel"` creates
+    no event.
+    """
+    declines = sessions_router._EXPIRED_DECLINE_RESUME
+    assert set(declines) == EXPIRING_INTERRUPT_TYPES
+    assert declines["email_approval"]["approved"] is False
+    assert declines["location_consent"]["approved"] is False
+    assert all(v is None for k, v in declines["location_consent"].items() if k != "approved"), (
+        "a decline must carry no location"
+    )
+    assert declines["calendar_action"] == {"choice": "cancel"}
+    assert "cancel" in get_args(CalendarActionChoice.model_fields["choice"].annotation)
 
 
 # --------------------------------------------------------------------------------------

@@ -12,6 +12,9 @@ and `retrieve_context` together and they rejoin at `join_scope_and_retrieval`. T
 whole of B6 part 2: the two make independent Bedrock round trips (2.1 s and 3.4 s measured
 on staging) over inputs `resolve_role` had already written, so a grounded turn's model chain
 goes from four sequential calls to three - max(scope, retrieval) then synthesis.
+
+**Not safe to invoke concurrently on one thread; every caller takes the route's turn claim
+(D-346 / D-376) - `test_graph_invocations_take_the_turn_claim.py` enumerates the callers.**
 """
 
 from intellichoice_observability.tracing import traced_node

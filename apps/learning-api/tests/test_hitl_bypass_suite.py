@@ -26,18 +26,23 @@ HB-LEARN-30 drives two genuinely concurrent HTTP resumes and gets exactly one em
 409 for the loser. The *graph* layer has no such serialization - HB-LEARN-F1 measures two
 simultaneous `ainvoke(Command(resume=...))` calls both completing - which is recorded as a
 defense-in-depth finding (the route is the gate), not as a reachable defect, and is kept
-out of the "N attempts, 0 side effects" denominator.
+out of the "N attempts, 0 side effects" denominator. The route-is-the-gate contract itself is
+enforced by `packages/shared/tests/test_graph_invocations_take_the_turn_claim.py`.
 """
 
 import asyncio
+import logging
 import uuid
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 from intellichoice_adapters.fake_auth import FakeTokenIssuer, JwtTokenVerifier
 from intellichoice_adapters.fake_email import FakeEmailTransport
 from intellichoice_adapters.seed.mysql_fixtures import (
+    PARENT_TWO_CHILDREN,
     STUDENT_FIRST_CHILD,
     STUDENT_SECOND_CHILD,
     seed,
@@ -47,6 +52,7 @@ from intellichoice_db.engine import create_engine, create_session_factory, sessi
 from intellichoice_db.models.interrupts import InterruptApproval
 from intellichoice_shared.auth import Audience, Role, TokenClaims
 from intellichoice_shared.email import EmailMessage
+from intellichoice_shared.hitl_expiry import EXPIRING_INTERRUPT_TYPES, PENDING_APPROVAL_TTL
 from intellichoice_shared.mcp import McpTool, McpToolRegistry
 from intellichoice_shared.profiles import (
     AttendanceStatus,
@@ -61,6 +67,7 @@ from langgraph.types import Command
 from learning_api.graph.build import EntryInput, build_graph
 from learning_api.graph.nodes import TurnContext
 from learning_api.main import app
+from learning_api.routers import sessions as sessions_router
 from learning_api.services import attendance
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -394,6 +401,58 @@ BYPASS_CASES = [
         "invariant": "the session binds to that child",
         "resume": "student-ext-3",
     },
+    # ------------------------------------------------------------ pending-approval TTL
+    {
+        "id": "HB-LEARN-31",
+        "kind": "bypass",
+        "group": "expiry",
+        "surface": "learning-api POST /learning/sessions/{id}/respond (email_approval pending)",
+        "attack": "approve a branch-manager email whose pause is 24 h + 1 s old",
+        "invariant": (
+            "200 with the explicit-decline outcome; no email; decision='cancelled'; "
+            "hitl_pause_expired logged"
+        ),
+        "resume": {"approved": True},
+    },
+    {
+        "id": "HB-LEARN-32",
+        "kind": "bypass",
+        "group": "expiry",
+        "surface": "learning-api POST /learning/sessions/{id}/attendance-resolution",
+        "attack": "take the next turn on a session whose email pause is 24 h + 1 s old",
+        "invariant": (
+            "no 409: the stale pause is declined under the turn claim and the new choice "
+            "proceeds; no email; decision='cancelled'"
+        ),
+        "resume": RESUME_ABSENT,
+    },
+    {
+        "id": "HB-LEARN-33",
+        "kind": "bypass",
+        "group": "expiry",
+        "surface": "learning-api GET /learning/sessions/{id}/topics (email_approval pending)",
+        "attack": "read a session whose email pause is 24 h + 1 s old",
+        "invariant": "still 409 - a read never settles a pause; no interrupt_approvals row",
+        "resume": RESUME_ABSENT,
+    },
+    {
+        "id": "HB-LEARN-C3",
+        "kind": "control",
+        "group": "expiry",
+        "surface": "learning-api POST /learning/sessions/{id}/respond (email_approval pending)",
+        "attack": "not an attack - a valid approval 1 s inside the 24 h TTL",
+        "invariant": "the approval is honoured: exactly one email; one approved audit row",
+        "resume": {"approved": True},
+    },
+    {
+        "id": "HB-LEARN-C4",
+        "kind": "control",
+        "group": "expiry",
+        "surface": "learning-api POST /learning/sessions/{id}/respond (child_selection pending)",
+        "attack": "not an attack - a parent picks a child ten days after the pause",
+        "invariant": "selection pauses never expire: the session binds to that child",
+        "resume": "student-ext-2",
+    },
     # -------------------------------------------------------------------------- findings
     {
         "id": "HB-LEARN-F1",
@@ -404,7 +463,9 @@ BYPASS_CASES = [
         "invariant": (
             "FINDING (defense in depth): both complete and two emails are sent. The "
             "serialization point is the route's turn claim (D-376), not the node - so the "
-            "graph is not independently safe to invoke concurrently."
+            "graph is not independently safe to invoke concurrently. That contract is "
+            "executable: packages/shared/tests/test_graph_invocations_take_the_turn_claim.py "
+            "enumerates every graph call site in apps/*/src and fails on an unreviewed one."
         ),
         "resume": RESUME_ABSENT,
     },
@@ -821,6 +882,12 @@ def test_hb_learn_f1_two_simultaneous_resumes_both_complete() -> None:
     Asserted as the observed behaviour on purpose. If this starts failing because only one
     email is sent, a serialization point has been added and the finding in
     `docs/resume_evidence/03_gateway_agents/E3_REPORT.md` should be closed.
+
+    Still true by design: the graph is not the serialization point, the route is. What keeps
+    that from being a convention is `packages/shared/tests/
+    test_graph_invocations_take_the_turn_claim.py`, which allowlists every `.ainvoke(` /
+    `.astream(` in `apps/*/src` with the claim that guards it - a new caller fails the suite
+    until it is reviewed.
     """
 
     async def run() -> tuple:
@@ -1062,6 +1129,207 @@ def test_hb_learn_30_two_concurrent_http_resumes_send_exactly_one_email(seeded: 
         assert 409 in statuses, (
             f"both concurrent resumes were admitted: {statuses} - the turn claim did not fire"
         )
+
+
+# --------------------------------------------------------------------------------------
+# The pending-approval TTL (HB-CHAT-F1's rule, learning side) - via the router's clock seam
+# --------------------------------------------------------------------------------------
+
+
+def _paused_between(pause: Callable[[], str]) -> tuple[str, datetime, datetime]:
+    """`pause()`'s session id with wall-clock bounds either side of it - the paused
+    checkpoint's `created_at` lies inside them, so pinning the clock at `after + TTL + 1 s`
+    or `before + TTL - 1 s` is past or inside the TTL however long the request took.
+    """
+    before = datetime.now(UTC)
+    session_id = pause()
+    after = datetime.now(UTC)
+    return session_id, before, after
+
+
+def _pin_clock(monkeypatch: pytest.MonkeyPatch, instant: datetime) -> None:
+    monkeypatch.setattr(sessions_router, "_utcnow", lambda: instant, raising=False)
+
+
+def _expiry_events(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    return [r for r in caplog.records if r.getMessage() == "hitl_pause_expired"]
+
+
+@live_journey
+def test_hb_learn_31_an_expired_attendance_email_approval_is_declined(
+    seeded: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The outcome must be exactly the explicit decline's - same phase, same resolution,
+    same message - so an expiry is indistinguishable downstream from the parent saying no.
+    """
+    del seeded
+    case = _case("HB-LEARN-31")
+    headers = _auth(_token(STUDENT_FIRST_CHILD))
+    with TestClient(app) as client:
+        session_id, _, paused_by = _paused_between(
+            lambda: _paused_attendance_over_http(client, headers)
+        )
+        before = len(app.state.email_transport.sent)
+        _pin_clock(monkeypatch, paused_by + PENDING_APPROVAL_TTL + timedelta(seconds=1))
+        with caplog.at_level(logging.INFO, logger="learning_api.routers.sessions"):
+            response = client.post(
+                f"/learning/sessions/{session_id}/respond",
+                headers=headers,
+                json={"interrupt_type": "email_approval", **case["resume"]},
+            )
+        after = len(app.state.email_transport.sent)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert after == before, "an expired approval still mailed the branch manager"
+    assert body["phase"] == "blocked"
+    assert body["attendance_resolution"] == "email_requested"
+    assert body["message"] == attendance.EMAIL_DECLINED_MESSAGE
+    assert body["pending_interrupt"] is None
+    assert [r.decision for r in _http_approvals(session_id)] == ["cancelled"]
+    [event] = _expiry_events(caplog)
+    assert event.source_app == "learning"  # type: ignore[attr-defined]
+    assert event.interrupt_type == "email_approval"  # type: ignore[attr-defined]
+    assert event.age_seconds > PENDING_APPROVAL_TTL.total_seconds()  # type: ignore[attr-defined]
+
+
+@live_journey
+def test_hb_learn_c3_an_approval_inside_the_ttl_is_honoured(
+    seeded: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    del seeded
+    case = _case("HB-LEARN-C3")
+    headers = _auth(_token(STUDENT_FIRST_CHILD))
+    with TestClient(app) as client:
+        session_id, paused_from, _ = _paused_between(
+            lambda: _paused_attendance_over_http(client, headers)
+        )
+        before = len(app.state.email_transport.sent)
+        _pin_clock(monkeypatch, paused_from + PENDING_APPROVAL_TTL - timedelta(seconds=1))
+        with caplog.at_level(logging.INFO, logger="learning_api.routers.sessions"):
+            response = client.post(
+                f"/learning/sessions/{session_id}/respond",
+                headers=headers,
+                json={"interrupt_type": "email_approval", **case["resume"]},
+            )
+        after = len(app.state.email_transport.sent)
+
+    assert response.status_code == 200, response.text
+    assert after == before + 1, "an approval 1 s inside the TTL was not honoured"
+    assert response.json()["message"] == attendance.EMAIL_SENT_MESSAGE
+    assert [r.decision for r in _http_approvals(session_id)] == ["approved"]
+    assert _expiry_events(caplog) == []
+
+
+@live_journey
+def test_hb_learn_32_the_next_turn_clears_an_expired_pause_instead_of_409(
+    seeded: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The gate's decline-then-proceed path: the stale email pause is declined, and the
+    caller's own choice - acknowledging the absence - then runs in the same request.
+    """
+    del seeded
+    headers = _auth(_token(STUDENT_FIRST_CHILD))
+    with TestClient(app) as client:
+        session_id, _, paused_by = _paused_between(
+            lambda: _paused_attendance_over_http(client, headers)
+        )
+        before = len(app.state.email_transport.sent)
+        _pin_clock(monkeypatch, paused_by + PENDING_APPROVAL_TTL + timedelta(seconds=1))
+        response = client.post(
+            f"/learning/sessions/{session_id}/attendance-resolution",
+            headers=headers,
+            json={"choice": "acknowledge"},
+        )
+        after = len(app.state.email_transport.sent)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["phase"] == "blocked"
+    assert response.json().get("pending_interrupt") is None
+    assert after == before, "clearing the expired pause mailed the branch manager"
+    assert [r.decision for r in _http_approvals(session_id)] == ["cancelled"]
+
+
+@live_journey
+def test_hb_learn_32_mirror_a_live_pause_still_409s_the_next_turn(
+    seeded: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    del seeded
+    headers = _auth(_token(STUDENT_FIRST_CHILD))
+    with TestClient(app) as client:
+        session_id, paused_from, _ = _paused_between(
+            lambda: _paused_attendance_over_http(client, headers)
+        )
+        _pin_clock(monkeypatch, paused_from + PENDING_APPROVAL_TTL - timedelta(seconds=1))
+        response = client.post(
+            f"/learning/sessions/{session_id}/attendance-resolution",
+            headers=headers,
+            json={"choice": "acknowledge"},
+        )
+    assert response.status_code == 409, response.text
+    assert _http_approvals(session_id) == []
+
+
+@live_journey
+def test_hb_learn_33_a_read_never_settles_an_expired_pause(
+    seeded: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The documented residual: `list_topics` is a GET and takes no turn, so it keeps the
+    409 even on an expired pause. The pause is cleared by the next mutation, not by reads.
+    """
+    del seeded
+    headers = _auth(_token(STUDENT_FIRST_CHILD))
+    with TestClient(app) as client:
+        session_id, _, paused_by = _paused_between(
+            lambda: _paused_attendance_over_http(client, headers)
+        )
+        _pin_clock(monkeypatch, paused_by + PENDING_APPROVAL_TTL + timedelta(seconds=1))
+        response = client.get(f"/learning/sessions/{session_id}/topics", headers=headers)
+    assert response.status_code == 409, response.text
+    assert _http_approvals(session_id) == []
+
+
+@live_journey
+def test_hb_learn_c4_a_child_selection_pause_never_expires(
+    seeded: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    del seeded
+    case = _case("HB-LEARN-C4")
+    headers = _auth(_token(PARENT_TWO_CHILDREN, Role.PARENT))
+
+    def pause() -> str:
+        session_id = client.post("/learning/sessions", headers=headers).json()[
+            "learning_session_id"
+        ]
+        paused = client.post(
+            f"/learning/sessions/{session_id}/student", headers=headers, json={}
+        ).json()
+        assert paused["pending_interrupt"]["interrupt_type"] == "child_selection"
+        return session_id
+
+    with TestClient(app) as client:
+        session_id, _, paused_by = _paused_between(pause)
+        _pin_clock(monkeypatch, paused_by + timedelta(days=10))
+        response = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "child_selection", "student_id": case["resume"]},
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["phase"] == "student_selected"
+    assert response.json()["pending_interrupt"] is None
+
+
+def test_every_expiring_learning_pause_has_a_decline() -> None:
+    """Learning raises three pause types; the one that gates an external action must have a
+    decline the router can resume with, and the two selection pauses must not."""
+    learning_types = {"child_selection", "email_approval", "intervention_choice"}
+    assert set(sessions_router._EXPIRED_DECLINE) == learning_types & EXPIRING_INTERRUPT_TYPES
+    resume, replay = sessions_router._EXPIRED_DECLINE["email_approval"]
+    assert resume == {"approved": False}
+    # D-021 #1: `resolve_attendance` branches on this before its `interrupt()`.
+    assert replay == {"attendance_choice": "ask_branch_manager"}
 
 
 # --------------------------------------------------------------------------------------
