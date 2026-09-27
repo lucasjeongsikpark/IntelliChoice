@@ -2509,7 +2509,7 @@ Bedrock gateway → MySQL/Postgres → MCP tools on the OTel side (SPEC §5.32.2
 execution has no off-the-shelf OTel instrumentation, so `traced_span()`/`traced_node()` are manual
 wrappers at those call sites, *in addition to* the LangSmith tree.
 The three auto-instrumented hops are FastAPI, the SQLAlchemy engines (asyncpg), and — since
-D-481, implemented locally 2026-09-26, not yet deployed — the LangGraph checkpointer's own psycopg
+D-481, deployed 2026-09-27 in `gha-f05c38132555` and observed live (D-482) — the LangGraph checkpointer's own psycopg
 connection (`instrument_psycopg`, the standard OTel psycopg instrumentor at the same 0.65b0
 contrib release as the other two, patched at module level before `lifespan` opens the saver's
 connection, **`capture_parameters=False`** so serialized graph state never reaches a span). Before

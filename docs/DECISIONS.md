@@ -32001,3 +32001,28 @@ a checkpoint span visible in an X-Ray trace on staging — follows the next depl
 **Row state.** All three E6.2 gaps are closed: `COLLECTOR-STATS-UNSCRAPED` (D-468),
 `TRACE-ID-COLLISION` (D-479/D-480), `CHECKPOINTER-UNINSTRUMENTED` (this entry). The
 `OBSERVABILITY-TRACE-GAPS` row is deleted from `PROJECT_STATE` (delete-on-resolve).
+
+## D-482 — D-481 landed (PR #479, `f05c381`) and deployed as `gha-f05c38132555`; a checkpoint SQL subsegment observed in a live staging trace (accepted, 2026-09-27)
+
+**Landing and deploy.** `land/d481-checkpointer-spans` → PR #479, nine of nine checks green
+first time, rebase-merged as **`f05c381`**. `gh workflow run deploy-staging.yml --ref main`,
+run **36341554484**, 18:41 → 19:00 UTC 2026-09-27, every step green (Alembic no-op), canary
+bake without an alarm breach, rollback skipped. Post-deploy read: learning 2/2 on `:159`
+(tasks 13:51:34 / 13:51:56 CDT), chat 1/1 on `:157` (13:54:33 CDT), ops-task `:151`, all on
+`gha-f05c38132555`; `GET /me` → 401 JSON through CloudFront; both SPA roots 200;
+`InvalidPasswordError` / `Traceback` / `TooManyConnections` 0 / 0 / 0 since dispatch.
+
+**The live check, read-only and model-free.** One anonymous `POST /chat/sessions` (a UUID mint,
+nothing persisted) followed by a 6-second anonymous `GET /chat/sessions/{id}/stream`, which
+calls `graph.aget_state` on connect — the checkpointer's read — and, for a session with no
+checkpoint yet, answers 404 "chat session not found". The X-Ray trace of that request
+(`1-87074567-39d3c0f595c6b6e00b324a03`, 19:01:17Z) carries a SQL subsegment whose sanitized
+query begins `select thread_id, checkpoint, checkpoint_ns …` — `AsyncPostgresSaver`'s own
+`SELECT`, exported by the psycopg instrumentor, nested under the request. Before D-481 that
+request's trace would have held no SQL at all (yesterday's 3,646-trace chat window: 0 traces
+with SQL, the same routes). No student data was involved; the subsegment carries the statement
+text only, no parameters.
+
+**Row state.** `OBSERVABILITY-TRACE-GAPS` is closed end to end and was deleted from
+`PROJECT_STATE` in D-481; nothing remains on it. The D-481 caveat stands: the E6.2 harness would
+count these subsegments as the SQLAlchemy hop until it learns to split them.
