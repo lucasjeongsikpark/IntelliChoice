@@ -26,6 +26,7 @@ from intellichoice_observability.request_logging import install_request_logging_
 from intellichoice_observability.tracing import (
     configure_tracing_provider,
     instrument_fastapi_app,
+    instrument_psycopg,
     instrument_sqlalchemy_engines,
 )
 from intellichoice_shared.auth import (
@@ -229,6 +230,10 @@ _otel_provider = configure_tracing_provider(
 app = FastAPI(title="IntelliChoice Q&A API", lifespan=lifespan)
 if _otel_provider is not None:
     instrument_fastapi_app(app, _otel_provider)
+    # D-464: the LangGraph checkpointer's own psycopg connection. The patch is class-level on
+    # `psycopg.AsyncConnection.connect`, so it must precede `lifespan`'s `from_conn_string` -
+    # see `instrument_psycopg`'s docstring.
+    instrument_psycopg(_otel_provider)
 # `apps/chat-web`'s dev server - dev-only convenience, not a production CORS policy
 # decision, matching `learning_api.main`'s same caveat (docs/DECISIONS.md D-032). Both
 # 5173 (Vite's default, used by `learning-web`) and 5174 (`chat-web`'s pinned port when

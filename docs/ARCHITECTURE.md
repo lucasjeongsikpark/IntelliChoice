@@ -2508,6 +2508,12 @@ question, not about which service is running. One `trace_id` still spans FastAPI
 Bedrock gateway → MySQL/Postgres → MCP tools on the OTel side (SPEC §5.32.2); LangGraph node
 execution has no off-the-shelf OTel instrumentation, so `traced_span()`/`traced_node()` are manual
 wrappers at those call sites, *in addition to* the LangSmith tree.
+The three auto-instrumented hops are FastAPI, the SQLAlchemy engines (asyncpg), and — since
+D-481, implemented locally 2026-09-26, not yet deployed — the LangGraph checkpointer's own psycopg
+connection (`instrument_psycopg`, the standard OTel psycopg instrumentor at the same 0.65b0
+contrib release as the other two, patched at module level before `lifespan` opens the saver's
+connection, **`capture_parameters=False`** so serialized graph state never reaches a span). Before
+that, checkpoint reads and writes appeared in no trace at all (E6.2, D-464).
 
 **Database credentials rotate under the running tasks, and the tasks do not notice** (learned
 live, D-455, 2026-08-29). Both RDS instances use AWS-managed master-user secrets with automatic

@@ -21,6 +21,7 @@ from intellichoice_observability.request_logging import install_request_logging_
 from intellichoice_observability.tracing import (
     configure_tracing_provider,
     instrument_fastapi_app,
+    instrument_psycopg,
     instrument_sqlalchemy_engines,
 )
 from intellichoice_shared.auth import (
@@ -315,6 +316,10 @@ _otel_provider = configure_tracing_provider(
 app = FastAPI(title="IntelliChoice Learning API", lifespan=lifespan)
 if _otel_provider is not None:
     instrument_fastapi_app(app, _otel_provider)
+    # D-464: the LangGraph checkpointer's own psycopg connection. The patch is class-level on
+    # `psycopg.AsyncConnection.connect`, so it must precede `lifespan`'s `from_conn_string` -
+    # see `instrument_psycopg`'s docstring.
+    instrument_psycopg(_otel_provider)
 # S11's `apps/learning-web` dev server (Vite default port) - the real deployment puts
 # both apps behind `learning.intellichoice.org`, so this is a dev-only convenience, not a
 # production CORS policy decision (see docs/DECISIONS.md D-032).
