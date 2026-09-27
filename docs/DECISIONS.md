@@ -31272,7 +31272,8 @@ MCP spans exist anywhere in retention because no traffic exercises it (no spend 
 chat traces already covered the Bedrock hop) — and the **collector export success/failure rate**
 (ADOT serves those counters on `localhost:8888` and nothing scrapes it → `COLLECTOR-STATS-UNSCRAPED`).
 Plus `CHECKPOINTER-UNINSTRUMENTED` (low): `AsyncPostgresSaver` uses psycopg directly, so no span
-represents checkpoint I/O. AUD-F-12's export-alarm gap and SILENT-500S restated unchanged.
+represents checkpoint I/O. *(→ **fixed 2026-09-26, D-481**: the OTel psycopg instrumentor,
+parameters never captured.)* AUD-F-12's export-alarm gap and SILENT-500S restated unchanged.
 
 **Verification caveat, honestly recorded.** The 2,170-pass full run was on a tree differing from
 final only by a behaviour-preserving rewrite of an empty branch in the E6.2 test helper; a
@@ -31943,3 +31944,60 @@ not organic load.
 
 **Row state.** `TRACE-ID-COLLISION` is closed end to end (reproduced locally, fixed, deployed,
 re-measured). `OBSERVABILITY-TRACE-GAPS` keeps `CHECKPOINTER-UNINSTRUMENTED` (low) only.
+
+## D-481 — `CHECKPOINTER-UNINSTRUMENTED` closed: LangGraph checkpoint I/O is traced by the standard OTel psycopg instrumentor, parameters never captured; `OBSERVABILITY-TRACE-GAPS` is fully resolved (accepted, 2026-09-26)
+
+`PROJECT_STATE` §4.4 row 1 after D-479/D-480 — the last item on the `OBSERVABILITY-TRACE-GAPS`
+row (D-464). Third task under the Orca coordinator/executor model (`run_eb99703d4f3f`,
+`task_9e98c72e4a21`, `ctx_16d8ba92af61`; launch receipt `requested == effective`, Claude Opus
+5.5 high); Frozen Spec `tasks/checkpointer-uninstrumented.md`, deleted after reconciliation.
+
+**The gap.** `AsyncPostgresSaver` opens its own psycopg `AsyncConnection` inside `lifespan`; the
+`SQLAlchemyInstrumentor` sees only the asyncpg engines, so no span in any trace represented a
+checkpoint read or write — on `POST .../answers`, whose whole state model is the checkpoint.
+
+**Decisions.** D1 the standard tool, not a hand-written saver wrapper:
+`opentelemetry-instrumentation-psycopg`, locked to **0.65b0** — the same contrib release as the
+fastapi and sqlalchemy instrumentations already in use (the lock gains exactly that package
+and its transitive `opentelemetry-instrumentation-dbapi 0.65b0`; no existing version moved).
+The coordinator verified in a throwaway environment, before the spec, that this release wraps
+psycopg 3's `AsyncConnection`/`AsyncCursor`. D2 `instrument_psycopg(provider)` in
+`tracing.py`, singleton-guarded like `instrument_sqlalchemy_engines`, called at **module level**
+in both `main.py` files right after `instrument_fastapi_app` — the patch is class-level on
+`psycopg.AsyncConnection.connect`, so it must precede `lifespan`'s `from_conn_string`.
+**`capture_parameters` stays False**: checkpoint blobs (serialized graph state, which carries
+student answers) travel as SQL parameters and must never reach a span; the statement text is
+the saver's fixed SQL. psycopg is used only on checkpointer paths (both apps' lifespans and
+`session_consolidation_cli`, a separate ops process with no tracing provider), so instrumenting
+it process-wide instruments exactly the checkpointer.
+
+**Proof, against the real checkpointer.** `test_checkpointer_spans.py` drives a real
+`AsyncPostgresSaver` on the dev Postgres: one `aput` + `aget_tuple` under a `traced_span`
+parent, a marker string placed in the channel values both as a primitive (the checkpoint's
+JSONB parameter) and inside a dict (a `checkpoint_blobs` parameter). Asserts: `INSERT` and
+`SELECT` children with `db.system = "postgresql"` under the parent, the marker read back through
+the traced connection, and the marker in **no** exported span. **Reproduce-first:** with a no-op
+helper the test failed with only `('test-parent', {})` seen. The executor added a negative
+control beyond the spec — with `capture_parameters=True` the marker *does* reach
+`db.statement.parameters` — so the absence assertion is proven to have teeth rather than to be
+blind. An idempotency test pins one wrapper layer on `AsyncConnection.connect` after two calls
+and none after `uninstrument()`. Wiring smoke: each app imported with `*_OTEL_ENABLED`
+true/false shows psycopg instrumented only when true.
+
+**Verification.** Executor: observability 141, healthz + chat endpoints 29, ruff/format clean,
+pyright 0 errors, `make test` **2262 / 2 / 1**. Coordinator, independently: ruff/format clean,
+pyright 0 errors, full suite **2262 / 2 / 1** (baseline 2259 + 3 new). **Implemented locally,
+not deployed** (LB-05).
+
+**Caveats carried forward.** (1) The E6.2 harness (`trace_coverage.py`) recognises the
+SQLAlchemy hop by X-Ray SQL subsegments; the new psycopg spans produce the same shape, so on a
+route whose only database work is checkpoint I/O the harness would report the "SQLAlchemy" hop
+satisfied by checkpoint spans. Any future E6.2 re-run must split the two (by `db.statement`
+shape or span name) before its per-hop numbers are read; the harness is measurement tooling
+and was deliberately not edited here. (2) Span volume per graph invoke grows by the saver's
+statement count; X-Ray bills per trace, so cost is unchanged in kind. (3) Live verification —
+a checkpoint span visible in an X-Ray trace on staging — follows the next deploy.
+
+**Row state.** All three E6.2 gaps are closed: `COLLECTOR-STATS-UNSCRAPED` (D-468),
+`TRACE-ID-COLLISION` (D-479/D-480), `CHECKPOINTER-UNINSTRUMENTED` (this entry). The
+`OBSERVABILITY-TRACE-GAPS` row is deleted from `PROJECT_STATE` (delete-on-resolve).

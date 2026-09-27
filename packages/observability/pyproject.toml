@@ -14,6 +14,9 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-http>=1.29",
     "opentelemetry-instrumentation-fastapi>=0.50b0",
     "opentelemetry-instrumentation-sqlalchemy>=0.50b0",
+    # CHECKPOINTER-UNINSTRUMENTED (D-464): `AsyncPostgresSaver` opens its own psycopg connections,
+    # which `SQLAlchemyInstrumentor` never sees - see `tracing.instrument_psycopg`.
+    "opentelemetry-instrumentation-psycopg>=0.50b0",
     "prometheus-client>=0.26.0",
 ]
 

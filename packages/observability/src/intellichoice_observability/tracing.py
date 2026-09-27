@@ -1,10 +1,11 @@
 """SPEC §5.32.2 OpenTelemetry: one `trace_id` spans FastAPI -> LangGraph -> Bedrock
 gateway -> MySQL/Postgres -> MCP tools -> external APIs. `FastAPIInstrumentor`/
 `SQLAlchemyInstrumentor` cover the FastAPI and MySQL/Postgres hops automatically, no
-caller-side changes needed in `packages/adapters` - see `configure_tracing_provider`'s
-docstring for exactly *when* it must run relative to app construction, and
-`instrument_sqlalchemy_engines`'s docstring for why every traced engine must go through
-one combined call rather than one call each.
+caller-side changes needed in `packages/adapters`, and `PsycopgInstrumentor` covers
+the LangGraph checkpointer's own psycopg connection (`instrument_psycopg`) - see
+`configure_tracing_provider`'s docstring for exactly *when* it must run relative to app
+construction, and `instrument_sqlalchemy_engines`'s docstring for why every traced engine
+must go through one combined call rather than one call each.
 LangGraph node execution, the Bedrock gateway, and MCP tool calls have no off-the-shelf
 OTel instrumentation, so `traced_span()`/`traced_node()` are small manual wrappers used
 at those call sites instead.
@@ -26,6 +27,7 @@ from fastapi import FastAPI
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import Event, ReadableSpan, TracerProvider
@@ -273,6 +275,29 @@ def instrument_sqlalchemy_engines(*engines: AsyncEngine, provider: TracerProvide
     SQLAlchemyInstrumentor().instrument(
         engines=[engine.sync_engine for engine in engines], tracer_provider=provider
     )
+
+
+def instrument_psycopg(provider: TracerProvider) -> None:
+    """Traces LangGraph checkpoint I/O (CHECKPOINTER-UNINSTRUMENTED, D-464).
+    `AsyncPostgresSaver` opens its own psycopg connection - a different driver from the
+    asyncpg engines `instrument_sqlalchemy_engines` covers - so without this no span in any
+    trace represents a checkpoint read or write. psycopg is used only by the checkpointer in
+    both apps, so instrumenting it process-wide instruments exactly that path.
+
+    Must run at **module level**, before `lifespan`: the patch is class-level on
+    `psycopg.AsyncConnection.connect`, and only connections opened after it are traced -
+    `lifespan`'s `AsyncPostgresSaver.from_conn_string` opens the saver's one connection
+    at startup and keeps it for the process lifetime.
+
+    `capture_parameters` is deliberately left at its `False` default: checkpoint blobs
+    (serialized graph state, which carries student answers) travel as SQL *parameters* and
+    must never reach a span. The statement text alone (`db.statement`) is the saver's fixed
+    SQL and is safe. `PsycopgInstrumentor` is the same process-wide singleton as
+    `SQLAlchemyInstrumentor`, hence the guard.
+    """
+    if PsycopgInstrumentor().is_instrumented_by_opentelemetry:
+        return
+    PsycopgInstrumentor().instrument(tracer_provider=provider)
 
 
 @contextmanager
