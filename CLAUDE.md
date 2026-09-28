@@ -97,6 +97,10 @@ Reference (durable, read on demand — not per-session):
   2026-08-20) and `ENROLLMENT_FAQ_APPROVAL.md` (the sole launch gate on the guest journey's
   canonical question — awaiting the org's approval). Whether committed drafts are allowed at all
   is UD-12(f), open.
+- [docs/reference/BANK_DUPLICATE_REVIEW.md](docs/reference/BANK_DUPLICATE_REVIEW.md) — the
+  read-only review sheet behind **UD-16**: 58 same-arithmetic groups / 133 approved-bank items, a
+  `keep` column per group. An instrument for the user's content decision, not a decision; nothing
+  in the bank changes until the sheet is marked (D-485).
 - [docs/reference/audits/](docs/reference/audits/) — the three audit registers behind
   `README.md`'s namespace map. **Never cite a bare audit ID** — always `<document>:<id>`; four ID
   schemes collide across the three files.
