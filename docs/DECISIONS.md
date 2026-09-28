@@ -32209,3 +32209,22 @@ ruff/format clean, pyright 0 errors, `make test` **2302 / 2 / 1**. Coordinator, 
 ruff/format clean, pyright 0 errors, full suite **2302 / 2 / 1** (baseline 2301 + 1 new),
 closed-file hits 0. **Implemented locally, not deployed**; `CurrentStderrHandler` ships with
 the next deploy and changes nothing observable in production.
+
+## D-487 — D-486 landed (PR #484, `2875bc6`) and deployed as `gha-2875bc68a472`; the execution queue stands empty (accepted, 2026-09-28)
+
+**Landing and deploy.** `land/d486-sse-harness` → PR #484, nine of nine checks green first
+time — the first full-suite CI run under the late-bound stderr handler, so a future harness
+failure will carry the server's own lines — rebase-merged as **`2875bc6`**.
+`gh workflow run deploy-staging.yml --ref main`, run **36464524229**, 18:20 → 18:40 UTC
+2026-09-28, every step green (Alembic no-op), canary bake without an alarm breach, rollback
+skipped. Post-deploy read: learning 2/2 on `:161` (tasks 13:31:26 / 13:31:59 CDT), chat 1/1 on
+`:159` (13:34:56 CDT), ops-task `:153`, all on `gha-2875bc68a472`; `GET /me` → 401 JSON
+through CloudFront; both SPA roots 200; `InvalidPasswordError` / `Traceback` /
+`TooManyConnections` 0 / 0 / 0 since dispatch. Nothing observable changed in production by
+design: `CurrentStderrHandler` resolves the same `sys.stderr` a container always has.
+
+**Where the project stands.** With D-472..D-486 landed and live, `PROJECT_STATE` §4.4 is
+**empty**: every remaining §4 row is user-gated (`MEMORY-CONSOLIDATION-DEFECTS` on UD-15 /
+UD-2, `D310-RESIDUALS` on a user action, `WORK-35-LEDGER` on UD-2). The next engineering work
+is unlocked by a user decision — UD-14 (the RDS rotation returns 2026-10-02), UD-15, UD-2, or
+UD-16's marked review sheet — or by a new discovery.
