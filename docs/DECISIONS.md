@@ -32117,3 +32117,31 @@ guards the next change). Not verified live: an actual expiry on staging needs a 
 and a real turn on it; the local E3 suites prove the behaviour with an injected clock, and the
 first staging expiry will show as a `hitl_pause_expired` line in the app log — the read to make
 when a pause has been left open overnight. No paid call was involved anywhere in this cycle.
+
+## D-485 — `CONTENT-GATE-HINT-COHERENCE` residuals dispositioned: the bank-duplicate question becomes UD-16 with a review sheet, and the same-topic skeleton check is deferred until generation resumes (user decisions, 2026-09-27)
+
+`PROJECT_STATE` §4.4 row 1 after D-483. The row's three residuals (D-469) were one engineering
+question entangled with one content question; neither was startable without the user, so the
+coordinator asked both at once rather than dispatching an executor into a decision.
+
+**Content half — the 58 same-topic identity groups / 133 of 958 approved items.** Options put to
+the user: produce a review sheet first; keep all by design; retire to one per group. **The user
+chose the review sheet.** `docs/reference/BANK_DUPLICATE_REVIEW.md` is that sheet: every group
+from R3's `bank_scan.json` (topic, numbers, operators) joined to the authored bank the loader
+reads (`curriculum/internal_math/authored/*.yaml`) — 133/133 ids resolved — with each item's
+difficulty and stem and an empty `keep` column per group. It is an instrument, not a decision:
+nothing in the bank was edited, retired or reordered, and retiring happens only through the
+loader's retire path after the sheet is marked. Recorded as **UD-16** (`BANK-DUPLICATES`), hold
+text "change nothing in the bank". Indexed in CLAUDE.md as a reference document.
+
+**Engineering half — E5.3's skeleton-collision class.** Closing it needs a same-topic stem-skeleton
+instrument that re-opens D-286's cross-topic scoping, at a measured cost of 8 bank groups / 35
+items of which ≥22 are legitimate by design (R3). It affects only future generation runs, and
+D-342 parks those. Options: defer until generation resumes, or build now. **The user chose to
+defer.** Queued in §6.3 as `CONTENT-GATE-SKELETON-CHECK`, reopen condition "D-342 lifted"; the
+5/17 deterministic hint-check misses ride with it (a model scorer is the only way past a
+deterministic rule, and `HINT_SOLUTION_REVIEW.md` §1 records two that failed).
+
+**Row state.** `CONTENT-GATE-HINT-COHERENCE` leaves §4.1 and the execution queue: its fixed part
+is D-469 (deployed in D-471), its open parts are now UD-16 and a §6.3 deferral. No code changed;
+no paid call; nothing to deploy. The queue's row 1 is `SSE-HARNESS-FINALIZE-FLAKE`.
