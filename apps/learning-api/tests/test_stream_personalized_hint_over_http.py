@@ -26,14 +26,22 @@ The frame either arrives within the read timeout or the test fails; there is no 
 node, so there would be no background task and no publish to wait for (D-272). Injecting the real
 scheduler class - with the mock gateway, the app's own bus, graph, factory and builder - is what
 puts the deployed two-stage shape under test without a paid call.
+
+**Why every failure here carries the server's side (D-451/D-477).** This test has failed on CI
+only, in two shapes - a setup POST that was not the expected 200 body, and a frame that was not
+the expected frame - and each time the rerun passed and the server's logs were gone. So every
+setup response is status-checked with its body in the message, frames are selected by what they
+*are* rather than by position (with every skipped frame reported), and any failure has the app's
+own log lines for this run appended. A fourth occurrence should name its cause.
 """
 
 import asyncio
 import contextlib
 import json
+import logging
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 import httpx
 import pytest
@@ -45,6 +53,7 @@ from intellichoice_adapters.seed.mysql_fixtures import STUDENT_UNLINKED, seed
 from intellichoice_curriculum.loader import load_curriculum_and_templates
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_db.repositories.questions import QuestionRepository
+from intellichoice_observability.logging_config import JsonLogFormatter, PiiDenylistFilter
 from intellichoice_observability.metrics import HINT_PERSONALIZATION_OUTCOMES
 from intellichoice_shared.auth import Audience, Role
 from intellichoice_shared.bedrock import BedrockTask
@@ -113,12 +122,46 @@ def seeded_fixtures() -> None:
     asyncio.run(load())
 
 
+class _AppLog(logging.Handler):
+    """The app's log lines for this run, kept so a failure can quote them (D4).
+
+    A root-logger handler rather than the test's captured stderr: it works under any pytest
+    capture mode, and it uses the production formatter and PII filter, so what is quoted is
+    exactly the line CloudWatch would have held.
+    """
+
+    MAX_LINES = 200
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setFormatter(JsonLogFormatter())
+        self.addFilter(PiiDenylistFilter())
+        self.lines: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.lines.append(self.format(record)[:1000])
+
+    @contextlib.contextmanager
+    def appended_to_failures(self) -> Iterator[None]:
+        try:
+            yield
+        except AssertionError as exc:
+            tail = self.lines[-self.MAX_LINES :]
+            quoted = "\n".join(tail) if tail else "(the app logged nothing)"
+            raise AssertionError(
+                f"{exc}\n\n--- app log, last {len(tail)} of {len(self.lines)} lines ---\n{quoted}"
+            ) from exc
+
+
 @contextlib.contextmanager
-def _running_server() -> Iterator[str]:
+def _running_server(app_log: _AppLog) -> Iterator[str]:
     """The app under a real `uvicorn`, on a port the OS picks. Yields its base URL.
 
     Port 0 rather than a fixed one: the dev server (8001) and a prior run's socket in
     TIME_WAIT are both real ways a hard-coded port turns a green suite red.
+
+    `app_log` is attached only once startup has finished, because the lifespan's
+    `configure_logging` removes every root handler it finds.
     """
     config = uvicorn.Config(app, host="127.0.0.1", port=0, log_level="warning")
     server = uvicorn.Server(config)
@@ -134,6 +177,8 @@ def _running_server() -> Iterator[str]:
         time.sleep(0.02)
 
     port = server.servers[0].sockets[0].getsockname()[1]
+    root = logging.getLogger()
+    root.addHandler(app_log)
     try:
         yield f"http://127.0.0.1:{port}"
     finally:
@@ -146,6 +191,8 @@ def _running_server() -> Iterator[str]:
         if thread.is_alive():
             server.force_exit = True
             thread.join(timeout=15.0)
+        # After the join, so the shutdown's own lines are kept too.
+        root.removeHandler(app_log)
         assert not thread.is_alive(), "the test server did not shut down"
 
 
@@ -179,30 +226,86 @@ def _deferred_hint_personalization() -> Iterator[None]:
         app.state.hint_personalization_scheduler = previous
 
 
-def _next_data_frame(lines: Iterator[str], *, budget: int = 3) -> dict:
-    """The next unnamed `data:` frame, skipping keepalives.
+def _json(response: httpx.Response, *, expect: int = 200) -> dict:
+    """The body of a setup response that must have succeeded, or a failure that says why not.
+
+    D-477: `.json()` on an unchecked POST parses a 4xx/5xx body just as happily, and the first
+    thing to fail is then a `KeyError` two lines later that names neither the request nor what
+    the server answered. Fixture data only, so the body is safe to quote.
+    """
+    if response.status_code != expect:
+        request = response.request
+        raise AssertionError(
+            f"{request.method} {request.url.path} -> {response.status_code} "
+            f"(expected {expect}): {response.text[:500]}"
+        )
+    return response.json()
+
+
+def _frame_summary(frame: dict) -> str:
+    intervention = frame.get("intervention") or {}
+    pending = frame.get("pending_interrupt") or {}
+    hint = intervention.get("hint_text")
+    return (
+        f"session={frame.get('learning_session_id')} phase={frame.get('phase')} "
+        f"pending={pending.get('interrupt_type')} intervention={intervention.get('type')} "
+        f"hint={hint[:60] if isinstance(hint, str) else hint!r}"
+    )
+
+
+def _next_data_frame(
+    lines: Iterator[str],
+    *,
+    until: Callable[[dict], bool],
+    seen: list[dict],
+    budget: int = 6,
+) -> dict:
+    """The first unnamed `data:` frame satisfying `until`; every data frame skipped goes in `seen`.
+
+    Selected by predicate, not position (D-288 §4: wait for the *right* frame, never the next
+    one). Any other snapshot published on the session - `sessions.py` publishes after every
+    action - would otherwise shift the sequence and turn "the personalized frame" into
+    something else. The caller still asserts order, from what `seen` recorded.
 
     Named frames are skipped rather than failed on: `KEEPALIVE_FRAME` is `event: keepalive`
     precisely so `EventSource.onmessage` ignores it, and a client reading this stream has to
-    do the same. `budget` bounds the walk so a stream that only ever keepalives fails here
-    rather than sitting on the read timeout: three keepalives is 45s, and every frame this
-    test waits for is published within milliseconds of the request that causes it. Verified by
-    removing the scheduler installed below - the run then fails here instead of passing.
+    do the same. `budget` counts every frame read, keepalive or not, so a stream that only
+    ever keepalives fails here rather than sitting on the read timeout: six keepalives is 90s,
+    and every frame this test waits for is published within milliseconds of the request that
+    causes it. Verified by keeping the scheduler installed below but suppressing its publish -
+    the run then fails here, listing the frames it did see, instead of passing. Removing the
+    scheduler outright fails one step earlier, at the authored-rung assertion: under the mock
+    provider the rewrite then runs inline, so the click itself returns rewritten text.
     """
+    keepalives = 0
+    ended = False
+    skipped_before = len(seen)
     for _ in range(budget):
         fields: list[tuple[str, str]] = []
+        ended = True
         for line in lines:
+            ended = False
             if line == "":
                 break
             name, _, value = line.partition(":")
             fields.append((name, value.lstrip()))
+        if ended:
+            break
         if not fields:
             continue
         if any(name == "event" for name, _ in fields):
+            keepalives += 1
             continue
-        data = "".join(value for name, value in fields if name == "data")
-        return json.loads(data)
-    raise AssertionError("no data frame arrived before the frame budget was exhausted")
+        frame = json.loads("".join(value for name, value in fields if name == "data"))
+        if until(frame):
+            return frame
+        seen.append(frame)
+    skipped = seen[skipped_before:]
+    summaries = "\n".join(f"  - {_frame_summary(frame)}" for frame in skipped) or "  (none)"
+    raise AssertionError(
+        f"no matching data frame ({'the stream closed' if ended else 'budget exhausted'}; "
+        f"{keepalives} keepalive(s), {len(skipped)} other data frame(s) skipped):\n{summaries}"
+    )
 
 
 def _correct_option(variant_id: str) -> str:
@@ -211,7 +314,7 @@ def _correct_option(variant_id: str) -> str:
         try:
             async with session_scope(create_session_factory(engine)) as session:
                 variant = await QuestionRepository(session).get_variant(variant_id)
-                assert variant is not None
+                assert variant is not None, f"variant {variant_id!r} is not in the bank"
                 return variant.correct_option
         finally:
             await engine.dispose()
@@ -232,9 +335,11 @@ def _authored_first_rung(variant_id: str) -> str:
             async with session_scope(create_session_factory(engine)) as session:
                 repo = QuestionRepository(session)
                 variant = await repo.get_variant(variant_id)
-                assert variant is not None
+                assert variant is not None, f"variant {variant_id!r} is not in the bank"
                 template = await repo.get_template(variant.question_template_id)
-                assert template is not None and template.hint_ladder
+                assert template is not None and template.hint_ladder, (
+                    f"template {variant.question_template_id!r} has no hint ladder"
+                )
                 return str(template.hint_ladder[0])
         finally:
             await engine.dispose()
@@ -259,103 +364,149 @@ def test_a_personalized_hint_arrives_on_the_http_stream_a_student_is_holding_ope
     token = issuer.issue(sub=STUDENT_UNLINKED, role=Role.STUDENT, audience=Audience.LEARNING)
     headers = {"Authorization": f"Bearer {token}"}
     published_before = HINT_PERSONALIZATION_OUTCOMES.labels(outcome="published")._value.get()
+    app_log = _AppLog()
 
-    with _running_server() as base_url, _deferred_hint_personalization():
-        with httpx.Client(base_url=base_url, timeout=httpx.Timeout(30.0)) as client:
-            session_id = client.post("/learning/sessions", headers=headers).json()[
-                "learning_session_id"
-            ]
-            client.post(
-                f"/learning/sessions/{session_id}/student",
-                headers=headers,
-                json={"student_id": STUDENT_UNLINKED},
-            )
-            pre_items = client.post(
-                f"/learning/sessions/{session_id}/topics",
-                headers=headers,
-                json={"topic_id": "linear_equations"},
-            ).json()["items"]
-            for index, item in enumerate(pre_items):
-                variant_id = item["question_variant_id"]
-                client.post(
-                    f"/learning/sessions/{session_id}/answers",
-                    headers={**headers, "Idempotency-Key": f"sse-pre-{index}-{session_id}"},
-                    json={
-                        "question_variant_id": variant_id,
-                        "selected_option": _correct_option(variant_id),
-                        "response_time_ms": 2000,
-                    },
+    with app_log.appended_to_failures():
+        with _running_server(app_log) as base_url, _deferred_hint_personalization():
+            with httpx.Client(base_url=base_url, timeout=httpx.Timeout(30.0)) as client:
+                session_id = _json(client.post("/learning/sessions", headers=headers))[
+                    "learning_session_id"
+                ]
+                _json(
+                    client.post(
+                        f"/learning/sessions/{session_id}/student",
+                        headers=headers,
+                        json={"student_id": STUDENT_UNLINKED},
+                    )
                 )
-            finalize = client.post(
-                f"/learning/sessions/{session_id}/exam/finalize", headers=headers, json={}
-            ).json()
-            assert finalize["phase"] == "study"
+                pre_items = _json(
+                    client.post(
+                        f"/learning/sessions/{session_id}/topics",
+                        headers=headers,
+                        json={"topic_id": "linear_equations"},
+                    )
+                )["items"]
+                for index, item in enumerate(pre_items):
+                    variant_id = item["question_variant_id"]
+                    _json(
+                        client.post(
+                            f"/learning/sessions/{session_id}/answers",
+                            headers={
+                                **headers,
+                                "Idempotency-Key": f"sse-pre-{index}-{session_id}",
+                            },
+                            json={
+                                "question_variant_id": variant_id,
+                                "selected_option": _correct_option(variant_id),
+                                "response_time_ms": 2000,
+                            },
+                        )
+                    )
+                finalize = _json(
+                    client.post(
+                        f"/learning/sessions/{session_id}/exam/finalize", headers=headers, json={}
+                    )
+                )
+                assert finalize["phase"] == "study", json.dumps(finalize)[:500]
 
-            study_variant_id = finalize["items"][0]["question_variant_id"]
-            wrong = client.post(
-                f"/learning/sessions/{session_id}/answers",
-                headers={**headers, "Idempotency-Key": f"sse-wrong-{session_id}"},
-                json={
-                    "question_variant_id": study_variant_id,
-                    "selected_option": _other_option(_correct_option(study_variant_id)),
-                    "response_time_ms": 2000,
-                },
-            ).json()
-            assert wrong["pending_interrupt"]["interrupt_type"] == "intervention_choice"
+                study_variant_id = finalize["items"][0]["question_variant_id"]
+                wrong = _json(
+                    client.post(
+                        f"/learning/sessions/{session_id}/answers",
+                        headers={**headers, "Idempotency-Key": f"sse-wrong-{session_id}"},
+                        json={
+                            "question_variant_id": study_variant_id,
+                            "selected_option": _other_option(_correct_option(study_variant_id)),
+                            "response_time_ms": 2000,
+                        },
+                    )
+                )
+                assert (wrong.get("pending_interrupt") or {}).get(
+                    "interrupt_type"
+                ) == "intervention_choice", json.dumps(wrong)[:500]
 
-            # Connected *before* the hint is asked for, which is what a browser does - the
-            # tab has held `EventSource` open since the session started.
-            stream_url = f"/learning/sessions/{session_id}/stream?token={token}"
-            with client.stream("GET", stream_url) as response:
-                assert response.status_code == 200
-                assert response.headers["content-type"].startswith("text/event-stream")
-                lines = response.iter_lines()
+                # Connected *before* the hint is asked for, which is what a browser does - the
+                # tab has held `EventSource` open since the session started.
+                stream_url = f"/learning/sessions/{session_id}/stream?token={token}"
+                with client.stream("GET", stream_url) as response:
+                    assert response.status_code == 200
+                    assert response.headers["content-type"].startswith("text/event-stream")
+                    lines = response.iter_lines()
 
-                initial = _next_data_frame(lines)
-                assert initial["learning_session_id"] == session_id
+                    before_initial: list[dict] = []
+                    initial = _next_data_frame(
+                        lines,
+                        until=lambda f: f.get("learning_session_id") == session_id,
+                        seen=before_initial,
+                    )
+                    assert initial["learning_session_id"] == session_id
 
-                served = client.post(
-                    f"/learning/sessions/{session_id}/respond",
-                    headers=headers,
-                    json={"interrupt_type": "intervention_choice", "choice": "hint"},
-                ).json()["intervention"]
-                assert served["type"] == "hint"
-                canonical_text = served["hint_text"]
-                # The two-stage shape D-272 exists for: the click returns the *authored* rung,
-                # not a spinner and not a rewrite the student waited ~2.3s for.
-                assert canonical_text == _authored_first_rung(study_variant_id)
+                    served = _json(
+                        client.post(
+                            f"/learning/sessions/{session_id}/respond",
+                            headers=headers,
+                            json={"interrupt_type": "intervention_choice", "choice": "hint"},
+                        )
+                    )["intervention"]
+                    assert served["type"] == "hint"
+                    canonical_text = served["hint_text"]
+                    # The two-stage shape D-272 exists for: the click returns the *authored*
+                    # rung, not a spinner and not a rewrite the student waited ~2.3s for.
+                    assert canonical_text == _authored_first_rung(study_variant_id)
 
-                # Frame 1: the route's own publish of the canonical rung it just served.
-                # Frame 2: the background rewrite. Reading both rather than skipping to the
-                # last one keeps the ordering itself asserted.
-                canonical_frame = _next_data_frame(lines)
-                assert canonical_frame["intervention"]["hint_text"] == canonical_text
+                    def is_canonical(frame: dict) -> bool:
+                        intervention = frame.get("intervention")
+                        return bool(intervention) and intervention["hint_text"] == canonical_text
 
-                personalized_frame = _next_data_frame(lines)
+                    def is_personalized(frame: dict) -> bool:
+                        intervention = frame.get("intervention")
+                        return bool(intervention) and intervention["hint_text"] != canonical_text
 
-    # The delivery and the instrumentation, pinned to each other: this is the one run where
-    # `published` is known to be the truth, so it is the run that proves the label means what
-    # the dashboard will read it as (D-329).
-    assert (
-        HINT_PERSONALIZATION_OUTCOMES.labels(outcome="published")._value.get()
-        == published_before + 1
-    )
+                    # The route's own publish of the canonical rung it just served, then the
+                    # background rewrite. Both are waited for, rather than skipping to the
+                    # last, so the ordering itself stays asserted: a rewrite that overtook the
+                    # canonical frame is a failure, not a pass.
+                    before_canonical: list[dict] = []
+                    canonical_frame = _next_data_frame(
+                        lines, until=is_canonical, seen=before_canonical
+                    )
+                    overtaking = [f for f in before_canonical if is_personalized(f)]
+                    assert not overtaking, (
+                        "a personalized frame reached the client before the canonical one:\n"
+                        f"  personalized: {_frame_summary(overtaking[0])}\n"
+                        f"  canonical:    {_frame_summary(canonical_frame)}"
+                    )
 
-    intervention = personalized_frame["intervention"]
-    assert intervention["type"] == "hint"
-    assert intervention["hint_level"] == 1
-    assert intervention["hint_text"] != canonical_text, (
-        "the frame that reached the client over HTTP still carried the canonical rung - the "
-        "student waited for a repaint of the text they already had"
-    )
-    assert intervention["hint_text"] == _stored_hint_text(session_id), (
-        "the text on the wire is not the text in `hint_events` - the student is reading "
-        "something no audit row records"
-    )
-    # The pause has to survive the frame, or the client replaces its snapshot with one that
-    # says the ladder closed and the panel the hint lands in collapses (D-272).
-    assert personalized_frame["pending_interrupt"] is not None
-    assert personalized_frame["assistance_question"]["question_variant_id"] is not None
+                    before_personalized: list[dict] = []
+                    personalized_frame = _next_data_frame(
+                        lines, until=is_personalized, seen=before_personalized
+                    )
+
+        # The delivery and the instrumentation, pinned to each other: this is the one run
+        # where `published` is known to be the truth, so it is the run that proves the label
+        # means what the dashboard will read it as (D-329).
+        assert (
+            HINT_PERSONALIZATION_OUTCOMES.labels(outcome="published")._value.get()
+            == published_before + 1
+        )
+
+        frame = _frame_summary(personalized_frame)
+        intervention = personalized_frame["intervention"]
+        assert intervention["type"] == "hint", frame
+        assert intervention["hint_level"] == 1, frame
+        assert intervention["hint_text"] != canonical_text, (
+            "the frame that reached the client over HTTP still carried the canonical rung - the "
+            "student waited for a repaint of the text they already had"
+        )
+        assert intervention["hint_text"] == _stored_hint_text(session_id), (
+            "the text on the wire is not the text in `hint_events` - the student is reading "
+            "something no audit row records"
+        )
+        # The pause has to survive the frame, or the client replaces its snapshot with one that
+        # says the ladder closed and the panel the hint lands in collapses (D-272).
+        assert personalized_frame["pending_interrupt"] is not None, frame
+        assistance = personalized_frame.get("assistance_question") or {}
+        assert assistance.get("question_variant_id") is not None, frame
 
 
 def _stored_hint_text(learning_session_id: str) -> str:

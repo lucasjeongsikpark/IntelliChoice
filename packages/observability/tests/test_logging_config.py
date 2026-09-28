@@ -1,7 +1,9 @@
 import io
 import json
 import logging
+import sys
 
+import pytest
 from intellichoice_observability.logging_config import (
     REDACTED_MARKER,
     JsonLogFormatter,
@@ -199,3 +201,27 @@ def test_configure_logging_disables_uvicorns_raw_access_logger() -> None:
     configure_logging.cache_clear()
     configure_logging()
     assert logging.getLogger("uvicorn.access").disabled is True
+
+
+def test_the_root_handler_writes_to_the_stderr_of_the_moment_not_the_one_it_was_built_with(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`configure_logging` runs once per process, and a `StreamHandler()` binds `sys.stderr` at
+    construction. Under pytest that was a closeable per-test capture, so every later test's
+    server logs went to a closed stream - which is how the SSE harness failures lost the only
+    evidence of what the server said (D-477). Two swaps, so "follows the current stream" is
+    distinguished from "was rebound once".
+    """
+    configure_logging.cache_clear()
+    configure_logging()
+    logger = logging.getLogger("test.late_bound_stderr")
+
+    first = io.StringIO()
+    monkeypatch.setattr(sys, "stderr", first)
+    logger.warning("first_line")
+    second = io.StringIO()
+    monkeypatch.setattr(sys, "stderr", second)
+    logger.warning("second_line")
+
+    assert json.loads(first.getvalue())["event"] == "first_line"
+    assert json.loads(second.getvalue())["event"] == "second_line"

@@ -16,8 +16,10 @@ key is not caught; call sites must keep `extra=` flat.
 
 import json
 import logging
+import sys
 from datetime import UTC, datetime
 from functools import lru_cache
+from typing import TextIO
 
 from intellichoice_shared.pii_redaction import redact_free_text
 from opentelemetry import trace
@@ -164,6 +166,28 @@ class PiiDenylistFilter(logging.Filter):
         return True
 
 
+class CurrentStderrHandler(logging.StreamHandler):
+    """A `StreamHandler` that writes to whatever `sys.stderr` is *when the record is emitted*.
+
+    `logging.StreamHandler()` binds `sys.stderr` at construction, and `configure_logging` runs
+    once per process. Under pytest that bound a closeable per-test capture: a `capsys` test that
+    reached `configure_logging()` (`report_job_complete` does) left the root handler holding a
+    closed stream, and every later test's server logs became `I/O operation on closed file`
+    instead of evidence. Production never swaps `sys.stderr`, so behaviour there is unchanged.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(sys.stderr)
+
+    @property
+    def stream(self) -> TextIO:  # pyright: ignore[reportIncompatibleVariableOverride]
+        return sys.stderr
+
+    @stream.setter
+    def stream(self, _value: TextIO) -> None:
+        pass  # the base `__init__`/`setStream` assign it; the live `sys.stderr` always wins
+
+
 @lru_cache
 def configure_logging(*, level: str = "INFO") -> None:
     """Idempotent (`lru_cache`) so every app/worker can call this once at startup
@@ -180,7 +204,7 @@ def configure_logging(*, level: str = "INFO") -> None:
     for existing in list(root.handlers):
         root.removeHandler(existing)
 
-    handler = logging.StreamHandler()
+    handler = CurrentStderrHandler()
     handler.setFormatter(JsonLogFormatter())
     handler.addFilter(PiiDenylistFilter())
     root.addHandler(handler)
