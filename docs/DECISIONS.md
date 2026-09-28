@@ -31815,7 +31815,8 @@ file` and nothing else. No frame-waiting fix can touch this.
 
 **Disposition.** Rerun accepted as the merge path (twice now); not a reason to delete or skip
 the only end-to-end SSE delivery proof in the suite. Queued as `SSE-HARNESS-FINALIZE-FLAKE`
-(`PROJECT_STATE` §4.1, queue last): make the harness diagnosable before chasing the cause —
+(`PROJECT_STATE` §4.1, queue last) *(→ **closed 2026-09-28, D-486**: the harness now self-reports, and the
+lost-log trigger was a `capsys` test rebinding the root handler under a second `lru_cache` key.)*: make the harness diagnosable before chasing the cause —
 assert `status_code == 200` on every setup POST with the body in the failure message, and give
 the uvicorn thread a log sink that survives capture (a `logging` handler writing to a list or
 to `sys.__stderr__`). Only then does a third occurrence tell us *which* of the three bodies it
@@ -32145,3 +32146,66 @@ deterministic rule, and `HINT_SOLUTION_REVIEW.md` §1 records two that failed).
 **Row state.** `CONTENT-GATE-HINT-COHERENCE` leaves §4.1 and the execution queue: its fixed part
 is D-469 (deployed in D-471), its open parts are now UD-16 and a §6.3 deferral. No code changed;
 no paid call; nothing to deploy. The queue's row 1 is `SSE-HARNESS-FINALIZE-FLAKE`.
+
+## D-486 — `SSE-HARNESS-FINALIZE-FLAKE` closed: the harness self-reports, and the reason its evidence kept vanishing was a `capsys` test rebinding the root log handler under a second `lru_cache` key (accepted, 2026-09-28)
+
+`PROJECT_STATE` §4.4 row 1 after D-485 — the last engineering-startable row. Fifth task under
+the Orca coordinator/executor model (`run_5130c265e0b3`, `task_b1b27820d3ed`,
+`ctx_c0d2b81acf8d`; launch receipt `requested == effective`, Claude Opus 5.5 high); Frozen
+Spec `tasks/sse-harness-finalize-flake.md`, deleted after reconciliation.
+
+**The defect being made diagnosable.** The only end-to-end SSE delivery proof in the suite
+(`test_stream_personalized_hint_over_http.py`, D-433) has failed on CI three times, never
+locally, in two shapes — a setup POST whose body was not the expected 200 (D-451, D-477) and,
+on 2026-09-28, `assert None is not None` at a frame assertion (PR #483, a docs-only PR) — and
+every time the server's own log lines were absent from the CI output and the rerun passed.
+
+**Why the evidence vanished — refined beyond the spec by the executor, correctly.** The spec's
+root cause ("the root `StreamHandler` binds `sys.stderr` at construction, pytest swaps it per
+test") is right in mechanism but wrong in trigger: pytest's global capture keeps one
+`sys.stderr` for the session, so an ordinary test's binding is never closed. The trigger is
+`test_checkpoint_retention.py::test_main_reports_*` — a **`capsys`** test whose job `main()`
+reaches `scheduled_jobs.report_job_complete` → `configure_logging()` with **no `level`
+argument**, a different `lru_cache` key from the lifespan's `configure_logging(level=…)`. It
+runs again, removes the root handlers and binds a new one to the per-test `capsys` stream;
+every later lifespan call is a cache hit and cannot rebind. From then on, in every full-suite
+run including CI, all server logs go to a closed stream — 38 `I/O operation on closed file`
+hits in the harness test's captured stderr, 0 real lines. Running the harness file alone never
+shows it, which is why "passes locally" told nobody anything.
+
+**Decisions.** D1 `CurrentStderrHandler` in `logging_config.py`: a `StreamHandler` whose
+`stream` resolves `sys.stderr` at emit time (production never swaps stderr, so unchanged
+there); unit-tested by two stream swaps, shown failing on the old handler. D2 every setup
+request in the harness goes through `_json(response, expect=200)`, which fails at *that*
+request with method, path, status and body. D3 frames are selected by predicate with every
+skipped frame recorded and ordering still asserted (a personalized frame overtaking the
+canonical one fails with both frames quoted) — D-288 §4's rule, applied. D4 a root-logger
+collector using the production formatter and PII filter appends the run's app log lines to
+any `AssertionError`. D5 stability measured (10/10 local passes, 12.0–13.1 s each), no retry,
+skip or xfail added.
+
+**Proofs.** A forced 409 on a second `/answers` during the pause now fails as
+`POST …/answers -> 409 (expected 200): {"detail": "a pending interrupt must be resolved …"}`
+with the server's `http_request` line beneath; an injected extra snapshot between the
+canonical and personalized frames passes and is listed in `seen` (HEAD's test fails on it
+with a bare `TypeError`); with the rewrite suppressed the test fails naming the frame it saw
+and 36 app log lines; closed-file hits 38 → 0 across the app + observability suites, and
+**0 across the coordinator's full run**.
+
+**Two findings carried, not fixed.** (1) The docstring claim "remove the scheduler ⇒ fails in
+the frame reader" was already stale at HEAD: under the mock provider the rewrite then runs
+inline and the click itself returns rewritten text, so it fails one step earlier; corrected
+to what was actually verified (scheduler present, publish suppressed). (2) **An unverified
+product-defect candidate for occurrence 3:** if the failure was at the old line 357, the third
+frame had already passed the text checks, so it was the *real* rewrite published with
+`pending_interrupt=None` — `build_personalized_hint_snapshot` derives that field only from
+`hint_ladder_awaiting_choice` in the checkpoint the scheduler read, so a `False` there at rung
+1 of 3 would produce exactly that frame: D-272's collapsed-panel case, a product defect, not a
+harness one. Not established, not reproduced, not fixed here (AC4/D6); recorded in §8 so the
+next CI occurrence — which now names its line, its frame and the server log — settles it.
+
+**Verification.** Executor: focused 11 passed, 10× loop 10/10, app + observability 642 / 1,
+ruff/format clean, pyright 0 errors, `make test` **2302 / 2 / 1**. Coordinator, independently:
+ruff/format clean, pyright 0 errors, full suite **2302 / 2 / 1** (baseline 2301 + 1 new),
+closed-file hits 0. **Implemented locally, not deployed**; `CurrentStderrHandler` ships with
+the next deploy and changes nothing observable in production.
