@@ -359,8 +359,12 @@ health checks stay green and no JSON ERROR line appears — check for
 `MasterUserSecret` `LastRotatedDate` (`aws secretsmanager describe-secret`) against the ECS
 tasks' start time. Both RDS master secrets **auto-rotate on a ~7-day cadence** and the tasks
 resolve them **once at start**, so a rotation landing on long-lived tasks breaks every *new*
-DB connection while pooled survivors keep working. First response — safe, and it is the whole
-fix until UD-14 settles the durable posture:
+DB connection while pooled survivors keep working. **Since D-488 (2026-09-29) this heals itself:**
+an EventBridge rule on the secret's `RotationSucceeded` event runs the
+`intellichoice-staging-rotation-restart` Lambda, which forces a new deployment of both
+services; if that Lambda fails, the `intellichoice-staging-rotation-restart-errors` alarm pages.
+On that page, or if the signature above appears anyway, the first response is unchanged and
+safe:
 
 ```bash
 aws ecs update-service --cluster intellichoice-staging --service intellichoice-staging-learning-api --force-new-deployment

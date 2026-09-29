@@ -891,3 +891,45 @@ module "scheduled_jobs" {
 
   tags = local.common_tags
 }
+
+# D-455 / UD-14 (answered 2026-09-29, option (b)): a successful rotation of either RDS master
+# secret forces a new deployment of both API services, which is the only thing that makes the
+# tasks re-read the password (ECS resolves container secrets once, at task start). The module
+# header carries the full reasoning; a failed restart pages on the D-401 paging topic.
+module "rotation_restart" {
+  source      = "../../modules/rotation-restart"
+  name_prefix = var.name_prefix
+  account_id  = data.aws_caller_identity.current.account_id
+  region      = var.aws_region
+
+  secret_arns = [
+    module.rds_postgres.master_user_secret_arn,
+    module.rds_mysql.master_user_secret_arn,
+  ]
+
+  ecs_cluster_name = aws_ecs_cluster.this.name
+  ecs_cluster_arn  = aws_ecs_cluster.this.arn
+  # Both, on either secret: each app holds credentials for both databases. The ops task is
+  # absent on purpose - its `run-task` launches resolve the secret afresh every run.
+  #
+  # Constructed strings (the `ecs-service` module's "<name_prefix>-<name>"), not
+  # `module.ecs_service_*.service_name`, deliberately - the same choice as `scheduled_jobs`'
+  # constructed ops-task ARN above. The output reference makes this module depend on
+  # `aws_ecs_service` and through it on `aws_ecs_task_definition`, and `-target` always includes
+  # dependencies: the targeted apply of this module then also replaced both API task
+  # definitions (ARCH-34-REVISION-DRIFT). A wrong name here is not silent - UpdateService fails,
+  # the handler raises, and the Errors alarm pages at the first rotation.
+  service_names = [
+    "${var.name_prefix}-learning-api",
+    "${var.name_prefix}-chat-api",
+  ]
+
+  pass_role_arns = [
+    module.iam.task_execution_role_arn,
+    module.iam.task_role_arn,
+  ]
+
+  alerts_topic_arn = module.observability.sns_topic_arn
+
+  tags = local.common_tags
+}

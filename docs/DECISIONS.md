@@ -32228,3 +32228,62 @@ design: `CurrentStderrHandler` resolves the same `sys.stderr` a container always
 UD-2, `D310-RESIDUALS` on a user action, `WORK-35-LEDGER` on UD-2). The next engineering work
 is unlocked by a user decision — UD-14 (the RDS rotation returns 2026-10-02), UD-15, UD-2, or
 UD-16's marked review sheet — or by a new discovery.
+
+## D-488 — UD-14 answered: restart-on-rotation is automated (EventBridge → Lambda → forced deployment of both API services), applied to staging and proven with an on-demand rotation (accepted, 2026-09-29)
+
+**The user decision (2026-09-29).** With the execution queue empty, the coordinator put UD-14
+to the user with the four D-455 options and a recommendation; **the user chose (b), automate
+restart-on-rotation.** The rotation cadence, the AWS-managed secrets, the task definitions and
+the deploy workflow are unchanged; the trigger is the rotation event only.
+
+**Built under the Orca model** (sixth task: `run_97e72c1a271b`, `task_e38d06123ba3`,
+`ctx_4d8836f7a6e5`; receipt `requested == effective`, Claude Opus 5.5 high; Frozen Spec
+`tasks/rotation-restart-automation.md`, two coordinator revisions, deleted after
+reconciliation). `terraform/modules/rotation-restart`: an EventBridge rule on Secrets Manager's
+`RotationSucceeded` **service** event (`AWS Service Event via CloudTrail`, delivered through the
+account's multi-region trail) scoped to the two RDS secret ARNs by
+`additionalEventData.SecretId`; a 128 MB Python 3.12 Lambda that calls
+`UpdateService(forceNewDeployment=True)` on both API services, attempts every service even
+after a failure, logs service names only, and raises so a failure is countable; an IAM role
+with `aws:SourceAccount` on the trust policy and an inline policy limited to
+`ecs:UpdateService` on the two service ARNs, `iam:PassRole` on the task execution/task roles
+for `ecs-tasks.amazonaws.com`, and its own log streams; a Terraform-owned 14-day log group; an
+`Errors ≥ 1` alarm on the **paging** topic (D-401) — a rotation that did not restart the
+tasks is the D-455 outage re-armed for a week. Both services restart on either secret because
+each app holds both databases' credentials; the ops task is out of scope (`run-task` resolves
+secrets per launch).
+
+**Two conflicts the executor returned instead of resolving.** (1) `archive_file` needs
+`hashicorp/archive`, absent from the lock file → Revision 1: declared in the module, `terraform
+init` without `-upgrade`, the lock gains exactly that provider block. (2) The untargeted plan
+showed **three `aws_ecs_task_definition` replacements** — the known `ARCH-34-REVISION-DRIFT`
+(state holds `:154`/`:152`/`:144` while the services run `:161`/`:159`; D-244's image data
+source now resolves to `gha-2875bc68a472`) — and a `-target` plan pulled them in through
+`module.ecs_service_*.service_name` → Revision 2: constructed service names (the
+`scheduled_jobs` precedent), so the targeted plan is exactly the module. **The drift is
+reported here and untouched**: any untargeted apply would replace those task definitions, so
+the next terraform session must reconcile ARCH-34 first or keep targeting.
+
+**Verification.** Executor and coordinator independently: `fmt`/`validate` clean, targeted
+plan **8 to add / 0 to change / 0 to destroy**, handler `ruff` clean + 3 unit tests, `make
+lint typecheck` green. CloudTrail history read before the spec confirmed the event shape (both
+2026-09-24 rotations: `AwsServiceEvent`, `secretsmanager.amazonaws.com`, full ARN in
+`SecretId`).
+
+**Applied and proven live (coordinator, 2026-09-29).** `terraform apply -target=module.
+rotation_restart` from a saved plan: 8 added, 0 changed, 0 destroyed. Then an on-demand
+rotation of the Postgres master secret (`aws rds modify-db-instance
+--rotate-master-user-password --apply-immediately`) at **20:33:00Z**: the Lambda fired at
+≈20:34:45Z (105 s later) with both `UpdateService` calls `ok` (one invocation, 3.2 s), both
+services opened a forced deployment at 20:34:45/46Z, both rollouts **COMPLETED in 195 s**, all
+three API tasks now started at 15:35:41 / 15:36:18 / 15:35:50 CDT — after the rotation; a
+fresh anonymous stream connect (a checkpoint `SELECT` over a new connection with the new
+password) answered its normal 404; `InvalidPasswordError` **0** in both app log groups since
+the rotation. The D-455 failure mode is closed on staging: the next scheduled rotation
+(≈2026-10-02, and every one after) heals itself, and a failure pages.
+
+**Documentation.** UD-14 leaves `PROJECT_STATE` §5 (answered → this entry); §8's rotation
+bullet becomes the automated posture; ARCHITECTURE's credential paragraph and
+INCIDENT_RESPONSE's first response now name the automation and keep the manual command as
+the fallback when the `Errors` alarm pages. Nothing in `docs/` records a secret value; the
+lock file's `h1:` hash is the local `darwin_arm64` one (no CI runs terraform).
