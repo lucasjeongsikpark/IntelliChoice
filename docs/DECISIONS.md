@@ -32287,3 +32287,16 @@ bullet becomes the automated posture; ARCHITECTURE's credential paragraph and
 INCIDENT_RESPONSE's first response now name the automation and keep the manual command as
 the fallback when the `Errors` alarm pages. Nothing in `docs/` records a secret value; the
 lock file's `h1:` hash is the local `darwin_arm64` one (no CI runs terraform).
+
+## D-489 — out-of-band dependency bump: pyjwt 2.13.0 → 2.15.1 for CVE-2026-102274, landed through the D-488 PR (accepted, 2026-09-29)
+
+`python-dependency-audit` went red on PR #486 (the D-488 Terraform PR): **CVE-2026-102274 /
+GHSA-w6j9-cwv2-h6wq**, pyjwt 2.13.0, fixed in 2.14.0, published 2026-09-28. The D-457 class
+exactly — a new advisory with a fixed release, transitive-or-direct irrelevant — so the
+mechanical response applies: `uv lock --upgrade-package pyjwt` moved the lock to **2.15.1**
+(3 lock lines, nothing else changed), `uv sync --all-packages`, local `pip-audit` clean apart
+from the standing D-474 ignore, the auth/token tests green (15 passed). Exposure was low
+regardless: the defect is `PyJWKSet` aborting on a malformed RSA JWK in a key set, and this
+project verifies HS256 tokens with a shared secret (D-085) and never parses a JWK Set. Landed in
+the same PR rather than a separate one because the audit blocks the merge, as it did in D-457;
+the pyproject constraint `pyjwt>=2.9` needed no change.
