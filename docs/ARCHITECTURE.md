@@ -2532,8 +2532,12 @@ every *new* DB connection while established pooled connections keep working. The
 signature is intermittent `InvalidPasswordError` 500s that worsen under load after a quiet
 deploy-free stretch; the mitigation is a forced ECS redeploy of both services. One-off
 `run-task` jobs (the nightly three, ops tasks) resolve the secret per launch and are immune.
-The durable posture (disable rotation / automate restart-on-rotation / accept the manual
-restart) is UD-14, deliberately open.
+The durable posture was decided 2026-09-29 (UD-14 → D-488): **restart-on-rotation is
+automated** — `terraform/modules/rotation-restart` puts an EventBridge rule on Secrets Manager's
+`RotationSucceeded` service event (via the account's CloudTrail trail) for both secret ARNs, and
+a 128 MB Lambda forces a new deployment of both API services; its `Errors` alarm pages on the
+D-401 topic, and the manual forced redeploy remains the fallback. Proven with an on-demand
+rotation: Lambda in 105 s, both rollouts complete in 195 s, no `InvalidPasswordError`.
 
 The VPC's baseline posture is **no internet egress** (reframed 2026-08-20, D-424): every AWS
 dependency an ECS task actually needs — ECR, CloudWatch Logs, Secrets Manager, Bedrock, X-Ray, and
