@@ -32367,3 +32367,19 @@ as new more often, spending output tokens dedup then discards? — is unmeasured
 UD-2). `MEMORY-CONSOLIDATION-DEFECTS` therefore keeps only that unmeasured arm; every engineering
 item on the row is closed. Implemented locally; **not deployed** until the next manual deploy
 (LB-05).
+
+## D-491 — out-of-band dependency bumps: urllib3 2.7.0 → 2.8.0 (CVE-2026-97687/97688/97689) and undici 8.10.0 → 8.11.2 in both web apps, landed through the D-490 PR (accepted, 2026-09-30)
+
+Three audit gates went red on PR #487 (the D-490 PR) overnight — the D-457 class again, new
+advisories with fixed releases, so the mechanical response applies as in D-489:
+`python-dependency-audit`: **urllib3 2.7.0**, CVE-2026-97687 / -97688 / -97689, fixed in
+2.8.0 → `uv lock --upgrade-package urllib3` (3 lock lines), `uv sync --all-packages`, local
+`pip-audit` "No known vulnerabilities found, 1 ignored" (the standing D-474 nltk ignore);
+urllib3 sits under botocore/requests and both import cleanly at 2.8.0.
+`learning-web-` and `chat-web-dependency-audit`: **undici 8.0.0–8.10.1** (one `high` GHSA batch
+of eleven — DoS, cache poisoning, TLS-option drop in BalancedPool), reachable only through
+`jsdom@30.0.1`, a **test-time** dependency — `npm audit fix` moved each lock to **8.11.2**
+(5 and 3 lock lines; `package.json` unchanged), `npm audit --audit-level=high` 0
+vulnerabilities, vitest 34/34 in each app. Exposure was nil in the shipped bundles (undici is
+not in either build) and low in Python (urllib3 is used against AWS endpoints over TLS from
+inside the VPC); landed in the same PR because the audit gates block the merge.

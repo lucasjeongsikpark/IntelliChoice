@@ -20,3 +20,7 @@ corrected by the coordinator after the run.
 Handoff: `MEMORY-CEILING-STILL-SATURATED` closed; `MEMORY-CONSOLIDATION-DEFECTS` keeps only the
 unmeasured real-model arm (UD-2). UD-15 leaves §5. Execution queue still empty. Repository
 changes uncommitted at this entry; not deployed (LB-05).
+
+Landing (2026-09-30): PR #487; three audit gates red overnight — urllib3 2.7.0 (three CVEs,
+fixed 2.8.0) and undici 8.10.0 under jsdom in both web apps — bumped in the same PR (D-491),
+local pip-audit / npm audit clean, vitest 34/34 each.
