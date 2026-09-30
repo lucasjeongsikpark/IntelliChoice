@@ -32383,3 +32383,29 @@ of eleven — DoS, cache poisoning, TLS-option drop in BalancedPool), reachable 
 vulnerabilities, vitest 34/34 in each app. Exposure was nil in the shipped bundles (undici is
 not in either build) and low in Python (urllib3 is used against AWS endpoints over TLS from
 inside the VPC); landed in the same PR because the audit gates block the merge.
+
+## D-492 — D-490/D-491 landed (PR #487, `2a991b6` / `21cc8c6`) and deployed as `gha-21cc8c673958`; the bounded consolidation payload is live (accepted, 2026-09-30)
+
+**Landing and deploy.** `land/d490-memory-ceiling-bound` → PR #487; the first check run went
+6/9 with the three dependency audits red on advisories published overnight (D-491), the second
+9/9; rebase-merged as **`2a991b6`** (D-490) + **`21cc8c6`** (D-491). `gh workflow run
+deploy-staging.yml --ref main`, run **36746438711**, 16:44 → 17:04 UTC 2026-09-30, every step
+green (Alembic no-op), canary bake without an alarm breach, rollback skipped, deployed-image
+consistency gate green. Post-deploy read: learning 2/2 on `:162` (tasks 11:54:58 / 11:55:28
+CDT), chat 1/1 on `:160` (11:58:15 CDT), ops-task `:154`, all on `gha-21cc8c673958`;
+`GET /me` → 401 JSON through CloudFront; both SPA roots 200; `InvalidPasswordError` /
+`Traceback` / `TooManyConnections` 0 / 0 / 0 in all three log groups since dispatch.
+
+**What is now live that was not.** Consolidation sends at most 11 existing facts and never
+requests more than 3,968 output tokens, so D-471's truncating cohort (~26 facts → 5,888
+requested, clamped, 8/8 truncated) can no longer truncate on payload size. The first weekly
+`memory-consolidate` run after this deploy is the live confirmation: expect
+`memory_consolidation_payload_bounded` INFO lines for that cohort and no
+`memory_consolidation_truncated` counter movement from payload size — a read to take, not a
+gate (nothing in the queue depends on it).
+
+**Where the project stands.** `PROJECT_STATE` §4.4 stays **empty**; the remaining §4 rows are
+user-gated (`MEMORY-CONSOLIDATION-DEFECTS` on UD-2 only now, `D310-RESIDUALS`,
+`WORK-35-LEDGER`). Next engineering work is unlocked by UD-2, UD-16's marked review sheet, the
+ARCH-34 drift reconciliation before any untargeted Terraform apply, or a new discovery. The
+automated rotation restart (D-488) meets its first scheduled rotation ≈ 2026-10-02.

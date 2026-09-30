@@ -24,3 +24,6 @@ changes uncommitted at this entry; not deployed (LB-05).
 Landing (2026-09-30): PR #487; three audit gates red overnight — urllib3 2.7.0 (three CVEs,
 fixed 2.8.0) and undici 8.10.0 under jsdom in both web apps — bumped in the same PR (D-491),
 local pip-audit / npm audit clean, vitest 34/34 each.
+Second check run 9/9; rebase-merged `2a991b6` + `21cc8c6`; deploy run 36746438711 green
+16:44 → 17:04 UTC, learning `:162` 2/2, chat `:160` 1/1, ops-task `:154`, all
+`gha-21cc8c673958`; `/me` 401, SPA roots 200, 0/0/0 failure signatures. D-492.
