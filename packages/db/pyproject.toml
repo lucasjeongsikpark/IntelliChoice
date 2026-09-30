@@ -7,7 +7,7 @@ dependencies = [
     "asyncpg>=0.30",
     "alembic>=1.19.1",
     "pgvector>=0.3",
-    "pydantic>=2.9",
+    "pydantic>=2.13.5",
     # AUD-C-21/D-166: only for policy constants (`access_probe_policy`). `intellichoice-shared`
     # depends on nothing but pydantic and imports nothing from here, so this is one-directional
     # and cannot cycle. Do not let it become a route for anything but shared constants.

@@ -10,7 +10,7 @@ dependencies = [
     # printable. The ops-task runs `loader` in ECS, so its stdout is already in CloudWatch -
     # it was simply unstructured, which is the difference between a log and a record.
     "intellichoice-observability",
-    "pydantic>=2.9",
+    "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
     "pyyaml>=6.0",
     "sympy>=1.13",

@@ -6,7 +6,7 @@ dependencies = [
     "intellichoice-db",
     "intellichoice-shared",
     "intellichoice-adapters",
-    "pydantic>=2.9",
+    "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
 ]
 
