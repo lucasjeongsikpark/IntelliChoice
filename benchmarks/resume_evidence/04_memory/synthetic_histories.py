@@ -171,8 +171,11 @@ class CorpusConfig:
     chat_turn_share: float = 0.20
     catalog_skills: int = 30
     # 30 skills, at most one live fact per (fact_type, skill) - so a student with facts on
-    # many skills can cross `MemoryUpdateResponse.MAX_SAFE_EXISTING_FACTS` (21), which is
-    # the `memory_consolidation_payload_oversized` condition. Measured rather than assumed.
+    # many skills can cross `MemoryUpdateResponse.MAX_SAFE_EXISTING_FACTS` (11 since D-467;
+    # was 21). Since D-490 the product bounds the *sent* payload to that many facts and logs
+    # `memory_consolidation_payload_bounded`; this harness's oversized-window metric counts
+    # the student's *live* facts, so it measures how often the bound fires, not whether the
+    # sent payload is over budget. Measured rather than assumed.
     planted_skills_per_student: int = 6
     filler_skills_per_student: int = 8
     heavy_tail_students: int = 10

@@ -2098,6 +2098,19 @@ one transaction a later-added fact sorted as older. Cross-type demotion (a `weak
 an active `strength`) was offered and **not** chosen (user, 2026-09-23); recency-first is the
 whole of the served-fact rule.
 
+**The consolidation input is bounded, not the whole store (D-490, user decision UD-15,
+2026-09-29).** `_consolidate_one_batch` sends the student's **11 most recently confirmed** live
+facts (`MemoryUpdateResponse.MAX_SAFE_EXISTING_FACTS`), sorted in `consolidation.py` by
+`last_confirmed_at`, then confidence, then id — `list_facts_for_student` itself has no `ORDER BY`
+— and derives the output budget from that bounded list, so the budget never exceeds
+`max_output_tokens_for(11)` = 3,968 and the gateway's 4,000-token ceiling can no longer clamp a
+consolidation response into truncation (D-467's fail-closed path remains for anything else).
+Dropping facts logs one INFO `memory_consolidation_payload_bounded` with three counts and no
+ids. Bounding loses nothing: apply time matches `facts_to_add` against the database
+(`find_live_fact`), so an unsent fact is still reconfirmed or contradicted; what an unsent fact
+cannot receive is a model-issued `facts_to_update` / `facts_to_expire`, and it ages out through
+retention instead. The system prompt tells the model the list is bounded.
+
 ```mermaid
 flowchart LR
     EVENTS["learning_events rows<br/>(session-scoped or<br/>window-scoped)"] --> RENDER["render_event_summary<br/>(code-owned, deterministic;<br/>chat_turn also joins in<br/>tutor_chat_messages' redacted<br/>text, D-074 #5)"]

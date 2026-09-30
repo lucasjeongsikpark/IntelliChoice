@@ -8,18 +8,22 @@ contradiction demotion/supersession, and PII/enum screens.
 """
 
 import asyncio
+import json
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 import pytest
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
+from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
 from intellichoice_adapters.bedrock.provider import RawGeneration
 from intellichoice_db.engine import create_engine
 from intellichoice_db.models.curriculum import Skill, Topic
 from intellichoice_db.models.mastery import Mastery
-from intellichoice_db.models.memory import LearningEvent
+from intellichoice_db.models.memory import LearningEvent, SemanticMemory
 from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.mastery import MasteryRepository
 from intellichoice_db.repositories.memory import MemoryRepository
@@ -30,6 +34,7 @@ from intellichoice_memory.consolidation import (
     _MAX_EVENT_CHARS_PER_CALL,
     _MAX_EVENT_TOKENS_PER_CALL,
     _SYSTEM_PROMPT,
+    ConsolidationResult,
     _batch_summaries,
     _summary_chars,
     consolidate_student_session,
@@ -105,10 +110,18 @@ class _FakeGateway:
         # derived from the input rather than fixed. Discarding it is how a dead cap
         # survives (AUD-X-09).
         self.max_output_tokens_seen: list[int | None] = []
+        # UD-15: the `existing_facts` ids each call was shown, so a test can tell a fact
+        # the model never saw from one it saw and ignored.
+        self.existing_fact_ids_seen: list[list[str]] = []
 
     async def generate_structured(self, *, task: BedrockTask, **kwargs) -> BedrockGenerationResult:
         del task
         self.max_output_tokens_seen.append(kwargs.get("max_output_tokens"))
+        payload = kwargs.get("payload")
+        if payload is not None:
+            self.existing_fact_ids_seen.append(
+                [fact.semantic_memory_id for fact in payload.existing_facts]
+            )
         outcome = self._outcomes.pop(0)
         if isinstance(outcome, BedrockGatewayError):
             raise outcome
@@ -1176,6 +1189,323 @@ def test_consolidation_sends_a_fact_count_derived_budget() -> None:
             assert budget_for(1) > budget_for(0)
 
     asyncio.run(run())
+
+
+# --- UD-15: the payload is bounded to the most recently confirmed facts ------------------
+#
+# D-467 made `MAX_SAFE_EXISTING_FACTS` honest (11) and D-471 measured what happens past it: a
+# ~26-fact student derives a 5,888-token budget, the gateway clamps it to 4,000, and 8/8 calls
+# truncated. The user's decision (UD-15) is to send only the N most recently confirmed facts;
+# older ones are still reconciled at apply time (`find_live_fact` reads the database, not the
+# payload) and age out through retention. These tests pin the three halves of that: what is
+# sent, what the store does with a fact that was not sent, and what gets logged.
+
+_BOUND = MemoryUpdateResponse.MAX_SAFE_EXISTING_FACTS
+_CONSOLIDATION_LOGGER = "intellichoice_memory.consolidation"
+
+
+async def _seed_live_facts(
+    session: AsyncSession,
+    seed: Seed,
+    count: int,
+    *,
+    fact_type: str = "weak_skill",
+    polarity: str = "negative",
+    tie_at: int | None = None,
+) -> list[SemanticMemory]:
+    """`count` active facts on `count` distinct skills, fact `i` confirmed `i` hours after a
+    fixed base - so index `count - 1` is the most recent. Returned in index order.
+
+    **Inserted out of recency order on purpose** (evens, then odds). `list_facts_for_student`
+    has no `ORDER BY`, so a payload that merely followed insertion/heap order would pass a
+    test that seeded oldest-first; this order is neither recency nor its reverse.
+
+    `tie_at`: fact `tie_at` gets fact `tie_at + 1`'s timestamp and a higher confidence, so
+    the pair straddling the cut is decided by the confidence tiebreak alone.
+    """
+    curriculum = CurriculumRepository(session)
+    memory_repo = MemoryRepository(session)
+    base = datetime(2026, 9, 1, tzinfo=UTC)
+    skills = [seed.skill_id] + [
+        (
+            await curriculum.create_skill(Skill(topic_id=seed.topic_id, name=f"bounded_skill_{i}"))
+        ).skill_id
+        for i in range(1, count)
+    ]
+    facts: dict[int, SemanticMemory] = {}
+    for i in [*range(0, count, 2), *range(1, count, 2)]:
+        confirmed_at = base + timedelta(hours=i + 1 if i == tie_at else i)
+        facts[i] = await memory_repo.add_fact(
+            SemanticMemory(
+                student_external_id=STUDENT_ID,
+                fact_type=fact_type,
+                topic_id=seed.topic_id,
+                skill_id=skills[i],
+                fact_text="May need extra support with this skill.",
+                structured_value={"polarity": polarity},
+                confidence=0.9 if i == tie_at else 0.6,
+                evidence_event_ids=[f"seed-{i}"],
+                status="active",
+                first_observed_at=confirmed_at,
+                last_confirmed_at=confirmed_at,
+            )
+        )
+    return [facts[i] for i in range(count)]
+
+
+class _RecordingMockProvider:
+    """The real `MockBedrockProvider`, with the wire recorded: what the gateway actually
+    handed the provider (the serialized payload and the clamped budget), not what the caller
+    asked for. The mock ignores `max_output_tokens`, so a 5,888-token ask would "succeed"
+    here too - the recorded budget is how this double tells the two apart.
+    """
+
+    def __init__(self) -> None:
+        self._inner = MockBedrockProvider()
+        self.payloads: list[dict] = []
+        self.max_output_tokens_seen: list[int] = []
+
+    async def raw_generate(self, **kwargs) -> RawGeneration:
+        self.payloads.append(json.loads(kwargs["user_message"]))
+        self.max_output_tokens_seen.append(kwargs["max_output_tokens"])
+        return await self._inner.raw_generate(**kwargs)
+
+
+def _bounded_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    return [r for r in caplog.records if r.getMessage() == "memory_consolidation_payload_bounded"]
+
+
+def _bounded_counts(record: logging.LogRecord) -> tuple[int, int, int]:
+    """(existing, sent, dropped) - read through `vars` because `extra=` fields are set on the
+    record dynamically and are not attributes `LogRecord` declares."""
+    fields = vars(record)
+    return (
+        fields["existing_fact_count"],
+        fields["sent_fact_count"],
+        fields["dropped_fact_count"],
+    )
+
+
+def test_a_26_fact_student_is_sent_only_the_11_most_recently_confirmed(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Required behaviour 1, through the real gateway and the real mock provider: D-471's
+    cohort size, bounded to `MAX_SAFE_EXISTING_FACTS`, newest first, ties by confidence."""
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            # Facts 14 and 15 share a timestamp; 14 has the higher confidence, so it - not
+            # 15 - is the 11th fact sent. Without the tiebreak the cut is arbitrary.
+            facts = await _seed_live_facts(session, seed, 26, tie_at=14)
+            expected = [f.semantic_memory_id for f in reversed(facts[16:])] + [
+                facts[14].semantic_memory_id
+            ]
+            event = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s1")
+
+            provider = _RecordingMockProvider()
+            gateway = ResilientBedrockGateway(
+                provider=provider,
+                model_registry={BedrockTask.MEMORY_CONSOLIDATION: "anthropic.claude-test"},
+                max_retries=0,
+            )
+            with caplog.at_level(logging.INFO, logger=_CONSOLIDATION_LOGGER):
+                result = await consolidate_student_window(
+                    memory_repo=memory_repo,
+                    mastery_repo=MasteryRepository(session),
+                    tutor_chat_repo=TutorChatMessageRepository(session),
+                    gateway=gateway,
+                    student_external_id=STUDENT_ID,
+                    window_start=event.occurred_at - timedelta(minutes=1),
+                    window_end=event.occurred_at + timedelta(minutes=1),
+                    session_spend_cents=0.0,
+                )
+
+            assert len(provider.payloads) == 1
+            sent = [f["semantic_memory_id"] for f in provider.payloads[0]["existing_facts"]]
+            assert sent == expected
+            assert provider.max_output_tokens_seen == [
+                MemoryUpdateResponse.max_output_tokens_for(_BOUND)
+            ]
+            assert MemoryUpdateResponse.max_output_tokens_for(_BOUND) < 4000
+            assert result.calls_attempted == 1
+            assert result.calls_failed == 0
+
+            (record,) = _bounded_records(caplog)
+            assert _bounded_counts(record) == (26, _BOUND, 26 - _BOUND)
+
+    asyncio.run(run())
+
+
+def test_at_or_below_the_bound_the_payload_is_unchanged_and_nothing_is_logged(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Required behaviour 2: exactly `MAX_SAFE_EXISTING_FACTS` live facts - every one sent,
+    the budget derived from all of them, and no bounded event (nothing was dropped)."""
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            facts = await _seed_live_facts(session, seed, _BOUND)
+            event = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s1")
+
+            gateway = _FakeGateway([MemoryUpdateResponse()])
+            with caplog.at_level(logging.INFO, logger=_CONSOLIDATION_LOGGER):
+                await consolidate_student_window(
+                    memory_repo=memory_repo,
+                    mastery_repo=MasteryRepository(session),
+                    tutor_chat_repo=TutorChatMessageRepository(session),
+                    gateway=gateway,
+                    student_external_id=STUDENT_ID,
+                    window_start=event.occurred_at - timedelta(minutes=1),
+                    window_end=event.occurred_at + timedelta(minutes=1),
+                    session_spend_cents=0.0,
+                )
+
+            (seen,) = gateway.existing_fact_ids_seen
+            assert sorted(seen) == sorted(f.semantic_memory_id for f in facts)
+            assert gateway.max_output_tokens_seen == [
+                MemoryUpdateResponse.max_output_tokens_for(_BOUND)
+            ]
+            assert _bounded_records(caplog) == []
+
+    asyncio.run(run())
+
+
+def test_a_fact_left_out_of_the_bounded_payload_is_still_reconciled_not_duplicated() -> None:
+    """Required behaviour 3. The oldest fact is not sent, the model (never having seen it)
+    proposes the same skill as a NEW fact - first agreeing, then contradicting - and apply
+    time still finds the live row in the database: reconfirmed, then demoted, never a second
+    live row. This is why bounding the payload cannot create duplicates."""
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            # `hint_dependence`: model-chosen polarity, so the same fact type can contradict.
+            facts = await _seed_live_facts(
+                session, seed, _BOUND + 1, fact_type="hint_dependence", polarity="negative"
+            )
+            oldest = facts[0]
+            events = [
+                await _add_event(memory_repo, skill_id=seed.skill_id, session_id=f"s{i % 2}")
+                for i in range(3)
+            ]
+            event_ids = [e.event_id for e in events]
+
+            def candidate(polarity: Literal["positive", "negative"]) -> MemoryUpdateResponse:
+                return MemoryUpdateResponse(
+                    facts_to_add=[
+                        MemoryFactCandidate(
+                            fact_type="hint_dependence",
+                            skill_id=seed.skill_id,
+                            fact_text="Often asks for a hint on this skill.",
+                            polarity=polarity,
+                            confidence=0.7,
+                            supporting_event_ids=event_ids,
+                        )
+                    ]
+                )
+
+            async def consolidate(
+                response: MemoryUpdateResponse,
+            ) -> tuple[_FakeGateway, ConsolidationResult]:
+                gateway = _FakeGateway([response])
+                result = await consolidate_student_window(
+                    memory_repo=memory_repo,
+                    mastery_repo=MasteryRepository(session),
+                    tutor_chat_repo=TutorChatMessageRepository(session),
+                    gateway=gateway,
+                    student_external_id=STUDENT_ID,
+                    window_start=events[0].occurred_at - timedelta(minutes=1),
+                    window_end=events[-1].occurred_at + timedelta(minutes=1),
+                    session_spend_cents=0.0,
+                )
+                return gateway, result
+
+            async def rows_for_skill() -> list[SemanticMemory]:
+                every = await memory_repo.list_facts_for_student(
+                    STUDENT_ID, statuses=("active", "provisional", "contested", "superseded")
+                )
+                return [f for f in every if f.skill_id == seed.skill_id]
+
+            # Same direction: the unseen fact is reconfirmed in place.
+            gateway, result = await consolidate(candidate("negative"))
+            assert oldest.semantic_memory_id not in gateway.existing_fact_ids_seen[0]
+            assert (result.added, result.updated) == (0, 1)
+            (row,) = await rows_for_skill()
+            assert row.semantic_memory_id == oldest.semantic_memory_id
+            assert row.confidence == 0.7
+
+            # The reconfirmation made it the NEWEST fact, so it is now sent and the next-
+            # oldest is the one dropped - recency is re-read per call, not frozen.
+            await session.refresh(row)
+            gateway, result = await consolidate(candidate("positive"))
+            assert oldest.semantic_memory_id in gateway.existing_fact_ids_seen[0]
+            assert facts[1].semantic_memory_id not in gateway.existing_fact_ids_seen[0]
+            # Opposite direction against a live fact: demoted, not added alongside.
+            assert (result.added, result.contested) == (0, 1)
+            (row,) = await rows_for_skill()
+            assert row.status == "contested"
+
+    asyncio.run(run())
+
+
+def test_dropping_facts_logs_one_counts_only_info_event(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Required behaviour 4, at the boundary: 12 live facts drops exactly one. The event is
+    INFO (a bounded payload is the designed path now, not a fault), carries counts only, and
+    the old oversize WARNING - a condition that can no longer occur - is gone. AUD-X-11: a
+    bound that logs nothing is a decision nobody can audit."""
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            await _seed_live_facts(session, seed, _BOUND + 1)
+            event = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s1")
+
+            gateway = _FakeGateway([MemoryUpdateResponse()])
+            with caplog.at_level(logging.INFO, logger=_CONSOLIDATION_LOGGER):
+                await consolidate_student_window(
+                    memory_repo=memory_repo,
+                    mastery_repo=MasteryRepository(session),
+                    tutor_chat_repo=TutorChatMessageRepository(session),
+                    gateway=gateway,
+                    student_external_id=STUDENT_ID,
+                    window_start=event.occurred_at - timedelta(minutes=1),
+                    window_end=event.occurred_at + timedelta(minutes=1),
+                    session_spend_cents=0.0,
+                )
+
+            (record,) = _bounded_records(caplog)
+            assert record.levelno == logging.INFO
+            assert _bounded_counts(record) == (_BOUND + 1, _BOUND, 1)
+            # Counts only: no student id, fact id or fact text anywhere on the record.
+            # `message`/`asctime` are added by the capture handler's formatter, not the caller.
+            standard = set(vars(logging.makeLogRecord({}))) | {"message", "asctime"}
+            extras = {k: v for k, v in vars(record).items() if k not in standard}
+            assert set(extras) == {"existing_fact_count", "sent_fact_count", "dropped_fact_count"}
+            assert all(isinstance(v, int) for v in extras.values())
+
+            # ...and nothing at WARNING or above: the oversize warning this replaced is gone.
+            assert [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING] == []
+            assert gateway.max_output_tokens_seen == [
+                MemoryUpdateResponse.max_output_tokens_for(_BOUND)
+            ]
+
+    asyncio.run(run())
+
+
+def test_the_model_is_told_the_existing_fact_list_is_bounded() -> None:
+    """D4: under the mock this is inert, but the real model must not read an unlisted fact
+    as an absent one. The D-472 polarity wording stays intact alongside it."""
+    assert "most recently confirmed" in _SYSTEM_PROMPT
+    assert "not listed" in _SYSTEM_PROMPT
+    assert "Polarity is how the system detects" in _SYSTEM_PROMPT
 
 
 # ---------------------------------------------------------------------------
