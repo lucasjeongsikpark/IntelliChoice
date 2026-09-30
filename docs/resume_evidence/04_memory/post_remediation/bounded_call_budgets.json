@@ -1,0 +1,34 @@
+{
+  "measured_at": "harness MeteringGateway.generate_structured (pre-gateway, requested budget)",
+  "max_safe_existing_facts": 11,
+  "max_output_tokens_for_max_safe": 3968,
+  "gateway_hard_max_output_tokens": 4000,
+  "calls_total": 3135,
+  "calls_with_max_output_tokens_over_max_output_tokens_for_11": 0,
+  "calls_with_max_output_tokens_over_4000": 0,
+  "calls_with_sent_existing_facts_over_11": 0,
+  "max_output_tokens_max_observed": 3968,
+  "sent_existing_facts_max_observed": 11,
+  "calls_at_the_bound": 1997,
+  "max_output_tokens_histogram": {
+    "2560": 1000,
+    "3200": 2,
+    "3328": 1,
+    "3456": 6,
+    "3584": 15,
+    "3712": 27,
+    "3840": 87,
+    "3968": 1997
+  },
+  "sent_existing_facts_histogram": {
+    "0": 1000,
+    "5": 2,
+    "6": 1,
+    "7": 6,
+    "8": 15,
+    "9": 27,
+    "10": 87,
+    "11": 1997
+  },
+  "harness_exit_code": 0
+}

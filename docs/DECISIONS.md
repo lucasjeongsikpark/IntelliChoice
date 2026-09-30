@@ -32300,3 +32300,70 @@ regardless: the defect is `PyJWKSet` aborting on a malformed RSA JWK in a key se
 project verifies HS256 tokens with a shared secret (D-085) and never parses a JWK Set. Landed in
 the same PR rather than a separate one because the audit blocks the merge, as it did in D-457;
 the pyproject constraint `pyjwt>=2.9` needed no change.
+
+## D-490 — UD-15 answered and built: the consolidation payload is bounded to the 11 most recently confirmed facts; `MEMORY-CEILING-STILL-SATURATED` closed at $0 (accepted, 2026-09-29)
+
+**The user's decision (2026-09-29, UD-15).** Of the three shapes `PROJECT_STATE` §5 offered —
+cap `facts_to_update` to the N most recently confirmed, drop reconfirmations entirely past N, or
+raise this task's ceiling — the user chose the first. This entry records it built and accepted;
+the seventh Orca coordinator/executor task (`run_5daaacbf0616`, Opus 5.5 high, launch receipt
+matched). Evidence report:
+`docs/resume_evidence/04_memory/post_remediation/BOUNDED_REPORT.md`.
+
+**What changed (one product file).** `consolidation.py` sends the student's **11 most recently
+confirmed** live facts (`MAX_SAFE_EXISTING_FACTS`, D-467's honest value) instead of all of them,
+sorted by `(last_confirmed_at desc, confidence desc, semantic_memory_id desc)` and sliced; the
+output budget is derived from that bounded list, so it is at most `max_output_tokens_for(11)` =
+3,968, under the gateway's 4,000 ceiling, and the response can no longer be clamped into
+truncation by payload size (D-467's fail-closed path stays for anything else). The WARNING
+`memory_consolidation_payload_oversized` — a condition that can no longer occur — is replaced by
+an INFO `memory_consolidation_payload_bounded` logged only when facts were dropped, with
+`existing_fact_count` / `sent_fact_count` / `dropped_fact_count` and nothing else: the bound is
+the designed path now, not a fault, but AUD-X-11's rule still holds — a bounded payload that logs
+nothing is a decision nobody can audit, and how often it fires is what tells whether 11 is the
+right size. One sentence appended to `_SYSTEM_PROMPT` tells the model the list is bounded and
+that an unlisted fact must not be assumed absent (+49 tokens per window; inert under the mock
+provider, written for the real model).
+
+**Why bounding cannot lose or duplicate a fact.** Apply time matches every `facts_to_add`
+candidate against the database (`find_live_fact`), not the sent list, so a candidate for an
+unsent fact still reconfirms, promotes, demotes or supersedes it under the polarity protocol —
+pinned by a test that plants the oldest fact outside the sent 11 and asserts one row, updated,
+not two. What the model can no longer do for an unsent fact is name it in `facts_to_update` /
+`facts_to_expire`; those facts age out through retention (UD-7 unchanged), which is the shape the
+user chose.
+
+**Two spec premises the executor corrected, both resolved by a coordinator revision rather than
+absorbed.** (1) The Frozen Spec's D1 said `list_facts_for_student` "already returns
+most-recently-confirmed first" and told the executor to rely on it. **False:** the method has no
+`ORDER BY`; D-472's recency-first rule is `top_fact_for_skill`'s, and D-472 itself says exactly
+that — the error was the spec's reading of D-472, not D-472. Ruled: sort explicitly in
+`consolidation.py`, repository query untouched (six other callers), and a test that inserts facts
+out of recency order pins the cut. (2) The spec's evidence criterion "harness oversized windows
+must be 0" could never be met: the harness's `windows_with_oversized_existing_fact_payload`
+re-reads the student's *live* facts, not the sent payload, so it stays **1,659/3,135** by
+construction and now measures how often the bound fires. Ruled: harness byte-untouched for the
+run; the bound proven instead with an uncommitted scratchpad driver wrapping
+`MeteringGateway.generate_structured` — **0 / 3,135 calls** requested more than 3,968 output
+tokens, maximum observed 3,968, maximum 11 facts sent, 1,997 calls at the bound. The harness's
+stale comment (old event name, `MAX_SAFE = 21`) was corrected by the coordinator after the run.
+
+**Everything else at R6's values** ($0, mock arm + scripted lane, isolated bench database):
+calls 3,135 / 0 failed, `hit_output_ceiling` 0, `polarity_flip` served-correct 985/985, the other
+five scenarios 985/985, lifecycle 6,386 / 11,043, provenance 17,429 all resolving, scripted lane
+400/400. `raw_history_input_tokens_total` moved by exactly +49 × 3,000 windows — the new prompt
+sentence — and the compression median / cumulative-over-ceiling shifts follow arithmetically.
+
+**Verification.** Four of the five new tests shown failing pre-change (the fifth pins the no-op
+at or below the bound); `packages/memory/tests` 70 passed; ruff, ruff format, pyright clean;
+executor `make test` 2307 passed / 2 skipped / 1 xfailed (baseline 2302 + 5). Coordinator review:
+independent ruff/pyright clean and an independent full `make test` on the same tree —
+**2307 passed / 2 skipped / 1 xfailed** in 520 s, identical to the executor's count; Frozen Spec vs
+diff vs evidence compared — no scope expansion, no test weakened
+(one unused import removed), nothing outside Scope touched but the harness comment.
+
+**Still open, honestly.** The real model with a bounded list — does it re-propose unlisted facts
+as new more often, spending output tokens dedup then discards? — is unmeasured (E4 arm A, ~36¢,
+UD-2). `MEMORY-CONSOLIDATION-DEFECTS` therefore keeps only that unmeasured arm; every engineering
+item on the row is closed. Implemented locally; **not deployed** until the next manual deploy
+(LB-05).

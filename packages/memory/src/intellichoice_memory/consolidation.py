@@ -78,7 +78,9 @@ _SYSTEM_PROMPT = (
     "allowed fact types. Set polarity on every fact: 'negative' when the fact describes a "
     "difficulty, gap, weakness, misconception, or dependence; 'positive' when it describes "
     "a strength, an improvement, or something that works for the student. Polarity is how "
-    "the system detects when a new fact contradicts an existing one for the same skill."
+    "the system detects when a new fact contradicts an existing one for the same skill. "
+    "The existing facts shown are the student's most recently confirmed facts and may not "
+    "be all of them; a fact not listed must not be assumed absent."
 )
 
 
@@ -470,7 +472,7 @@ async def _consolidate_events(
             "memory_consolidation_events_dropped",
             extra={
                 # Counts and a reason, no student id - the same floor as
-                # `memory_consolidation_payload_oversized` below.
+                # `memory_consolidation_payload_bounded` below.
                 "events_dropped": events_dropped,
                 "events_total": len(event_summaries),
                 "max_calls_per_student": _MAX_CALLS_PER_STUDENT,
@@ -510,6 +512,28 @@ async def _consolidate_events(
     return totals.as_result()
 
 
+def _most_recently_confirmed(facts: list[SemanticMemory]) -> list[SemanticMemory]:
+    """The `MAX_SAFE_EXISTING_FACTS` live facts the model is asked to reconsider (UD-15).
+
+    D-471: a ~26-fact student derived a 5,888-token output budget, the gateway clamped it to
+    4,000, and every call truncated. Sending only the most recently confirmed facts keeps the
+    derived budget under that ceiling. **Nothing unsent is lost or duplicated**: apply time
+    matches `facts_to_add` against the database (`find_live_fact`), not against this list, so
+    a candidate for an unsent fact still reconfirms or contradicts it; the unsent facts age
+    out through retention instead of being re-litigated every window.
+
+    Sorted here rather than inherited: `list_facts_for_student` has no `ORDER BY`. The key
+    mirrors `top_fact_for_skill`'s (D-472): `last_confirmed_at` first, confidence second, and
+    the id last only so the cut is deterministic.
+    """
+    ranked = sorted(
+        facts,
+        key=lambda fact: (fact.last_confirmed_at, fact.confidence, fact.semantic_memory_id),
+        reverse=True,
+    )
+    return ranked[: MemoryUpdateResponse.MAX_SAFE_EXISTING_FACTS]
+
+
 async def _consolidate_one_batch(
     *,
     memory_repo: MemoryRepository,
@@ -530,6 +554,21 @@ async def _consolidate_one_batch(
     existing_facts = await memory_repo.list_facts_for_student(
         student_external_id, statuses=LIVE_STATUSES
     )
+    sent_facts = _most_recently_confirmed(existing_facts)
+    if len(sent_facts) < len(existing_facts):
+        # UD-15: the bound is the designed path now, not a fault, so INFO rather than a
+        # warning - but it still logs. AUD-X-11's lesson: a bounded payload that logs
+        # nothing is a decision nobody can audit, and how often it fires is what tells
+        # whether `MAX_SAFE_EXISTING_FACTS` is the right size. Counts only, no ids or text -
+        # the floor every other `extra=` in this module keeps.
+        logger.info(
+            "memory_consolidation_payload_bounded",
+            extra={
+                "existing_fact_count": len(existing_facts),
+                "sent_fact_count": len(sent_facts),
+                "dropped_fact_count": len(existing_facts) - len(sent_facts),
+            },
+        )
     existing_payload = [
         MemoryExistingFact(
             semantic_memory_id=fact.semantic_memory_id,
@@ -539,7 +578,7 @@ async def _consolidate_one_batch(
             status=fact.status,
             confidence=fact.confidence,
         )
-        for fact in existing_facts
+        for fact in sent_facts
     ]
 
     payload = MemoryConsolidationPayload(
@@ -548,24 +587,10 @@ async def _consolidate_one_batch(
         allowed_fact_types=sorted(FACT_TYPES),
     )
 
+    # Derived from the bounded payload, so it is at most `max_output_tokens_for(11)` and
+    # always under the gateway's 4,000-token ceiling: the response can no longer be clamped
+    # into truncation by payload size (D-467's fail-closed path stays for anything else).
     max_output_tokens = MemoryUpdateResponse.max_output_tokens_for(len(existing_payload))
-    if len(existing_payload) > MemoryUpdateResponse.MAX_SAFE_EXISTING_FACTS:
-        # The derived budget is above the gateway's hard ceiling, so it will be clamped
-        # and this student's consolidation *can* truncate. Bounding the payload is the
-        # real fix and is a behaviour decision (which facts to drop) - logged rather than
-        # guessed, so it arrives with a count attached. AUD-X-11's lesson: a failure mode
-        # that logs nothing is a failure mode nobody finds.
-        logger.warning(
-            "memory_consolidation_payload_oversized",
-            extra={
-                # A count, not an id: the decision this informs is "should the payload be
-                # bounded", which needs the distribution, not who. Every other `extra=` in
-                # the codebase is counts and reasons; this keeps that floor.
-                "existing_fact_count": len(existing_payload),
-                "max_safe_existing_facts": MemoryUpdateResponse.MAX_SAFE_EXISTING_FACTS,
-                "derived_max_output_tokens": max_output_tokens,
-            },
-        )
 
     totals.calls_attempted += 1
     try:
