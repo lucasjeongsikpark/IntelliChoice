@@ -11,7 +11,7 @@ dependencies = [
     "pydantic-settings>=2.15.0",
     "opentelemetry-api>=1.29",
     "opentelemetry-sdk>=1.29",
-    "opentelemetry-exporter-otlp-proto-http>=1.29",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.0",
     "opentelemetry-instrumentation-fastapi>=0.50b0",
     "opentelemetry-instrumentation-sqlalchemy>=0.50b0",
     # CHECKPOINTER-UNINSTRUMENTED (D-464): `AsyncPostgresSaver` opens its own psycopg connections,
